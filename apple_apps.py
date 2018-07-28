@@ -1,11 +1,17 @@
 #coding=utf-8
 import os
-
 def SafeLoadAssembly(asm):
     try:
         clr.AddReference(asm)
     except:
         pass
+
+#导入app4tests模块,测试时用来指定只跑那些模块
+try:
+    import app4tests
+    from app4tests import *
+except:
+    pass
 
 import clr
 SafeLoadAssembly('System.Core')
@@ -23,6 +29,10 @@ SafeLoadAssembly('apple_sms')
 SafeLoadAssembly('apple_wechat')
 SafeLoadAssembly('apple_qq')
 del clr
+
+APP_FILTERS =[]
+if TestNodes != None:
+    APP_FILTERS.extend(TestNodes)
 
 import time
 import PA_runtime
@@ -142,6 +152,8 @@ def decode_nodes(fs, extract_deleted, extract_source, installed_apps):
         return results #如果不是顶级文件系统,但是没有任何额外属性,则不符合条件(不是顶级文件系统,也不是应用文件系统)
     
     for pattern, func, name,descrip,categories in NODES_BY_REGEX:
+        if len(APP_FILTERS) > 0 and not name in APP_FILTERS:
+            continue
         app_id = apps.get(name, '')
         if not fs.IsTopLevel: #这不是顶级文件系统,那么这是个应用文件系统, 应用文件系统根据Identifier来匹配
             if app_id == '': 
@@ -195,10 +207,11 @@ def run(ds,extract_deleted,progress,canceller):
         ds = DataStore()
     if not progress:
         progress = TaskProgress('',DescripCategories.None,1)
-        
+
     apps_by_identity = create_apps_dictionary(ds)
     results += decode_apps(extract_deleted,False,apps_by_identity)
     for fs in list(ds.GetAllFileSystems()):
-        results += analyze_smss(fs,extract_deleted,False,apps_by_identity)
+        if len(APP_FILTERS) > 0 and  "SMS" in APP_FILTERS:
+            results += analyze_smss(fs,extract_deleted,False,apps_by_identity)
         results += decode_nodes(fs, extract_deleted,False, apps_by_identity)
     return results
