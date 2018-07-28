@@ -6,13 +6,6 @@ def SafeLoadAssembly(asm):
     except:
         pass
 
-#导入app4tests模块,测试时用来指定只跑那些模块
-try:
-    import app4tests
-    from app4tests import *
-except:
-    pass
-
 import clr
 SafeLoadAssembly('System.Core')
 SafeLoadAssembly('PA_runtime')
@@ -28,10 +21,25 @@ SafeLoadAssembly('apple_calls')
 SafeLoadAssembly('apple_sms')
 SafeLoadAssembly('apple_wechat')
 SafeLoadAssembly('apple_qq')
+SafeLoadAssembly('apple_skype')
+SafeLoadAssembly('apple_exts')
 del clr
 
+#导入app4tests模块,测试时用来指定只跑那些模块
+try:
+    #app4tests导入在正式版中记得注释掉(想念c/c++/c#的条件编译!!!)
+    import app4tests    
+    from app4tests import *
+except:
+    pass
+try:
+    import apple_exts    
+    from apple_exts import FIND_BY_APPS_NODES_EXTS,FIND_BY_RGX_NODES_EXTS
+except:
+    pass
+
 APP_FILTERS =[]
-if TestNodes != None:
+if 'TestNodes' in locals():
     APP_FILTERS.extend(TestNodes)
 
 import time
@@ -68,7 +76,7 @@ from apple_qq import analyze_qq
 """
 根据正则表达式匹配解析的应用请在此节点下配置
 """
-NODES_BY_REGEX = [
+FIND_BY_RGX_NODES = [
     ('/DB/MM\.sqlite$', analyze_wechat, "WeChat","微信",DescripCategories.Wechat),
     ("/Library/CallHistoryDB/CallHistory\.storedata$", analyze_call_history, "Calls", "通话记录(系统)",DescripCategories.Calls),#新版本数据库兼容,别忘了老版本数据库!
     ('/PhotoData/Photos\.sqlite$', analyze_locations_from_deleted_photos, "PhotoDB","地理位置信息(已删除照片)",DescripCategories.Locations), #这里只处理照片(已删除)的地理位置信息
@@ -87,11 +95,19 @@ NODES_BY_REGEX = [
     ("/AddressBook$", analyze_addressbook, "AddressBook","通讯录(系统)",DescripCategories.Contacts),
 ]
 
-APPS = [
+"""
+根据应用的标识ID来匹配对应的解析函数
+"""
+FIND_BY_APPS_NODES = [
     ("com.tencent.mqq", analyze_qq, "QQ","QQ(简体)" ,DescripCategories.QQ),
     ("com.tencent.mqqjp", analyze_qq,"QQ", "QQ(日本)" ,DescripCategories.QQ),
     ("com.tencent.mqqi", analyze_qq, "QQ","QQ(国际)" ,DescripCategories.QQ),
 ]
+
+if 'FIND_BY_APPS_NODES_EXTS' in locals():
+    FIND_BY_APPS_NODES.extend(FIND_BY_APPS_NODES_EXTS)
+if 'FIND_BY_RGX_NODES_EXTS' in locals():
+    FIND_BY_RGX_NODES.extend(FIND_BY_APPS_NODES_EXTS)
 
 def create_apps_dictionary(ds):
     apps = {}
@@ -101,7 +117,7 @@ def create_apps_dictionary(ds):
 
 def decode_apps(extract_deleted, extract_source, installed_apps):
     results = ParserResults()
-    for app_id, func, name,descrip,categories in APPS:
+    for app_id, func, name,descrip,categories in FIND_BY_APPS_NODES:
         if app_id in installed_apps:
             prog = progress.GetSubProgress(categories.ToString())
             if prog == None:
@@ -151,7 +167,7 @@ def decode_nodes(fs, extract_deleted, extract_source, installed_apps):
     if not fs.IsTopLevel and (len(fsIdentifer) == 0):
         return results #如果不是顶级文件系统,但是没有任何额外属性,则不符合条件(不是顶级文件系统,也不是应用文件系统)
     
-    for pattern, func, name,descrip,categories in NODES_BY_REGEX:
+    for pattern, func, name,descrip,categories in FIND_BY_RGX_NODES:
         if len(APP_FILTERS) > 0 and not name in APP_FILTERS:
             continue
         app_id = apps.get(name, '')

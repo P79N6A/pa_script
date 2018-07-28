@@ -46,6 +46,7 @@ from PA.InfraLib.Models.Locations import *
 from PA.InfraLib.Models.Contacts import *
 from PA.InfraLib.Models.Generic import *
 from PA.Common.Utilities.Types import *
+from PA.Common.Utilities.Data import Endianity,EndianityReverse
 from PA.Formats.Apple import *
 from PA.Engine import *
 from PA.Engine.Python import *
