@@ -482,7 +482,7 @@ class WeChatParser:
             xs=Enumerable.ToList[XElement](xs)
         except Exception, e:# 错误的xml?
             return result
-#xe.Element("DisplayName").Value
+
         for username, display_name in [(tg.Attribute('UserName').Value, tg.Element("DisplayName").Value if tg.Element("DisplayName") else None) for tg in xs]:
             p = Party()
             p.Deleted = participants_details.Deleted

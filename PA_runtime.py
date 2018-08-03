@@ -26,6 +26,7 @@ from collections import defaultdict, Sequence, namedtuple
 from System.Convert import IsDBNull
 from PA.Formats.KTree import KNodeTools,KNode,KType
 from PA.Formats.Exts import ParserHelperTools
+from PA.Formats.XMLParserHelper import XMLParserTools
 from PA.Common.Logger import TraceService
 from PA.Common.Logger import TraceLevel
 
@@ -77,6 +78,21 @@ def update_app_model(parser_results, installed_apps, app_id):
         for model in parser_results.Models:
             model.AddJumpTarget(app)
             app.AddJumpTarget(model)
+
+def update_name_tag(name, identifier, installed_apps):
+    if identifier is None:
+        return name
+    if identifier in installed_apps:
+        app = installed_apps[identifier]
+        if app.Version.Value:
+            return "{0}_{1}".format(name, app.Version.Value)
+    return name
+
+def create_apps_dictionary(ds):
+    apps = {}
+    for app in ds.Models[InstalledApplication]:
+        apps[app.Identifier.Value] = app
+    return apps
 
 def CreateSourceEvent(node,model):
     SourceEvent.CreateSourceEvent(node,model)

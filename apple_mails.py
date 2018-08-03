@@ -167,9 +167,8 @@ def get_mailboxes(db, mail_dir, extractDeleted, extractSource):
             if d is not None:
                 info = d.GetFirstNode("Info.plist")
                 if info != None and info.Data != None:
-                    info.Data.seek(0)
-                    plist = PList()                
-                    p = plist.Parse(info.Data)
+                    info.Data.seek(0)              
+                    p = PList.Load(info.Data)
                     if p != None:
                         try:
                             uid = p[0]["DAMailboxUid"].Value

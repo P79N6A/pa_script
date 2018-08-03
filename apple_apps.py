@@ -1,5 +1,6 @@
 #coding=utf-8
 import os
+import inspect
 def SafeLoadAssembly(asm):
     try:
         clr.AddReference(asm)
@@ -34,28 +35,13 @@ except:
     pass
 try:
     import apple_exts    
-    from apple_exts import FIND_BY_APPS_NODES_EXTS,FIND_BY_RGX_NODES_EXTS
+    from apple_exts import FIND_BY_APPS_NODES_EXTS,FIND_BY_RGX_NODES_EXTS,run_apple_exts
 except:
     pass
 
 APP_FILTERS =[]
 if 'TestNodes' in locals():
     APP_FILTERS.extend(TestNodes)
-
-import time
-import PA_runtime
-import apple_ab
-import apple_notes
-import apple_locations
-import apple_calenders
-import apple_safari
-import apple_mails
-import apple_recents
-import apple_cookies
-import apple_calls
-import apple_sms
-import apple_wechat
-import apple_qq
 
 from System.Linq import Enumerable
 from PA_runtime import *
@@ -72,16 +58,18 @@ from apple_calls import analyze_call_history
 from apple_sms import analyze_smss
 from apple_wechat import analyze_wechat
 from apple_qq import analyze_qq
+from PA.InfraLib.Services import IApplicationService,ServiceGetter
+
 
 """
 根据正则表达式匹配解析的应用请在此节点下配置
 """
 FIND_BY_RGX_NODES = [
-    ('/DB/MM\.sqlite$', analyze_wechat, "WeChat","微信",DescripCategories.Wechat),
+    ('/DB/MM\.sqlite$', analyze_wechat, "Wechat","微信",DescripCategories.Wechat),
     ("/Library/CallHistoryDB/CallHistory\.storedata$", analyze_call_history, "Calls", "通话记录(系统)",DescripCategories.Calls),#新版本数据库兼容,别忘了老版本数据库!
     ('/PhotoData/Photos\.sqlite$', analyze_locations_from_deleted_photos, "PhotoDB","地理位置信息(已删除照片)",DescripCategories.Locations), #这里只处理照片(已删除)的地理位置信息
     ("/Library/Cookies$", analyze_cookies, "Cookies","Cookies",DescripCategories.Cookies), 
-    ("/Mail$", analyze_emails, "Emails","邮件(系统)",DescripCategories.Mails),
+    ("/Mail$", analyze_emails, "Mails","邮件(系统)",DescripCategories.Mails),
     ("/Library/Mail/Recents$", analyze_recents,"Recents","通讯录(Recents)",DescripCategories.Recents),	
     ("/Library/Safari$", analyze_safari, "Safari","Safari",DescripCategories.Safari),
     ("/Library/Calendar/Calendar\.sqlitedb$", analyze_calender, "Calendar","日历",DescripCategories.Calenders),
@@ -109,28 +97,31 @@ if 'FIND_BY_APPS_NODES_EXTS' in locals():
 if 'FIND_BY_RGX_NODES_EXTS' in locals():
     FIND_BY_RGX_NODES.extend(FIND_BY_APPS_NODES_EXTS)
 
-def create_apps_dictionary(ds):
-    apps = {}
-    for app in ds.Models[InstalledApplication]:
-        apps[app.Identifier.Value] = app
-    return apps
-
 def decode_apps(extract_deleted, extract_source, installed_apps):
     results = ParserResults()
     for app_id, func, name,descrip,categories in FIND_BY_APPS_NODES:
+        if len(APP_FILTERS) > 0 and not name in APP_FILTERS:
+            TraceService.Trace(TraceLevel.Debug, "由于app4tests.py配置策略,应用{0}将不会被解析".format(name))
+            
+            continue
         if app_id in installed_apps:
             prog = progress.GetSubProgress(categories.ToString())
             if prog == None:
                 prog = TaskProgress(categories.ToString(),categories)
                 progress.AddSubTask(prog)
-            prog.Report(0,'正在分析{0}'.format(descrip))        
+            prog.Reset()
+            prog.Report(1,'正在分析{0}'.format(descrip))        
             try:
                 app = installed_apps[app_id]
                 node = app.AppFileSysNode
                 ds.ApplicationsManager.AddTag(name, app_id)
                 time_start = time.time()
                 TraceService.Trace(TraceLevel.Info, "正在解析应用{0}({1})  节点{2}".format(name, app_id,node.AbsolutePath))
-                parser_results = func(node, extract_deleted, extract_source)
+                if len(inspect.getargspec(func).args) == 4:
+                    groupPathNodes =  ds.GroupContainers
+                    parser_results = func(node,groupPathNodes, extract_deleted, extract_source)
+                else:
+                    parser_results = func(node, extract_deleted, extract_source)
                 parser_results.Categories = categories
                 TraceService.Trace(TraceLevel.Debug, "解析完毕: {0}  耗时: {1}秒  节点: {2}".format(name, time.time() - time_start, node.AbsolutePath))
                 results += parser_results
@@ -155,7 +146,7 @@ def decode_nodes(fs, extract_deleted, extract_source, installed_apps):
         "Emails": "com.apple.mobilemail",
         "VoiceMail": "com.apple.AppStore",
         "Line": "jp.naver.line",
-        "WeChat": "com.tencent.xin",
+        "Wechat": "com.tencent.xin",
         "Copy": "com.copy.agent",
         "GoChat": "com.3g.gochat",
         "VBrowse": "uk.co.bewhere.vbrowse",
@@ -169,6 +160,7 @@ def decode_nodes(fs, extract_deleted, extract_source, installed_apps):
     
     for pattern, func, name,descrip,categories in FIND_BY_RGX_NODES:
         if len(APP_FILTERS) > 0 and not name in APP_FILTERS:
+            TraceService.Trace(TraceLevel.Debug, "由于app4tests.py配置策略,应用{0}将不会被解析".format(name))
             continue
         app_id = apps.get(name, '')
         if not fs.IsTopLevel: #这不是顶级文件系统,那么这是个应用文件系统, 应用文件系统根据Identifier来匹配
@@ -185,7 +177,8 @@ def decode_nodes(fs, extract_deleted, extract_source, installed_apps):
             if prog == None:
                 prog = TaskProgress(categories.ToString(),categories)
                 progress.AddSubTask(prog)
-            prog.Report(0,'正在分析{0}'.format(descrip))        
+            prog.Reset()
+            prog.Report(1,'正在分析{0}'.format(descrip))        
             for node in list(nodes):
                 if firstTime == True:
                     TraceService.Trace(TraceLevel.Info, "[FS:{0}]正在解析{1}".format(fs.Name, descrip))
@@ -202,11 +195,11 @@ def decode_nodes(fs, extract_deleted, extract_source, installed_apps):
                     ds.Add(parser_results)
                 except:
                     traceback.print_exc()
+                    
                     TraceService.Trace(TraceLevel.Error, "解析出错: {0}".format(descrip))
             prog.Report(100,'分析{0}完成'.format(descrip))
             prog.Done()
     return results
-
 
 def run(ds,extract_deleted,progress,canceller): 
     """
@@ -223,11 +216,21 @@ def run(ds,extract_deleted,progress,canceller):
         ds = DataStore()
     if not progress:
         progress = TaskProgress('',DescripCategories.None,1)
-
     apps_by_identity = create_apps_dictionary(ds)
+    
+    # try:
+    #     results += run_apple_exts(ds,extract_deleted,progress,canceller,apps_by_identity)
+    # except:
+    #     pass
+        
+
     results += decode_apps(extract_deleted,False,apps_by_identity)
     for fs in list(ds.GetAllFileSystems()):
         if len(APP_FILTERS) > 0 and  "SMS" in APP_FILTERS:
             results += analyze_smss(fs,extract_deleted,False,apps_by_identity)
         results += decode_nodes(fs, extract_deleted,False, apps_by_identity)
     return results
+
+
+
+
