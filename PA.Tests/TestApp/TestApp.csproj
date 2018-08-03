@@ -153,6 +153,9 @@
     <PackageReference Include="Shaman.Dokan.Base">
       <Version>1.0.0.1</Version>
     </PackageReference>
+    <PackageReference Include="SQLite.CodeFirst">
+      <Version>1.5.1.25</Version>
+    </PackageReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

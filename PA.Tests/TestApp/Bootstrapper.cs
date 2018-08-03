@@ -12,6 +12,9 @@ using PA.InfraLib;
 using System.Threading;
 using System;
 using PA.Common.Logger;
+using PA.Engine;
+using PA.Engine.Python;
+using PA.iPhoneApps.Parsers;
 
 namespace TestApp
 {
@@ -27,6 +30,11 @@ namespace TestApp
             Application.Current.MainWindow.Show();
         }
 
+        internal static IParserProperties[] InstalAppNodes =
+        {
+            new CSharpParserProperties(new string[]{""},new ParserFactory<AppsParser>(), "","Applications","应用列表",DescripCategories.Applications),
+        };
+
         protected override void ConfigureServiceLocator()
         {
             base.ConfigureServiceLocator();
@@ -39,7 +47,6 @@ namespace TestApp
             var pack = CasePackage.FromPath(casePath);
             if(pack!=null)
             {
-                
                 var ds = pack.DataStore; //案例的DataStore对象
                 var progress = pack.Progress; //案例所关联的进度指示上下文
                 var appService = ServiceGetter.Get<IApplicationService>();
@@ -50,6 +57,18 @@ namespace TestApp
                 if (fsMnt != null)
                 {
                     ds.FileSystems.Add(fsMnt);
+
+                    IProfilerStep profiler = new EmptyProfiler();
+                    var pythonWrappersCollection = new PythonWrappersCollection(ds, null, null);
+                    var databaseEngine = new SQLiteEngine(ds, true, false, false, null, profiler)
+                    {
+                        PythonWrappersCollection = pythonWrappersCollection,
+                    };
+                    databaseEngine.Initialize();
+           
+                    ParserResults results = new ParserResults();
+                    databaseEngine.ParseApplications(InstalAppNodes, progress, ref results);
+                    databaseEngine.SetInstalledApps(results.Models, InstalAppNodes);
 
                     //指定脚本所在的路径,apple_apps.py可以换成你需要测试的脚本
                     var scriptPath = Path.Combine(appService.RunPath, "Plugins", "apple_apps.py");
