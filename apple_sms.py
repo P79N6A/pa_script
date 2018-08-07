@@ -212,15 +212,15 @@ def decode_smss(fs, extract_deleted, extract_source):
             if first_time:
                 TraceService.Trace(TraceLevel.Info, "正在解析 {0}".format("短信"))
                 first_time = False
-            try:
-                time_start = time.time()    
-                parser = MessageParser(d, extract_deleted, extract_source)      
-                if parser.Error:                        
-                    raise Exception("解析短信数据库出错")
-                smss.Models.AddRange(parser.Results)
-                existing_sms.update(parser.ExistingMessages)
-            except:
-                traceback.print_exc()
+            # try:
+            #     time_start = time.time()    
+            #     parser = MessageParser(d, extract_deleted, extract_source)      
+            #     if parser.Error:                        
+            #         raise Exception("解析短信数据库出错")
+            #     smss.Models.AddRange(parser.Results)
+            #     existing_sms.update(parser.ExistingMessages)
+            # except:
+            #     traceback.print_exc()
 
     for pattern, func in EXTEND_SMS:
         first_time = True
