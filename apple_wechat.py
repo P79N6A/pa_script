@@ -41,7 +41,6 @@ MOMENT_TYPE_MUSIC = 4  # 带音乐的（存的是封面）
 MOMENT_TYPE_EMOJI = 10  # 分享了表情包
 MOMENT_TYPE_VIDEO = 15  # 视频
 
-
 def analyze_wechat(root, extract_deleted, extract_source):
     """
     微信 (/DB/MM.sqlite)
@@ -60,7 +59,7 @@ class WeChatParser(model_im.IM):
     def __init__(self, node, extract_deleted, extract_source):
         super(WeChatParser, self).__init__()
         self.root = node
-        self.extract_deleted = extract_deleted
+        self.extract_deleted = False  # extract_deleted
         self.extract_source = extract_source
         self.cache_path = ds.OpenCachePath('wechat')
         if not os.path.exists(self.cache_path):
@@ -114,7 +113,7 @@ class WeChatParser(model_im.IM):
         return ret
 
     def get_models_from_cache_db(self):
-        models = []
+        models = model_im.GenerateModel(self.cache_db).get_models()
         return models
 
     def parse_user(self, node):
@@ -161,7 +160,7 @@ class WeChatParser(model_im.IM):
             else:
                 self.user_account.photo = self._bpreader_node_get_value(setting_node, 'headimgurl')
         self.APP_NAME = '微信:' + self.user_account.account_id
-        self.user_account.source = user_plist.AbsolutePath
+        self.user_account.source = self.APP_NAME  # user_plist.AbsolutePath
         self.db_insert_table_account(self.user_account)
         self.db_commit()
 
@@ -240,7 +239,7 @@ class WeChatParser(model_im.IM):
                     friend = model_im.Friend()
                     friend.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
                     friend.repeated = contact.get('repeated', 0)
-                    friend.source = node.AbsolutePath
+                    friend.source = self.APP_NAME  # node.AbsolutePath
                     friend.account_id = self.user_account.account_id
                     friend.friend_id = username
                     friend.type = contact.get('type')
@@ -274,7 +273,7 @@ class WeChatParser(model_im.IM):
                 continue;
             ts = SQLiteParser.TableSignature(table)
             SQLiteParser.Tools.AddSignatureToTable(ts, "Message", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
-            
+
             for rec in db.ReadTableRecords(ts, self.extract_deleted):
                 msg = self._db_record_get_value(rec, 'Message')
                 msg_type = self._db_record_get_value(rec, 'Type', MSG_TYPE_TEXT)
@@ -288,7 +287,7 @@ class WeChatParser(model_im.IM):
                 message = model_im.Message()
                 message.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
                 message.repeated = contact.get('repeated', 0)
-                message.source = node.AbsolutePath
+                message.source = self.APP_NAME  # node.AbsolutePath
                 message.account_id = self.user_account.account_id
                 message.talker_id = username
                 message.is_sender = is_sender
@@ -297,18 +296,19 @@ class WeChatParser(model_im.IM):
                 message.send_time = 0
                 if username.endswith("@chatroom"):
                     content, media_path, sender = self._process_parse_group_message(msg, msg_type, msg_local_id, is_sender, self.user_node, user_hash)
-                    message.sender = sender
+                    message.sender_id = sender
                     message.content = content
                     message.media_path = media_path
                 else:
                     content, media_path = self._process_parse_friend_message(msg, msg_type, msg_local_id, self.user_node, user_hash)
-                    message.sender = self.user_account.account_id if is_sender else username
+                    message.sender_id = self.user_account.account_id if is_sender else username
                     message.content = content
                     message.media_path = media_path
                 try:
                     self.db_insert_table_message(message)
                 except Exception as e:
                     pass
+
             self.db_commit()
         return True
 
@@ -343,7 +343,7 @@ class WeChatParser(model_im.IM):
 
                     feed = model_im.Feed()
                     feed.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
-                    feed.source = node.AbsolutePath
+                    feed.source = self.APP_NAME  # node.AbsolutePath
                     feed.account_id = self.user_account.account_id
                     feed.sender_id = username
                     feed.content = self._bpreader_node_get_value(root, 'contentDesc')
@@ -363,7 +363,7 @@ class WeChatParser(model_im.IM):
                         feed.location = json.dumps(location)
                     if 'contentObj' in root.Children:
                         content_node = root.Children['contentObj']
-                        feed.type = self._bpreader_node_get_value(content_node, 'type')
+                        feed.type = int(self._bpreader_node_get_value(content_node, 'type', 0))
 
                         media_nodes = []
                         if 'mediaList' in content_node.Children and content_node.Children['mediaList'].Values:
@@ -470,7 +470,7 @@ class WeChatParser(model_im.IM):
                 message.deleted = 1
                 if contact is not None:
                     message.repeated = contact.get('repeated', 0)
-                message.source = node.AbsolutePath
+                message.source = self.APP_NAME  # node.AbsolutePath
                 message.account_id = self.user_account.account_id
                 message.talker_id = username
                 message.content = content
