@@ -5,6 +5,7 @@ from PA_runtime import *
 import clr
 clr.AddReference('System.Core')
 clr.AddReference('System.Xml.Linq')
+clr.AddReference('PNFA.UICore')
 del clr
 
 from System.IO import MemoryStream
@@ -12,6 +13,7 @@ from System.Text import Encoding
 from System.Xml.Linq import *
 from System.Linq import Enumerable
 from System.Xml.XPath import Extensions as XPathExtensions
+from PNFA.UICore.Utils import *
 
 import os
 import sqlite3
@@ -271,6 +273,30 @@ class IM(object):
         if self.cursor is not None:
             self.cursor.execute(SQL_INSERT_TABLE_VERSION, (version, ))
 
+    @staticmethod
+    def need_parse(cache_db):
+        if not os.path.exists(cache_db):
+            return True
+        db = sqlite3.connect(cache_db)
+        cursor = db.cursor()
+        sql = 'select * from version'
+        row = None
+        ret = True
+        try:
+            cursor.execute(sql)
+            row = cursor.fetchone()
+        except Exception as e:
+            ret = True
+
+        if row is not None:
+            ver = row[0]
+            ret = ver != DB_VERSION
+
+        if cursor is not None:
+            cursor.close()
+        if db is not None:
+            db.close()
+        return ret
 
 class Column(object):
     def __init__(self):
@@ -460,8 +486,8 @@ class GenerateModel(object):
                 user.Password.Value = row[3]
             if row[5]:
                 user.PhoneNumber.Value= row[5]
-            if row[4] and len(row[4]) > 0:
-                user.PhotoUris.Add(Uri(row[4]))
+            if row[4]:
+                user.PhotoUris.Add(UriHelper.TryCreate(row[4]))
                 contact['photo'] = row[4]
             if row[6]:
                 user.Email.Value = row[6]
@@ -524,8 +550,8 @@ class GenerateModel(object):
             if row[2]:
                 friend.NickName.Value = row[2]
                 contact['nickname'] = row[2]
-            if row[4] and len(row[4]) > 0:
-                friend.PhotoUris.Add(Uri(row[4]))
+            if row[4]:
+                friend.PhotoUris.Add(UriHelper.TryCreate(row[4]))
                 contact['photo'] = row[4]
             if row[3]:
                 friend.Remarks.Value = row[3]
@@ -585,8 +611,8 @@ class GenerateModel(object):
             if row[2]:
                 group.Name.Value = row[2]
                 contact['nickname'] = row[2]
-            if row[3] and len(row[3]) > 0:
-                group.PhotoUris.Add(Uri(row[3]))
+            if row[3]:
+                group.PhotoUris.Add(UriHelper.TryCreate(row[3]))
                 contact['photo'] = row[3]
             if row[6]:
                 group.Description.Value = row[6]
@@ -660,8 +686,7 @@ class GenerateModel(object):
             if msg_type == MESSAGE_CONTENT_TYPE_TEXT:
                 message.Content.Value.Text.Value = content
             elif msg_type in [MESSAGE_CONTENT_TYPE_IMAGE, MESSAGE_CONTENT_TYPE_VOICE, MESSAGE_CONTENT_TYPE_VIDEO, MESSAGE_CONTENT_TYPE_EMOJI]:
-                if len(media_path) > 0:
-                    message.Content.Value.Image.Value = Uri(media_path)
+                message.Content.Value.Image.Value = UriHelper.TryCreate(media_path)
             #elif msg_type == MESSAGE_CONTENT_TYPE_CONTACT_CARD:
             #    pass
             #elif msg_type == MESSAGE_CONTENT_TYPE_LOCATION:
@@ -690,10 +715,41 @@ class GenerateModel(object):
                     elif key in self.chatrooms:
                         chat.ChatName.Value = self.chatrooms[key].get('nickname', '')
                     chat.Messages.Add(message)
+
+                    if key in self.chatrooms:
+                        chat.Participants.AddRange(self._get_chatroom_member_models(account_id, talker_id))
+                    elif key in self.friends:
+                        chat.Participants.Add(self._get_user_intro(account_id, talker_id))
+                        chat.Participants.Add(self._get_user_intro(account_id, account_id))
+
                     chats[key] = chat
 
             row = self.cursor.fetchone()
         return chats.values() 
+
+    def _get_chatroom_member_models(self, account_id, chatroom_id):
+        models = []
+        sql = '''select account_id, chatroom_id, member_id, display_name, photo, telephone, email, 
+                        gender, age, address, birthday, signature, source, deleted, repeated
+                 from chatroom_member
+                 where account_id='{0}' and chatroom_id='{1}' '''.format(account_id, chatroom_id)
+        cursor = self.db.cursor()
+        row = None
+        try:
+            cursor.execute(sql)
+            row = cursor.fetchone()
+        except Exception as e:
+            print(e)
+
+        while row is not None:
+            if row[2]:
+                model = self._get_user_intro(account_id, row[2])
+                if row[3]:
+                    model.Name.Value = row[3]
+                models.append(model)
+            row = cursor.fetchone()
+        cursor.close()
+        return models
 
     def _get_feed_models(self):
         models = []
@@ -711,6 +767,7 @@ class GenerateModel(object):
 
         while row is not None:
             moment = Common.Moment()
+            moment.Content.Value = Common.MomentContent()
             account_id = None
             if row[14]:
                 moment.Source.Value = row[14]
@@ -720,15 +777,15 @@ class GenerateModel(object):
                 account_id = row[0]
             if row[1]:
                 moment.ID.Value = row[1]
-                moment.User.Value = self._get_user_intro(account_id, row[1])
+                moment.Sender.Value = self._get_user_intro(account_id, row[1])
             if row[3]:
-                moment.Content.Value = row[3]
+                moment.Content.Value.Text.Value = row[3]
             if row[2]:
                 moment.Type.Value = row[2]
             if row[5]:
                 moment.Uris.Add(row[5])
-            if row[6]:
-                moment.PreviewUris.Add(row[6])
+            #if row[6]:
+            #    moment.PreviewUris.Add(row[6])
             if row[13]:
                 moment.Location.Value = self._get_location(row[13])
             #if row[10]:

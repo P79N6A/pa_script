@@ -67,7 +67,7 @@ class WeChatParser(model_im.IM):
         self.cache_db = os.path.join(self.cache_path, 'cache.db')
 
     def parse(self):
-        if self.need_parse():
+        if self.need_parse(self.cache_db):
             self.db_create(self.cache_db)
 
             self.APP_NAME = "微信"
@@ -87,30 +87,6 @@ class WeChatParser(model_im.IM):
         #self.covert_silk_and_amr()
         models = self.get_models_from_cache_db()
         return models
-
-    def need_parse(self):
-        if not os.path.exists(self.cache_db):
-            return True
-        db = sqlite3.connect(self.cache_db)
-        cursor = db.cursor()
-        sql = 'select * from version'
-        row = None
-        ret = True
-        try:
-            cursor.execute(sql)
-            row = cursor.fetchone()
-        except Exception as e:
-            ret = True
-
-        if row is not None:
-            ver = row[0]
-            ret = ver != model_im.DB_VERSION
-
-        if cursor is not None:
-            cursor.close()
-        if db is not None:
-            db.close()
-        return ret
 
     def get_models_from_cache_db(self):
         models = model_im.GenerateModel(self.cache_db).get_models()
