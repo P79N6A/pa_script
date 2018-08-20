@@ -18,6 +18,9 @@ import json
 import sqlite3
 import model_im
 
+# app数据库版本
+VERSION_APP_VALUE = 1
+
 # 消息类型
 MSG_TYPE_TEXT = 1
 MSG_TYPE_IMAGE = 3
@@ -62,12 +65,13 @@ class WeChatParser(model_im.IM):
         self.extract_deleted = False  # extract_deleted
         self.extract_source = extract_source
         self.cache_path = ds.OpenCachePath('wechat')
+        self.mount_dir = node.FileSystem.MountPoint
         if not os.path.exists(self.cache_path):
             os.makedirs(self.cache_path)
         self.cache_db = os.path.join(self.cache_path, 'cache.db')
 
     def parse(self):
-        if self.need_parse(self.cache_db):
+        if self.need_parse(self.cache_db, VERSION_APP_VALUE):
             self.db_create(self.cache_db)
 
             self.APP_NAME = "微信"
@@ -80,7 +84,9 @@ class WeChatParser(model_im.IM):
                 self.user_account = None
                 self.contacts = None
 
-            self.db_insert_table_version(model_im.DB_VERSION)
+            # 数据库填充完毕，请将中间数据库版本和app数据库版本插入数据库，用来检测app是否需要重新解析
+            self.db_insert_table_version(model_im.VERSION_KEY_DB, model_im.VERSION_VALUE_DB)
+            self.db_insert_table_version(model_im.VERSION_KEY_APP, VERSION_APP_VALUE)
             self.db_commit()
             self.db_close()
 
@@ -89,7 +95,7 @@ class WeChatParser(model_im.IM):
         return models
 
     def get_models_from_cache_db(self):
-        models = model_im.GenerateModel(self.cache_db).get_models()
+        models = model_im.GenerateModel(self.cache_db, self.mount_dir).get_models()
         return models
 
     def parse_user(self, node):
@@ -153,7 +159,7 @@ class WeChatParser(model_im.IM):
             SQLiteParser.Tools.AddSignatureToTable(ts, "userName", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
             for rec in db.ReadTableRecords(ts, self.extract_deleted):
                 username = self._db_record_get_value(rec, 'userName')
-                contact = {'deleted': rec.Deleted, 'repeated': 0}
+                contact = {'deleted': 0 if rec.Deleted == DeletedState.Intact else 1, 'repeated': 0}
                 contact['type'] = self._db_record_get_value(rec, 'type', -99)
                 contact['certification_flag'] = self._db_record_get_value(rec, 'certificationFlag', 0)
                 if not rec["dbContactRemark"].IsDBNull:
@@ -269,14 +275,14 @@ class WeChatParser(model_im.IM):
                 message.is_sender = is_sender
                 message.msg_id = msg_local_id
                 message.type = self._convert_msg_type(msg_type)
-                message.send_time = 0
+                message.send_time = self._db_record_get_value(rec, 'CreateTime')
                 if username.endswith("@chatroom"):
-                    content, media_path, sender = self._process_parse_group_message(msg, msg_type, msg_local_id, is_sender, self.user_node, user_hash)
+                    content, media_path, sender = self._process_parse_group_message(msg, msg_type, msg_local_id, is_sender, self.user_node, user_hash, message)
                     message.sender_id = sender
                     message.content = content
                     message.media_path = media_path
                 else:
-                    content, media_path = self._process_parse_friend_message(msg, msg_type, msg_local_id, self.user_node, user_hash)
+                    content, media_path = self._process_parse_friend_message(msg, msg_type, msg_local_id, self.user_node, user_hash, message)
                     message.sender_id = self.user_account.account_id if is_sender else username
                     message.content = content
                     message.media_path = media_path
@@ -331,28 +337,39 @@ class WeChatParser(model_im.IM):
                         poi_name = self._bpreader_node_get_value(location_node, 'poiName')
                         location = {}
                         if latitude is not None:
-                            location['latitude'] = float(latitude)
+                            try:
+                                feed.location_lat = float(latitude)
+                            except Exception as e:
+                                pass
                         if longitude is not None:
-                            location['longitude'] = float(longitude)
+                            try:
+                                feed.location_lng = float(longitude)
+                            except Exception as e:
+                                pass
                         if poi_name is not None:
-                            location['name'] = poi_name.encode('utf-8')
-                        feed.location = json.dumps(location)
+                            feed.location_name = poi_name
                     if 'contentObj' in root.Children:
                         content_node = root.Children['contentObj']
-                        feed.type = int(self._bpreader_node_get_value(content_node, 'type', 0))
-
+                        try:
+                            feed.type = int(self._bpreader_node_get_value(content_node, 'type', 0))
+                        except Exception as e:
+                            feed.type = 0
                         media_nodes = []
                         if 'mediaList' in content_node.Children and content_node.Children['mediaList'].Values:
                             media_nodes = content_node.Children['mediaList'].Values
+                            urls = []
+                            preview_urls = []
                             for media_node in media_nodes:
                                 if 'dataUrl' in media_node.Children:
                                     data_node = media_node.Children['dataUrl']
                                     if 'url' in data_node.Children:
-                                        url_node = data_node.Children['url']
-                                        feed.url = self._bpreader_node_get_value(url_node, 'url')
+                                        urls.append(data_node.Children['url'].Value)
                                 if 'previewUrls' in media_node.Children:
                                     for url_node in media_node.Children['previewUrls'].Values:
-                                        feed.preview_url = self._bpreader_node_get_value(url_node, 'url')
+                                        if 'url' in url_node.Children:
+                                            preview_urls.append(url_node.Children['url'].Value)
+                            feed.urls = json.dumps(urls)
+                            feed.preview_urls = json.dumps(preview_urls)
 
                         if feed.type == MOMENT_TYPE_MUSIC:
                             feed.attachment_title = self._bpreader_node_get_value(content_node, 'title')
@@ -385,7 +402,10 @@ class WeChatParser(model_im.IM):
                             nickname = self._bpreader_node_get_value(comment_node, 'nickname')
                             content = self._bpreader_node_get_value(comment_node, 'content')
                             refUserName = self._bpreader_node_get_value(comment_node, 'refUserName')
-                            createTime = int(self._bpreader_node_get_value(comment_node, 'createTime'))
+                            try:
+                                createTime = int(self._bpreader_node_get_value(comment_node, 'createTime'))
+                            except Exception as e:
+                                pass
                             comment = {}
                             if username is not None:
                                 comment['username'] = username
@@ -550,7 +570,7 @@ class WeChatParser(model_im.IM):
                 #        members.append({'username': username, 'display_name': display_name})
         return members, max_count
 
-    def _process_parse_friend_message(self, msg, msg_type, msg_local_id, user_node, friend_hash):
+    def _process_parse_friend_message(self, msg, msg_type, msg_local_id, user_node, friend_hash, model):
         content = msg
         img_path = ''
 
@@ -573,7 +593,11 @@ class WeChatParser(model_im.IM):
         elif msg_type == MSG_TYPE_EMOJI:
             pass
         elif msg_type == MSG_TYPE_LOCATION:
-            content = self._process_parse_message_location(content)
+            if model is not None:
+                location = self._process_parse_message_location(content)
+                model.location_lat = location.get('latitude', None)
+                model.location_lng = location.get('longitude', None)
+                model.location_name = location.get('poiname', None)
             node = user_node.GetByPath('Location/{0}/{1}.pic_thum'.format(friend_hash, msg_local_id))
             if node is not None:
                 img_path = node.AbsolutePath
@@ -590,7 +614,7 @@ class WeChatParser(model_im.IM):
 
         return content, img_path
 
-    def _process_parse_group_message(self, msg, msg_type, msg_local_id, is_sender, user_node, group_hash):
+    def _process_parse_group_message(self, msg, msg_type, msg_local_id, is_sender, user_node, group_hash, model):
         sender = self.user_account.account_id
         content = msg
         img_path = ''
@@ -601,7 +625,7 @@ class WeChatParser(model_im.IM):
                 sender = msg[:index]
                 content = msg[index+2:]
 
-        content, img_path = self._process_parse_friend_message(content, msg_type, msg_local_id, user_node, group_hash)
+        content, img_path = self._process_parse_friend_message(content, msg_type, msg_local_id, user_node, group_hash, model)
         
         return content, img_path, sender
 
@@ -616,7 +640,10 @@ class WeChatParser(model_im.IM):
             if xml.Name.LocalName == 'msg':
                 appmsg = xml.Element('appmsg')
                 if appmsg is not None:
-                    msg_type = int(appmsg.Element('type').Value) if appmsg.Element('type') else 0
+                    try:
+                        msg_type = int(appmsg.Element('type').Value) if appmsg.Element('type') else 0
+                    except Exception as e:
+                        msg_type = 0
                     msg_title = appmsg.Element('title').Value if appmsg.Element('title') else ''
                     mmreader = appmsg.Element('mmreader')
                     if msg_title == '微信红包':
@@ -670,16 +697,25 @@ class WeChatParser(model_im.IM):
         if xml is not None:
             location = xml.Element('location')
             if location.Attribute('x'):
-                content['latitude'] = float(location.Attribute('x').Value)
+                try:
+                    content['latitude'] = float(location.Attribute('x').Value)
+                except Exception as e:
+                    pass
             if location.Attribute('y'):
-                content['longitude'] = float(location.Attribute('y').Value)
+                try:
+                    content['longitude'] = float(location.Attribute('y').Value)
+                except Exception as e:
+                    pass
             if location.Attribute('scale'):
-                content['scale'] = float(location.Attribute('scale').Value)
+                try:
+                    content['scale'] = float(location.Attribute('scale').Value)
+                except Exception as e:
+                    pass
             if location.Attribute('label'):
-                content['label'] = location.Attribute('label').Value.encode('utf-8')
+                content['label'] = location.Attribute('label').Value
             if location.Attribute('poiname'):
-                content['poiname'] = location.Attribute('poiname').Value.encode('utf-8')
-        return json.dumps(content)
+                content['poiname'] = location.Attribute('poiname').Value
+        return content
 
     def _process_parse_message_voip(self, xml_str):
         content = ''
