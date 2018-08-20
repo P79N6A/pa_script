@@ -281,11 +281,13 @@ class WeChatParser(model_im.IM):
                     message.sender_id = sender
                     message.content = content
                     message.media_path = media_path
+                    message.talker_type = model_im.USER_TYPE_CHATROOM
                 else:
                     content, media_path = self._process_parse_friend_message(msg, msg_type, msg_local_id, self.user_node, user_hash, message)
                     message.sender_id = self.user_account.account_id if is_sender else username
                     message.content = content
                     message.media_path = media_path
+                    message.talker_type = model_im.USER_TYPE_FRIEND
                 try:
                     self.db_insert_table_message(message)
                 except Exception as e:
@@ -469,6 +471,10 @@ class WeChatParser(model_im.IM):
                 message.source = self.APP_NAME  # node.AbsolutePath
                 message.account_id = self.user_account.account_id
                 message.talker_id = username
+                if username.endswith('@chatroom'):
+                    message.talker_type = model_im.USER_TYPE_CHATROOM
+                else:
+                    message.talker_type = model_im.USER_TYPE_FRIEND
                 message.content = content
                 try:
                     self.db_insert_table_message(message)

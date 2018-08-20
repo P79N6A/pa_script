@@ -57,6 +57,9 @@ MESSAGE_STATUS_SENT = 2
 MESSAGE_STATUS_UNREAD = 3
 MESSAGE_STATUS_READ = 4
 
+USER_TYPE_FRIEND = 0  # 好友
+USER_TYPE_CHATROOM = 1  # 群
+
 LABEL_DEFAULT = 0
 LABEL_LIKED = 1
 LABEL_DISLIKED = 2
@@ -180,14 +183,15 @@ SQL_CREATE_TABLE_MESSAGE = '''
         location_lng REAL,
         location_name TEXT,
         status INT,
+        talker_type INT,
         source TEXT,
         deleted INT DEFAULT 0, 
         repeated INT DEFAULT 0)'''
 
 SQL_INSERT_TABLE_MESSAGE = '''
     insert into message(account_id, talker_id, sender_id, is_sender, msg_id, type, content, media_path, 
-                        send_time, location_lat, location_lng, location_name, status, source, deleted, repeated) 
-        values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
+                        send_time, location_lat, location_lng, location_name, status, talker_type, source, deleted, repeated) 
+        values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
 
 SQL_CREATE_TABLE_FEED = '''
     create table if not exists feed(
@@ -432,19 +436,20 @@ class Message(Column):
         self.sender_id = None  # 发送者ID[TEXT]
         self.is_sender = None  # 自己是否为发送发[INT]
         self.msg_id = None  # 消息ID[TEXT]
-        self.type = None  # 消息类型[INT]
+        self.type = None  # 消息类型[INT]，MESSAGE_CONTENT_TYPE
         self.content = None  # 内容[TEXT]
         self.media_path = None  # 媒体文件地址[TEXT]
         self.send_time = None  # 发送时间[INT]
         self.location_lat = None  # 经度[REAL]
         self.location_lng = None  # 纬度[REAL]
         self.location_name = None  # 地址名称[TEXT]
-        self.status = None  # 消息状态[INT]
+        self.status = None  # 消息状态[INT]，MESSAGE_STATUS
+        self.talker_type = None  # 聊天类型[INT]，USER_TYPE
 
     def get_values(self):
         return (self.account_id, self.talker_id, self.sender_id, self.is_sender, self.msg_id, self.type, 
                 self.content, self.media_path, self.send_time, self.location_lat, self.location_lng, 
-                self.location_name, self.status) + super(Message, self).get_values()
+                self.location_name, self.status, self.talker_type) + super(Message, self).get_values()
 
 
 class Feed(Column):
@@ -683,7 +688,8 @@ class GenerateModel(object):
         chats = {}
 
         sql = '''select account_id, talker_id, sender_id, is_sender, msg_id, type, content, media_path, 
-                        send_time, location_lat, location_lng, location_name, status, source, deleted, repeated
+                        send_time, location_lat, location_lng, location_name, status, talker_type,
+                        source, deleted, repeated
                  from message'''
         row = None
         try:
@@ -697,9 +703,11 @@ class GenerateModel(object):
             message.Content.Value = Common.MessageContent()
             account_id = None
             talker_id = None
-            if row[13]:
-                message.Source.Value = row[13]
-            # message.Delete = DeletedState.Intact if row[14] == 0 else DeletedState.Deleted
+            talker_type = row[13]
+
+            if row[14]:
+                message.Source.Value = row[14]
+            # message.Delete = DeletedState.Intact if row[15] == 0 else DeletedState.Deleted
             if row[0]:
                 message.OwnerUserID.Value = row[0]
                 account_id = row[0]
@@ -707,7 +715,7 @@ class GenerateModel(object):
                 message.ID.Value = row[1]
                 talker_id = row[1]
             if row[2]:
-                message.Sender.Value = self._get_user_intro(account_id, row[2])
+                message.Sender.Value = self._get_user_intro(account_id, row[2], talker_type)
                 if row[2] == account_id:
                     message.Type.Value = Common.MessageType.Send
                 else:
@@ -758,18 +766,14 @@ class GenerateModel(object):
                     chat.Source.Value = message.Source.Value
                     chat.OwnerUserID.Value = account_id
                     chat.ChatId.Value = talker_id
-                    if key in self.friends:
+                    if talker_type == USER_TYPE_FRIEND:
                         chat.ChatName.Value = self.friends[key].get('nickname', '')
-                    elif key in self.chatrooms:
-                        chat.ChatName.Value = self.chatrooms[key].get('nickname', '')
-                    chat.Messages.Add(message)
-
-                    if key in self.chatrooms:
-                        chat.Participants.AddRange(self._get_chatroom_member_models(account_id, talker_id))
-                    elif key in self.friends:
                         chat.Participants.Add(self._get_user_intro(account_id, talker_id))
                         chat.Participants.Add(self._get_user_intro(account_id, account_id))
-
+                    elif talker_type == USER_TYPE_CHATROOM:
+                        chat.ChatName.Value = self.chatrooms[key].get('nickname', '')
+                        chat.Participants.AddRange(self._get_chatroom_member_models(account_id, talker_id))
+                    chat.Messages.Add(message)
                     chats[key] = chat
 
             row = self.cursor.fetchone()
@@ -857,17 +861,17 @@ class GenerateModel(object):
 
         return models 
 
-    def _get_user_intro(self, account_id, user_id):
+    def _get_user_intro(self, account_id, user_id, user_type=USER_TYPE_FRIEND):
         user = Common.UserIntro()
         user.ID.Value = user_id
 
         if account_id is not None and user_id is not None:
             key = account_id + "#" + user_id
             contact = None
-            if key in self.friends:
-                contact = self.friends[key]
-            elif key in self.chatrooms:
-                contact = self.chatrooms[key]
+            if user_type == USER_TYPE_FRIEND:
+                contact = self.friends.get(key)
+            elif user_type == USER_TYPE_CHATROOM:
+                contact = self.chatrooms.get(key)
             
             if contact is not None:
                 user.Name.Value = contact.get('nickname', '')
