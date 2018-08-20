@@ -65,6 +65,7 @@ class WeChatParser(model_im.IM):
         self.extract_deleted = False  # extract_deleted
         self.extract_source = extract_source
         self.cache_path = ds.OpenCachePath('wechat')
+        self.mount_dir = node.FileSystem.MountPoint
         if not os.path.exists(self.cache_path):
             os.makedirs(self.cache_path)
         self.cache_db = os.path.join(self.cache_path, 'cache.db')
@@ -94,7 +95,7 @@ class WeChatParser(model_im.IM):
         return models
 
     def get_models_from_cache_db(self):
-        models = model_im.GenerateModel(self.cache_db).get_models()
+        models = model_im.GenerateModel(self.cache_db, self.mount_dir).get_models()
         return models
 
     def parse_user(self, node):
@@ -158,7 +159,7 @@ class WeChatParser(model_im.IM):
             SQLiteParser.Tools.AddSignatureToTable(ts, "userName", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
             for rec in db.ReadTableRecords(ts, self.extract_deleted):
                 username = self._db_record_get_value(rec, 'userName')
-                contact = {'deleted': rec.Deleted, 'repeated': 0}
+                contact = {'deleted': 0 if rec.Deleted == DeletedState.Intact else 1, 'repeated': 0}
                 contact['type'] = self._db_record_get_value(rec, 'type', -99)
                 contact['certification_flag'] = self._db_record_get_value(rec, 'certificationFlag', 0)
                 if not rec["dbContactRemark"].IsDBNull:
@@ -274,7 +275,7 @@ class WeChatParser(model_im.IM):
                 message.is_sender = is_sender
                 message.msg_id = msg_local_id
                 message.type = self._convert_msg_type(msg_type)
-                message.send_time = 0
+                message.send_time = self._db_record_get_value(rec, 'CreateTime')
                 if username.endswith("@chatroom"):
                     content, media_path, sender = self._process_parse_group_message(msg, msg_type, msg_local_id, is_sender, self.user_node, user_hash, message)
                     message.sender_id = sender

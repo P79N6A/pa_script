@@ -473,8 +473,9 @@ class Feed(Column):
     
 
 class GenerateModel(object):
-    def __init__(self, cache_db):
+    def __init__(self, cache_db, mount_dir):
         self.cache_db = cache_db
+        self.mount_dir = mount_dir
         self.friends = {}
         self.chatrooms = {}
 
@@ -528,7 +529,7 @@ class GenerateModel(object):
             if row[5]:
                 user.PhoneNumber.Value= row[5]
             if row[4]:
-                user.PhotoUris.Add(ConvertHelper.ToUri(row[4]))
+                user.PhotoUris.Add(self._get_uri(row[4]))
                 contact['photo'] = row[4]
             if row[6]:
                 user.Email.Value = row[6]
@@ -592,7 +593,7 @@ class GenerateModel(object):
                 friend.NickName.Value = row[2]
                 contact['nickname'] = row[2]
             if row[4]:
-                friend.PhotoUris.Add(ConvertHelper.ToUri(row[4]))
+                friend.PhotoUris.Add(self._get_uri(row[4]))
                 contact['photo'] = row[4]
             if row[3]:
                 friend.Remarks.Value = row[3]
@@ -653,7 +654,7 @@ class GenerateModel(object):
                 group.Name.Value = row[2]
                 contact['nickname'] = row[2]
             if row[3]:
-                group.PhotoUris.Add(ConvertHelper.ToUri(row[3]))
+                group.PhotoUris.Add(self._get_uri(row[3]))
                 contact['photo'] = row[3]
             if row[6]:
                 group.Description.Value = row[6]
@@ -666,9 +667,7 @@ class GenerateModel(object):
             if row[10]:
                 group.MemberMaxCount.Value = row[10]
             if row[11]:
-                group.JoinTime.Init(TimeStamp.FromUnixTime(row[11], False))
-                if not group.JoinTime.Value.IsValidForSmartphone():
-                    group.JoinTime.Value = None
+                group.JoinTime.Value = self._get_timestamp(row[11])
             models.append(group)
 
             if account_id is not None and user_id is not None:
@@ -714,16 +713,15 @@ class GenerateModel(object):
                     message.Type.Value = Common.MessageType.Receive
             if row[9] and row[10]:
                 location = Locations.Location()
+                location.Source.Value = message.Source.Value
                 location.Position.Value = Locations.Coordinate()
                 location.Position.Value.Latitude.Value = row[9]
                 location.Position.Value.Longitude.Value = row[10]
                 if row[11]:
                     location.Position.Value.PositionAddress.Value = row[11]
                 message.Content.Value.Location.Value = location
-            #if row[8]:
-            #    message.TimeStamp.Init(TimeStamp.FromUnixTime(row[8], False))
-            #    if not message.TimeStamp.Value.IsValidForSmartphone():
-            #        message.TimeStamp.Value = None
+            if row[8]:
+                message.TimeStamp.Value = self._get_timestamp(row[8])
 
             msg_type = row[5]
             content = row[6]
@@ -735,7 +733,7 @@ class GenerateModel(object):
             if msg_type == MESSAGE_CONTENT_TYPE_TEXT:
                 message.Content.Value.Text.Value = content
             elif msg_type in [MESSAGE_CONTENT_TYPE_IMAGE, MESSAGE_CONTENT_TYPE_VOICE, MESSAGE_CONTENT_TYPE_VIDEO, MESSAGE_CONTENT_TYPE_EMOJI]:
-                message.Content.Value.Image.Value = ConvertHelper.ToUri(media_path)
+                message.Content.Value.Image.Value = self._get_uri(media_path)
             #elif msg_type == MESSAGE_CONTENT_TYPE_CONTACT_CARD:
             #    pass
             #elif msg_type == MESSAGE_CONTENT_TYPE_LOCATION:
@@ -837,12 +835,17 @@ class GenerateModel(object):
                     moment.Uris.Add(url)
             #if row[6]:
             #    moment.PreviewUris.Add(row[6])
-            #if row[13]:
-            #    moment.Location.Value = self._get_location(row[13])
-            #if row[10]:
-            #    moment.TimeStamp.Init(TimeStamp.FromUnixTime(row[10]))
-            #    if not moment.TimeStamp.Value.IsValidForSmartphone():
-            #        moment.TimeStamp.Value = None
+            if row[13] and row[14]:
+                location = Locations.Location()
+                location.Source.Value = moment.Source.Value
+                location.Position.Value = Locations.Coordinate()
+                location.Position.Value.Latitude.Value = row[13]
+                location.Position.Value.Longitude.Value = row[14]
+                if row[15]:
+                    location.Position.Value.PositionAddress.Value = row[15]
+                moment.Location.Value = location
+            if row[10]:
+                moment.TimeStamp.Value = self._get_timestamp(row[10])
             if row[11]:
                 moment.Likes.AddRange(self._get_feed_likes(account_id, row[11]))
             if row[12]:
@@ -869,8 +872,20 @@ class GenerateModel(object):
                 user.Name.Value = contact.get('nickname', '')
                 photo = contact.get('photo', '')
                 if len(photo) > 0:
-                    user.Photo.Value = ConvertHelper.ToUri(photo)
+                    user.Photo.Value = self._get_uri(photo)
         return user
+
+    def _get_timestamp(self, timestamp):
+        ts = TimeStamp.FromUnixTime(timestamp, False)
+        if not ts.IsValidForSmartphone():
+            ts = None
+        return ts
+
+    def _get_uri(self, path):
+        if path.startswith('http'):
+            return ConvertHelper.ToUri(path)
+        else:
+            return ConvertHelper.ToUri(self.mount_dir + path.replace('/', '\\'))
 
     def _get_feed_likes(self, account_id, likes_str):
         likes = []
@@ -888,10 +903,8 @@ class GenerateModel(object):
                 if 'nickname' in l:
                     user.Name.Value = l['nickname']
                 like.User.Value = user
-                #if 'createTime' in l:
-                #    like.TimeStamp.Init(TimeStamp.FromUnixTime(l['createTime']))
-                #    if not like.TimeStamp.Value.IsValidForSmartphone():
-                #        like.TimeStamp.Value = None
+                if 'createTime' in l:
+                    like.TimeStamp.Value = self._get_timestamp(l['createTime'])
                 likes.append(like)
         return likes
 
@@ -915,10 +928,8 @@ class GenerateModel(object):
                     comment.Receiver.Value = self._get_user_intro(account_id, c['refUserName'])
                 if 'content' in c:
                     comment.Content.Value = c['content']
-                #if 'createTime' in c:
-                #    comment.TimeStamp.Init(TimeStamp.FromUnixTime(c['createTime']))
-                #    if not comment.TimeStamp.Value.IsValidForSmartphone():
-                #        comment.TimeStamp.Value = None
+                if 'createTime' in c:
+                    comment.TimeStamp.Value = self._get_timestamp(c['createTime'])
                 comments.append(comment)
         return comments
 
