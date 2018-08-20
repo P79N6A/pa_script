@@ -331,12 +331,11 @@ class WeChatParser(model_im.IM):
                         poi_name = self._bpreader_node_get_value(location_node, 'poiName')
                         location = {}
                         if latitude is not None:
-                            location['latitude'] = float(latitude)
+                            feed.location_lat = float(latitude)
                         if longitude is not None:
-                            location['longitude'] = float(longitude)
+                            feed.location_lng = float(longitude)
                         if poi_name is not None:
-                            location['name'] = poi_name.encode('utf-8')
-                        feed.location = json.dumps(location)
+                            feed.location_name = poi_name
                     if 'contentObj' in root.Children:
                         content_node = root.Children['contentObj']
                         feed.type = int(self._bpreader_node_get_value(content_node, 'type', 0))
@@ -344,15 +343,19 @@ class WeChatParser(model_im.IM):
                         media_nodes = []
                         if 'mediaList' in content_node.Children and content_node.Children['mediaList'].Values:
                             media_nodes = content_node.Children['mediaList'].Values
+                            urls = []
+                            preview_urls = []
                             for media_node in media_nodes:
                                 if 'dataUrl' in media_node.Children:
                                     data_node = media_node.Children['dataUrl']
                                     if 'url' in data_node.Children:
-                                        url_node = data_node.Children['url']
-                                        feed.url = self._bpreader_node_get_value(url_node, 'url')
+                                        urls.append(data_node.Children['url'].Value)
                                 if 'previewUrls' in media_node.Children:
                                     for url_node in media_node.Children['previewUrls'].Values:
-                                        feed.preview_url = self._bpreader_node_get_value(url_node, 'url')
+                                        if 'url' in url_node.Children:
+                                            preview_urls.append(url_node.Children['url'].Value)
+                            feed.urls = json.dumps(urls)
+                            feed.preview_urls = json.dumps(preview_urls)
 
                         if feed.type == MOMENT_TYPE_MUSIC:
                             feed.attachment_title = self._bpreader_node_get_value(content_node, 'title')

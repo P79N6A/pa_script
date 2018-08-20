@@ -87,7 +87,8 @@ SQL_CREATE_TABLE_ACCOUNT = '''
         repeated INT DEFAULT 0)'''
 
 SQL_INSERT_TABLE_ACCOUNT = '''
-    insert into account(account_id, nickname, username, password, photo, telephone, email, gender, age, country, province, city, address, birthday, signature, source, deleted, repeated) 
+    insert into account(account_id, nickname, username, password, photo, telephone, email, gender, age, 
+                        country, province, city, address, birthday, signature, source, deleted, repeated) 
         values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
 
 SQL_CREATE_TABLE_FRIEND = '''
@@ -110,7 +111,8 @@ SQL_CREATE_TABLE_FRIEND = '''
         repeated INT DEFAULT 0)'''
 
 SQL_INSERT_TABLE_FRIEND = '''
-    insert into friend(account_id, friend_id, nickname, remark, photo, type, telephone, email, gender, age, address, birthday, signature, source, deleted, repeated) 
+    insert into friend(account_id, friend_id, nickname, remark, photo, type, telephone, email, gender, 
+                       age, address, birthday, signature, source, deleted, repeated) 
         values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
 
 SQL_CREATE_TABLE_CHATROOM = '''
@@ -132,7 +134,8 @@ SQL_CREATE_TABLE_CHATROOM = '''
         repeated INT DEFAULT 0)'''
 
 SQL_INSERT_TABLE_CHATROOM = '''
-    insert into chatroom(account_id, chatroom_id, name, photo, type, notice, description, creator_id, owner_id, member_count, max_member_count, create_time, source, deleted, repeated) 
+    insert into chatroom(account_id, chatroom_id, name, photo, type, notice, description, creator_id, 
+                         owner_id, member_count, max_member_count, create_time, source, deleted, repeated) 
         values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
         
 
@@ -155,7 +158,8 @@ SQL_CREATE_TABLE_CHATROOM_MEMBER = '''
         repeated INT DEFAULT 0)'''
 
 SQL_INSERT_TABLE_CHATROOM_MEMBER = '''
-    insert into chatroom_member(account_id, chatroom_id, member_id, display_name, photo, telephone, email, gender, age, address, birthday, signature, source, deleted, repeated) 
+    insert into chatroom_member(account_id, chatroom_id, member_id, display_name, photo, telephone, 
+                                email, gender, age, address, birthday, signature, source, deleted, repeated) 
         values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
 
 SQL_CREATE_TABLE_MESSAGE = '''
@@ -169,13 +173,18 @@ SQL_CREATE_TABLE_MESSAGE = '''
         content TEXT,
         media_path TEXT,
         send_time INT,
+        location_lat REAL,
+        location_lng REAL,
+        location_name TEXT,
+        status INT,
         source TEXT,
         deleted INT DEFAULT 0, 
         repeated INT DEFAULT 0)'''
 
 SQL_INSERT_TABLE_MESSAGE = '''
-    insert into message(account_id, talker_id, sender_id, is_sender, msg_id, type, content, media_path, send_time, source, deleted, repeated) 
-        values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
+    insert into message(account_id, talker_id, sender_id, is_sender, msg_id, type, content, media_path, 
+                        send_time, location_lat, location_lng, location_name, status, source, deleted, repeated) 
+        values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
 
 SQL_CREATE_TABLE_FEED = '''
     create table if not exists feed(
@@ -184,22 +193,26 @@ SQL_CREATE_TABLE_FEED = '''
         type INT,
         content TEXT,
         media_path TEXT,
-        url TEXT,
-        preview_url TEXT,
+        urls TEXT,
+        preview_urls TEXT,
         attachment_title TEXT,
         attachment_link TEXT,
         attachment_desc TEXT,
         send_time INT,
         likes TEXT,
         comments TEXT,
-        location TEXT,
+        location_lat REAL,
+        location_lng REAL,
+        location_name TEXT,
         source TEXT,
         deleted INT DEFAULT 0, 
         repeated INT DEFAULT 0)'''
 
 SQL_INSERT_TABLE_FEED = '''
-    insert into feed(account_id, sender_id, type, content, media_path, url, preview_url, attachment_title, attachment_link, attachment_desc, send_time, likes, comments, location, source, deleted, repeated) 
-        values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
+    insert into feed(account_id, sender_id, type, content, media_path, urls, preview_urls, attachment_title, 
+                     attachment_link, attachment_desc, send_time, likes, comments, location_lat, location_lng, 
+                     location_name, source, deleted, repeated) 
+        values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
 
 SQL_CREATE_TABLE_VERSION = '''
     create table if not exists version(
@@ -311,124 +324,139 @@ class Column(object):
 class Account(Column):
     def __init__(self):
         super(Account, self).__init__()
-        self.account_id = None
-        self.nickname = None
-        self.username = None
-        self.password = None
-        self.photo = None
-        self.telephone = None
-        self.email = None
-        self.gender = None
-        self.age = None
-        self.country = None
-        self.province = None
-        self.city = None
-        self.address = None
-        self.birthday = None
-        self.signature = None
+        self.account_id = None  # 账户ID[TEXT]
+        self.nickname = None  # 昵称[TEXT]
+        self.username = None  # 用户名[TEXT]
+        self.password = None  # 密码[TEXT]
+        self.photo = None  # 头像[TEXT]
+        self.telephone = None  # 电话[TEXT]
+        self.email = None  # 电子邮件[TEXT]
+        self.gender = None  # 性别[INT]
+        self.age = None  # 年龄[INT]
+        self.country = None  # 国家[TEXT]
+        self.province = None  # 省份[TEXT]
+        self.city = None  # 城市[TEXT]
+        self.address = None  # 地址[TEXT]
+        self.birthday = None  # 生日[TEXT]
+        self.signature = None  # 签名[TEXT]
 
     def get_values(self):
-        return (self.account_id, self.nickname, self.username, self.password, self.photo, self.telephone, self.email, self.gender, self.age, self.country, self.province, self.city, self.address, self.birthday, self.signature) + super(Account, self).get_values()
+        return (self.account_id, self.nickname, self.username, self.password, self.photo, self.telephone, self.email, 
+                self.gender, self.age, self.country, self.province, self.city, self.address, self.birthday, 
+                self.signature) + super(Account, self).get_values()
 
 
 class Friend(Column):
     def __init__(self):
         super(Friend, self).__init__()
-        self.account_id = None
-        self.friend_id = None
-        self.nickname = None
-        self.remark = None
-        self.photo = None
-        self.type = None
-        self.telephone = None
-        self.email = None
-        self.gender = None
-        self.age = None
-        self.address = None
-        self.birthday = None
-        self.signature = None
+        self.account_id = None  # 账号ID[TEXT]
+        self.friend_id = None  # 好友ID[TEXT]
+        self.nickname = None  # 昵称[TEXT]
+        self.remark = None  # 备注[TEXT]
+        self.photo = None  # 头像[TEXT]
+        self.type = None  # 类型[INT]
+        self.telephone = None  # 电话[TEXT]
+        self.email = None  # 电子邮箱[TEXT]
+        self.gender = None  # 性别[INT]
+        self.age = None  # 年龄[INT]
+        self.address = None  # 地址[TEXT]
+        self.birthday = None  # 生日[TEXT]
+        self.signature = None  # 签名[TEXT]
 
     def get_values(self):
-        return (self.account_id, self.friend_id, self.nickname, self.remark, self.photo, self.type, self.telephone, self.email, self.gender, self.age, self.address, self.birthday, self.signature) + super(Friend, self).get_values()
+        return (self.account_id, self.friend_id, self.nickname, self.remark, self.photo, self.type, self.telephone, 
+                self.email, self.gender, self.age, self.address, self.birthday, self.signature) + super(Friend, self).get_values()
 
 
 class Chatroom(Column):
     def __init__(self):
         super(Chatroom, self).__init__()
-        self.account_id = None
-        self.chatroom_id = None
-        self.name = None
-        self.photo = None
-        self.type = None
-        self.notice = None
-        self.description = None
-        self.creator_id = None
-        self.owner_id = None
-        self.member_count = None
-        self.max_member_count = None
-        self.create_time = None
+        self.account_id = None  # 账号ID[TEXT]
+        self.chatroom_id = None  # 群ID[TEXT]
+        self.name = None  # 群名称[TEXT]
+        self.photo = None  # 群头像[TEXT]
+        self.type = None  # 群类型[INT]
+        self.notice = None  # 群声明[TEXT]
+        self.description = None  # 群描述[TEXT]
+        self.creator_id = None  # 创建者[TEXT]
+        self.owner_id = None  # 管理员[TEXT]
+        self.member_count = None  # 群成员数量[INT]
+        self.max_member_count = None  # 群最大成员数量[INT]
+        self.create_time = None  # 创建时间[INT]
 
     def get_values(self):
-        return (self.account_id, self.chatroom_id, self.name, self.photo, self.type, self.notice, self.description, self.creator_id, self.owner_id, self.member_count, self.max_member_count, self.create_time) + super(Chatroom, self).get_values()
+        return (self.account_id, self.chatroom_id, self.name, self.photo, self.type, self.notice, self.description, 
+                self.creator_id, self.owner_id, self.member_count, self.max_member_count, self.create_time) + super(Chatroom, self).get_values()
 
 
 class ChatroomMember(Column):
     def __init__(self):
         super(ChatroomMember, self).__init__()
-        self.account_id = None
-        self.chatroom_id = None
-        self.member_id = None
-        self.display_name = None
-        self.photo = None
-        self.telephone = None
-        self.email = None
-        self.gender = None
-        self.age = None
-        self.address = None
-        self.birthday = None
-        self.signature = None
+        self.account_id = None  # 账号ID[TEXT]
+        self.chatroom_id = None  # 群ID[TEXT]
+        self.member_id = None  # 成员ID[TEXT]
+        self.display_name = None  # 群内显示名称[TEXT]
+        self.photo = None  # 头像[TEXT]
+        self.telephone = None  # 电话[TEXT]
+        self.email = None  # 电子邮箱[TEXT]
+        self.gender = None  # 性别[TEXT]
+        self.age = None  # 年龄[INT]
+        self.address = None  # 地址[TEXT]
+        self.birthday = None  # 生日[TEXT]
+        self.signature = None  # 签名[TEXT]
 
     def get_values(self):
-        return (self.account_id, self.chatroom_id, self.member_id, self.display_name, self.photo, self.telephone, self.email, self.gender, self.age, self.address, self.birthday, self.signature) + super(ChatroomMember, self).get_values()
+        return (self.account_id, self.chatroom_id, self.member_id, self.display_name, self.photo, self.telephone, 
+                self.email, self.gender, self.age, self.address, self.birthday, self.signature) + super(ChatroomMember, self).get_values()
 
 
 class Message(Column):
     def __init__(self):
         super(Message, self).__init__()
-        self.account_id = None
-        self.talker_id = None
-        self.sender_id = None
-        self.is_sender = None
-        self.msg_id = None
-        self.type = None
-        self.content = None
-        self.media_path = None
-        self.send_time = None
+        self.account_id = None  # 账号ID[TEXT]
+        self.talker_id = None  # 会话ID[TEXT]
+        self.sender_id = None  # 发送者ID[TEXT]
+        self.is_sender = None  # 自己是否为发送发[INT]
+        self.msg_id = None  # 消息ID[TEXT]
+        self.type = None  # 消息类型[INT]
+        self.content = None  # 内容[TEXT]
+        self.media_path = None  # 媒体文件地址[TEXT]
+        self.send_time = None  # 发送时间[INT]
+        self.location_lat = None  # 经度[REAL]
+        self.location_lng = None  # 纬度[REAL]
+        self.location_name = None  # 地址名称[TEXT]
+        self.status = None  # 消息状态[INT]
 
     def get_values(self):
-        return (self.account_id, self.talker_id, self.sender_id, self.is_sender, self.msg_id, self.type, self.content, self.media_path, self.send_time) + super(Message, self).get_values()
+        return (self.account_id, self.talker_id, self.sender_id, self.is_sender, self.msg_id, self.type, 
+                self.content, self.media_path, self.send_time, self.location_lat, self.location_lng, 
+                self.location_name, self.status) + super(Message, self).get_values()
 
 
 class Feed(Column):
     def __init__(self):
         super(Feed, self).__init__()
-        self.account_id = None
-        self.sender_id = None
-        self.type = None
-        self.content = None
-        self.media_path = None
-        self.url = None
-        self.preview_url = None
-        self.attachment_title = None
-        self.attachment_link = None
-        self.attachment_desc = None
-        self.send_time = None
-        self.likes = None
-        self.comments = None
-        self.location = None
+        self.account_id = None  # 账号ID[TEXT]
+        self.sender_id = None  # 发布者ID[TEXT]
+        self.type = None  # 动态类型[INT]
+        self.content = None  # 动态内容[TEXT]
+        self.media_path = None  # 媒体文件地址[TEXT]
+        self.urls = None  # 链接地址[TEXT] json string ['url1', 'url2'...]
+        self.preview_urls = None  # 预览地址[TEXT] json string ['url1', 'url2'...]
+        self.attachment_title = None  # 附件标题[TEXT]
+        self.attachment_link = None  # 附件链接[TEXT]
+        self.attachment_desc = None  # 附件描述[TEXT]
+        self.send_time = None  # 发布时间[INT]
+        self.likes = None  # 赞的人和时间[TEXT] json string [{'username':username, 'nickname':nickname, 'createTime':createTime}]
+        self.comments = None  # 评论的人、内容、时间[TEXT] json string [{'username':username, 'nickname':nickname, 'content':content, 'refUserName':refUserName, 'createTime':createTime}]
+        self.location_lat = None  # 经度[REAL]
+        self.location_lng = None  # 纬度[REAL]
+        self.location_name = None  # 地址名称[TEXT]
 
     def get_values(self):
-        return (self.account_id, self.sender_id, self.type, self.content, self.media_path, self.url, self.preview_url, self.attachment_title, self.attachment_link, self.attachment_desc, self.send_time, self.likes, self.comments, self.location) + super(Feed, self).get_values()
+        return (self.account_id, self.sender_id, self.type, self.content, self.media_path, self.urls, self.preview_urls, 
+                self.attachment_title, self.attachment_link, self.attachment_desc, self.send_time, self.likes, self.comments, 
+                self.location_lat, self.location_lng, self.location_name) + super(Feed, self).get_values()
     
 
 class GenerateModel(object):
@@ -754,9 +782,9 @@ class GenerateModel(object):
     def _get_feed_models(self):
         models = []
 
-        sql = '''select account_id, sender_id, type, content, media_path, url, preview_url, 
+        sql = '''select account_id, sender_id, type, content, media_path, urls, preview_urls, 
                         attachment_title, attachment_link, attachment_desc, send_time, likes, 
-                        comments, location, source, deleted, repeated
+                        comments, location_lat, location_lng, location_name, source, deleted, repeated
                  from feed'''
         row = None
         try:
@@ -769,8 +797,8 @@ class GenerateModel(object):
             moment = Common.Moment()
             moment.Content.Value = Common.MomentContent()
             account_id = None
-            if row[14]:
-                moment.Source.Value = row[14]
+            if row[16]:
+                moment.Source.Value = row[16]
             # moment.Delete = DeletedState.Intact if row[13] == 0 else DeletedState.Deleted
             if row[0]:
                 moment.OwnerUserID.Value = row[0]
@@ -783,11 +811,13 @@ class GenerateModel(object):
             if row[2]:
                 moment.Type.Value = row[2]
             if row[5]:
-                moment.Uris.Add(row[5])
+                urls = json.loads(row[5])
+                for url in urls:
+                    moment.Uris.Add(url)
             #if row[6]:
             #    moment.PreviewUris.Add(row[6])
-            if row[13]:
-                moment.Location.Value = self._get_location(row[13])
+            #if row[13]:
+            #    moment.Location.Value = self._get_location(row[13])
             #if row[10]:
             #    moment.TimeStamp.Init(TimeStamp.FromUnixTime(row[10]))
             #    if not moment.TimeStamp.Value.IsValidForSmartphone():
@@ -820,23 +850,6 @@ class GenerateModel(object):
                 if len(photo) > 0:
                     user.Photo.Value = Uri(photo)
         return user
-
-    def _get_location(self, location_str):
-        location = Locations.Location()
-        location.Position.Value = Locations.Coordinate()
-        l = None
-        try:
-            l = json.loads(location_str)
-        except Exception as e:
-            print(e)
-        if l is not None:
-            if 'latitude' in l:
-                location.Position.Value.Latitude.Value = l['latitude']
-            if 'longitude' in l:
-                location.Position.Value.Longitude.Value = l['longitude']
-            if 'name' in l:
-                location.Position.Value.PositionAddress.Value = l['name']
-        return location
 
     def _get_feed_likes(self, account_id, likes_str):
         likes = []
