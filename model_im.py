@@ -5,7 +5,6 @@ from PA_runtime import *
 import clr
 clr.AddReference('System.Core')
 clr.AddReference('System.Xml.Linq')
-clr.AddReference('PNFA.UICore')
 del clr
 
 from System.IO import MemoryStream
@@ -13,13 +12,13 @@ from System.Text import Encoding
 from System.Xml.Linq import *
 from System.Linq import Enumerable
 from System.Xml.XPath import Extensions as XPathExtensions
-from PNFA.UICore.Utils import *
+from PA.InfraLib.Utils import *
 
 import os
 import sqlite3
 import json
 
-DB_VERSION = 1
+VERSION_VALUE_DB = 1
 
 GENDER_MALE = 0
 GENDER_FEMALE = 1
@@ -64,6 +63,9 @@ LABEL_STAR = 3
 
 PLATFORM_PC = 1
 PLATFORM_MOBILE = 2
+
+VERSION_KEY_DB = 'db'
+VERSION_KEY_APP = 'app'
 
 SQL_CREATE_TABLE_ACCOUNT = '''
     create table if not exists account(
@@ -216,10 +218,11 @@ SQL_INSERT_TABLE_FEED = '''
 
 SQL_CREATE_TABLE_VERSION = '''
     create table if not exists version(
+        key TEXT primary key,
         version INT)'''
 
 SQL_INSERT_TABLE_VERSION = '''
-    insert into version(version) values(?)'''
+    insert into version(key, version) values(?, ?)'''
 
 
 class IM(object):
@@ -282,34 +285,44 @@ class IM(object):
         if self.cursor is not None:
             self.cursor.execute(SQL_INSERT_TABLE_FEED, column.get_values())
 
-    def db_insert_table_version(self, version):
+    def db_insert_table_version(self, key, version):
         if self.cursor is not None:
-            self.cursor.execute(SQL_INSERT_TABLE_VERSION, (version, ))
+            self.cursor.execute(SQL_INSERT_TABLE_VERSION, (key, version))
 
+    '''
+    版本检测分为两部分
+    如果中间数据库结构改变，会修改db_version
+    如果app增加了新的内容，需要修改app_version
+    只有db_version和app_version都没有变化时，才不需要重新解析
+    '''
     @staticmethod
-    def need_parse(cache_db):
+    def need_parse(cache_db, app_version):
         if not os.path.exists(cache_db):
             return True
         db = sqlite3.connect(cache_db)
         cursor = db.cursor()
-        sql = 'select * from version'
+        sql = 'select key,version from version'
         row = None
-        ret = True
+        db_version_check = False
+        app_version_check = False
         try:
             cursor.execute(sql)
             row = cursor.fetchone()
         except Exception as e:
-            ret = True
+            pass
 
-        if row is not None:
-            ver = row[0]
-            ret = ver != DB_VERSION
+        while row is not None:
+            if row[0] == VERSION_KEY_DB and row[1] == VERSION_VALUE_DB:
+                db_version_check = True
+            elif row[0] == VERSION_KEY_APP and row[1] == app_version:
+                app_version_check = True
+            row = cursor.fetchone()
 
         if cursor is not None:
             cursor.close()
         if db is not None:
             db.close()
-        return ret
+        return not (db_version_check and app_version_check)
 
 class Column(object):
     def __init__(self):
@@ -515,7 +528,7 @@ class GenerateModel(object):
             if row[5]:
                 user.PhoneNumber.Value= row[5]
             if row[4]:
-                user.PhotoUris.Add(UriHelper.TryCreate(row[4]))
+                user.PhotoUris.Add(ConvertHelper.ToUri(row[4]))
                 contact['photo'] = row[4]
             if row[6]:
                 user.Email.Value = row[6]
@@ -579,7 +592,7 @@ class GenerateModel(object):
                 friend.NickName.Value = row[2]
                 contact['nickname'] = row[2]
             if row[4]:
-                friend.PhotoUris.Add(UriHelper.TryCreate(row[4]))
+                friend.PhotoUris.Add(ConvertHelper.ToUri(row[4]))
                 contact['photo'] = row[4]
             if row[3]:
                 friend.Remarks.Value = row[3]
@@ -640,7 +653,7 @@ class GenerateModel(object):
                 group.Name.Value = row[2]
                 contact['nickname'] = row[2]
             if row[3]:
-                group.PhotoUris.Add(UriHelper.TryCreate(row[3]))
+                group.PhotoUris.Add(ConvertHelper.ToUri(row[3]))
                 contact['photo'] = row[3]
             if row[6]:
                 group.Description.Value = row[6]
@@ -669,8 +682,8 @@ class GenerateModel(object):
     def _get_chat_models(self):
         chats = {}
 
-        sql = '''select account_id, talker_id, sender_id, is_sender, msg_id, type, content, 
-                        media_path, send_time, source, deleted, repeated
+        sql = '''select account_id, talker_id, sender_id, is_sender, msg_id, type, content, media_path, 
+                        send_time, location_lat, location_lng, location_name, status, source, deleted, repeated
                  from message'''
         row = None
         try:
@@ -681,11 +694,12 @@ class GenerateModel(object):
 
         while row is not None:
             message = Common.Message()
+            message.Content.Value = Common.MessageContent()
             account_id = None
             talker_id = None
-            if row[9]:
-                message.Source.Value = row[9]
-            # group.Delete = DeletedState.Intact if row[13] == 0 else DeletedState.Deleted
+            if row[13]:
+                message.Source.Value = row[13]
+            # message.Delete = DeletedState.Intact if row[14] == 0 else DeletedState.Deleted
             if row[0]:
                 message.OwnerUserID.Value = row[0]
                 account_id = row[0]
@@ -698,6 +712,14 @@ class GenerateModel(object):
                     message.Type.Value = Common.MessageType.Send
                 else:
                     message.Type.Value = Common.MessageType.Receive
+            if row[9] and row[10]:
+                location = Locations.Location()
+                location.Position.Value = Locations.Coordinate()
+                location.Position.Value.Latitude.Value = row[9]
+                location.Position.Value.Longitude.Value = row[10]
+                if row[11]:
+                    location.Position.Value.PositionAddress.Value = row[11]
+                message.Content.Value.Location.Value = location
             #if row[8]:
             #    message.TimeStamp.Init(TimeStamp.FromUnixTime(row[8], False))
             #    if not message.TimeStamp.Value.IsValidForSmartphone():
@@ -710,11 +732,10 @@ class GenerateModel(object):
             media_path = row[7]
             if media_path is None:
                 media_path = ''
-            message.Content.Value = Common.MessageContent()
             if msg_type == MESSAGE_CONTENT_TYPE_TEXT:
                 message.Content.Value.Text.Value = content
             elif msg_type in [MESSAGE_CONTENT_TYPE_IMAGE, MESSAGE_CONTENT_TYPE_VOICE, MESSAGE_CONTENT_TYPE_VIDEO, MESSAGE_CONTENT_TYPE_EMOJI]:
-                message.Content.Value.Image.Value = UriHelper.TryCreate(media_path)
+                message.Content.Value.Image.Value = ConvertHelper.ToUri(media_path)
             #elif msg_type == MESSAGE_CONTENT_TYPE_CONTACT_CARD:
             #    pass
             #elif msg_type == MESSAGE_CONTENT_TYPE_LOCATION:
@@ -848,7 +869,7 @@ class GenerateModel(object):
                 user.Name.Value = contact.get('nickname', '')
                 photo = contact.get('photo', '')
                 if len(photo) > 0:
-                    user.Photo.Value = Uri(photo)
+                    user.Photo.Value = ConvertHelper.ToUri(photo)
         return user
 
     def _get_feed_likes(self, account_id, likes_str):
