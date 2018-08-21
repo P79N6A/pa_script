@@ -15,7 +15,6 @@ from PA_runtime import *
 import os
 import hashlib
 import json
-import sqlite3
 import model_im
 
 # app数据库版本
@@ -71,6 +70,7 @@ class WeChatParser(model_im.IM):
         self.cache_db = os.path.join(self.cache_path, 'cache.db')
         self.like_id = 1
         self.comment_id = 1
+        self.location_id = 1
 
     def parse(self):
         if self.need_parse(self.cache_db, VERSION_APP_VALUE):
@@ -144,7 +144,7 @@ class WeChatParser(model_im.IM):
             else:
                 self.user_account.photo = self._bpreader_node_get_value(setting_node, 'headimgurl')
         self.APP_NAME = '微信:' + self.user_account.account_id
-        self.user_account.source = self.APP_NAME  # user_plist.AbsolutePath
+        self.user_account.source = self.APP_NAME + '\n' + user_plist.AbsolutePath
         self.db_insert_table_account(self.user_account)
         self.db_commit()
 
@@ -186,7 +186,7 @@ class WeChatParser(model_im.IM):
                     chatroom = model_im.Chatroom()
                     chatroom.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
                     chatroom.repeated = contact.get('repeated', 0)
-                    chatroom.source = self.APP_NAME
+                    chatroom.source = self.APP_NAME + '\n' + node.AbsolutePath
                     chatroom.account_id = self.user_account.account_id
                     chatroom.chatroom_id = username
                     chatroom.name = contact.get('nickname')
@@ -201,7 +201,7 @@ class WeChatParser(model_im.IM):
                         cm = model_im.ChatroomMember()
                         cm.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
                         cm.repeated = contact.get('repeated', 0)
-                        cm.source = self.APP_NAME
+                        cm.source = self.APP_NAME + '\n' + node.AbsolutePath
                         cm.account_id = self.user_account.account_id
                         cm.chatroom_id = username
                         cm.member_id = member.get('username')
@@ -223,7 +223,7 @@ class WeChatParser(model_im.IM):
                     friend = model_im.Friend()
                     friend.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
                     friend.repeated = contact.get('repeated', 0)
-                    friend.source = self.APP_NAME  # node.AbsolutePath
+                    friend.source = self.APP_NAME + '\n' + node.AbsolutePath
                     friend.account_id = self.user_account.account_id
                     friend.friend_id = username
                     friend.type = contact.get('type')
@@ -254,7 +254,7 @@ class WeChatParser(model_im.IM):
             user_hash = m.hexdigest()
             table = 'Chat_' + user_hash
             if table not in db.Tables:
-                continue;
+                continue
             ts = SQLiteParser.TableSignature(table)
             SQLiteParser.Tools.AddSignatureToTable(ts, "Message", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
 
@@ -271,7 +271,7 @@ class WeChatParser(model_im.IM):
                 message = model_im.Message()
                 message.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
                 message.repeated = contact.get('repeated', 0)
-                message.source = self.APP_NAME  # node.AbsolutePath
+                message.source = self.APP_NAME + '\n' + node.AbsolutePath
                 message.account_id = self.user_account.account_id
                 message.talker_id = username
                 message.is_sender = is_sender
@@ -329,29 +329,30 @@ class WeChatParser(model_im.IM):
 
                     feed = model_im.Feed()
                     feed.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
-                    feed.source = self.APP_NAME  # node.AbsolutePath
+                    feed.source = self.APP_NAME + '\n' + node.AbsolutePath
                     feed.account_id = self.user_account.account_id
                     feed.sender_id = username
                     feed.content = self._bpreader_node_get_value(root, 'contentDesc')
                     feed.send_time = self._bpreader_node_get_value(root, 'createtime')
+
                     if 'locationInfo' in root.Children:
                         location_node = root.Children['locationInfo']
-                        latitude = self._bpreader_node_get_value(location_node, 'location_latitude')
-                        longitude = self._bpreader_node_get_value(location_node, 'location_latitude')
-                        poi_name = self._bpreader_node_get_value(location_node, 'poiName')
-                        location = {}
-                        if latitude is not None:
-                            try:
-                                feed.location_lat = float(latitude)
-                            except Exception as e:
+                        location = model_im.Location()
+                        location.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
+                        location.source = self.APP_NAME + '\n' + node.AbsolutePath
+                        location.location_id = self.location_id
+                        try:
+                            location.latitude = float(self._bpreader_node_get_value(location_node, 'location_latitude', 0))
+                        except Exception as e:
                                 pass
-                        if longitude is not None:
-                            try:
-                                feed.location_lng = float(longitude)
-                            except Exception as e:
+                        try:
+                            location.longitude = float(self._bpreader_node_get_value(location_node, 'location_longitude', 0))
+                        except Exception as e:
                                 pass
-                        if poi_name is not None:
-                            feed.location_name = poi_name
+                        location.address = self._bpreader_node_get_value(location_node, 'poiName')
+                        self.db_insert_table_location(location)
+                        self.location_id += 1
+
                     if 'contentObj' in root.Children:
                         content_node = root.Children['contentObj']
                         try:
@@ -389,6 +390,8 @@ class WeChatParser(model_im.IM):
                             sender_id = self._bpreader_node_get_value(like_node, 'username', '')
                             if len(sender_id) > 0:
                                 fl = model_im.FeedLike()
+                                fl.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
+                                fl.source = self.APP_NAME + '\n' + node.AbsolutePath
                                 fl.like_id = self.like_id
                                 fl.sender_id = sender_id
                                 fl.sender_name = self._bpreader_node_get_value(like_node, 'nickname')
@@ -409,6 +412,8 @@ class WeChatParser(model_im.IM):
                             content = self._bpreader_node_get_value(comment_node, 'content', '')
                             if len(sender_id) > 0 and len(content) > 0:
                                 fc = model_im.FeedComment()
+                                fc.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
+                                fc.source = self.APP_NAME + '\n' + node.AbsolutePath
                                 fc.comment_id = self.comment_id
                                 fc.sender_id = sender_id
                                 fc.sender_name = self._bpreader_node_get_value(comment_node, 'nickname')
@@ -470,7 +475,7 @@ class WeChatParser(model_im.IM):
                 message.deleted = 1
                 if contact is not None:
                     message.repeated = contact.get('repeated', 0)
-                message.source = self.APP_NAME  # node.AbsolutePath
+                message.source = self.APP_NAME + '\n' + node.AbsolutePath
                 message.account_id = self.user_account.account_id
                 message.talker_id = username
                 if username.endswith('@chatroom'):
@@ -558,7 +563,7 @@ class WeChatParser(model_im.IM):
             content = data[index_begin:index_end].decode('utf-8')
             ms = []
             try:
-                xml = XElement.Load(MemoryStream(Encoding.UTF8.GetBytes(content)))
+                xml = XElement.Parse(content)
                 max_count = int(xml.Element('MaxCount').Value)
                 ms = Enumerable.ToList[XElement](XPathExtensions.XPathSelectElements(xml,"Member[@UserName]"))
             except Exception as e:
@@ -602,10 +607,14 @@ class WeChatParser(model_im.IM):
             pass
         elif msg_type == MSG_TYPE_LOCATION:
             if model is not None:
-                location = self._process_parse_message_location(content)
-                model.location_lat = location.get('latitude', None)
-                model.location_lng = location.get('longitude', None)
-                model.location_name = location.get('poiname', None)
+                location = model_im.Location()
+                location.deleted = model.deleted
+                location.source = model.source
+                location.location_id = self.location_id
+                self._process_parse_message_location(content, location)
+                model.location = self.location_id
+                self.location_id += 1
+                self.db_insert_table_location(location)
             node = user_node.GetByPath('Location/{0}/{1}.pic_thum'.format(friend_hash, msg_local_id))
             if node is not None:
                 img_path = node.AbsolutePath
@@ -641,7 +650,7 @@ class WeChatParser(model_im.IM):
         content = ''
         xml = None
         try:
-            xml = XElement.Load(MemoryStream(Encoding.UTF8.GetBytes(xml_str)))
+            xml = XElement.Parse(xml_str)
         except Exception as e:
             pass
         if xml is not None:
@@ -655,95 +664,91 @@ class WeChatParser(model_im.IM):
                     msg_title = appmsg.Element('title').Value if appmsg.Element('title') else ''
                     mmreader = appmsg.Element('mmreader')
                     if msg_title == '微信红包':
-                        content += '[标题]' + msg_title
+                        content += '[标题]' + msg_title + '\n'  # type 2001  wcpayinfo
                     elif msg_title == '微信转账':
-                        content += '[标题]' + msg_title
+                        # type 2000  wcpayinfo
+                        content += '[标题]' + msg_title + '\n'
+                        if appmsg.Element('des'):
+                            content += '[内容]' + appmsg.Element('des').Value + '\n'
                     elif mmreader:
                         category = mmreader.Element('category')
                         if category and category.Element('item'):
                             item = category.Element('item')
                             if item.Element('title'):
-                                content += '[标题]' + item.Element('title').Value
+                                content += '[标题]' + item.Element('title').Value + '\n'
                             if item.Element('digest'):
-                                content += '[内容]' + item.Element('digest').Value
+                                content += '[内容]' + item.Element('digest').Value + '\n'
                             if item.Element('url'):
-                                content += '[链接]' + item.Element('url').Value
+                                content += '[链接]' + item.Element('url').Value + '\n'
                     else:
                         if appmsg.Element('title'):
-                            content += '[标题]' + appmsg.Element('title').Value
+                            content += '[标题]' + appmsg.Element('title').Value + '\n'
                         if appmsg.Element('des'):
-                            content += '[内容]' + appmsg.Element('des').Value
+                            content += '[内容]' + appmsg.Element('des').Value + '\n'
                         if appmsg.Element('url'):
-                            content += '[链接]' + appmsg.Element('url').Value
+                            content += '[链接]' + appmsg.Element('url').Value + '\n'
+                        appinfo = xml.Element('appinfo')
+                        if appinfo and appinfo.Element('appname'):
+                            content += '[来自]' + appinfo.Element('appname').Value
+                else:
+                    pass
             elif xml.Name.LocalName == 'mmreader':
                 category = xml.Element('category')
                 if category and category.Element('item'):
                     item = category.Element('item')
                     if item.Element('title'):
-                        content += '[标题]' + item.Element('title').Value
+                        content += '[标题]' + item.Element('title').Value + '\n'
+                    if item.Element('digest'):
+                        content += '[内容]' + item.Element('digest').Value + '\n'
                     if item.Element('url'):
-                        content += '[链接]' + item.Element('url').Value
+                        content += '[链接]' + item.Element('url').Value + '\n'
             elif xml.Name.LocalName == 'appmsg':
                 if xml.Element('title'):
-                    content += '[标题]' + xml.Element('title').Value
+                    content += '[标题]' + xml.Element('title').Value + '\n'
                 if xml.Element('des'):
-                    content += '[内容]' + xml.Element('des').Value
+                    content += '[内容]' + xml.Element('des').Value + '\n'
                 if xml.Element('url'):
-                    content += '[链接]' + xml.Element('url').Value
+                    content += '[链接]' + xml.Element('url').Value + '\n'
                 appinfo = xml.Element('appinfo')
                 if appinfo and appinfo.Element('appname'):
                     content += '[来自]' + appinfo.Element('appname').Value
-        return content
+            else:
+                pass
+        if len(content) > 0:
+            return content
+        else:
+            return xml_str
 
-    def _process_parse_message_location(self, xml_str):
-        content = {}
+    def _process_parse_message_location(self, xml_str, model):
         xml = None
         try:
-            xml = XElement.Load(MemoryStream(Encoding.UTF8.GetBytes(xml_str)))
+            xml = XElement.Parse(xml_str)
         except Exception as e:
             pass
         if xml is not None:
             location = xml.Element('location')
             if location.Attribute('x'):
                 try:
-                    content['latitude'] = float(location.Attribute('x').Value)
+                    model.latitude = float(location.Attribute('x').Value)
                 except Exception as e:
                     pass
             if location.Attribute('y'):
                 try:
-                    content['longitude'] = float(location.Attribute('y').Value)
+                    model.longitude = float(location.Attribute('y').Value)
                 except Exception as e:
                     pass
-            if location.Attribute('scale'):
-                try:
-                    content['scale'] = float(location.Attribute('scale').Value)
-                except Exception as e:
-                    pass
-            if location.Attribute('label'):
-                content['label'] = location.Attribute('label').Value
             if location.Attribute('poiname'):
-                content['poiname'] = location.Attribute('poiname').Value
-        return content
+                model.address = location.Attribute('poiname').Value
 
     def _process_parse_message_voip(self, xml_str):
         content = ''
         xml = None
         try:
-            xml = XElement.Load(MemoryStream(Encoding.UTF8.GetBytes(xml_str)))
+            xml = XElement.Parse(xml_str)
         except Exception as e:
             pass
         if xml is not None:
-            location = xml.Element('location')
-            if location.Attribute('x'):
-                content += 'x: ' + location.Attribute('x').Value
-            if location.Attribute('y'):
-                content += '\ny: ' + location.Attribute('y').Value
-            if location.Attribute('scale'):
-                content += '\nscale: ' + location.Attribute('scale').Value
-            if location.Attribute('label'):
-                content += '\nlabel: ' + location.Attribute('label').Value
-            if location.Attribute('poiname'):
-                content += '\npoiname: ' + location.Attribute('poiname').Value
+            pass
         return content
 
     def _process_parse_message_voip_group(self, msg):
