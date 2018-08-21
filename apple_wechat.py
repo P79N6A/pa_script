@@ -69,6 +69,8 @@ class WeChatParser(model_im.IM):
         if not os.path.exists(self.cache_path):
             os.makedirs(self.cache_path)
         self.cache_db = os.path.join(self.cache_path, 'cache.db')
+        self.like_id = 1
+        self.comment_id = 1
 
     def parse(self):
         if self.need_parse(self.cache_db, VERSION_APP_VALUE):
@@ -384,43 +386,43 @@ class WeChatParser(model_im.IM):
                     likes = []
                     if 'likeUsers' in root.Children:
                         for like_node in root.Children['likeUsers'].Values:
-                            username = self._bpreader_node_get_value(like_node, 'username')
-                            nickname = self._bpreader_node_get_value(like_node, 'nickname')
-                            createTime = self._bpreader_node_get_value(like_node, 'createTime')
-                            like = {}
-                            if username is not None:
-                                like['username'] = username
-                            if nickname is not None:
-                                like['nickname'] = nickname.encode('utf-8')
-                            if createTime is not None:
-                                like['createTime'] = createTime
-                            likes.append(like)
-                    feed.likes = json.dumps(likes)
+                            sender_id = self._bpreader_node_get_value(like_node, 'username', '')
+                            if len(sender_id) > 0:
+                                fl = model_im.FeedLike()
+                                fl.like_id = self.like_id
+                                fl.sender_id = sender_id
+                                fl.sender_name = self._bpreader_node_get_value(like_node, 'nickname')
+                                try:
+                                    fl.create_time = int(self._bpreader_node_get_value(like_node, 'createTime'))
+                                except Exception as e:
+                                    pass
+                                self.db_insert_table_feed_like(fl)
+                                
+                                likes.append(self.like_id)
+                                self.like_id += 1
+                    feed.likes = ','.join(str(item) for item in likes)
 
                     comments = []
                     if 'commentUsers' in root.Children:
                         for comment_node in root.Children['commentUsers'].Values:
-                            username = self._bpreader_node_get_value(comment_node, 'username')
-                            nickname = self._bpreader_node_get_value(comment_node, 'nickname')
-                            content = self._bpreader_node_get_value(comment_node, 'content')
-                            refUserName = self._bpreader_node_get_value(comment_node, 'refUserName')
-                            try:
-                                createTime = int(self._bpreader_node_get_value(comment_node, 'createTime'))
-                            except Exception as e:
-                                pass
-                            comment = {}
-                            if username is not None:
-                                comment['username'] = username
-                            if nickname is not None:
-                                comment['nickname'] = nickname.encode('utf-8')
-                            if content is not None:
-                                comment['content'] = content.encode('utf-8')
-                            if refUserName is not None:
-                                comment['refUserName'] = refUserName
-                            if createTime is not None:
-                                comment['createTime'] = createTime
-                            comments.append(comment)
-                    feed.comments = json.dumps(comments)
+                            sender_id = self._bpreader_node_get_value(comment_node, 'username', '')
+                            content = self._bpreader_node_get_value(comment_node, 'content', '')
+                            if len(sender_id) > 0 and len(content) > 0:
+                                fc = model_im.FeedComment()
+                                fc.comment_id = self.comment_id
+                                fc.sender_id = sender_id
+                                fc.sender_name = self._bpreader_node_get_value(comment_node, 'nickname')
+                                fc.ref_user_id = self._bpreader_node_get_value(comment_node, 'refUserName')
+                                fc.content = content
+                                try:
+                                    fc.create_time = int(self._bpreader_node_get_value(comment_node, 'createTime'))
+                                except Exception as e:
+                                    pass
+                                self.db_insert_table_feed_comment(fc)
+
+                                comments.append(self.comment_id)
+                                self.comment_id += 1
+                    feed.comments = ','.join(str(item) for item in comments)
 
                     try:
                         self.db_insert_table_feed(feed)

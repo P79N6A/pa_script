@@ -221,6 +221,37 @@ SQL_INSERT_TABLE_FEED = '''
                      location_name, source, deleted, repeated) 
         values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
 
+SQL_CREATE_TABLE_FEED_LIKE = '''
+    create table if not exists feed_like(
+        like_id TEXT primary key,
+        sender_id TEXT,
+        sender_name TEXT,
+        create_time INT,
+        source TEXT,
+        deleted INT DEFAULT 0, 
+        repeated INT DEFAULT 0)'''
+
+SQL_INSERT_TABLE_FEED_LIKE = '''
+    insert into feed_like(like_id, sender_id, sender_name, create_time, source, deleted, repeated) 
+        values(?, ?, ?, ?, ?, ?, ?)'''
+
+SQL_CREATE_TABLE_FEED_COMMENT = '''
+    create table if not exists feed_comment(
+        comment_id TEXT primary key,
+        sender_id TEXT,
+        sender_name TEXT,
+        ref_user_id TEXT,
+        ref_user_name TEXT,
+        content TEXT,
+        create_time INT,
+        source TEXT,
+        deleted INT DEFAULT 0, 
+        repeated INT DEFAULT 0)'''
+
+SQL_INSERT_TABLE_FEED_COMMENT = '''
+    insert into feed_comment(comment_id, sender_id, sender_name, ref_user_id, ref_user_name, content, create_time, source, deleted, repeated) 
+        values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
+
 SQL_CREATE_TABLE_VERSION = '''
     create table if not exists version(
         key TEXT primary key,
@@ -264,6 +295,8 @@ class IM(object):
             self.cursor.execute(SQL_CREATE_TABLE_CHATROOM_MEMBER)
             self.cursor.execute(SQL_CREATE_TABLE_MESSAGE)
             self.cursor.execute(SQL_CREATE_TABLE_FEED)
+            self.cursor.execute(SQL_CREATE_TABLE_FEED_LIKE)
+            self.cursor.execute(SQL_CREATE_TABLE_FEED_COMMENT)
             self.cursor.execute(SQL_CREATE_TABLE_VERSION)
 
     def db_insert_table_account(self, column):
@@ -289,6 +322,14 @@ class IM(object):
     def db_insert_table_feed(self, column):
         if self.cursor is not None:
             self.cursor.execute(SQL_INSERT_TABLE_FEED, column.get_values())
+
+    def db_insert_table_feed_like(self, column):
+        if self.cursor is not None:
+            self.cursor.execute(SQL_INSERT_TABLE_FEED_LIKE, column.get_values())
+
+    def db_insert_table_feed_comment(self, column):
+        if self.cursor is not None:
+            self.cursor.execute(SQL_INSERT_TABLE_FEED_COMMENT, column.get_values())
 
     def db_insert_table_version(self, key, version):
         if self.cursor is not None:
@@ -466,8 +507,8 @@ class Feed(Column):
         self.attachment_link = None  # 附件链接[TEXT]
         self.attachment_desc = None  # 附件描述[TEXT]
         self.send_time = None  # 发布时间[INT]
-        self.likes = None  # 赞的人和时间[TEXT] json string [{'username':username, 'nickname':nickname, 'createTime':createTime}]
-        self.comments = None  # 评论的人、内容、时间[TEXT] json string [{'username':username, 'nickname':nickname, 'content':content, 'refUserName':refUserName, 'createTime':createTime}]
+        self.likes = None  # 赞[TEXT] 逗号分隔like_id 例如：like_id,like_id,like_id,...
+        self.comments = None  # 评论[TEXT] 逗号分隔comment_id 例如：comment_id,comment_id,comment_id,...
         self.location_lat = None  # 经度[REAL]
         self.location_lng = None  # 纬度[REAL]
         self.location_name = None  # 地址名称[TEXT]
@@ -477,6 +518,33 @@ class Feed(Column):
                 self.attachment_title, self.attachment_link, self.attachment_desc, self.send_time, self.likes, self.comments, 
                 self.location_lat, self.location_lng, self.location_name) + super(Feed, self).get_values()
     
+
+class FeedLike(Column):
+    def __init__(self):
+        super(FeedLike, self).__init__()
+        self.like_id = None  # 赞ID
+        self.sender_id = None  # 发布者ID[TEXT]
+        self.sender_name = None  # 发布者昵称[TEXT]
+        self.create_time = None  # 发布时间[INT]
+
+    def get_values(self):
+        return (self.like_id, self.sender_id, self.sender_name, self.create_time) + super(FeedLike, self).get_values()
+
+
+class FeedComment(Column):
+    def __init__(self):
+        super(FeedComment, self).__init__()
+        self.comment_id = None  # 评论ID
+        self.sender_id = None  # 发布者ID[TEXT]
+        self.sender_name = None  # 发布者昵称[TEXT]
+        self.ref_user_id = None  # 回复用户ID[TEXT]
+        self.ref_user_name = None  # 回复用户昵称[TEXT]
+        self.content = None  # 评论内容[TEXT]
+        self.create_time = None  # 发布时间[INT]
+
+    def get_values(self):
+        return (self.comment_id, self.sender_id, self.sender_name, self.ref_user_id, self.ref_user_name, self.content, self.create_time) + super(FeedComment, self).get_values()
+
 
 class GenerateModel(object):
     def __init__(self, cache_db, mount_dir):
@@ -892,49 +960,73 @@ class GenerateModel(object):
         else:
             return ConvertHelper.ToUri(self.mount_dir + path.replace('/', '\\'))
 
-    def _get_feed_likes(self, account_id, likes_str):
-        likes = []
-        ls = None
+    def _get_feed_likes(self, account_id, likes):
+        models = []
+        like_ids = []
         try:
-            ls = json.loads(likes_str)
+            like_ids = likes.split(',')
         except Exception as e:
             print(e)
-        if ls is not None:
-            for l in ls:
-                like = Common.MomentLike()
-                user = Common.UserIntro()
-                if 'username' in l:
-                    user.ID.Value = l['username']
-                if 'nickname' in l:
-                    user.Name.Value = l['nickname']
-                like.User.Value = user
-                if 'createTime' in l:
-                    like.TimeStamp.Value = self._get_timestamp(l['createTime'])
-                likes.append(like)
-        return likes
+        for like_id in like_ids:
+            sql = '''select sender_id, sender_name, create_time, source, deleted, repeated
+                     from feed_like
+                     where like_id='{0}' '''.format(like_id)
+            cursor = self.db.cursor()
+            row = None
+            try:
+                self.cursor.execute(sql)
+                row = self.cursor.fetchone()
+            except Exception as e:
+                print(e)
 
-    def _get_feed_comments(self, account_id, comments_str):
-        comments = []
-        cs = None
+            while row is not None:
+                like = Common.MomentLike()
+                like.User.Value = Common.UserIntro()
+                like.User.Value.ID.Value = row[0]
+                like.User.Value.Name.Value = row[1]
+                like.TimeStamp.Value = self._get_timestamp(row[2])
+                models.append(like)
+
+                row = self.cursor.fetchone()
+
+            if cursor is not None:
+                cursor.close()
+        return models
+
+    def _get_feed_comments(self, account_id, comments):
+        models = []
+        comment_ids = None
         try:
-            cs = json.loads(comments_str)
+            comment_ids = comments.split(',')
         except Exception as e:
             print(e)
-        if cs is not None:
-            for c in cs:
+        for comment_id in comment_ids:
+            sql = '''select sender_id, sender_name, ref_user_id, ref_user_name, content, create_time, source, deleted, repeated
+                     from feed_comment
+                     where comment_id='{0}' '''.format(comment_id)
+            cursor = self.db.cursor()
+            row = None
+            try:
+                self.cursor.execute(sql)
+                row = self.cursor.fetchone()
+            except Exception as e:
+                print(e)
+
+            while row is not None:
                 comment = Common.MomentComment()
-                sender = Common.UserIntro()
-                if 'username' in c:
-                    sender.ID.Value = c['username']
-                if 'nickname' in c:
-                    sender.Name.Value = c['nickname']
-                comment.Sender.Value = sender
-                if 'refUserName' in c:
-                    comment.Receiver.Value = self._get_user_intro(account_id, c['refUserName'])
-                if 'content' in c:
-                    comment.Content.Value = c['content']
-                if 'createTime' in c:
-                    comment.TimeStamp.Value = self._get_timestamp(c['createTime'])
-                comments.append(comment)
-        return comments
+                comment.Sender.Value = Common.UserIntro()
+                comment.Receiver.Value = Common.UserIntro()
+                comment.Sender.Value.ID.Value = row[0]
+                comment.Sender.Value.Name.Value = row[1]
+                comment.Receiver.Value.ID.Value = row[2]
+                comment.Receiver.Value.Name.Value = row[3]
+                comment.Content.Value = row[4]
+                comment.TimeStamp.Value = self._get_timestamp(row[5])
+                models.append(comment)
+
+                row = self.cursor.fetchone()
+
+            if cursor is not None:
+                cursor.close()
+        return models
 
