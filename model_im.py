@@ -634,7 +634,7 @@ class GenerateModel(object):
                 user.Password.Value = row[3]
             if row[5]:
                 user.PhoneNumber.Value= row[5]
-            if row[4]:
+            if row[4] and len(row[4]) > 0:
                 user.PhotoUris.Add(self._get_uri(row[4]))
                 contact['photo'] = row[4]
             if row[6]:
@@ -698,11 +698,13 @@ class GenerateModel(object):
             if row[2]:
                 friend.NickName.Value = row[2]
                 contact['nickname'] = row[2]
-            if row[4]:
+            if row[4] and len(row[4]) > 0:
                 friend.PhotoUris.Add(self._get_uri(row[4]))
                 contact['photo'] = row[4]
             if row[3]:
                 friend.Remarks.Value = row[3]
+            if row[5]:
+                friend.FriendType.Value = self._convert_friend_type(row[5])
             if row[6]:
                 friend.PhoneNumber.Value= row[6]
             if row[7]:
@@ -759,7 +761,7 @@ class GenerateModel(object):
             if row[2]:
                 group.Name.Value = row[2]
                 contact['nickname'] = row[2]
-            if row[3]:
+            if row[3] and len(row[3]) > 0:
                 group.PhotoUris.Add(self._get_uri(row[3]))
                 contact['photo'] = row[3]
             if row[6]:
@@ -832,18 +834,20 @@ class GenerateModel(object):
             if content is None:
                 content = ''
             media_path = row[9]
-            if media_path is None:
-                media_path = ''
-            if msg_type == MESSAGE_CONTENT_TYPE_TEXT:
-                message.Content.Value.Text.Value = content
-            elif msg_type == MESSAGE_CONTENT_TYPE_IMAGE:
-                message.Content.Value.Image.Value = self._get_uri(media_path)
+
+            message.Content.Value.Text.Value = content
+            if msg_type == MESSAGE_CONTENT_TYPE_IMAGE:
+                if media_path and len(media_path) > 0:
+                    message.Content.Value.Image.Value = self._get_uri(media_path)
             elif msg_type == MESSAGE_CONTENT_TYPE_VOICE:
-                message.Content.Value.Audio.Value = self._get_uri(media_path)
+                if media_path and len(media_path) > 0:
+                    message.Content.Value.Audio.Value = self._get_uri(media_path)
             elif msg_type == MESSAGE_CONTENT_TYPE_VIDEO:
-                message.Content.Value.Video.Value = self._get_uri(media_path)
+                if media_path and len(media_path) > 0:
+                    message.Content.Value.Video.Value = self._get_uri(media_path)
             elif msg_type == MESSAGE_CONTENT_TYPE_EMOJI:
-                message.Content.Value.Gif.Value = self._get_uri(media_path)
+                if media_path and len(media_path) > 0:
+                    message.Content.Value.Gif.Value = self._get_uri(media_path)
             #elif msg_type == MESSAGE_CONTENT_TYPE_CONTACT_CARD:
             #    pass
             #elif msg_type == MESSAGE_CONTENT_TYPE_LOCATION:
@@ -854,8 +858,6 @@ class GenerateModel(object):
             #    pass
             #elif msg_type == MESSAGE_CONTENT_TYPE_SYSTEM:
             #    pass
-            else:
-                message.Content.Value.Text.Value = content
 
             if account_id is not None and talker_id is not None:
                 key = account_id + "#" + talker_id
@@ -945,7 +947,8 @@ class GenerateModel(object):
             if row[5]:
                 urls = json.loads(row[5])
                 for url in urls:
-                    moment.Uris.Add(url)
+                    if len(url) > 0:
+                        moment.Uris.Add(url)
             #if row[6]:
             #    moment.PreviewUris.Add(row[6])
             if row[13]:
@@ -991,7 +994,7 @@ class GenerateModel(object):
         return ts
 
     def _get_uri(self, path):
-        if path.startswith('http'):
+        if path.startswith('http') or len(path) == 0:
             return ConvertHelper.ToUri(path)
         else:
             return ConvertHelper.ToUri(self.mount_dir + path.replace('/', '\\'))
@@ -1017,11 +1020,8 @@ class GenerateModel(object):
 
             while row is not None:
                 like = Common.MomentLike()
-                like.User.Value = Common.UserIntro()
                 if row[0]:
-                    like.User.Value.ID.Value = row[0]
-                if row[1]:
-                    like.User.Value.Name.Value = row[1]
+                    like.User.Value = self._get_user_intro(account_id, row[0], row[1])
                 if row[2]:
                     like.TimeStamp.Value = self._get_timestamp(row[2])
                 if row[3]:
@@ -1055,16 +1055,10 @@ class GenerateModel(object):
 
             while row is not None:
                 comment = Common.MomentComment()
-                comment.Sender.Value = Common.UserIntro()
-                comment.Receiver.Value = Common.UserIntro()
                 if row[0]:
-                    comment.Sender.Value.ID.Value = row[0]
-                if row[1]:
-                    comment.Sender.Value.Name.Value = row[1]
+                    comment.Sender.Value = self._get_user_intro(account_id, row[0], row[1])
                 if row[2]:
-                    comment.Receiver.Value.ID.Value = row[2]
-                if row[3]:
-                    comment.Receiver.Value.Name.Value = row[3]
+                    comment.Receiver.Value = self._get_user_intro(account_id, row[2], row[3])
                 if row[4]:
                     comment.Content.Value = row[4]
                 if row[5]:
@@ -1110,3 +1104,22 @@ class GenerateModel(object):
             if cursor is not None:
                 cursor.close()
         return location
+
+    @staticmethod
+    def _convert_friend_type(friend_type):
+        if friend_type == FRIEND_TYPE_FRIEND:
+            return Common.FriendType.Friend
+        elif friend_type == FRIEND_TYPE_GROUP_FRIEND:
+            return Common.FriendType.GroupFriend
+        elif friend_type == FRIEND_TYPE_FANS:
+            return Common.FriendType.Fans
+        elif friend_type == FRIEND_TYPE_FOLLOW:
+            return Common.FriendType.Follow
+        elif friend_type == FRIEND_TYPE_SPECAIL_FOLLOW:
+            return Common.FriendType.SpecialFollow
+        elif friend_type == FRIEND_TYPE_MUTUAL_FOLLOW:
+            return Common.FriendType.MutualFollow
+        elif friend_type == FRIEND_TYPE_RECENT:
+            return Common.FriendType.Recent
+        else:
+            return Common.FriendType.None

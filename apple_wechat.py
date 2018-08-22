@@ -61,7 +61,7 @@ class WeChatParser(model_im.IM):
     def __init__(self, node, extract_deleted, extract_source):
         super(WeChatParser, self).__init__()
         self.root = node
-        self.extract_deleted = False  # extract_deleted
+        self.extract_deleted = extract_deleted
         self.extract_source = extract_source
         self.cache_path = ds.OpenCachePath('wechat')
         self.mount_dir = node.FileSystem.MountPoint
@@ -226,7 +226,10 @@ class WeChatParser(model_im.IM):
                     friend.source = self.APP_NAME + '\n' + node.AbsolutePath
                     friend.account_id = self.user_account.account_id
                     friend.friend_id = username
-                    friend.type = contact.get('type')
+                    if contact.get('certification_flag', 0) == 0:
+                        friend.type = model_im.FRIEND_TYPE_FRIEND
+                    else:
+                        friend.type = model_im.FRIEND_TYPE_FOLLOW
                     friend.nickname = contact.get('nickname')
                     friend.remark = contact.get('remark')
                     if contact.get('head_hd'):
@@ -237,7 +240,10 @@ class WeChatParser(model_im.IM):
                         self.db_insert_table_friend(friend)
                     except Exception as e:
                         pass
-            self.db_commit()
+            try:
+                self.db_commit()
+            except Exception as e:
+                pass
         return True
 
     def _parse_user_mm_db(self, node):
@@ -263,10 +269,8 @@ class WeChatParser(model_im.IM):
                 msg_type = self._db_record_get_value(rec, 'Type', MSG_TYPE_TEXT)
                 msg_local_id = self._db_record_get_value(rec, 'MesLocalID')
                 is_sender = self._db_record_get_value(rec, 'Des', 0) == 0
-                contact = self.contacts.get(username)
-                certification_flag = 0
-                if contact is not None:
-                    certification_flag = contact.get('certification_flag', 0)
+                contact = self.contacts.get(username, {})
+                certification_flag = contact.get('certification_flag', 0)
 
                 message = model_im.Message()
                 message.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
@@ -274,6 +278,7 @@ class WeChatParser(model_im.IM):
                 message.source = self.APP_NAME + '\n' + node.AbsolutePath
                 message.account_id = self.user_account.account_id
                 message.talker_id = username
+                message.talker_name = contact.get('nickname')
                 message.is_sender = is_sender
                 message.msg_id = msg_local_id
                 message.type = self._convert_msg_type(msg_type)
@@ -281,12 +286,14 @@ class WeChatParser(model_im.IM):
                 if username.endswith("@chatroom"):
                     content, media_path, sender = self._process_parse_group_message(msg, msg_type, msg_local_id, is_sender, self.user_node, user_hash, message)
                     message.sender_id = sender
+                    message.sender_name = self.contacts.get(message.sender_id, {}).get('nickname')
                     message.content = content
                     message.media_path = media_path
                     message.talker_type = model_im.USER_TYPE_CHATROOM
                 else:
                     content, media_path = self._process_parse_friend_message(msg, msg_type, msg_local_id, self.user_node, user_hash, message)
                     message.sender_id = self.user_account.account_id if is_sender else username
+                    message.sender_name = self.contacts.get(message.sender_id, {}).get('nickname')
                     message.content = content
                     message.media_path = media_path
                     message.talker_type = model_im.USER_TYPE_FRIEND
@@ -295,7 +302,10 @@ class WeChatParser(model_im.IM):
                 except Exception as e:
                     pass
 
-            self.db_commit()
+            try:
+                self.db_commit()
+            except Exception as e:
+                pass
         return True
 
     def _parse_user_wc_db(self, node):
@@ -410,7 +420,7 @@ class WeChatParser(model_im.IM):
                         for comment_node in root.Children['commentUsers'].Values:
                             sender_id = self._bpreader_node_get_value(comment_node, 'username', '')
                             content = self._bpreader_node_get_value(comment_node, 'content', '')
-                            if len(sender_id) > 0 and len(content) > 0:
+                            if type(sender_id) == str and len(sender_id) > 0 and type(content) == str:
                                 fc = model_im.FeedComment()
                                 fc.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
                                 fc.source = self.APP_NAME + '\n' + node.AbsolutePath
@@ -433,7 +443,10 @@ class WeChatParser(model_im.IM):
                         self.db_insert_table_feed(feed)
                     except Exception as e:
                         pass
-            self.db_commit()
+            try:
+                self.db_commit()
+            except Exception as e:
+                pass
         return True
 
     def _parse_user_fts_db(self, node):
@@ -466,18 +479,16 @@ class WeChatParser(model_im.IM):
                     continue
                 username = username_ids.get(id)
                 contact = self.contacts.get(username, {})
-                certification_flag = 0
-                if contact is not None:
-                    certification_flag = contact.get('certification_flag', 0)
+                certification_flag = contact.get('certification_flag', 0)
                 content = self._db_record_get_value(rec, 'c3Message', '')
 
                 message = model_im.Message()
                 message.deleted = 1
-                if contact is not None:
-                    message.repeated = contact.get('repeated', 0)
+                message.repeated = contact.get('repeated', 0)
                 message.source = self.APP_NAME + '\n' + node.AbsolutePath
                 message.account_id = self.user_account.account_id
                 message.talker_id = username
+                message.talker_name = contact.get('nickname')
                 if username.endswith('@chatroom'):
                     message.talker_type = model_im.USER_TYPE_CHATROOM
                 else:
@@ -487,7 +498,10 @@ class WeChatParser(model_im.IM):
                     self.db_insert_table_message(message)
                 except Exception as e:
                     pass
-        self.db_commit()
+        try:
+            self.db_commit()
+        except Exception as e:
+            pass
         return True
 
     @staticmethod
