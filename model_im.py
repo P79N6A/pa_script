@@ -171,8 +171,10 @@ SQL_INSERT_TABLE_CHATROOM_MEMBER = '''
 SQL_CREATE_TABLE_MESSAGE = '''
     create table if not exists message(
         account_id TEXT, 
-        talker_id TEXT,  
+        talker_id TEXT,
+        talker_name TEXT,
         sender_id TEXT,
+        sender_name TEXT,
         is_sender INT,
         msg_id TEXT, 
         type INT,
@@ -187,9 +189,9 @@ SQL_CREATE_TABLE_MESSAGE = '''
         repeated INT DEFAULT 0)'''
 
 SQL_INSERT_TABLE_MESSAGE = '''
-    insert into message(account_id, talker_id, sender_id, is_sender, msg_id, type, content, media_path, 
-                        send_time, location, status, talker_type, source, deleted, repeated) 
-        values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
+    insert into message(account_id, talker_id, talker_name, sender_id, sender_name, is_sender, msg_id, type, content, 
+                        media_path, send_time, location, status, talker_type, source, deleted, repeated) 
+        values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
 
 SQL_CREATE_TABLE_FEED = '''
     create table if not exists feed(
@@ -490,7 +492,9 @@ class Message(Column):
         super(Message, self).__init__()
         self.account_id = None  # 账号ID[TEXT]
         self.talker_id = None  # 会话ID[TEXT]
+        self.talker_name = None  # 会话昵称[TEXT]
         self.sender_id = None  # 发送者ID[TEXT]
+        self.sender_name = None  # 发送者昵称[TEXT]
         self.is_sender = None  # 自己是否为发送发[INT]
         self.msg_id = None  # 消息ID[TEXT]
         self.type = None  # 消息类型[INT]，MESSAGE_CONTENT_TYPE
@@ -502,9 +506,9 @@ class Message(Column):
         self.talker_type = None  # 聊天类型[INT]，USER_TYPE
 
     def get_values(self):
-        return (self.account_id, self.talker_id, self.sender_id, self.is_sender, self.msg_id, self.type, 
-                self.content, self.media_path, self.send_time, self.location, self.status, 
-                self.talker_type) + super(Message, self).get_values()
+        return (self.account_id, self.talker_id, self.talker_name, self.sender_id, self.sender_name, 
+                self.is_sender, self.msg_id, self.type, self.content, self.media_path, self.send_time, 
+                self.location, self.status, self.talker_type) + super(Message, self).get_values()
 
 
 class Feed(Column):
@@ -783,9 +787,8 @@ class GenerateModel(object):
     def _get_chat_models(self):
         chats = {}
 
-        sql = '''select account_id, talker_id, sender_id, is_sender, msg_id, type, content, media_path, 
-                        send_time, location, status, talker_type,
-                        source, deleted, repeated
+        sql = '''select account_id, talker_id, talker_name, sender_id, sender_name, is_sender, msg_id, type, 
+                        content, media_path, send_time, location, status, talker_type, source, deleted, repeated
                  from message'''
         row = None
         try:
@@ -799,10 +802,11 @@ class GenerateModel(object):
             message.Content.Value = Common.MessageContent()
             account_id = None
             talker_id = None
-            talker_type = row[11]
+            talker_name = None
+            talker_type = row[13]
 
-            if row[12]:
-                message.Source.Value = row[12]
+            if row[14]:
+                message.Source.Value = row[14]
             # message.Delete = DeletedState.Intact if row[13] == 0 else DeletedState.Deleted
             if row[0]:
                 message.OwnerUserID.Value = row[0]
@@ -811,27 +815,35 @@ class GenerateModel(object):
                 message.ID.Value = row[1]
                 talker_id = row[1]
             if row[2]:
-                message.Sender.Value = self._get_user_intro(account_id, row[2], talker_type)
-                if row[2] == account_id:
+                talker_name = row[2]
+            if row[3]:
+                message.Sender.Value = self._get_user_intro(account_id, row[3], row[4], talker_type)
+                if row[3] == account_id:
                     message.Type.Value = Common.MessageType.Send
                 else:
                     message.Type.Value = Common.MessageType.Receive
-            if row[9]:
-                message.Content.Value.Location.Value = self._get_location(row[9])
-            if row[8]:
-                message.TimeStamp.Value = self._get_timestamp(row[8])
+            if row[11]:
+                message.Content.Value.Location.Value = self._get_location(row[11])
+            if row[10]:
+                message.TimeStamp.Value = self._get_timestamp(row[10])
 
-            msg_type = row[5]
-            content = row[6]
+            msg_type = row[7]
+            content = row[8]
             if content is None:
                 content = ''
-            media_path = row[7]
+            media_path = row[9]
             if media_path is None:
                 media_path = ''
             if msg_type == MESSAGE_CONTENT_TYPE_TEXT:
                 message.Content.Value.Text.Value = content
-            elif msg_type == MESSAGE_CONTENT_TYPE_IMAGE:# in [MESSAGE_CONTENT_TYPE_IMAGE, MESSAGE_CONTENT_TYPE_VOICE, MESSAGE_CONTENT_TYPE_VIDEO, MESSAGE_CONTENT_TYPE_EMOJI]:
+            elif msg_type == MESSAGE_CONTENT_TYPE_IMAGE:
                 message.Content.Value.Image.Value = self._get_uri(media_path)
+            elif msg_type == MESSAGE_CONTENT_TYPE_VOICE:
+                message.Content.Value.Audio.Value = self._get_uri(media_path)
+            elif msg_type == MESSAGE_CONTENT_TYPE_VIDEO:
+                message.Content.Value.Video.Value = self._get_uri(media_path)
+            elif msg_type == MESSAGE_CONTENT_TYPE_EMOJI:
+                message.Content.Value.Gif.Value = self._get_uri(media_path)
             #elif msg_type == MESSAGE_CONTENT_TYPE_CONTACT_CARD:
             #    pass
             #elif msg_type == MESSAGE_CONTENT_TYPE_LOCATION:
@@ -856,11 +868,17 @@ class GenerateModel(object):
                     chat.OwnerUserID.Value = account_id
                     chat.ChatId.Value = talker_id
                     if talker_type == USER_TYPE_FRIEND:
-                        chat.ChatName.Value = self.friends.get(key, {}).get('nickname', '')
+                        if talker_name is not None:
+                            chat.ChatName.Value = talker_name
+                        else:
+                            chat.ChatName.Value = self.friends.get(key, {}).get('nickname', '')
                         chat.Participants.Add(self._get_user_intro(account_id, talker_id))
                         chat.Participants.Add(self._get_user_intro(account_id, account_id))
                     elif talker_type == USER_TYPE_CHATROOM:
-                        chat.ChatName.Value = self.chatrooms.get(key, {}).get('nickname', '')
+                        if talker_name is not None:
+                            chat.ChatName.Value = talker_name
+                        else:
+                            chat.ChatName.Value = self.chatrooms.get(key, {}).get('nickname', '')
                         chat.Participants.AddRange(self._get_chatroom_member_models(account_id, talker_id))
                     chat.Messages.Add(message)
                     chats[key] = chat
@@ -944,7 +962,7 @@ class GenerateModel(object):
 
         return models 
 
-    def _get_user_intro(self, account_id, user_id, user_type=USER_TYPE_FRIEND):
+    def _get_user_intro(self, account_id, user_id, user_name=None, user_type=USER_TYPE_FRIEND):
         user = Common.UserIntro()
         user.ID.Value = user_id
 
@@ -961,6 +979,9 @@ class GenerateModel(object):
                 photo = contact.get('photo', '')
                 if len(photo) > 0:
                     user.Photo.Value = self._get_uri(photo)
+
+            if user_name is not None:
+                user.Name.Value = user_name
         return user
 
     def _get_timestamp(self, timestamp):
