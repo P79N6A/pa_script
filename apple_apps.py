@@ -58,6 +58,7 @@ from apple_calls import analyze_call_history
 from apple_sms import analyze_smss
 from apple_wechat import analyze_wechat
 from apple_qq import analyze_qq
+from apple_yixin import analyze_yixin
 from PA.InfraLib.Services import IApplicationService,ServiceGetter
 
 
@@ -91,6 +92,7 @@ FIND_BY_APPS_NODES = [
     ("com.tencent.mqq", analyze_qq, "QQ","QQ(简体)" ,DescripCategories.QQ),
     ("com.tencent.mqqjp", analyze_qq,"QQ", "QQ(日本)" ,DescripCategories.QQ),
     ("com.tencent.mqqi", analyze_qq, "QQ","QQ(国际)" ,DescripCategories.QQ),
+    ("com.yixin.yixin", analyze_yixin, "YiXin", "易信", DescripCategories.YiXin)
 ]
 
 if 'FIND_BY_APPS_NODES_EXTS' in locals():
