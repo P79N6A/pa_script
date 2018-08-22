@@ -172,17 +172,17 @@ SQL_INSERT_TABLE_CHATROOM_MEMBER = '''
 SQL_CREATE_TABLE_MESSAGE = '''
     create table if not exists message(
         account_id TEXT, 
-        talker_id TEXT,  
+        talker_id TEXT,
+        talker_name TEXT,
         sender_id TEXT,
+        sender_name TEXT,
         is_sender INT,
         msg_id TEXT, 
         type INT,
         content TEXT,
         media_path TEXT,
         send_time INT,
-        location_lat REAL,
-        location_lng REAL,
-        location_name TEXT,
+        location TEXT,
         status INT,
         talker_type INT,
         source TEXT,
@@ -190,8 +190,8 @@ SQL_CREATE_TABLE_MESSAGE = '''
         repeated INT DEFAULT 0)'''
 
 SQL_INSERT_TABLE_MESSAGE = '''
-    insert into message(account_id, talker_id, sender_id, is_sender, msg_id, type, content, media_path, 
-                        send_time, location_lat, location_lng, location_name, status, talker_type, source, deleted, repeated) 
+    insert into message(account_id, talker_id, talker_name, sender_id, sender_name, is_sender, msg_id, type, content, 
+                        media_path, send_time, location, status, talker_type, source, deleted, repeated) 
         values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
 
 SQL_CREATE_TABLE_FEED = '''
@@ -209,18 +209,15 @@ SQL_CREATE_TABLE_FEED = '''
         send_time INT,
         likes TEXT,
         comments TEXT,
-        location_lat REAL,
-        location_lng REAL,
-        location_name TEXT,
+        location TEXT,
         source TEXT,
         deleted INT DEFAULT 0, 
         repeated INT DEFAULT 0)'''
 
 SQL_INSERT_TABLE_FEED = '''
     insert into feed(account_id, sender_id, type, content, media_path, urls, preview_urls, attachment_title, 
-                     attachment_link, attachment_desc, send_time, likes, comments, location_lat, location_lng, 
-                     location_name, source, deleted, repeated) 
-        values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
+                     attachment_link, attachment_desc, send_time, likes, comments, location, source, deleted, repeated) 
+        values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
 
 SQL_CREATE_TABLE_FEED_LIKE = '''
     create table if not exists feed_like(
@@ -252,6 +249,22 @@ SQL_CREATE_TABLE_FEED_COMMENT = '''
 SQL_INSERT_TABLE_FEED_COMMENT = '''
     insert into feed_comment(comment_id, sender_id, sender_name, ref_user_id, ref_user_name, content, create_time, source, deleted, repeated) 
         values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
+
+SQL_CREATE_TABLE_LOCATION = '''
+    create table if not exists location(
+        location_id TEXT primary key,
+        latitude REAL,
+        longitude REAL,
+        elevation REAL,
+        address TEXT,
+        timestamp INT,
+        source TEXT,
+        deleted INT DEFAULT 0, 
+        repeated INT DEFAULT 0)'''
+
+SQL_INSERT_TABLE_LOCATION = '''
+    insert into location(location_id, latitude, longitude, elevation, address, timestamp, source, deleted, repeated) 
+        values(?, ?, ?, ?, ?, ?, ?, ?, ?)'''
 
 SQL_CREATE_TABLE_VERSION = '''
     create table if not exists version(
@@ -298,6 +311,7 @@ class IM(object):
             self.cursor.execute(SQL_CREATE_TABLE_FEED)
             self.cursor.execute(SQL_CREATE_TABLE_FEED_LIKE)
             self.cursor.execute(SQL_CREATE_TABLE_FEED_COMMENT)
+            self.cursor.execute(SQL_CREATE_TABLE_LOCATION)
             self.cursor.execute(SQL_CREATE_TABLE_VERSION)
 
     def db_insert_table_account(self, column):
@@ -331,6 +345,10 @@ class IM(object):
     def db_insert_table_feed_comment(self, column):
         if self.cursor is not None:
             self.cursor.execute(SQL_INSERT_TABLE_FEED_COMMENT, column.get_values())
+
+    def db_insert_table_location(self, column):
+        if self.cursor is not None:
+            self.cursor.execute(SQL_INSERT_TABLE_LOCATION, column.get_values())
 
     def db_insert_table_version(self, key, version):
         if self.cursor is not None:
@@ -475,23 +493,23 @@ class Message(Column):
         super(Message, self).__init__()
         self.account_id = None  # 账号ID[TEXT]
         self.talker_id = None  # 会话ID[TEXT]
+        self.talker_name = None  # 会话昵称[TEXT]
         self.sender_id = None  # 发送者ID[TEXT]
+        self.sender_name = None  # 发送者昵称[TEXT]
         self.is_sender = None  # 自己是否为发送发[INT]
         self.msg_id = None  # 消息ID[TEXT]
         self.type = None  # 消息类型[INT]，MESSAGE_CONTENT_TYPE
         self.content = None  # 内容[TEXT]
         self.media_path = None  # 媒体文件地址[TEXT]
         self.send_time = None  # 发送时间[INT]
-        self.location_lat = None  # 经度[REAL]
-        self.location_lng = None  # 纬度[REAL]
-        self.location_name = None  # 地址名称[TEXT]
+        self.location = None  # 地址ID[TEXT]
         self.status = None  # 消息状态[INT]，MESSAGE_STATUS
         self.talker_type = None  # 聊天类型[INT]，USER_TYPE
 
     def get_values(self):
-        return (self.account_id, self.talker_id, self.sender_id, self.is_sender, self.msg_id, self.type, 
-                self.content, self.media_path, self.send_time, self.location_lat, self.location_lng, 
-                self.location_name, self.status, self.talker_type) + super(Message, self).get_values()
+        return (self.account_id, self.talker_id, self.talker_name, self.sender_id, self.sender_name, 
+                self.is_sender, self.msg_id, self.type, self.content, self.media_path, self.send_time, 
+                self.location, self.status, self.talker_type) + super(Message, self).get_values()
 
 
 class Feed(Column):
@@ -510,20 +528,18 @@ class Feed(Column):
         self.send_time = None  # 发布时间[INT]
         self.likes = None  # 赞[TEXT] 逗号分隔like_id 例如：like_id,like_id,like_id,...
         self.comments = None  # 评论[TEXT] 逗号分隔comment_id 例如：comment_id,comment_id,comment_id,...
-        self.location_lat = None  # 经度[REAL]
-        self.location_lng = None  # 纬度[REAL]
-        self.location_name = None  # 地址名称[TEXT]
-
+        self.location = None  # 地址ID[TEXT]
+        
     def get_values(self):
         return (self.account_id, self.sender_id, self.type, self.content, self.media_path, self.urls, self.preview_urls, 
                 self.attachment_title, self.attachment_link, self.attachment_desc, self.send_time, self.likes, self.comments, 
-                self.location_lat, self.location_lng, self.location_name) + super(Feed, self).get_values()
+                self.location) + super(Feed, self).get_values()
     
 
 class FeedLike(Column):
     def __init__(self):
         super(FeedLike, self).__init__()
-        self.like_id = None  # 赞ID
+        self.like_id = None  # 赞ID[TEXT]
         self.sender_id = None  # 发布者ID[TEXT]
         self.sender_name = None  # 发布者昵称[TEXT]
         self.create_time = None  # 发布时间[INT]
@@ -535,7 +551,7 @@ class FeedLike(Column):
 class FeedComment(Column):
     def __init__(self):
         super(FeedComment, self).__init__()
-        self.comment_id = None  # 评论ID
+        self.comment_id = None  # 评论ID[TEXT]
         self.sender_id = None  # 发布者ID[TEXT]
         self.sender_name = None  # 发布者昵称[TEXT]
         self.ref_user_id = None  # 回复用户ID[TEXT]
@@ -544,7 +560,23 @@ class FeedComment(Column):
         self.create_time = None  # 发布时间[INT]
 
     def get_values(self):
-        return (self.comment_id, self.sender_id, self.sender_name, self.ref_user_id, self.ref_user_name, self.content, self.create_time) + super(FeedComment, self).get_values()
+        return (self.comment_id, self.sender_id, self.sender_name, self.ref_user_id, self.ref_user_name, 
+                self.content, self.create_time) + super(FeedComment, self).get_values()
+
+
+class Location(Column):
+    def __init__(self):
+        super(Location, self).__init__()
+        self.location_id = None  # 地址ID[TEXT]
+        self.latitude = None  # 纬度[REAL]
+        self.longitude = None  # 经度[REAL]
+        self.elevation = None  # 海拔[REAL]
+        self.address = None  # 地址名称[TEXT]
+        self.timestamp = None  # 时间戳[TEXT]
+
+    def get_values(self):
+        return (self.location_id, self.latitude, self.longitude, self.elevation, self.address, 
+                self.timestamp) + super(Location, self).get_values()
 
 
 class GenerateModel(object):
@@ -603,7 +635,7 @@ class GenerateModel(object):
                 user.Password.Value = row[3]
             if row[5]:
                 user.PhoneNumber.Value= row[5]
-            if row[4]:
+            if row[4] and len(row[4]) > 0:
                 user.PhotoUris.Add(self._get_uri(row[4]))
                 contact['photo'] = row[4]
             if row[6]:
@@ -667,11 +699,13 @@ class GenerateModel(object):
             if row[2]:
                 friend.NickName.Value = row[2]
                 contact['nickname'] = row[2]
-            if row[4]:
+            if row[4] and len(row[4]) > 0:
                 friend.PhotoUris.Add(self._get_uri(row[4]))
                 contact['photo'] = row[4]
             if row[3]:
                 friend.Remarks.Value = row[3]
+            if row[5]:
+                friend.FriendType.Value = self._convert_friend_type(row[5])
             if row[6]:
                 friend.PhoneNumber.Value= row[6]
             if row[7]:
@@ -728,7 +762,7 @@ class GenerateModel(object):
             if row[2]:
                 group.Name.Value = row[2]
                 contact['nickname'] = row[2]
-            if row[3]:
+            if row[3] and len(row[3]) > 0:
                 group.PhotoUris.Add(self._get_uri(row[3]))
                 contact['photo'] = row[3]
             if row[6]:
@@ -756,9 +790,8 @@ class GenerateModel(object):
     def _get_chat_models(self):
         chats = {}
 
-        sql = '''select account_id, talker_id, sender_id, is_sender, msg_id, type, content, media_path, 
-                        send_time, location_lat, location_lng, location_name, status, talker_type,
-                        source, deleted, repeated
+        sql = '''select account_id, talker_id, talker_name, sender_id, sender_name, is_sender, msg_id, type, 
+                        content, media_path, send_time, location, status, talker_type, source, deleted, repeated
                  from message'''
         row = None
         try:
@@ -772,11 +805,12 @@ class GenerateModel(object):
             message.Content.Value = Common.MessageContent()
             account_id = None
             talker_id = None
+            talker_name = None
             talker_type = row[13]
 
             if row[14]:
                 message.Source.Value = row[14]
-            # message.Delete = DeletedState.Intact if row[15] == 0 else DeletedState.Deleted
+            # message.Delete = DeletedState.Intact if row[13] == 0 else DeletedState.Deleted
             if row[0]:
                 message.OwnerUserID.Value = row[0]
                 account_id = row[0]
@@ -784,34 +818,37 @@ class GenerateModel(object):
                 message.ID.Value = row[1]
                 talker_id = row[1]
             if row[2]:
-                message.Sender.Value = self._get_user_intro(account_id, row[2], talker_type)
-                if row[2] == account_id:
+                talker_name = row[2]
+            if row[3]:
+                message.Sender.Value = self._get_user_intro(account_id, row[3], row[4], talker_type)
+                if row[3] == account_id:
                     message.Type.Value = Common.MessageType.Send
                 else:
                     message.Type.Value = Common.MessageType.Receive
-            if row[9] and row[10]:
-                location = Locations.Location()
-                location.Source.Value = message.Source.Value
-                location.Position.Value = Locations.Coordinate()
-                location.Position.Value.Latitude.Value = row[9]
-                location.Position.Value.Longitude.Value = row[10]
-                if row[11]:
-                    location.Position.Value.PositionAddress.Value = row[11]
-                message.Content.Value.Location.Value = location
-            if row[8]:
-                message.TimeStamp.Value = self._get_timestamp(row[8])
+            if row[11]:
+                message.Content.Value.Location.Value = self._get_location(row[11])
+            if row[10]:
+                message.TimeStamp.Value = self._get_timestamp(row[10])
 
-            msg_type = row[5]
-            content = row[6]
+            msg_type = row[7]
+            content = row[8]
             if content is None:
                 content = ''
-            media_path = row[7]
-            if media_path is None:
-                media_path = ''
-            if msg_type == MESSAGE_CONTENT_TYPE_TEXT:
-                message.Content.Value.Text.Value = content
-            elif msg_type in [MESSAGE_CONTENT_TYPE_IMAGE, MESSAGE_CONTENT_TYPE_VOICE, MESSAGE_CONTENT_TYPE_VIDEO, MESSAGE_CONTENT_TYPE_EMOJI]:
-                message.Content.Value.Image.Value = self._get_uri(media_path)
+            media_path = row[9]
+
+            message.Content.Value.Text.Value = content
+            if msg_type == MESSAGE_CONTENT_TYPE_IMAGE:
+                if media_path and len(media_path) > 0:
+                    message.Content.Value.Image.Value = self._get_uri(media_path)
+            elif msg_type == MESSAGE_CONTENT_TYPE_VOICE:
+                if media_path and len(media_path) > 0:
+                    message.Content.Value.Audio.Value = self._get_uri(media_path)
+            elif msg_type == MESSAGE_CONTENT_TYPE_VIDEO:
+                if media_path and len(media_path) > 0:
+                    message.Content.Value.Video.Value = self._get_uri(media_path)
+            elif msg_type == MESSAGE_CONTENT_TYPE_EMOJI:
+                if media_path and len(media_path) > 0:
+                    message.Content.Value.Gif.Value = self._get_uri(media_path)
             #elif msg_type == MESSAGE_CONTENT_TYPE_CONTACT_CARD:
             #    pass
             #elif msg_type == MESSAGE_CONTENT_TYPE_LOCATION:
@@ -822,8 +859,6 @@ class GenerateModel(object):
             #    pass
             #elif msg_type == MESSAGE_CONTENT_TYPE_SYSTEM:
             #    pass
-            else:
-                message.Content.Value.Text.Value = content
 
             if account_id is not None and talker_id is not None:
                 key = account_id + "#" + talker_id
@@ -836,11 +871,17 @@ class GenerateModel(object):
                     chat.OwnerUserID.Value = account_id
                     chat.ChatId.Value = talker_id
                     if talker_type == USER_TYPE_FRIEND:
-                        chat.ChatName.Value = self.friends[key].get('nickname', '')
+                        if talker_name is not None:
+                            chat.ChatName.Value = talker_name
+                        else:
+                            chat.ChatName.Value = self.friends.get(key, {}).get('nickname', '')
                         chat.Participants.Add(self._get_user_intro(account_id, talker_id))
                         chat.Participants.Add(self._get_user_intro(account_id, account_id))
                     elif talker_type == USER_TYPE_CHATROOM:
-                        chat.ChatName.Value = self.chatrooms[key].get('nickname', '')
+                        if talker_name is not None:
+                            chat.ChatName.Value = talker_name
+                        else:
+                            chat.ChatName.Value = self.chatrooms.get(key, {}).get('nickname', '')
                         chat.Participants.AddRange(self._get_chatroom_member_models(account_id, talker_id))
                     chat.Messages.Add(message)
                     chats[key] = chat
@@ -869,7 +910,8 @@ class GenerateModel(object):
                     model.Name.Value = row[3]
                 models.append(model)
             row = cursor.fetchone()
-        cursor.close()
+        if cursor is not None:
+            cursor.close()
         return models
 
     def _get_feed_models(self):
@@ -877,7 +919,7 @@ class GenerateModel(object):
 
         sql = '''select account_id, sender_id, type, content, media_path, urls, preview_urls, 
                         attachment_title, attachment_link, attachment_desc, send_time, likes, 
-                        comments, location_lat, location_lng, location_name, source, deleted, repeated
+                        comments, location, source, deleted, repeated
                  from feed'''
         row = None
         try:
@@ -890,9 +932,9 @@ class GenerateModel(object):
             moment = Common.Moment()
             moment.Content.Value = Common.MomentContent()
             account_id = None
-            if row[16]:
-                moment.Source.Value = row[16]
-            # moment.Delete = DeletedState.Intact if row[13] == 0 else DeletedState.Deleted
+            if row[14]:
+                moment.Source.Value = row[14]
+            # moment.Delete = DeletedState.Intact if row[15] == 0 else DeletedState.Deleted
             if row[0]:
                 moment.OwnerUserID.Value = row[0]
                 account_id = row[0]
@@ -906,18 +948,12 @@ class GenerateModel(object):
             if row[5]:
                 urls = json.loads(row[5])
                 for url in urls:
-                    moment.Uris.Add(url)
+                    if len(url) > 0:
+                        moment.Uris.Add(url)
             #if row[6]:
             #    moment.PreviewUris.Add(row[6])
-            if row[13] and row[14]:
-                location = Locations.Location()
-                location.Source.Value = moment.Source.Value
-                location.Position.Value = Locations.Coordinate()
-                location.Position.Value.Latitude.Value = row[13]
-                location.Position.Value.Longitude.Value = row[14]
-                if row[15]:
-                    location.Position.Value.PositionAddress.Value = row[15]
-                moment.Location.Value = location
+            if row[13]:
+                moment.Location.Value = self._get_location(row[13])
             if row[10]:
                 moment.TimeStamp.Value = self._get_timestamp(row[10])
             if row[11]:
@@ -930,7 +966,7 @@ class GenerateModel(object):
 
         return models 
 
-    def _get_user_intro(self, account_id, user_id, user_type=USER_TYPE_FRIEND):
+    def _get_user_intro(self, account_id, user_id, user_name=None, user_type=USER_TYPE_FRIEND):
         user = Common.UserIntro()
         user.ID.Value = user_id
 
@@ -947,6 +983,9 @@ class GenerateModel(object):
                 photo = contact.get('photo', '')
                 if len(photo) > 0:
                     user.Photo.Value = self._get_uri(photo)
+
+            if user_name is not None:
+                user.Name.Value = user_name
         return user
 
     def _get_timestamp(self, timestamp):
@@ -956,7 +995,7 @@ class GenerateModel(object):
         return ts
 
     def _get_uri(self, path):
-        if path.startswith('http'):
+        if path.startswith('http') or len(path) == 0:
             return ConvertHelper.ToUri(path)
         else:
             return ConvertHelper.ToUri(self.mount_dir + path.replace('/', '\\'))
@@ -975,20 +1014,22 @@ class GenerateModel(object):
             cursor = self.db.cursor()
             row = None
             try:
-                self.cursor.execute(sql)
-                row = self.cursor.fetchone()
+                cursor.execute(sql)
+                row = cursor.fetchone()
             except Exception as e:
                 print(e)
 
             while row is not None:
                 like = Common.MomentLike()
-                like.User.Value = Common.UserIntro()
-                like.User.Value.ID.Value = row[0]
-                like.User.Value.Name.Value = row[1]
-                like.TimeStamp.Value = self._get_timestamp(row[2])
+                if row[0]:
+                    like.User.Value = self._get_user_intro(account_id, row[0], row[1])
+                if row[2]:
+                    like.TimeStamp.Value = self._get_timestamp(row[2])
+                if row[3]:
+                    like.Source.Value = row[3]
                 models.append(like)
 
-                row = self.cursor.fetchone()
+                row = cursor.fetchone()
 
             if cursor is not None:
                 cursor.close()
@@ -1008,26 +1049,78 @@ class GenerateModel(object):
             cursor = self.db.cursor()
             row = None
             try:
-                self.cursor.execute(sql)
-                row = self.cursor.fetchone()
+                cursor.execute(sql)
+                row = cursor.fetchone()
             except Exception as e:
                 print(e)
 
             while row is not None:
                 comment = Common.MomentComment()
-                comment.Sender.Value = Common.UserIntro()
-                comment.Receiver.Value = Common.UserIntro()
-                comment.Sender.Value.ID.Value = row[0]
-                comment.Sender.Value.Name.Value = row[1]
-                comment.Receiver.Value.ID.Value = row[2]
-                comment.Receiver.Value.Name.Value = row[3]
-                comment.Content.Value = row[4]
-                comment.TimeStamp.Value = self._get_timestamp(row[5])
+                if row[0]:
+                    comment.Sender.Value = self._get_user_intro(account_id, row[0], row[1])
+                if row[2]:
+                    comment.Receiver.Value = self._get_user_intro(account_id, row[2], row[3])
+                if row[4]:
+                    comment.Content.Value = row[4]
+                if row[5]:
+                    comment.TimeStamp.Value = self._get_timestamp(row[5])
+                if row[6]:
+                    comment.Source.Value = row[6]
                 models.append(comment)
 
-                row = self.cursor.fetchone()
+                row = cursor.fetchone()
 
             if cursor is not None:
                 cursor.close()
         return models
 
+    def _get_location(self, location_id):
+        location = Locations.Location()
+        location.Position.Value = Locations.Coordinate()
+        if location_id is not None:
+            sql = '''select latitude, longitude, elevation, address, timestamp, source, deleted, repeated
+                     from location where location_id='{0}' '''.format(location_id)
+            cursor = self.db.cursor()
+            row = None
+            try:
+                cursor.execute(sql)
+                row = cursor.fetchone()
+            except Exception as e:
+                print(e)
+
+            if row is not None:
+                if row[0]:
+                    location.Position.Value.Latitude.Value = row[0]
+                if row[1]:
+                    location.Position.Value.Longitude.Value = row[1]
+                if row[2]:
+                    location.Position.Value.Elevation.Value = row[2]
+                if row[3]:
+                    location.Position.Value.PositionAddress.Value = row[3]
+                if row[4]:
+                    location.TimeStamp.Value = self._get_timestamp(row[4])
+                if row[5]:
+                    location.Source.Value = row[5]
+
+            if cursor is not None:
+                cursor.close()
+        return location
+
+    @staticmethod
+    def _convert_friend_type(friend_type):
+        if friend_type == FRIEND_TYPE_FRIEND:
+            return Common.FriendType.Friend
+        elif friend_type == FRIEND_TYPE_GROUP_FRIEND:
+            return Common.FriendType.GroupFriend
+        elif friend_type == FRIEND_TYPE_FANS:
+            return Common.FriendType.Fans
+        elif friend_type == FRIEND_TYPE_FOLLOW:
+            return Common.FriendType.Follow
+        elif friend_type == FRIEND_TYPE_SPECAIL_FOLLOW:
+            return Common.FriendType.SpecialFollow
+        elif friend_type == FRIEND_TYPE_MUTUAL_FOLLOW:
+            return Common.FriendType.MutualFollow
+        elif friend_type == FRIEND_TYPE_RECENT:
+            return Common.FriendType.Recent
+        else:
+            return Common.FriendType.None
