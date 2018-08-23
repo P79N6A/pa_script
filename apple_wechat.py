@@ -60,31 +60,39 @@ class WeChatParser(model_im.IM):
     
     def __init__(self, node, extract_deleted, extract_source):
         super(WeChatParser, self).__init__()
-        self.root = node
+        self.root = node.Parent.Parent
         self.extract_deleted = False  # extract_deleted
         self.extract_source = extract_source
+        self.is_valid_user_dir = self.is_valid_user_dir()
+
+    def parse(self):
+        if not self.is_valid_user_dir:
+            return []
+
+        self.user_hash = self.get_user_hash()
+        self.APP_NAME = self.get_app_name()
+        self.mount_dir = self.root.FileSystem.MountPoint
         self.cache_path = ds.OpenCachePath('wechat')
-        self.mount_dir = node.FileSystem.MountPoint
         if not os.path.exists(self.cache_path):
             os.makedirs(self.cache_path)
-        self.cache_db = os.path.join(self.cache_path, 'cache.db')
+        self.cache_db = os.path.join(self.cache_path, self.user_hash + '.db')
         self.like_id = 1
         self.comment_id = 1
         self.location_id = 1
 
-    def parse(self):
         if self.need_parse(self.cache_db, VERSION_APP_VALUE):
             self.db_create(self.cache_db)
 
-            self.APP_NAME = "微信"
-            user_nodes = self._get_user_nodes()
-            for user_node in user_nodes:
-                self.user_account = model_im.Account()
-                self.contacts = {}
-                self.user_node = user_node
-                self.parse_user(user_node)
-                self.user_account = None
-                self.contacts = None
+            self.contacts = {}
+            self.user_account = model_im.Account()
+
+            user_plist = self.root.GetByPath('mmsetting.archive')
+            if user_plist is not None and user_plist.Deleted == DeletedState.Intact:
+                self._get_user_from_setting(user_plist)
+                self._parse_user_contact_db(self.root.GetByPath('/DB/WCDB_Contact.sqlite'))
+                self._parse_user_mm_db(self.root.GetByPath('/DB/MM.sqlite'))
+                self._parse_user_wc_db(self.root.GetByPath('/wc/wc005_008.db'))
+                self._parse_user_fts_db(self.root.GetByPath('/fts/fts_message.db'))
 
             # 数据库填充完毕，请将中间数据库版本和app数据库版本插入数据库，用来检测app是否需要重新解析
             self.db_insert_table_version(model_im.VERSION_KEY_DB, model_im.VERSION_VALUE_DB)
@@ -100,22 +108,29 @@ class WeChatParser(model_im.IM):
         models = model_im.GenerateModel(self.cache_db, self.mount_dir).get_models()
         return models
 
-    def parse_user(self, node):
-        user_plist = node.GetByPath('mmsetting.archive')
-        if user_plist is not None and user_plist.Deleted == DeletedState.Intact:
-            self._get_user_from_setting(user_plist)
-            self._parse_user_contact_db(node.GetByPath('/DB/WCDB_Contact.sqlite'))
-            self._parse_user_mm_db(node.GetByPath('/DB/MM.sqlite'))
-            self._parse_user_wc_db(node.GetByPath('/wc/wc005_008.db'))
-            self._parse_user_fts_db(node.GetByPath('/fts/fts_message.db'))
+    def is_valid_user_dir(self):
+        if self.root is None:
+            return False
+        if self.root.GetByPath('mmsetting.archive') is None:
+            return False
+        if self.root.GetByPath('/DB/MM.sqlite') is None:
+            return False
+        return True
 
-    def _get_user_nodes(self):
-        user_nodes = []
-        for node in self.root.Search('mmsetting.archive$'):
-            user_node = node.Parent
-            if user_node.GetByPath('/DB/MM.sqlite') is not None:
-                user_nodes.append(user_node)
-        return user_nodes
+    def get_user_hash(self):
+        path = self.root.AbsolutePath
+        return os.path.basename(os.path.normpath(path))
+
+    def get_app_name(self):
+        return '微信'
+
+    #def _get_user_nodes(self):
+    #    user_nodes = []
+    #    for node in self.root.Search('mmsetting.archive$'):
+    #        user_node = node.Parent
+    #        if user_node.GetByPath('/DB/MM.sqlite') is not None:
+    #            user_nodes.append(user_node)
+    #    return user_nodes
     
     def _get_user_from_setting(self, user_plist):
         root = None
@@ -144,7 +159,8 @@ class WeChatParser(model_im.IM):
             else:
                 self.user_account.photo = self._bpreader_node_get_value(setting_node, 'headimgurl')
         self.APP_NAME = '微信:' + self.user_account.account_id
-        self.user_account.source = self.APP_NAME + '\n' + user_plist.AbsolutePath
+        self.user_account.source_app = self.APP_NAME
+        self.user_account.source_file = user_plist.AbsolutePath
         self.db_insert_table_account(self.user_account)
         self.db_commit()
 
@@ -189,7 +205,8 @@ class WeChatParser(model_im.IM):
                 if username.endswith("@chatroom"):
                     chatroom = model_im.Chatroom()
                     chatroom.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
-                    chatroom.source = self.APP_NAME + '\n' + node.AbsolutePath
+                    chatroom.source_app = self.APP_NAME
+                    chatroom.source_file = node.AbsolutePath
                     chatroom.account_id = self.user_account.account_id
                     chatroom.chatroom_id = username
                     chatroom.name = nickname
@@ -199,7 +216,8 @@ class WeChatParser(model_im.IM):
                     for member in members:
                         cm = model_im.ChatroomMember()
                         cm.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
-                        cm.source = self.APP_NAME + '\n' + node.AbsolutePath
+                        cm.source_app = self.APP_NAME
+                        cm.source_file = node.AbsolutePath
                         cm.account_id = self.user_account.account_id
                         cm.chatroom_id = username
                         cm.member_id = member.get('username')
@@ -220,7 +238,8 @@ class WeChatParser(model_im.IM):
                 else:
                     friend = model_im.Friend()
                     friend.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
-                    friend.source = self.APP_NAME + '\n' + node.AbsolutePath
+                    friend.source_app = self.APP_NAME
+                    friend.source_file = node.AbsolutePath
                     friend.account_id = self.user_account.account_id
                     friend.friend_id = username
                     friend.type = model_im.FRIEND_TYPE_FRIEND if certification_flag == 0 else model_im.FRIEND_TYPE_FOLLOW
@@ -232,89 +251,6 @@ class WeChatParser(model_im.IM):
                     except Exception as e:
                         pass
             self.db_commit()
-
-            #if self.extract_deleted:
-            #    ts = SQLiteParser.TableSignature('Friend')
-            #    SQLiteParser.Tools.AddSignatureToTable(ts, "userName", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
-            #    for rec in db.ReadTableDeletedRecords(ts, True, ''):
-            #        username = self._db_record_get_value(rec, 'userName')
-            #        certification_flag = self._db_record_get_value(rec, 'certificationFlag', 0)
-            #        nickname = None
-            #        alias = None
-            #        remark = None
-            #        if not rec["dbContactRemark"].IsDBNull:
-            #            nickname, alias, remark = self._process_parse_contact_remark(rec['dbContactRemark'].Value)
-            #        head = None
-            #        if not rec["dbContactHeadImage"].IsDBNull:
-            #            head, head_hd = self._process_parse_contact_head(rec['dbContactHeadImage'].Value)
-            #            if head_hd and len(head_hd) > 0:
-            #                head = head_hd
-                          
-            #        if len(username) >= 100:
-            #            continue
-                    
-            #        if username in self.contacts:
-            #            repeated = 1
-            #        else:
-            #            repeated = 0
-            #            contact = {}
-            #            if nickname and len(nickname) < 100:
-            #                contact['nickname'] = nickname
-            #            if remark and len(remark) < 100:
-            #                contact['remark'] = remark
-            #            if head and len(head) < 2048:
-            #                contact['photo'] = head
-            #            self.contacts[username] = contact
-
-            #        if username.endswith("@chatroom"):
-            #            chatroom = model_im.Chatroom()
-            #            chatroom.deleted = 1
-            #            chatroom.repeated = repeated
-            #            chatroom.source = self.APP_NAME + '\n' + node.AbsolutePath
-            #            chatroom.account_id = self.user_account.account_id
-            #            chatroom.chatroom_id = username
-            #            chatroom.name = nickname
-            #            chatroom.photo = head
-
-            #            members, max_count = self._process_parse_group_members(self._db_record_get_value(rec, 'dbContactChatRoom'))
-            #            for member in members:
-            #                cm = model_im.ChatroomMember()
-            #                cm.deleted = 1
-            #                cm.source = self.APP_NAME + '\n' + node.AbsolutePath
-            #                cm.account_id = self.user_account.account_id
-            #                cm.chatroom_id = username
-            #                cm.member_id = member.get('username')
-            #                cm.display_name = member.get('display_name')
-            #                try:
-            #                    self.db_insert_table_chatroom_member(cm)
-            #                except Exception as e:
-            #                    pass
-
-            #            if len(members) > 0:
-            #                chatroom.owner_id = members[0].get('username')
-            #            chatroom.max_member_count = max_count
-            #            chatroom.member_count = len(members)
-            #            try:
-            #                self.db_insert_table_chatroom(chatroom)
-            #            except Exception as e:
-            #                pass
-            #        else:
-            #            friend = model_im.Friend()
-            #            friend.delete = 1
-            #            friend.repeated = repeated
-            #            friend.source = self.APP_NAME + '\n' + node.AbsolutePath
-            #            friend.account_id = self.user_account.account_id
-            #            friend.friend_id = username
-            #            friend.type = model_im.FRIEND_TYPE_FRIEND if certification_flag == 0 else model_im.FRIEND_TYPE_FOLLOW
-            #            friend.nickname = nickname
-            #            friend.remark = remark
-            #            friend.photo = head
-            #            try:
-            #                self.db_insert_table_friend(friend)
-            #            except Exception as e:
-            #                pass
-
-            #    self.db_commit()
         return True
 
     def _parse_user_mm_db(self, node):
@@ -343,7 +279,8 @@ class WeChatParser(model_im.IM):
 
                 message = model_im.Message()
                 message.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
-                message.source = self.APP_NAME + '\n' + node.AbsolutePath
+                message.source_app = self.APP_NAME
+                message.source_file = node.AbsolutePath
                 message.account_id = self.user_account.account_id
                 message.talker_id = username
                 message.talker_name = contact.get('nickname')
@@ -352,14 +289,14 @@ class WeChatParser(model_im.IM):
                 message.type = self._convert_msg_type(msg_type)
                 message.send_time = self._db_record_get_value(rec, 'CreateTime')
                 if username.endswith("@chatroom"):
-                    content, media_path, sender_id = self._process_parse_group_message(msg, msg_type, msg_local_id, is_sender, self.user_node, user_hash, message)
+                    content, media_path, sender_id = self._process_parse_group_message(msg, msg_type, msg_local_id, is_sender, self.root, user_hash, message)
                     message.sender_id = sender_id
                     message.sender_name = self.contacts.get(message.sender_id, {}).get('nickname')
                     message.content = content
                     message.media_path = media_path
                     message.talker_type = model_im.USER_TYPE_CHATROOM
                 else:
-                    content, media_path = self._process_parse_friend_message(msg, msg_type, msg_local_id, self.user_node, user_hash, message)
+                    content, media_path = self._process_parse_friend_message(msg, msg_type, msg_local_id, self.root, user_hash, message)
                     message.sender_id = self.user_account.account_id if is_sender else username
                     message.sender_name = self.contacts.get(message.sender_id, {}).get('nickname')
                     message.content = content
@@ -406,7 +343,8 @@ class WeChatParser(model_im.IM):
 
                     feed = model_im.Feed()
                     feed.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
-                    feed.source = self.APP_NAME + '\n' + node.AbsolutePath
+                    feed.source_app = self.APP_NAME
+                    feed.source_file = node.AbsolutePath
                     feed.account_id = self.user_account.account_id
                     feed.sender_id = username
                     feed.content = self._bpreader_node_get_value(root, 'contentDesc')
@@ -416,7 +354,8 @@ class WeChatParser(model_im.IM):
                         location_node = root.Children['locationInfo']
                         location = model_im.Location()
                         location.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
-                        location.source = self.APP_NAME + '\n' + node.AbsolutePath
+                        location.source_app = self.APP_NAME
+                        location.source_file = node.AbsolutePath
                         location.location_id = self.location_id
                         try:
                             location.latitude = float(self._bpreader_node_get_value(location_node, 'location_latitude', 0))
@@ -468,7 +407,8 @@ class WeChatParser(model_im.IM):
                             if len(sender_id) > 0:
                                 fl = model_im.FeedLike()
                                 fl.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
-                                fl.source = self.APP_NAME + '\n' + node.AbsolutePath
+                                fl.source_app = self.APP_NAME
+                                fl.source_file = node.AbsolutePath
                                 fl.like_id = self.like_id
                                 fl.sender_id = sender_id
                                 fl.sender_name = self._bpreader_node_get_value(like_node, 'nickname')
@@ -493,7 +433,8 @@ class WeChatParser(model_im.IM):
                             if type(sender_id) == str and len(sender_id) > 0 and type(content) == str:
                                 fc = model_im.FeedComment()
                                 fc.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
-                                fc.source = self.APP_NAME + '\n' + node.AbsolutePath
+                                fc.source_app = self.APP_NAME
+                                fc.source_file = node.AbsolutePath
                                 fc.comment_id = self.comment_id
                                 fc.sender_id = sender_id
                                 fc.sender_name = self._bpreader_node_get_value(comment_node, 'nickname')
@@ -558,7 +499,8 @@ class WeChatParser(model_im.IM):
                 message = model_im.Message()
                 message.deleted = 1
                 message.repeated = contact.get('repeated', 0)
-                message.source = self.APP_NAME + '\n' + node.AbsolutePath
+                message.source_app = self.APP_NAME
+                message.source_file = node.AbsolutePath
                 message.account_id = self.user_account.account_id
                 message.talker_id = username
                 message.talker_name = contact.get('nickname')
@@ -696,7 +638,8 @@ class WeChatParser(model_im.IM):
             if model is not None:
                 location = model_im.Location()
                 location.deleted = model.deleted
-                location.source = model.source
+                location.source_app = model.source_app
+                location.source_file = model.source_file
                 location.location_id = self.location_id
                 self._process_parse_message_location(content, location)
                 model.location = self.location_id

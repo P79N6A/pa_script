@@ -49,7 +49,6 @@ MESSAGE_CONTENT_TYPE_LOCATION = 7  # 坐标
 MESSAGE_CONTENT_TYPE_LINK = 8  # 链接
 MESSAGE_CONTENT_TYPE_VOIP = 9  # 网络电话
 MESSAGE_CONTENT_TYPE_ATTACHMENT = 10  # 附件
-MESSAGE_CONTENT_TYPE_CHARTLET = 11
 MESSAGE_CONTENT_TYPE_SYSTEM = 99  # 系统
 
 MESSAGE_STATUS_DEFAULT = 0
@@ -89,14 +88,16 @@ SQL_CREATE_TABLE_ACCOUNT = '''
         address TEXT, 
         birthday TEXT, 
         signature TEXT,
-        source TEXT,
+        source_app TEXT,
+        source_file TEXT,
         deleted INT DEFAULT 0, 
         repeated INT DEFAULT 0)'''
 
 SQL_INSERT_TABLE_ACCOUNT = '''
     insert into account(account_id, nickname, username, password, photo, telephone, email, gender, age, 
-                        country, province, city, address, birthday, signature, source, deleted, repeated) 
-        values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
+                        country, province, city, address, birthday, signature, source_app, source_file, 
+                        deleted, repeated) 
+        values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
 
 SQL_CREATE_TABLE_FRIEND = '''
     create table if not exists friend(
@@ -113,14 +114,15 @@ SQL_CREATE_TABLE_FRIEND = '''
         address TEXT, 
         birthday TEXT, 
         signature TEXT,
-        source TEXT,
+        source_app TEXT,
+        source_file TEXT,
         deleted INT DEFAULT 0, 
         repeated INT DEFAULT 0)'''
 
 SQL_INSERT_TABLE_FRIEND = '''
     insert into friend(account_id, friend_id, nickname, remark, photo, type, telephone, email, gender, 
-                       age, address, birthday, signature, source, deleted, repeated) 
-        values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
+                       age, address, birthday, signature, source_app, source_file, deleted, repeated) 
+        values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
 
 SQL_CREATE_TABLE_CHATROOM = '''
     create table if not exists chatroom(
@@ -136,14 +138,16 @@ SQL_CREATE_TABLE_CHATROOM = '''
         member_count INT,
         max_member_count INT,
         create_time INT,
-        source TEXT,
+        source_app TEXT,
+        source_file TEXT,
         deleted INT DEFAULT 0, 
         repeated INT DEFAULT 0)'''
 
 SQL_INSERT_TABLE_CHATROOM = '''
     insert into chatroom(account_id, chatroom_id, name, photo, type, notice, description, creator_id, 
-                         owner_id, member_count, max_member_count, create_time, source, deleted, repeated) 
-        values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
+                         owner_id, member_count, max_member_count, create_time, source_app, source_file,
+                         deleted, repeated) 
+        values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
         
 
 SQL_CREATE_TABLE_CHATROOM_MEMBER = '''
@@ -160,14 +164,16 @@ SQL_CREATE_TABLE_CHATROOM_MEMBER = '''
         address TEXT, 
         birthday TEXT, 
         signature TEXT,
-        source TEXT,
+        source_app TEXT,
+        source_file TEXT,
         deleted INT DEFAULT 0, 
         repeated INT DEFAULT 0)'''
 
 SQL_INSERT_TABLE_CHATROOM_MEMBER = '''
     insert into chatroom_member(account_id, chatroom_id, member_id, display_name, photo, telephone, 
-                                email, gender, age, address, birthday, signature, source, deleted, repeated) 
-        values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
+                                email, gender, age, address, birthday, signature, source_app, source_file, 
+                                deleted, repeated) 
+        values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
 
 SQL_CREATE_TABLE_MESSAGE = '''
     create table if not exists message(
@@ -185,14 +191,15 @@ SQL_CREATE_TABLE_MESSAGE = '''
         location TEXT,
         status INT,
         talker_type INT,
-        source TEXT,
+        source_app TEXT,
+        source_file TEXT,
         deleted INT DEFAULT 0, 
         repeated INT DEFAULT 0)'''
 
 SQL_INSERT_TABLE_MESSAGE = '''
     insert into message(account_id, talker_id, talker_name, sender_id, sender_name, is_sender, msg_id, type, content, 
-                        media_path, send_time, location, status, talker_type, source, deleted, repeated) 
-        values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
+                        media_path, send_time, location, status, talker_type, source_app, source_file, deleted, repeated) 
+        values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
 
 SQL_CREATE_TABLE_FEED = '''
     create table if not exists feed(
@@ -210,14 +217,16 @@ SQL_CREATE_TABLE_FEED = '''
         likes TEXT,
         comments TEXT,
         location TEXT,
-        source TEXT,
+        source_app TEXT,
+        source_file TEXT,
         deleted INT DEFAULT 0, 
         repeated INT DEFAULT 0)'''
 
 SQL_INSERT_TABLE_FEED = '''
     insert into feed(account_id, sender_id, type, content, media_path, urls, preview_urls, attachment_title, 
-                     attachment_link, attachment_desc, send_time, likes, comments, location, source, deleted, repeated) 
-        values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
+                     attachment_link, attachment_desc, send_time, likes, comments, location, source_app, source_file, 
+                     deleted, repeated) 
+        values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
 
 SQL_CREATE_TABLE_FEED_LIKE = '''
     create table if not exists feed_like(
@@ -225,13 +234,14 @@ SQL_CREATE_TABLE_FEED_LIKE = '''
         sender_id TEXT,
         sender_name TEXT,
         create_time INT,
-        source TEXT,
+        source_app TEXT,
+        source_file TEXT,
         deleted INT DEFAULT 0, 
         repeated INT DEFAULT 0)'''
 
 SQL_INSERT_TABLE_FEED_LIKE = '''
-    insert into feed_like(like_id, sender_id, sender_name, create_time, source, deleted, repeated) 
-        values(?, ?, ?, ?, ?, ?, ?)'''
+    insert into feed_like(like_id, sender_id, sender_name, create_time, source_app, source_file, deleted, repeated) 
+        values(?, ?, ?, ?, ?, ?, ?, ?)'''
 
 SQL_CREATE_TABLE_FEED_COMMENT = '''
     create table if not exists feed_comment(
@@ -242,13 +252,15 @@ SQL_CREATE_TABLE_FEED_COMMENT = '''
         ref_user_name TEXT,
         content TEXT,
         create_time INT,
-        source TEXT,
+        source_app TEXT,
+        source_file TEXT,
         deleted INT DEFAULT 0, 
         repeated INT DEFAULT 0)'''
 
 SQL_INSERT_TABLE_FEED_COMMENT = '''
-    insert into feed_comment(comment_id, sender_id, sender_name, ref_user_id, ref_user_name, content, create_time, source, deleted, repeated) 
-        values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
+    insert into feed_comment(comment_id, sender_id, sender_name, ref_user_id, ref_user_name, content, 
+                             create_time, source_app, source_file, deleted, repeated) 
+        values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
 
 SQL_CREATE_TABLE_LOCATION = '''
     create table if not exists location(
@@ -258,13 +270,15 @@ SQL_CREATE_TABLE_LOCATION = '''
         elevation REAL,
         address TEXT,
         timestamp INT,
-        source TEXT,
+        source_app TEXT,
+        source_file TEXT,
         deleted INT DEFAULT 0, 
         repeated INT DEFAULT 0)'''
 
 SQL_INSERT_TABLE_LOCATION = '''
-    insert into location(location_id, latitude, longitude, elevation, address, timestamp, source, deleted, repeated) 
-        values(?, ?, ?, ?, ?, ?, ?, ?, ?)'''
+    insert into location(location_id, latitude, longitude, elevation, address, timestamp, 
+                         source_app, source_file, deleted, repeated) 
+        values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
 
 SQL_CREATE_TABLE_VERSION = '''
     create table if not exists version(
@@ -391,12 +405,13 @@ class IM(object):
 
 class Column(object):
     def __init__(self):
-        self.source = ''
+        self.source_app = ''
+        self.source_file = ''
         self.deleted = 0
         self.repeated = 0
 
     def get_values(self):
-        return self.source, self.deleted, self.repeated
+        return self.source_app, self.source_file, self.deleted, self.repeated
 
 
 class Account(Column):

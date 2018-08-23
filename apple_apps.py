@@ -58,7 +58,6 @@ from apple_calls import analyze_call_history
 from apple_sms import analyze_smss
 from apple_wechat import analyze_wechat
 from apple_qq import analyze_qq
-from apple_yixin import analyze_yixin
 from PA.InfraLib.Services import IApplicationService,ServiceGetter
 
 
@@ -66,7 +65,7 @@ from PA.InfraLib.Services import IApplicationService,ServiceGetter
 根据正则表达式匹配解析的应用请在此节点下配置
 """
 FIND_BY_RGX_NODES = [
-    # ('/DB/MM\.sqlite$', analyze_wechat, "Wechat","微信",DescripCategories.Wechat),
+    ('/DB/MM\.sqlite$', analyze_wechat, "Wechat","微信",DescripCategories.Wechat),
     ("/Library/CallHistoryDB/CallHistory\.storedata$", analyze_call_history, "Calls", "通话记录(系统)",DescripCategories.Calls),#新版本数据库兼容,别忘了老版本数据库!
     ('/PhotoData/Photos\.sqlite$', analyze_locations_from_deleted_photos, "PhotoDB","地理位置信息(已删除照片)",DescripCategories.Locations), #这里只处理照片(已删除)的地理位置信息
     ("/Library/Cookies$", analyze_cookies, "Cookies","Cookies",DescripCategories.Cookies), 
@@ -88,11 +87,9 @@ FIND_BY_RGX_NODES = [
 根据应用的标识ID来匹配对应的解析函数
 """
 FIND_BY_APPS_NODES = [
-    ("com.tencent.xin", analyze_wechat, "Wechat","微信",DescripCategories.Wechat),
     ("com.tencent.mqq", analyze_qq, "QQ","QQ(简体)" ,DescripCategories.QQ),
     ("com.tencent.mqqjp", analyze_qq,"QQ", "QQ(日本)" ,DescripCategories.QQ),
     ("com.tencent.mqqi", analyze_qq, "QQ","QQ(国际)" ,DescripCategories.QQ),
-    ("com.yixin.yixin", analyze_yixin, "YiXin", "易信", DescripCategories.YiXin)
 ]
 
 if 'FIND_BY_APPS_NODES_EXTS' in locals():
