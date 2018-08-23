@@ -49,7 +49,6 @@ class YiXinParser(model_im.IM):
             self.db_create(self.cache_db)
             user_list = self.get_user_list()
             for user in user_list:
-                self.user_account = model_im.Account()
                 self.contacts = {}
                 self.user = user
                 self.parse_user()
