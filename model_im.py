@@ -88,14 +88,16 @@ SQL_CREATE_TABLE_ACCOUNT = '''
         address TEXT, 
         birthday TEXT, 
         signature TEXT,
-        source TEXT,
+        source_app TEXT,
+        source_file TEXT,
         deleted INT DEFAULT 0, 
         repeated INT DEFAULT 0)'''
 
 SQL_INSERT_TABLE_ACCOUNT = '''
     insert into account(account_id, nickname, username, password, photo, telephone, email, gender, age, 
-                        country, province, city, address, birthday, signature, source, deleted, repeated) 
-        values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
+                        country, province, city, address, birthday, signature, source_app, source_file, 
+                        deleted, repeated) 
+        values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
 
 SQL_CREATE_TABLE_FRIEND = '''
     create table if not exists friend(
@@ -112,14 +114,15 @@ SQL_CREATE_TABLE_FRIEND = '''
         address TEXT, 
         birthday TEXT, 
         signature TEXT,
-        source TEXT,
+        source_app TEXT,
+        source_file TEXT,
         deleted INT DEFAULT 0, 
         repeated INT DEFAULT 0)'''
 
 SQL_INSERT_TABLE_FRIEND = '''
     insert into friend(account_id, friend_id, nickname, remark, photo, type, telephone, email, gender, 
-                       age, address, birthday, signature, source, deleted, repeated) 
-        values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
+                       age, address, birthday, signature, source_app, source_file, deleted, repeated) 
+        values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
 
 SQL_CREATE_TABLE_CHATROOM = '''
     create table if not exists chatroom(
@@ -135,14 +138,16 @@ SQL_CREATE_TABLE_CHATROOM = '''
         member_count INT,
         max_member_count INT,
         create_time INT,
-        source TEXT,
+        source_app TEXT,
+        source_file TEXT,
         deleted INT DEFAULT 0, 
         repeated INT DEFAULT 0)'''
 
 SQL_INSERT_TABLE_CHATROOM = '''
     insert into chatroom(account_id, chatroom_id, name, photo, type, notice, description, creator_id, 
-                         owner_id, member_count, max_member_count, create_time, source, deleted, repeated) 
-        values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
+                         owner_id, member_count, max_member_count, create_time, source_app, source_file,
+                         deleted, repeated) 
+        values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
         
 
 SQL_CREATE_TABLE_CHATROOM_MEMBER = '''
@@ -159,20 +164,24 @@ SQL_CREATE_TABLE_CHATROOM_MEMBER = '''
         address TEXT, 
         birthday TEXT, 
         signature TEXT,
-        source TEXT,
+        source_app TEXT,
+        source_file TEXT,
         deleted INT DEFAULT 0, 
         repeated INT DEFAULT 0)'''
 
 SQL_INSERT_TABLE_CHATROOM_MEMBER = '''
     insert into chatroom_member(account_id, chatroom_id, member_id, display_name, photo, telephone, 
-                                email, gender, age, address, birthday, signature, source, deleted, repeated) 
-        values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
+                                email, gender, age, address, birthday, signature, source_app, source_file, 
+                                deleted, repeated) 
+        values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
 
 SQL_CREATE_TABLE_MESSAGE = '''
     create table if not exists message(
         account_id TEXT, 
-        talker_id TEXT,  
+        talker_id TEXT,
+        talker_name TEXT,
         sender_id TEXT,
+        sender_name TEXT,
         is_sender INT,
         msg_id TEXT, 
         type INT,
@@ -182,14 +191,15 @@ SQL_CREATE_TABLE_MESSAGE = '''
         location TEXT,
         status INT,
         talker_type INT,
-        source TEXT,
+        source_app TEXT,
+        source_file TEXT,
         deleted INT DEFAULT 0, 
         repeated INT DEFAULT 0)'''
 
 SQL_INSERT_TABLE_MESSAGE = '''
-    insert into message(account_id, talker_id, sender_id, is_sender, msg_id, type, content, media_path, 
-                        send_time, location, status, talker_type, source, deleted, repeated) 
-        values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
+    insert into message(account_id, talker_id, talker_name, sender_id, sender_name, is_sender, msg_id, type, content, 
+                        media_path, send_time, location, status, talker_type, source_app, source_file, deleted, repeated) 
+        values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
 
 SQL_CREATE_TABLE_FEED = '''
     create table if not exists feed(
@@ -207,14 +217,16 @@ SQL_CREATE_TABLE_FEED = '''
         likes TEXT,
         comments TEXT,
         location TEXT,
-        source TEXT,
+        source_app TEXT,
+        source_file TEXT,
         deleted INT DEFAULT 0, 
         repeated INT DEFAULT 0)'''
 
 SQL_INSERT_TABLE_FEED = '''
     insert into feed(account_id, sender_id, type, content, media_path, urls, preview_urls, attachment_title, 
-                     attachment_link, attachment_desc, send_time, likes, comments, location, source, deleted, repeated) 
-        values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
+                     attachment_link, attachment_desc, send_time, likes, comments, location, source_app, source_file, 
+                     deleted, repeated) 
+        values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
 
 SQL_CREATE_TABLE_FEED_LIKE = '''
     create table if not exists feed_like(
@@ -222,13 +234,14 @@ SQL_CREATE_TABLE_FEED_LIKE = '''
         sender_id TEXT,
         sender_name TEXT,
         create_time INT,
-        source TEXT,
+        source_app TEXT,
+        source_file TEXT,
         deleted INT DEFAULT 0, 
         repeated INT DEFAULT 0)'''
 
 SQL_INSERT_TABLE_FEED_LIKE = '''
-    insert into feed_like(like_id, sender_id, sender_name, create_time, source, deleted, repeated) 
-        values(?, ?, ?, ?, ?, ?, ?)'''
+    insert into feed_like(like_id, sender_id, sender_name, create_time, source_app, source_file, deleted, repeated) 
+        values(?, ?, ?, ?, ?, ?, ?, ?)'''
 
 SQL_CREATE_TABLE_FEED_COMMENT = '''
     create table if not exists feed_comment(
@@ -239,13 +252,15 @@ SQL_CREATE_TABLE_FEED_COMMENT = '''
         ref_user_name TEXT,
         content TEXT,
         create_time INT,
-        source TEXT,
+        source_app TEXT,
+        source_file TEXT,
         deleted INT DEFAULT 0, 
         repeated INT DEFAULT 0)'''
 
 SQL_INSERT_TABLE_FEED_COMMENT = '''
-    insert into feed_comment(comment_id, sender_id, sender_name, ref_user_id, ref_user_name, content, create_time, source, deleted, repeated) 
-        values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
+    insert into feed_comment(comment_id, sender_id, sender_name, ref_user_id, ref_user_name, content, 
+                             create_time, source_app, source_file, deleted, repeated) 
+        values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
 
 SQL_CREATE_TABLE_LOCATION = '''
     create table if not exists location(
@@ -255,13 +270,15 @@ SQL_CREATE_TABLE_LOCATION = '''
         elevation REAL,
         address TEXT,
         timestamp INT,
-        source TEXT,
+        source_app TEXT,
+        source_file TEXT,
         deleted INT DEFAULT 0, 
         repeated INT DEFAULT 0)'''
 
 SQL_INSERT_TABLE_LOCATION = '''
-    insert into location(location_id, latitude, longitude, elevation, address, timestamp, source, deleted, repeated) 
-        values(?, ?, ?, ?, ?, ?, ?, ?, ?)'''
+    insert into location(location_id, latitude, longitude, elevation, address, timestamp, 
+                         source_app, source_file, deleted, repeated) 
+        values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
 
 SQL_CREATE_TABLE_VERSION = '''
     create table if not exists version(
@@ -388,12 +405,13 @@ class IM(object):
 
 class Column(object):
     def __init__(self):
-        self.source = ''
+        self.source_app = ''
+        self.source_file = ''
         self.deleted = 0
         self.repeated = 0
 
     def get_values(self):
-        return self.source, self.deleted, self.repeated
+        return self.source_app, self.source_file, self.deleted, self.repeated
 
 
 class Account(Column):
@@ -490,7 +508,9 @@ class Message(Column):
         super(Message, self).__init__()
         self.account_id = None  # 账号ID[TEXT]
         self.talker_id = None  # 会话ID[TEXT]
+        self.talker_name = None  # 会话昵称[TEXT]
         self.sender_id = None  # 发送者ID[TEXT]
+        self.sender_name = None  # 发送者昵称[TEXT]
         self.is_sender = None  # 自己是否为发送发[INT]
         self.msg_id = None  # 消息ID[TEXT]
         self.type = None  # 消息类型[INT]，MESSAGE_CONTENT_TYPE
@@ -502,9 +522,9 @@ class Message(Column):
         self.talker_type = None  # 聊天类型[INT]，USER_TYPE
 
     def get_values(self):
-        return (self.account_id, self.talker_id, self.sender_id, self.is_sender, self.msg_id, self.type, 
-                self.content, self.media_path, self.send_time, self.location, self.status, 
-                self.talker_type) + super(Message, self).get_values()
+        return (self.account_id, self.talker_id, self.talker_name, self.sender_id, self.sender_name, 
+                self.is_sender, self.msg_id, self.type, self.content, self.media_path, self.send_time, 
+                self.location, self.status, self.talker_type) + super(Message, self).get_values()
 
 
 class Feed(Column):
@@ -630,7 +650,7 @@ class GenerateModel(object):
                 user.Password.Value = row[3]
             if row[5]:
                 user.PhoneNumber.Value= row[5]
-            if row[4]:
+            if row[4] and len(row[4]) > 0:
                 user.PhotoUris.Add(self._get_uri(row[4]))
                 contact['photo'] = row[4]
             if row[6]:
@@ -694,11 +714,13 @@ class GenerateModel(object):
             if row[2]:
                 friend.NickName.Value = row[2]
                 contact['nickname'] = row[2]
-            if row[4]:
+            if row[4] and len(row[4]) > 0:
                 friend.PhotoUris.Add(self._get_uri(row[4]))
                 contact['photo'] = row[4]
             if row[3]:
                 friend.Remarks.Value = row[3]
+            if row[5]:
+                friend.FriendType.Value = self._convert_friend_type(row[5])
             if row[6]:
                 friend.PhoneNumber.Value= row[6]
             if row[7]:
@@ -755,7 +777,7 @@ class GenerateModel(object):
             if row[2]:
                 group.Name.Value = row[2]
                 contact['nickname'] = row[2]
-            if row[3]:
+            if row[3] and len(row[3]) > 0:
                 group.PhotoUris.Add(self._get_uri(row[3]))
                 contact['photo'] = row[3]
             if row[6]:
@@ -783,9 +805,8 @@ class GenerateModel(object):
     def _get_chat_models(self):
         chats = {}
 
-        sql = '''select account_id, talker_id, sender_id, is_sender, msg_id, type, content, media_path, 
-                        send_time, location, status, talker_type,
-                        source, deleted, repeated
+        sql = '''select account_id, talker_id, talker_name, sender_id, sender_name, is_sender, msg_id, type, 
+                        content, media_path, send_time, location, status, talker_type, source, deleted, repeated
                  from message'''
         row = None
         try:
@@ -799,10 +820,11 @@ class GenerateModel(object):
             message.Content.Value = Common.MessageContent()
             account_id = None
             talker_id = None
-            talker_type = row[11]
+            talker_name = None
+            talker_type = row[13]
 
-            if row[12]:
-                message.Source.Value = row[12]
+            if row[14]:
+                message.Source.Value = row[14]
             # message.Delete = DeletedState.Intact if row[13] == 0 else DeletedState.Deleted
             if row[0]:
                 message.OwnerUserID.Value = row[0]
@@ -811,27 +833,37 @@ class GenerateModel(object):
                 message.ID.Value = row[1]
                 talker_id = row[1]
             if row[2]:
-                message.Sender.Value = self._get_user_intro(account_id, row[2], talker_type)
-                if row[2] == account_id:
+                talker_name = row[2]
+            if row[3]:
+                message.Sender.Value = self._get_user_intro(account_id, row[3], row[4], talker_type)
+                if row[3] == account_id:
                     message.Type.Value = Common.MessageType.Send
                 else:
                     message.Type.Value = Common.MessageType.Receive
-            if row[9]:
-                message.Content.Value.Location.Value = self._get_location(row[9])
-            if row[8]:
-                message.TimeStamp.Value = self._get_timestamp(row[8])
+            if row[11]:
+                message.Content.Value.Location.Value = self._get_location(row[11])
+            if row[10]:
+                message.TimeStamp.Value = self._get_timestamp(row[10])
 
-            msg_type = row[5]
-            content = row[6]
+            msg_type = row[7]
+            content = row[8]
             if content is None:
                 content = ''
-            media_path = row[7]
-            if media_path is None:
-                media_path = ''
-            if msg_type == MESSAGE_CONTENT_TYPE_TEXT:
-                message.Content.Value.Text.Value = content
-            elif msg_type == MESSAGE_CONTENT_TYPE_IMAGE:# in [MESSAGE_CONTENT_TYPE_IMAGE, MESSAGE_CONTENT_TYPE_VOICE, MESSAGE_CONTENT_TYPE_VIDEO, MESSAGE_CONTENT_TYPE_EMOJI]:
-                message.Content.Value.Image.Value = self._get_uri(media_path)
+            media_path = row[9]
+
+            message.Content.Value.Text.Value = content
+            if msg_type == MESSAGE_CONTENT_TYPE_IMAGE:
+                if media_path and len(media_path) > 0:
+                    message.Content.Value.Image.Value = self._get_uri(media_path)
+            elif msg_type == MESSAGE_CONTENT_TYPE_VOICE:
+                if media_path and len(media_path) > 0:
+                    message.Content.Value.Audio.Value = self._get_uri(media_path)
+            elif msg_type == MESSAGE_CONTENT_TYPE_VIDEO:
+                if media_path and len(media_path) > 0:
+                    message.Content.Value.Video.Value = self._get_uri(media_path)
+            elif msg_type == MESSAGE_CONTENT_TYPE_EMOJI:
+                if media_path and len(media_path) > 0:
+                    message.Content.Value.Gif.Value = self._get_uri(media_path)
             #elif msg_type == MESSAGE_CONTENT_TYPE_CONTACT_CARD:
             #    pass
             #elif msg_type == MESSAGE_CONTENT_TYPE_LOCATION:
@@ -842,8 +874,6 @@ class GenerateModel(object):
             #    pass
             #elif msg_type == MESSAGE_CONTENT_TYPE_SYSTEM:
             #    pass
-            else:
-                message.Content.Value.Text.Value = content
 
             if account_id is not None and talker_id is not None:
                 key = account_id + "#" + talker_id
@@ -856,11 +886,17 @@ class GenerateModel(object):
                     chat.OwnerUserID.Value = account_id
                     chat.ChatId.Value = talker_id
                     if talker_type == USER_TYPE_FRIEND:
-                        chat.ChatName.Value = self.friends.get(key, {}).get('nickname', '')
+                        if talker_name is not None:
+                            chat.ChatName.Value = talker_name
+                        else:
+                            chat.ChatName.Value = self.friends.get(key, {}).get('nickname', '')
                         chat.Participants.Add(self._get_user_intro(account_id, talker_id))
                         chat.Participants.Add(self._get_user_intro(account_id, account_id))
                     elif talker_type == USER_TYPE_CHATROOM:
-                        chat.ChatName.Value = self.chatrooms.get(key, {}).get('nickname', '')
+                        if talker_name is not None:
+                            chat.ChatName.Value = talker_name
+                        else:
+                            chat.ChatName.Value = self.chatrooms.get(key, {}).get('nickname', '')
                         chat.Participants.AddRange(self._get_chatroom_member_models(account_id, talker_id))
                     chat.Messages.Add(message)
                     chats[key] = chat
@@ -927,7 +963,8 @@ class GenerateModel(object):
             if row[5]:
                 urls = json.loads(row[5])
                 for url in urls:
-                    moment.Uris.Add(url)
+                    if len(url) > 0:
+                        moment.Uris.Add(url)
             #if row[6]:
             #    moment.PreviewUris.Add(row[6])
             if row[13]:
@@ -944,7 +981,7 @@ class GenerateModel(object):
 
         return models 
 
-    def _get_user_intro(self, account_id, user_id, user_type=USER_TYPE_FRIEND):
+    def _get_user_intro(self, account_id, user_id, user_name=None, user_type=USER_TYPE_FRIEND):
         user = Common.UserIntro()
         user.ID.Value = user_id
 
@@ -961,6 +998,9 @@ class GenerateModel(object):
                 photo = contact.get('photo', '')
                 if len(photo) > 0:
                     user.Photo.Value = self._get_uri(photo)
+
+            if user_name is not None:
+                user.Name.Value = user_name
         return user
 
     def _get_timestamp(self, timestamp):
@@ -970,7 +1010,7 @@ class GenerateModel(object):
         return ts
 
     def _get_uri(self, path):
-        if path.startswith('http'):
+        if path.startswith('http') or len(path) == 0:
             return ConvertHelper.ToUri(path)
         else:
             return ConvertHelper.ToUri(self.mount_dir + path.replace('/', '\\'))
@@ -996,11 +1036,8 @@ class GenerateModel(object):
 
             while row is not None:
                 like = Common.MomentLike()
-                like.User.Value = Common.UserIntro()
                 if row[0]:
-                    like.User.Value.ID.Value = row[0]
-                if row[1]:
-                    like.User.Value.Name.Value = row[1]
+                    like.User.Value = self._get_user_intro(account_id, row[0], row[1])
                 if row[2]:
                     like.TimeStamp.Value = self._get_timestamp(row[2])
                 if row[3]:
@@ -1034,16 +1071,10 @@ class GenerateModel(object):
 
             while row is not None:
                 comment = Common.MomentComment()
-                comment.Sender.Value = Common.UserIntro()
-                comment.Receiver.Value = Common.UserIntro()
                 if row[0]:
-                    comment.Sender.Value.ID.Value = row[0]
-                if row[1]:
-                    comment.Sender.Value.Name.Value = row[1]
+                    comment.Sender.Value = self._get_user_intro(account_id, row[0], row[1])
                 if row[2]:
-                    comment.Receiver.Value.ID.Value = row[2]
-                if row[3]:
-                    comment.Receiver.Value.Name.Value = row[3]
+                    comment.Receiver.Value = self._get_user_intro(account_id, row[2], row[3])
                 if row[4]:
                     comment.Content.Value = row[4]
                 if row[5]:
@@ -1089,3 +1120,22 @@ class GenerateModel(object):
             if cursor is not None:
                 cursor.close()
         return location
+
+    @staticmethod
+    def _convert_friend_type(friend_type):
+        if friend_type == FRIEND_TYPE_FRIEND:
+            return Common.FriendType.Friend
+        elif friend_type == FRIEND_TYPE_GROUP_FRIEND:
+            return Common.FriendType.GroupFriend
+        elif friend_type == FRIEND_TYPE_FANS:
+            return Common.FriendType.Fans
+        elif friend_type == FRIEND_TYPE_FOLLOW:
+            return Common.FriendType.Follow
+        elif friend_type == FRIEND_TYPE_SPECAIL_FOLLOW:
+            return Common.FriendType.SpecialFollow
+        elif friend_type == FRIEND_TYPE_MUTUAL_FOLLOW:
+            return Common.FriendType.MutualFollow
+        elif friend_type == FRIEND_TYPE_RECENT:
+            return Common.FriendType.Recent
+        else:
+            return Common.FriendType.None
