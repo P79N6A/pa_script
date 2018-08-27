@@ -62,6 +62,7 @@ from apple_sogoumap import analyze_sogoumap
 from apple_baidumap import analyze_baidumap
 from apple_gaodemap import analyze_gaodemap
 from apple_tencentmap import analyze_tencentmap
+from apple_neteasemail import analyze_neteasemail
 from PA.InfraLib.Services import IApplicationService,ServiceGetter
 
 
@@ -97,7 +98,9 @@ FIND_BY_APPS_NODES = [
     ("com.sogou.map.app.Map", analyze_sogoumap, "SogouMap", "搜狗地图", DescripCategories.SogouMap),
     ("com.baidu.map", analyze_baidumap, "BaiduMap", "百度地图", DescripCategories.BaiduMap),
     ("com.tencent.sosomap", analyze_tencentmap, "TencentMap", "腾讯地图", DescripCategories.TencentMap),
-    ("com.autonavi.amap", analyze_gaodemap, "AMap", "高德地图", DescripCategories.AMap)
+    ("com.autonavi.amap", analyze_gaodemap, "AMap", "高德地图", DescripCategories.AMap),
+    ("com.netease.mailmaster", analyze_neteasemail, "mailMaster", "网易邮箱大师", DescripCategories.BaiduMap),
+
 ]
 
 if 'FIND_BY_APPS_NODES_EXTS' in locals():
