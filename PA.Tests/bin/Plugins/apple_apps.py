@@ -24,6 +24,7 @@ SafeLoadAssembly('apple_wechat')
 SafeLoadAssembly('apple_qq')
 SafeLoadAssembly('apple_skype')
 SafeLoadAssembly('apple_exts')
+SafeLoadAssembly('apple_baidumap')
 del clr
 
 #导入app4tests模块,测试时用来指定只跑那些模块
@@ -58,12 +59,14 @@ from apple_calls import analyze_call_history
 from apple_sms import analyze_smss
 from apple_wechat import analyze_wechat
 from apple_qq import analyze_qq
+from apple_baidumap import analyze_baidumap
+from apple_qqmail import analyze_qqmail
 from PA.InfraLib.Services import IApplicationService,ServiceGetter
 
 
 """
 根据正则表达式匹配解析的应用请在此节点下配置
-"""
+
 FIND_BY_RGX_NODES = [
     ('/DB/MM\.sqlite$', analyze_wechat, "Wechat","微信",DescripCategories.Wechat),
     ("/Library/CallHistoryDB/CallHistory\.storedata$", analyze_call_history, "Calls", "通话记录(系统)",DescripCategories.Calls),#新版本数据库兼容,别忘了老版本数据库!
@@ -82,14 +85,24 @@ FIND_BY_RGX_NODES = [
     ("/Library/Notes/notes\.db$", analyze_old_notes, "Notes","备忘录",DescripCategories.Notes),
     ("/AddressBook$", analyze_addressbook, "AddressBook","通讯录(系统)",DescripCategories.Contacts),
 ]
+"""
+
+FIND_BY_RGX_NODES = [
+    ]
 
 """
 根据应用的标识ID来匹配对应的解析函数
-"""
+
 FIND_BY_APPS_NODES = [
     ("com.tencent.mqq", analyze_qq, "QQ","QQ(简体)" ,DescripCategories.QQ),
     ("com.tencent.mqqjp", analyze_qq,"QQ", "QQ(日本)" ,DescripCategories.QQ),
     ("com.tencent.mqqi", analyze_qq, "QQ","QQ(国际)" ,DescripCategories.QQ),
+	("com.baidu.map", analyze_baidumap, "baiduMap", "百度", DescripCategories.BaiduMap),
+    ("com.tencent.qqmail", analyze_mails_normal, "qqMail", "QQ邮箱", DescripCategories.BaiduMap),
+]
+"""
+FIND_BY_APPS_NODES = [
+    ("com.tencent.qqmail", analyze_qqmail, "qqMail", "QQ邮箱", DescripCategories.BaiduMap),
 ]
 
 if 'FIND_BY_APPS_NODES_EXTS' in locals():
@@ -151,7 +164,8 @@ def decode_nodes(fs, extract_deleted, extract_source, installed_apps):
         "GoChat": "com.3g.gochat",
         "VBrowse": "uk.co.bewhere.vbrowse",
         "Tumblr": "com.tumblr.tumblr",
-        "Navitel": "su.navitel.app"
+        "Navitel": "su.navitel.app",
+		"baiduMap":"com.baidu.map"
     }
     results = ParserResults()
     fsIdentifer = fs.GetExtraValue[String]('Identifier', '')
