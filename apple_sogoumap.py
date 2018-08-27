@@ -117,8 +117,11 @@ class SogouMap(object):
                     search.source = "搜狗地图:" + rec["ZUSERID"].Value
                 if "ZATTRIBUTES" in rec and (not rec["ZATTRIBUTES"].IsDBNull):
                     b = bytes(rec["ZATTRIBUTES"].Value)
-                    jsonfile = b.decode("utf-8")
-                    ztime =  json.loads(jsonfile)
+                    try:
+                        jsonfile = b.decode("utf-8")
+                        ztime =  json.loads(jsonfile)
+                    except Exception as e:
+                        pass
                     if ztime and "localVerAtt" in ztime:
                         search.create_time = int(ztime["localVerAtt"][0:10])
                 try:
@@ -139,35 +142,59 @@ class SogouMap(object):
             if uid is None:
                 break
             self.decode_route(bplist["$objects"], uid.Value, route_addr)
-
+        self.sogoudb.db_commit()
 
     def decode_route(self, bp, uid, roure_addr):
         values = self.get_route_from_dict(bp, uid)
         if values:
-            pass
+            route_address = model_map.Address()
+            route_address.source = "搜狗地图:"
+            route_address.sourceApp = "搜狗地图"
+            route_address.sourceFile = roure_addr.AbsolutePath
+            if "bus.history.startname" in values:
+                route_address.from_name = values.get("bus.history.startname").Value
+            if "bus.history.endname" in values:
+                route_address.to_name = values.get("bus.history.endname").Value
+            try:
+                self.sogoudb.db_insert_table_address(route_address)
+            except Exception as e:
+                print(e)
 
     def get_route_from_dict(self, bp, uid):
         values = {}
-        # if bp[dictvalue].__getattribute__("Keys"):
-        attrs = dir(bp[dictvalue])
+        attrs = dir(bp[uid])
         if "Keys" in attrs:
-            for key in bp[dictvalue].Keys:
+            for key in bp[uid].Keys:
                 if key in ["bus.history.type"]:
-                    values[key] =  bp[dictvalue][key].Value
+                    values[key] =  bp[uid][key].Value
                 else:
-                    tmp = bp[dictvalue][key].Value
+                    tmp = bp[uid][key].Value
                     values[key] = bp[tmp]
         else:
             pass
         return values
 
+    def check_to_update(self, path_db, appversion):
+        if os.path.exists(path_db) and path_db[-6:-3] == appversion:
+            return False
+        else:
+            return True
+
 
     def parse(self):
+        
+        db_path = self.db_cache + "/sogou_db_1.0.db"
+        if self.check_to_update(db_path, APPVERSION):
+            self.sogoudb.db_create(db_path)
+            self.parse_history_data()
+            self.parse_user_data()
+            self.parse_favorites_data()
+            self.parse_route_data()
+            self.sogoudb.db_close()
 
-        self.parse_history_data()
-        self.parse_user_data()
-        self.parse_favorites_data()
-        #self.parse_route_data()
+        generate = model_map.Genetate(db_path)   
+        tmpresult = generate.get_models()
+        return tmpresult
 
     
 def analyze_sogoumap(node, extract_deleted, extract_source):

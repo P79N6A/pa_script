@@ -95,7 +95,7 @@ class WeChatParser(model_im.IM):
             node = self.user_node.GetByPath('/EnMicroMsg.db')
             mm_db_path = os.path.join(self.cache_path, self.user_hash + '_mm.db')
             if True: # Decryptor.decrypt(node, self._get_db_key(self.imei, self.uin), mm_db_path):
-                self._parse_mm_db(mm_db_path)
+                self._parse_mm_db(mm_db_path, node.AbsolutePath)
 
             # 数据库填充完毕，请将中间数据库版本和app数据库版本插入数据库，用来检测app是否需要重新解析
             self.db_insert_table_version(model_im.VERSION_KEY_DB, model_im.VERSION_VALUE_DB)
@@ -189,14 +189,18 @@ class WeChatParser(model_im.IM):
         m.update((imei + uin).encode('utf8'))
         return m.hexdigest()[:7]
 
-    def _parse_mm_db(self, mm_db_path):
-        mm_db = sqlite3.connect(mm_db_path)
-        mm_cursor = mm_db.cursor()
+    def _parse_mm_db(self, mm_db_path, source):
+        db = sqlite3.connect(mm_db_path)
+        cursor = db.cursor()
 
-        self._parse_mm_db_user_info(mm_cursor)
+        self.user_account.source = source
+        self._parse_mm_db_user_info(cursor)
+        self._parse_mm_db_contact(cursor, source)
+        self._parse_mm_db_chatroom_member(cursor, source)
+        self._parse_mm_db_message(cursor, source)
 
-        mm_cursor.close()
-        mm_db.close()
+        cursor.close()
+        db.close()
 
     def _parse_mm_db_user_info(self, cursor):
         self.user_account.account_id = self._parse_mm_db_get_user_info_from_userinfo(cursor, 2)
@@ -206,6 +210,8 @@ class WeChatParser(model_im.IM):
         self.user_account.signature = self._parse_mm_db_get_user_info_from_userinfo(cursor, 12291)
         self.user_account.username = self._parse_mm_db_get_user_info_from_userinfo2(cursor, 'USERINFO_LAST_LOGIN_USERNAME_STRING')
         self.user_account.photo = self._parse_mm_db_get_user_info_from_userinfo2(cursor, 'USERINFO_SELFINFO_SMALLIMGURL_STRING')
+        self.db_insert_table_account(self.user_account)
+        self.db_commit()
 
     def _parse_mm_db_get_user_info_from_userinfo(self, cursor, id):
         sql = 'select value from userinfo where id = {}'.format(id)
@@ -214,7 +220,7 @@ class WeChatParser(model_im.IM):
             cursor.execute(sql)
             row = cursor.fetchone()
         except Exception as e:
-            pass
+            print(e)
         if row is not None:
             return row[0]
         return None
@@ -226,11 +232,193 @@ class WeChatParser(model_im.IM):
             cursor.execute(sql)
             row = cursor.fetchone()
         except Exception as e:
-            pass
+            print(e)
         if row is not None:
             return row[0]
         return None
 
+    def _parse_mm_db_contact(self, cursor, source):
+        sql = '''select rcontact.username,alias,nickname,conRemark,type,verifyFlag,reserved1,reserved2 
+                 from rcontact 
+                 left outer join img_flag 
+                 on rcontact.username = img_flag.username'''
+        row = None
+        try:
+            cursor.execute(sql)
+            row = cursor.fetchone()
+        except Exception as e:
+            print(e)
+        while row is not None:
+            username = row[0]
+            alias = row[1]
+            nickname = row[2]
+            remark = row[3]
+            contact_type = row[4]
+            verify_flag = row[5]
+            portrait_hd = row[6]
+            portrait = row[7]
+
+            if username in [None, '']:
+                continue
+
+            head = portrait
+            if portrait_hd and len(portrait_hd) > 0:
+                head = portrait_hd
+
+            contact = {}
+            if nickname:
+                contact['nickname'] = nickname
+            if remark:
+                contact['remark'] = remark
+            if head:
+                contact['photo'] = head
+            self.contacts[username] = contact
+
+            if username.endswith('@chatroom'):
+                chatroom = model_im.Chatroom()
+                chatroom.source = source
+                chatroom.account_id = self.user_account.account_id
+                chatroom.chatroom_id = username
+                chatroom.name = nickname
+                chatroom.photo = head
+                self.db_insert_table_chatroom(chatroom)
+            else:
+                friend = model_im.Friend()
+                friend.source = source
+                friend.account_id = self.user_account.account_id
+                friend.friend_id = username
+                friend.type = model_im.FRIEND_TYPE_FRIEND if verify_flag == 0 else model_im.FRIEND_TYPE_FOLLOW
+                friend.nickname = nickname
+                friend.remark = remark
+                friend.photo = head
+                self.db_insert_table_friend(friend)
+            row = cursor.fetchone()
+        self.db_commit()
+
+    def _parse_mm_db_chatroom_member(self, cursor, source):
+        sql = '''select chatroomname,memberlist,displayname,selfDisplayName,roomowner
+                 from chatroom'''
+        row = None
+        try:
+            cursor.execute(sql)
+            row = cursor.fetchone()
+        except Exception as e:
+            print(e)
+        
+        while row is not None:
+            chatroom_id = row[0]
+            member_list = row[1]
+            display_name_list = row[2]
+            room_owner = row[4]
+
+            room_members = member_list.split(';')
+            display_names = display_name_list.split('、')
+            
+            cm = model_im.ChatroomMember()
+            cm.source = source
+            cm.account_id = self.user_account.account_id
+            cm.chatroom_id = chatroom_id
+            for i, room_member in enumerate(room_members):
+                cm.member_id = room_member
+                if i < len(display_names) and display_names[i] != room_member:
+                    cm.display_name = display_names[i]
+                self.db_insert_table_chatroom_member(cm)
+            row = cursor.fetchone()
+        self.db_commit()
+
+    def _parse_mm_db_message(self, cursor, source):
+        sql = 'select talker,content,imgPath,isSend,status,type,createTime,msgId,lvbuffer,msgSvrId from message'
+        row = None
+        try:
+            cursor.execute(sql)
+            row = cursor.fetchone()
+        except Exception as e:
+            print(e)
+        
+        while row is not None:
+            talker = row[0]
+            msg = row[1]
+            img_path = row[2]
+            is_send = row[3]
+            status = row[4]
+            msg_type = row[5]
+            create_time = row[6] / 1000
+            msg_id = row[7]
+            lv_buffer = row[8]
+            msg_svr_id = row[9]
+
+            #if msg_type == MSG_TYPE_VOICE:
+            #    img_path = self._process_db_tranlate_voice_path(img_path)
+            #elif msg_type == MSG_TYPE_VIDEO:
+            #    img_path = self._process_db_tranlate_video_path(img_path)
+            #elif msg_type == MSG_TYPE_VOIP:
+            #    img_path = self._process_db_tranlate_lv_buffer(lv_buffer)
+            #else:
+            #    img_path = self._process_db_tranlate_img_path(img_path)
+
+            message = model_im.Message()
+            message.source = source
+            message.account_id = self.user_account.account_id
+            message.talker_id = talker
+            message.talker_name = self.contacts.get(talker, {}).get('nickname')
+            message.is_sender = is_send
+            message.msg_id = msg_svr_id
+            message.type = self._convert_msg_type(msg_type)
+            message.send_time = create_time
+            message.media_path = img_path
+            if talker.endswith("@chatroom"):
+                content, sender_id = self._process_parse_group_message(msg, msg_type, is_send, message)
+                message.sender_id = sender_id
+                message.sender_name = self.contacts.get(sender_id, {}).get('nickname')
+                message.content = content
+                message.talker_type = model_im.USER_TYPE_CHATROOM
+            else:
+                content = self._process_parse_friend_message(msg, msg_type, message)
+                message.sender_id = self.user_account.account_id if is_send != 0 else talker
+                message.sender_name = self.contacts.get(message.sender_id, {}).get('nickname')
+                message.content = content
+                message.talker_type = model_im.USER_TYPE_FRIEND
+            self.db_insert_table_message(message)
+            row = cursor.fetchone()
+        self.db_commit()
+
+    def _process_parse_group_message(self, msg, msg_type, is_sender, model):
+        sender_id = self.user_account.account_id
+        content = msg
+
+        if is_sender == 0:
+            index = msg.find(':\n')
+            if index != -1:
+                sender_id = msg[:index]
+                content = msg[index+2:]
+
+        content = self._process_parse_friend_message(content, msg_type, model)
+        return content, sender_id
+
+    def _process_parse_friend_message(self, msg, msg_type, model):
+        content = msg
+        return content
+
+    @staticmethod
+    def _convert_msg_type(msg_type):
+        if msg_type == MSG_TYPE_TEXT:
+            return model_im.MESSAGE_CONTENT_TYPE_TEXT
+        elif msg_type == MSG_TYPE_IMAGE:
+            return model_im.MESSAGE_CONTENT_TYPE_IMAGE
+        elif msg_type == MSG_TYPE_VOICE:
+            return model_im.MESSAGE_CONTENT_TYPE_VOICE
+        elif msg_type in [MSG_TYPE_VIDEO, MSG_TYPE_VIDEO_2]:
+            return model_im.MESSAGE_CONTENT_TYPE_VIDEO
+        elif msg_type == MSG_TYPE_EMOJI:
+            return model_im.MESSAGE_CONTENT_TYPE_EMOJI
+        elif msg_type == MSG_TYPE_LOCATION:
+            return model_im.MESSAGE_CONTENT_TYPE_LOCATION
+        elif msg_type in [MSG_TYPE_VOIP, MSG_TYPE_VOIP_GROUP]:
+            return model_im.MESSAGE_CONTENT_TYPE_VOIP
+        elif msg_type in [MSG_TYPE_SYSTEM, MSG_TYPE_SYSTEM_2]:
+            return model_im.MESSAGE_CONTENT_TYPE_SYSTEM
+        else:
+            return model_im.MESSAGE_CONTENT_TYPE_LINK
 
 class Decryptor:
     @staticmethod
