@@ -58,6 +58,11 @@ from apple_calls import analyze_call_history
 from apple_sms import analyze_smss
 from apple_wechat import analyze_wechat
 from apple_qq import analyze_qq
+from apple_sogoumap import analyze_sogoumap
+from apple_baidumap import analyze_baidumap
+from apple_gaodemap import analyze_gaodemap
+from apple_tencentmap import analyze_tencentmap
+from apple_neteasemail import analyze_neteasemail
 from PA.InfraLib.Services import IApplicationService,ServiceGetter
 
 
@@ -90,6 +95,12 @@ FIND_BY_APPS_NODES = [
     ("com.tencent.mqq", analyze_qq, "QQ","QQ(简体)" ,DescripCategories.QQ),
     ("com.tencent.mqqjp", analyze_qq,"QQ", "QQ(日本)" ,DescripCategories.QQ),
     ("com.tencent.mqqi", analyze_qq, "QQ","QQ(国际)" ,DescripCategories.QQ),
+    ("com.sogou.map.app.Map", analyze_sogoumap, "SogouMap", "搜狗地图", DescripCategories.SogouMap),
+    ("com.baidu.map", analyze_baidumap, "BaiduMap", "百度地图", DescripCategories.BaiduMap),
+    ("com.tencent.sosomap", analyze_tencentmap, "TencentMap", "腾讯地图", DescripCategories.TencentMap),
+    ("com.autonavi.amap", analyze_gaodemap, "AMap", "高德地图", DescripCategories.AMap),
+    ("com.netease.mailmaster", analyze_neteasemail, "mailMaster", "网易邮箱大师", DescripCategories.BaiduMap),
+
 ]
 
 if 'FIND_BY_APPS_NODES_EXTS' in locals():
@@ -195,7 +206,6 @@ def decode_nodes(fs, extract_deleted, extract_source, installed_apps):
                     ds.Add(parser_results)
                 except:
                     traceback.print_exc()
-                    
                     TraceService.Trace(TraceLevel.Error, "解析出错: {0}".format(descrip))
             prog.Report(100,'分析{0}完成'.format(descrip))
             prog.Done()
