@@ -54,6 +54,7 @@ def analyze_wechat(root, extract_deleted, extract_source):
     mlm = ModelListMerger()
     
     pr.Models.AddRange(list(mlm.GetUnique(models)))
+    pr.Build('微信')
     return pr
 
 class WeChatParser(model_im.IM):
@@ -63,7 +64,7 @@ class WeChatParser(model_im.IM):
         self.root = node.Parent.Parent
         self.extract_deleted = False  # extract_deleted
         self.extract_source = extract_source
-        self.is_valid_user_dir = self.is_valid_user_dir()
+        self.is_valid_user_dir = self._is_valid_user_dir()
 
     def parse(self):
         if not self.is_valid_user_dir:
@@ -108,7 +109,7 @@ class WeChatParser(model_im.IM):
         models = model_im.GenerateModel(self.cache_db, self.mount_dir).get_models()
         return models
 
-    def is_valid_user_dir(self):
+    def _is_valid_user_dir(self):
         if self.root is None:
             return False
         if self.root.GetByPath('mmsetting.archive') is None:
@@ -158,9 +159,7 @@ class WeChatParser(model_im.IM):
                 self.user_account.photo = self._bpreader_node_get_value(setting_node, 'headhdimgurl')
             else:
                 self.user_account.photo = self._bpreader_node_get_value(setting_node, 'headimgurl')
-        self.APP_NAME = '微信:' + self.user_account.account_id
-        self.user_account.source_app = self.APP_NAME
-        self.user_account.source_file = user_plist.AbsolutePath
+        self.user_account.source = user_plist.AbsolutePath
         self.db_insert_table_account(self.user_account)
         self.db_commit()
 
@@ -205,8 +204,7 @@ class WeChatParser(model_im.IM):
                 if username.endswith("@chatroom"):
                     chatroom = model_im.Chatroom()
                     chatroom.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
-                    chatroom.source_app = self.APP_NAME
-                    chatroom.source_file = node.AbsolutePath
+                    chatroom.source = node.AbsolutePath
                     chatroom.account_id = self.user_account.account_id
                     chatroom.chatroom_id = username
                     chatroom.name = nickname
@@ -216,8 +214,7 @@ class WeChatParser(model_im.IM):
                     for member in members:
                         cm = model_im.ChatroomMember()
                         cm.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
-                        cm.source_app = self.APP_NAME
-                        cm.source_file = node.AbsolutePath
+                        cm.source = node.AbsolutePath
                         cm.account_id = self.user_account.account_id
                         cm.chatroom_id = username
                         cm.member_id = member.get('username')
@@ -238,8 +235,7 @@ class WeChatParser(model_im.IM):
                 else:
                     friend = model_im.Friend()
                     friend.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
-                    friend.source_app = self.APP_NAME
-                    friend.source_file = node.AbsolutePath
+                    friend.source = node.AbsolutePath
                     friend.account_id = self.user_account.account_id
                     friend.friend_id = username
                     friend.type = model_im.FRIEND_TYPE_FRIEND if certification_flag == 0 else model_im.FRIEND_TYPE_FOLLOW
@@ -279,8 +275,7 @@ class WeChatParser(model_im.IM):
 
                 message = model_im.Message()
                 message.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
-                message.source_app = self.APP_NAME
-                message.source_file = node.AbsolutePath
+                message.source = node.AbsolutePath
                 message.account_id = self.user_account.account_id
                 message.talker_id = username
                 message.talker_name = contact.get('nickname')
@@ -343,8 +338,7 @@ class WeChatParser(model_im.IM):
 
                     feed = model_im.Feed()
                     feed.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
-                    feed.source_app = self.APP_NAME
-                    feed.source_file = node.AbsolutePath
+                    feed.source = node.AbsolutePath
                     feed.account_id = self.user_account.account_id
                     feed.sender_id = username
                     feed.content = self._bpreader_node_get_value(root, 'contentDesc')
@@ -354,8 +348,7 @@ class WeChatParser(model_im.IM):
                         location_node = root.Children['locationInfo']
                         location = model_im.Location()
                         location.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
-                        location.source_app = self.APP_NAME
-                        location.source_file = node.AbsolutePath
+                        location.source = node.AbsolutePath
                         location.location_id = self.location_id
                         try:
                             location.latitude = float(self._bpreader_node_get_value(location_node, 'location_latitude', 0))
@@ -407,8 +400,7 @@ class WeChatParser(model_im.IM):
                             if len(sender_id) > 0:
                                 fl = model_im.FeedLike()
                                 fl.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
-                                fl.source_app = self.APP_NAME
-                                fl.source_file = node.AbsolutePath
+                                fl.source = node.AbsolutePath
                                 fl.like_id = self.like_id
                                 fl.sender_id = sender_id
                                 fl.sender_name = self._bpreader_node_get_value(like_node, 'nickname')
@@ -433,8 +425,7 @@ class WeChatParser(model_im.IM):
                             if type(sender_id) == str and len(sender_id) > 0 and type(content) == str:
                                 fc = model_im.FeedComment()
                                 fc.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
-                                fc.source_app = self.APP_NAME
-                                fc.source_file = node.AbsolutePath
+                                fc.source = node.AbsolutePath
                                 fc.comment_id = self.comment_id
                                 fc.sender_id = sender_id
                                 fc.sender_name = self._bpreader_node_get_value(comment_node, 'nickname')
@@ -499,8 +490,7 @@ class WeChatParser(model_im.IM):
                 message = model_im.Message()
                 message.deleted = 1
                 message.repeated = contact.get('repeated', 0)
-                message.source_app = self.APP_NAME
-                message.source_file = node.AbsolutePath
+                message.source = node.AbsolutePath
                 message.account_id = self.user_account.account_id
                 message.talker_id = username
                 message.talker_name = contact.get('nickname')
@@ -638,8 +628,7 @@ class WeChatParser(model_im.IM):
             if model is not None:
                 location = model_im.Location()
                 location.deleted = model.deleted
-                location.source_app = model.source_app
-                location.source_file = model.source_file
+                location.source = model.source
                 location.location_id = self.location_id
                 self._process_parse_message_location(content, location)
                 model.location = self.location_id
@@ -816,39 +805,3 @@ class WeChatParser(model_im.IM):
             return model_im.MESSAGE_CONTENT_TYPE_SYSTEM
         else:
             return model_im.MESSAGE_CONTENT_TYPE_LINK
-
-    def covert_silk_and_amr(self):
-        for audio_file in self.root.Search("/Audio/.*\.aud$"):
-            if not audio_file or not audio_file.Data or audio_file.Data.Length < 0xa: continue
-            audio_file.Data.seek(0)
-            header = audio_file.read(0xa)
-            #silk
-            if header == '\x02#!SILK_V3':
-                child = Node(NodeType.File|NodeType.Embedded)
-                child.Deleted = audio_file.Deleted
-                fs = ParserHelperTools.CreateIsolatedFileStream(self.APP_NAME)
-                with audio_file.Data.GetSubRange(1, audio_file.Data.Length - 1) as temp_stream:
-                    temp_stream.CopyTo(fs)
-                child.Data = MemoryRange(Chunk(fs, 0, fs.Length))
-                child.Labels = Labels.Silk
-                child.Tags.Add(MediaTags.Audio)
-                child.Name = audio_file.Name + ".silk"
-                child.MetaData.Add(MetaDataField("Channels", "1"))
-                child.MetaData.Add(MetaDataField("Rate", "24000"))
-                child.MetaData.Add(MetaDataField("Bit", "16"))
-                audio_file.Children.Add(child)
-            #AMR
-            elif header[0] == '\x0c':
-                child = Node(NodeType.File|NodeType.Embedded)
-                child.Deleted = audio_file.Deleted
-                chunks = []
-                file_header = Chunk(ThreadSafeMemoryStream(to_byte_array( '#!AMR\n'), 0, 6),0,6)
-                child.Tags.Add(MediaTags.Audio)
-                child.Name = audio_file.Name + ".amr"
-                chunks.append(file_header)
-                chunks.extend(audio_file.Data.GetSubRange(0, audio_file.Data.Length).Chunks)
-                fs = ParserHelperTools.CreateIsolatedFileStream(self.APP_NAME)
-                with MemoryRange(chunks) as temp_stream:
-                    temp_stream.CopyTo(fs)
-                child.Data = MemoryRange(Chunk(fs, 0, fs.Length))
-                audio_file.Children.Add(child)
