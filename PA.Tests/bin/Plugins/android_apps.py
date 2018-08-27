@@ -66,7 +66,7 @@ def decode_nodes(fs, extract_deleted, extract_source, installed_apps):
         "VBrowse": "uk.co.bewhere.vbrowse",
         "Tumblr": "com.tumblr.tumblr",
         "Navitel": "su.navitel.app",
-				"baiduMap":"com.baidu.map",
+		"baiduMap":"com.baidu.map",
         "qqMail":"com.tencent.androidqqmail"				
         "Navitel": "su.navitel.app"
     }
