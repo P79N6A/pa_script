@@ -42,6 +42,8 @@ namespace TestApp
             PA.InfraLib.Services.Registor.RegAllServices(Container);
             PA.Logic.Services.Registor.RegAllServices(Container);
 
+            
+
             //这个路径改成你们电脑上的实际案例路径
             string casePath = @"E:\Cases\iPhone 6_11.1.2_133217541373990_full\Manifest.pnfa"; 
             var pack = CasePackage.FromPath(casePath);

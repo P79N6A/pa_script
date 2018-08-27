@@ -4,7 +4,6 @@ import clr
 import PA_runtime
 from PA_runtime import *
 
-
 ToPhoneCategory = {
     '_$!<MOBILE>!$_': ContactCategory.Mobile,
     '_$!<HOME>!$_': ContactCategory.Home,

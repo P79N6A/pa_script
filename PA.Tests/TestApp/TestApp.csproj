@@ -42,6 +42,12 @@
     <Reference Include="FsAgent">
       <HintPath>..\..\..\pwnanalysis\PA.Libs\FsAgent.dll</HintPath>
     </Reference>
+    <Reference Include="iTunesBackup">
+      <HintPath>..\Lib\iTunesBackup.dll</HintPath>
+    </Reference>
+    <Reference Include="PA.AndroidApps">
+      <HintPath>..\Lib\PA.AndroidApps.dll</HintPath>
+    </Reference>
     <Reference Include="PA.Common">
       <HintPath>..\Lib\PA.Common.dll</HintPath>
     </Reference>
@@ -59,6 +65,9 @@
     </Reference>
     <Reference Include="PA.Formats.Exts">
       <HintPath>..\Lib\PA.Formats.Exts.dll</HintPath>
+    </Reference>
+    <Reference Include="PA.Formats.NextStep">
+      <HintPath>..\Lib\PA.Formats.NextStep.dll</HintPath>
     </Reference>
     <Reference Include="PA.InfraLib">
       <HintPath>..\Lib\PA.InfraLib.dll</HintPath>
