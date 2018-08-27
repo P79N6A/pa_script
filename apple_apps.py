@@ -58,6 +58,7 @@ from apple_calls import analyze_call_history
 from apple_sms import analyze_smss
 from apple_wechat import analyze_wechat
 from apple_qq import analyze_qq
+from apple_qqmail import analyze_qqmail
 from apple_sogoumap import analyze_sogoumap
 from apple_baidumap import analyze_baidumap
 from apple_gaodemap import analyze_gaodemap
@@ -95,6 +96,7 @@ FIND_BY_APPS_NODES = [
     ("com.tencent.mqq", analyze_qq, "QQ","QQ(简体)" ,DescripCategories.QQ),
     ("com.tencent.mqqjp", analyze_qq,"QQ", "QQ(日本)" ,DescripCategories.QQ),
     ("com.tencent.mqqi", analyze_qq, "QQ","QQ(国际)" ,DescripCategories.QQ),
+    ("com.tencent.qqmail", analyze_qqmail, "qqMail", "QQ邮箱", DescripCategories.BaiduMap),
     ("com.sogou.map.app.Map", analyze_sogoumap, "SogouMap", "搜狗地图", DescripCategories.SogouMap),
     ("com.baidu.map", analyze_baidumap, "BaiduMap", "百度地图", DescripCategories.BaiduMap),
     ("com.tencent.sosomap", analyze_tencentmap, "TencentMap", "腾讯地图", DescripCategories.TencentMap),
