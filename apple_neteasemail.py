@@ -99,7 +99,7 @@ class NeteaseMailParser(object):
                     pass 
             self.mm.db_commit()
         except Exception as e:
-            traceback.print_exc()
+            pass
 
         # mail - content
         self.parse_email_content(imail_db)
@@ -130,11 +130,11 @@ class NeteaseMailParser(object):
                 try:
                     self.mm.db_insert_table_todo(t)
                 except:
-                    traceback.print_exc()
+                    pass
                     pass
             self.mm.db_commit()
         except Exception as e:
-            traceback.print_exc()
+            pass
             
     def parse_contacts(self, node):
         """ 
@@ -151,11 +151,11 @@ class NeteaseMailParser(object):
                 try:
                     self.mm.db_insert_table_contact(contact)
                 except:
-                    traceback.print_exc()
+                    pass
                     pass
             self.mm.db_commit()
         except Exception as e:
-            traceback.print_exc()
+            pass
 
     def parse_email_content(self, imail_db):
         """ 
@@ -180,7 +180,7 @@ class NeteaseMailParser(object):
                         pass
             self.mm.db_commit()
         except Exception as e:
-            traceback.print_exc()
+            pass
             
     def parse_email_attachName(self, imail_db):
         """ 
@@ -209,7 +209,7 @@ class NeteaseMailParser(object):
             self.mm.cursor.executemany(SQL_UPDATE_EMAIL_ATTACHNAME, accatchName_id)
             self.mm.db_commit()
         except Exception as e:
-            traceback.print_exc()
+            pass
 
     def parse_email_account(self, imail_db):
         """ 
@@ -247,7 +247,7 @@ class NeteaseMailParser(object):
             self.mm.cursor.executemany(SQL_UPDATE_ACCOUNTS_PASSWORD, password_accountEmail)
             self.mm.db_commit()
         except Exception as e:
-            traceback.print_exc()
+            pass
 
     def parse_email_attachment(self, imail_db):
         """ 
@@ -292,7 +292,7 @@ class NeteaseMailParser(object):
                 row = cursor.fetchone()
             self.mm.db_commit()
         except Exception as e:
-            traceback.print_exc()
+            pass
         finally:
             db.close()
 
@@ -307,7 +307,7 @@ class NeteaseMailParser(object):
                 if db is None:
                     return 
             except Exception as e:
-                traceback.print_exc()
+                pass
         tb = SQLiteParser.TableSignature(table_name)  
         return db.ReadTableRecords(tb, self.extract_deleted, True)
 
