@@ -164,10 +164,10 @@ class SogouMap(object):
 
     def parse(self):
 
-        #self.parse_history_data()
-        #self.parse_user_data()
-        #self.parse_favorites_data()
-        self.parse_route_data()
+        self.parse_history_data()
+        self.parse_user_data()
+        self.parse_favorites_data()
+        #self.parse_route_data()
 
     
 def analyze_sogoumap(node, extract_deleted, extract_source):
