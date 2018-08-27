@@ -69,6 +69,9 @@
     <Reference Include="PA.Formats.NextStep">
       <HintPath>..\Lib\PA.Formats.NextStep.dll</HintPath>
     </Reference>
+    <Reference Include="PA.Formats.Physical">
+      <HintPath>..\Lib\PA.Formats.Physical.dll</HintPath>
+    </Reference>
     <Reference Include="PA.InfraLib">
       <HintPath>..\Lib\PA.InfraLib.dll</HintPath>
     </Reference>
