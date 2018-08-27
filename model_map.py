@@ -293,7 +293,8 @@ class Genetate(object):
             user.Username.Value = row[2]
             user.Password.Value = row[3]
             user.PhoneNumber.Value= row[5]
-            user.PhotoUris.Add(Uri(row[4]))
+            if row[4]:
+                user.PhotoUris.Add(Uri(row[4]))
             user.Email.Value = row[6]
             if row[7] == 0:
                 user.Sex.Value = Common.SexType.Men 

@@ -12,6 +12,37 @@ from System.Linq import Enumerable
 from System.Xml.XPath import Extensions as XPathExtensions
 from PA_runtime import *
 
+import os
+import hashlib
+import json
+import model_im
+
+# app数据库版本
+VERSION_APP_VALUE = 1
+
+# 消息类型
+MSG_TYPE_TEXT = 1
+MSG_TYPE_IMAGE = 3
+MSG_TYPE_VOICE = 34
+MSG_TYPE_CONTACT_CARD = 42
+MSG_TYPE_VIDEO = 43
+MSG_TYPE_VIDEO_2 = 62
+MSG_TYPE_EMOJI = 47
+MSG_TYPE_LOCATION = 48
+MSG_TYPE_LINK = 49
+MSG_TYPE_VOIP = 50
+MSG_TYPE_VOIP_GROUP = 64
+MSG_TYPE_SYSTEM = 10000
+MSG_TYPE_SYSTEM_2 = 10002
+
+# 朋友圈类型
+MOMENT_TYPE_IMAGE = 1  # 正常文字图片
+MOMENT_TYPE_TEXT_ONLY = 2  # 纯文字
+MOMENT_TYPE_SHARED = 3  # 分享
+MOMENT_TYPE_MUSIC = 4  # 带音乐的（存的是封面）
+MOMENT_TYPE_EMOJI = 10  # 分享了表情包
+MOMENT_TYPE_VIDEO = 15  # 视频
+
 def analyze_wechat(root, extract_deleted, extract_source):
     """
     微信 (/DB/MM.sqlite)
@@ -23,92 +54,278 @@ def analyze_wechat(root, extract_deleted, extract_source):
     mlm = ModelListMerger()
     
     pr.Models.AddRange(list(mlm.GetUnique(models)))
+    pr.Build('微信')
     return pr
 
-class WeChatParser:
+class WeChatParser(model_im.IM):
     
     def __init__(self, node, extract_deleted, extract_source):
-        self.APP_NAME = "微信"
+        super(WeChatParser, self).__init__()
         self.root = node.Parent.Parent
-        self.extract_deleted = extract_deleted
+        self.extract_deleted = False  # extract_deleted
         self.extract_source = extract_source
-        self.user_account = UserAccount()
-        self.chat_participants = defaultdict(set)
-        self.multi_chatrooms_ids = set()
-        self.calls = set()
-        self.contacts = {}
-        self.chats = {}
-        self.root_files = defaultdict(list)
-        self.all_files = defaultdict(list)
-        for node in self.root.GetAllNodes(NodeType.File):
-                self.root_files[node.Name].append(node)
-        for node in self.root.Parent.Parent.GetAllNodes(NodeType.File):
-                self.all_files[node.Name].append(node)
-        self.unknown_chat_counter = 0
+        self.is_valid_user_dir = self._is_valid_user_dir()
 
     def parse(self):
-        models = []
-        self.covert_silk_and_amr()
-        user_plists = self.root_files["mmsetting.archive"]
-        for user_plist in user_plists:
-            if user_plist.Deleted == DeletedState.Intact:
-                self.parse_user(user_plist)
-        if self.user_account.HasContent and self.user_account.Username.HasContent:
-            self.APP_NAME += ": " + self.user_account.Username.Value
+        if not self.is_valid_user_dir:
+            return []
 
-        models.append( self.user_account )
-        self.parse_session_files()
-        session_dbs = list(self.root.Parent.SearchNodesExactPath("session/session.db"))
-        for session_db in session_dbs:
-            if session_db.Deleted == DeletedState.Intact:
-                self.parse_chat_praticipants(session_db)
-                break
-        
-        db_nodes = self.root_files["MM.sqlite"]
-        for node in db_nodes:    
-            self.parse_contacts_from_db_node(node)
-            models += self.decode_chat(node)
-        db_nodes = self.root_files["wc005_008.db"]
-        for node in db_nodes:   
-            self.parse_messages_from_db_node(node)
-        if self.calls:
-            models.extend(self.calls)
-        if self.contacts:
-            models.extend(self.contacts.values())
-        if self.chats:
-            models.extend(self.chats.values())
+        self.user_hash = self.get_user_hash()
+        self.APP_NAME = self.get_app_name()
+        self.mount_dir = self.root.FileSystem.MountPoint
+        self.cache_path = ds.OpenCachePath('wechat')
+        if not os.path.exists(self.cache_path):
+            os.makedirs(self.cache_path)
+        self.cache_db = os.path.join(self.cache_path, self.user_hash + '.db')
+        self.like_id = 1
+        self.comment_id = 1
+        self.location_id = 1
+
+        if self.need_parse(self.cache_db, VERSION_APP_VALUE):
+            self.db_create(self.cache_db)
+
+            self.contacts = {}
+            self.user_account = model_im.Account()
+
+            user_plist = self.root.GetByPath('mmsetting.archive')
+            if user_plist is not None and user_plist.Deleted == DeletedState.Intact:
+                self._get_user_from_setting(user_plist)
+                self._parse_user_contact_db(self.root.GetByPath('/DB/WCDB_Contact.sqlite'))
+                self._parse_user_mm_db(self.root.GetByPath('/DB/MM.sqlite'))
+                self._parse_user_wc_db(self.root.GetByPath('/wc/wc005_008.db'))
+                self._parse_user_fts_db(self.root.GetByPath('/fts/fts_message.db'))
+
+            # 数据库填充完毕，请将中间数据库版本和app数据库版本插入数据库，用来检测app是否需要重新解析
+            self.db_insert_table_version(model_im.VERSION_KEY_DB, model_im.VERSION_VALUE_DB)
+            self.db_insert_table_version(model_im.VERSION_KEY_APP, VERSION_APP_VALUE)
+            self.db_commit()
+            self.db_close()
+
+        #self.covert_silk_and_amr()
+        models = self.get_models_from_cache_db()
         return models
 
-    def parse_messages_from_db_node(self, node):
+    def get_models_from_cache_db(self):
+        models = model_im.GenerateModel(self.cache_db, self.mount_dir).get_models()
+        return models
+
+    def _is_valid_user_dir(self):
+        if self.root is None:
+            return False
+        if self.root.GetByPath('mmsetting.archive') is None:
+            return False
+        if self.root.GetByPath('/DB/MM.sqlite') is None:
+            return False
+        return True
+
+    def get_user_hash(self):
+        path = self.root.AbsolutePath
+        return os.path.basename(os.path.normpath(path))
+
+    def get_app_name(self):
+        return '微信'
+
+    #def _get_user_nodes(self):
+    #    user_nodes = []
+    #    for node in self.root.Search('mmsetting.archive$'):
+    #        user_node = node.Parent
+    #        if user_node.GetByPath('/DB/MM.sqlite') is not None:
+    #            user_nodes.append(user_node)
+    #    return user_nodes
+    
+    def _get_user_from_setting(self, user_plist):
+        root = None
+        try:
+            root = BPReader.GetTree(user_plist)
+        except:
+            return
+        if not root or not root.Children:
+            return
+
+        self.user_account.account_id = self._bpreader_node_get_value(root, 'UsrName', '')
+        self.user_account.nickname = self._bpreader_node_get_value(root, 'NickName')
+        self.user_account.gender = self._bpreader_node_get_value(root, 'Sex')
+        self.user_account.telephone = self._bpreader_node_get_value(root, 'Mobile')
+        self.user_account.email = self._bpreader_node_get_value(root, 'Email')
+        self.user_account.city = self._bpreader_node_get_value(root, 'City')
+        self.user_account.country = self._bpreader_node_get_value(root, 'Country')
+        self.user_account.province = self._bpreader_node_get_value(root, 'Province')
+        self.user_account.signature = self._bpreader_node_get_value(root, 'Signature')
+
+        if 'new_dicsetting' in root.Children:
+            setting_node = root.Children['new_dicsetting']
+            self.user_account.headhdimgurl = self._bpreader_node_get_value(setting_node, 'headhdimgurl')
+            if 'headhdimgurl' in setting_node.Children:
+                self.user_account.photo = self._bpreader_node_get_value(setting_node, 'headhdimgurl')
+            else:
+                self.user_account.photo = self._bpreader_node_get_value(setting_node, 'headimgurl')
+        self.user_account.source = user_plist.AbsolutePath
+        self.db_insert_table_account(self.user_account)
+        self.db_commit()
+
+    def _parse_user_contact_db(self, node):
+        if node is None:
+            return False
+        
         db = SQLiteParser.Database.FromNode(node)
         if not db:
-            return
+            return False
+
+        if 'Friend' in db.Tables:
+            ts = SQLiteParser.TableSignature('Friend')
+            SQLiteParser.Tools.AddSignatureToTable(ts, "userName", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
+            for rec in db.ReadTableRecords(ts, self.extract_deleted):
+                username = self._db_record_get_value(rec, 'userName')
+                certification_flag = self._db_record_get_value(rec, 'certificationFlag', 0)
+                nickname = None
+                alias = None
+                remark = None
+                if not rec["dbContactRemark"].IsDBNull:
+                    nickname, alias, remark = self._process_parse_contact_remark(rec['dbContactRemark'].Value)
+                head = None
+                if not rec["dbContactHeadImage"].IsDBNull:
+                    head, head_hd = self._process_parse_contact_head(rec['dbContactHeadImage'].Value)
+                    if head_hd and len(head_hd) > 0:
+                        head = head_hd
+
+                contact = {}
+                if nickname:
+                    contact['nickname'] = nickname
+                if remark:
+                    contact['remark'] = remark
+                if head:
+                    contact['photo'] = head
+                if rec.Deleted == DeletedState.Intact: 
+                    self.contacts[username] = contact
+                else:
+                    if username not in self.contacts:
+                        self.contacts[username] = contact
+
+                if username.endswith("@chatroom"):
+                    chatroom = model_im.Chatroom()
+                    chatroom.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
+                    chatroom.source = node.AbsolutePath
+                    chatroom.account_id = self.user_account.account_id
+                    chatroom.chatroom_id = username
+                    chatroom.name = nickname
+                    chatroom.photo = head
+
+                    members, max_count = self._process_parse_group_members(self._db_record_get_value(rec, 'dbContactChatRoom'))
+                    for member in members:
+                        cm = model_im.ChatroomMember()
+                        cm.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
+                        cm.source = node.AbsolutePath
+                        cm.account_id = self.user_account.account_id
+                        cm.chatroom_id = username
+                        cm.member_id = member.get('username')
+                        cm.display_name = member.get('display_name')
+                        try:
+                            self.db_insert_table_chatroom_member(cm)
+                        except Exception as e:
+                            pass
+
+                    if len(members) > 0:
+                        chatroom.owner_id = members[0].get('username')
+                    chatroom.max_member_count = max_count
+                    chatroom.member_count = len(members)
+                    try:
+                        self.db_insert_table_chatroom(chatroom)
+                    except Exception as e:
+                        pass
+                else:
+                    friend = model_im.Friend()
+                    friend.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
+                    friend.source = node.AbsolutePath
+                    friend.account_id = self.user_account.account_id
+                    friend.friend_id = username
+                    friend.type = model_im.FRIEND_TYPE_FRIEND if certification_flag == 0 else model_im.FRIEND_TYPE_FOLLOW
+                    friend.nickname = nickname
+                    friend.remark = remark
+                    friend.photo = head
+                    try:
+                        self.db_insert_table_friend(friend)
+                    except Exception as e:
+                        pass
+            self.db_commit()
+        return True
+
+    def _parse_user_mm_db(self, node):
+        if not node:
+            return False
+
+        db = SQLiteParser.Database.FromNode(node)
+        if not db:
+            return False
+
+        for username in self.contacts.keys():
+            m = hashlib.md5()
+            m.update(username.encode('utf8'))
+            user_hash = m.hexdigest()
+            table = 'Chat_' + user_hash
+            if table not in db.Tables:
+                continue
+            ts = SQLiteParser.TableSignature(table)
+            SQLiteParser.Tools.AddSignatureToTable(ts, "Message", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
+            for rec in db.ReadTableRecords(ts, self.extract_deleted):
+                msg = self._db_record_get_value(rec, 'Message')
+                msg_type = self._db_record_get_value(rec, 'Type', MSG_TYPE_TEXT)
+                msg_local_id = self._db_record_get_value(rec, 'MesLocalID')
+                is_sender = 1 if self._db_record_get_value(rec, 'Des', 0) == 0 else 0
+                contact = self.contacts.get(username, {})
+
+                message = model_im.Message()
+                message.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
+                message.source = node.AbsolutePath
+                message.account_id = self.user_account.account_id
+                message.talker_id = username
+                message.talker_name = contact.get('nickname')
+                message.is_sender = is_sender
+                message.msg_id = msg_local_id
+                message.type = self._convert_msg_type(msg_type)
+                message.send_time = self._db_record_get_value(rec, 'CreateTime')
+                if username.endswith("@chatroom"):
+                    content, media_path, sender_id = self._process_parse_group_message(msg, msg_type, msg_local_id, is_sender, self.root, user_hash, message)
+                    message.sender_id = sender_id
+                    message.sender_name = self.contacts.get(message.sender_id, {}).get('nickname')
+                    message.content = content
+                    message.media_path = media_path
+                    message.talker_type = model_im.USER_TYPE_CHATROOM
+                else:
+                    content, media_path = self._process_parse_friend_message(msg, msg_type, msg_local_id, self.root, user_hash, message)
+                    message.sender_id = self.user_account.account_id if is_sender else username
+                    message.sender_name = self.contacts.get(message.sender_id, {}).get('nickname')
+                    message.content = content
+                    message.media_path = media_path
+                    message.talker_type = model_im.USER_TYPE_FRIEND
+                try:
+                    self.db_insert_table_message(message)
+                except Exception as e:
+                    pass
+            try:
+                self.db_commit()
+            except Exception as e:
+                pass
+        return True
+
+    def _parse_user_wc_db(self, node):
+        if not node:
+            return False
+
+        db = SQLiteParser.Database.FromNode(node)
+        if not db:
+            return False
+
         tables = [t for t in db.Tables if t.startswith('MyWC01_')]
-        ids = set()
         for table in tables:
             ts = SQLiteParser.TableSignature(table)
-            SQLiteParser.Tools.AddSignatureToTable(ts, "MALocalId", SQLiteParser.FieldType.Int)
-            SQLiteParser.Tools.AddSignatureToTable(ts, "GroupHint", 1,8,9)
-            SQLiteParser.Tools.AddSignatureToTable(ts, "Id", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
             SQLiteParser.Tools.AddSignatureToTable(ts, "FromUser", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
             SQLiteParser.Tools.AddSignatureToTable(ts, "Buffer", SQLiteParser.FieldType.Blob, SQLiteParser.FieldConstraints.NotNull)
-            chat_id = table[7:]
             
-            if not chat_id in self.chats:
-                chat = Chat()
-                chat.Deleted = node.Deleted
-                is_new_chat = True
-            else:
-                chat = self.chats[chat_id]
-                is_new_chat = False
-            chat_messages = []
-            for rec in db.ReadTableRecords(ts, self.extract_deleted, False):
-                if 'Id' in rec and rec['Id'].Value in ids:
-                    continue
-                elif 'Id' in rec:
-                    ids.add(rec['Id'].Value)
+            for rec in db.ReadTableRecords(ts, self.extract_deleted):
+                username = self._db_record_get_value(rec, 'FromUser')
                 if not rec["Buffer"].IsDBNull:
                     root_mr = MemoryRange(rec["Buffer"].Source)
+                    root_mr.seek(0)
                     if root_mr.Length < 8 or root_mr.read(8) != "bplist00":
                         continue
                     root_mr.seek(0)
@@ -118,1026 +335,473 @@ class WeChatParser:
                         continue
                     if not root or not root.Children:
                         continue
-                    message = InstantMessage()
-                    message.Deleted = rec.Deleted
-                    KNodeTools.TryReadToField(root, "contentDesc", message.Body, self.extract_source)
-                    party = Party()
-                    party.Deleted = root.Deleted
-                    KNodeTools.TryReadToField(root, "username", party.Identifier, self.extract_source)
-                    KNodeTools.TryReadToField(root, "nickname", party.Name, self.extract_source)
-                    if party.HasLogicalContent:
-                        message.From.Value = party
-                    if 'createtime' in root.Children and root.Children["createtime"].Type in [KType.Integer, KType.Long, KType.FloatingPoint]:
-                        message.TimeStamp.Init(TimeStamp.FromUnixTime(root.Children["createtime"].Value, False), MemoryRange(root.Children["createtime"].Source))
-                        if not message.TimeStamp.Value.IsValidForSmartphone():
-                            message.TimeStamp.Value = None
-                            message.TimeStamp.Source = None
+
+                    feed = model_im.Feed()
+                    feed.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
+                    feed.source = node.AbsolutePath
+                    feed.account_id = self.user_account.account_id
+                    feed.sender_id = username
+                    feed.content = self._bpreader_node_get_value(root, 'contentDesc')
+                    feed.send_time = self._bpreader_node_get_value(root, 'createtime')
+
                     if 'locationInfo' in root.Children:
-                        location = self.parse_location(root.Children['locationInfo'])
-                        if location:
-                            message.Position.Value = location
-                    KNodeTools.TryReadToField(root, "title", message.Subject, self.extract_source)
+                        location_node = root.Children['locationInfo']
+                        location = model_im.Location()
+                        location.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
+                        location.source = node.AbsolutePath
+                        location.location_id = self.location_id
+                        try:
+                            location.latitude = float(self._bpreader_node_get_value(location_node, 'location_latitude', 0))
+                        except Exception as e:
+                                pass
+                        try:
+                            location.longitude = float(self._bpreader_node_get_value(location_node, 'location_longitude', 0))
+                        except Exception as e:
+                                pass
+                        location.address = self._bpreader_node_get_value(location_node, 'poiName')
+                        self.db_insert_table_location(location)
+                        self.location_id += 1
+
                     if 'contentObj' in root.Children:
-                        atts = self.parse_attachment(root.Children['contentObj'])
-                        if atts:
-                            message.Attachments.AddRange(atts)
-                    if message.HasLogicalContent:
-                        chat_messages.append(message)
-            if chat_messages:
-                mlm = ModelListMerger()
-                chat.Messages.AddRange(mlm.GetUnique(chat_messages))
-            if chat.HasLogicalContent:
-                chat.SetTimesByMessages()
-                chat.SetParticipantsByMessages()
-                if is_new_chat:
-                    self.chats[chat_id] = chat                    
-                    chat.Source.Value = self.APP_NAME
-                    chat.ChatId.Value = chat_id
+                        content_node = root.Children['contentObj']
+                        try:
+                            feed.type = int(self._bpreader_node_get_value(content_node, 'type', 0))
+                        except Exception as e:
+                            feed.type = 0
+                        media_nodes = []
+                        if 'mediaList' in content_node.Children and content_node.Children['mediaList'].Values:
+                            media_nodes = content_node.Children['mediaList'].Values
+                            urls = []
+                            preview_urls = []
+                            for media_node in media_nodes:
+                                if 'dataUrl' in media_node.Children:
+                                    data_node = media_node.Children['dataUrl']
+                                    if 'url' in data_node.Children:
+                                        urls.append(data_node.Children['url'].Value)
+                                if 'previewUrls' in media_node.Children:
+                                    for url_node in media_node.Children['previewUrls'].Values:
+                                        if 'url' in url_node.Children:
+                                            preview_urls.append(url_node.Children['url'].Value)
+                            feed.urls = json.dumps(urls)
+                            feed.preview_urls = json.dumps(preview_urls)
 
-    def parse_location(self, locationBPNode):
-        coord = Coordinate()
-        if not locationBPNode.Children:
-            return 
-        coord.Deleted = locationBPNode.Deleted
-        KNodeTools.TryReadToField(locationBPNode, "location_latitude", coord.Latitude, self.extract_source)
-        KNodeTools.TryReadToField(locationBPNode, "location_longitude", coord.Longitude, self.extract_source)
-        KNodeTools.TryReadToField(locationBPNode, "poiAddress", coord.PositionAddress, self.extract_source)
-        if not coord.PositionAddress.HasLogicalContent:
-            KNodeTools.TryReadToField(locationBPNode, "city", coord.PositionAddress, self.extract_source)
-        else:
-                coord.PositionAddress.Value += '\n' + locationBPNode.Children['city'].Value
-                chunks = System.Collections.Generic.List[Utils.Streams.Chunk](coord.PositionAddress.Source.Chunks)
-                chunks.AddRange(locationBPNode.Children['city'].Source)
-                coord.PositionAddress.Source = MemoryRange(chunks)
-        KNodeTools.TryReadToField(locationBPNode, "poiName", coord.Comment, self.extract_source)
-        if 'poiInfoUrl' in locationBPNode.Children and locationBPNode.Children['poiInfoUrl'].Value and  locationBPNode.Children['poiInfoUrl'].Type == KType.String:
-            if coord.PositionAddress.HasLogicalContent:
-                coord.Comment.Value += '\n' + locationBPNode.Children['poiInfoUrl'].Value
-                chunks = System.Collections.Generic.List[Utils.Streams.Chunk](coord.PositionAddress.Source.Chunks)
-                chunks.AddRange(locationBPNode.Children['poiInfoUrl'].Source)
-                coord.Comment.Source  = MemoryRange(chunks)
-            else:
-                coord.Comment.Init(locationBPNode.Children['poiInfoUrl'].Value, MemoryRange(locationBPNode.Children['city'].Source)) 
-        if coord.HasLogicalContent:
-            return coord
+                        if feed.type == MOMENT_TYPE_MUSIC:
+                            feed.attachment_title = self._bpreader_node_get_value(content_node, 'title')
+                            feed.attachment_link = self._bpreader_node_get_value(content_node, 'linkUrl')
+                            feed.attachment_desc = self._bpreader_node_get_value(content_node, 'desc')
+                        elif feed.type == MOMENT_TYPE_SHARED:
+                            for media_node in media_nodes:
+                                feed.attachment_title = self._bpreader_node_get_value(media_node, 'title')
 
-    def parse_attachment(self, contentBPNode):
-        attachments = []
-        if 'mediaList' in contentBPNode.Children and contentBPNode.Children['mediaList'].Values:
-            for item in contentBPNode.Children['mediaList'].Values:
-                att = Attachment()
-                att.Deleted = item.Deleted
-                KNodeTools.TryReadToField(item, "dataUrl/url", att.URL, self.extract_source)
-                if att.HasLogicalContent:
-                    attachments.append(att)
-        return attachments
+                    likes = []
+                    if 'likeUsers' in root.Children:
+                        for like_node in root.Children['likeUsers'].Values:
+                            sender_id = self._bpreader_node_get_value(like_node, 'username', '')
+                            if len(sender_id) > 0:
+                                fl = model_im.FeedLike()
+                                fl.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
+                                fl.source = node.AbsolutePath
+                                fl.like_id = self.like_id
+                                fl.sender_id = sender_id
+                                fl.sender_name = self._bpreader_node_get_value(like_node, 'nickname')
+                                try:
+                                    fl.create_time = int(self._bpreader_node_get_value(like_node, 'createTime'))
+                                except Exception as e:
+                                    pass
+                                try:
+                                    self.db_insert_table_feed_like(fl)
+                                    likes.append(self.like_id)
+                                except Exception as e:
+                                    pass
 
-    def _is_silk(self, node):
-        if not node or not node.Data or node.Data.Length < 0xa:
-            return False
-        node.Data.seek(0)
-        header = node.read(0x9)
-        if header == '#!SILK_V3':
-            return True
-        return False
+                                self.like_id += 1
+                    feed.likes = ','.join(str(item) for item in likes)
 
-    def covert_silk_and_amr(self):
-        for audio_file in self.root.Search("/Audio/.*\.aud$"):
-            if not audio_file or not audio_file.Data or audio_file.Data.Length < 0xa: continue
-            audio_file.Data.seek(0)
-            header = audio_file.read(0xa)
-            #silk
-            if header == '\x02#!SILK_V3':
-                child = Node(NodeType.File|NodeType.Embedded)
-                child.Deleted = audio_file.Deleted
-                fs = ParserHelperTools.CreateIsolatedFileStream(self.APP_NAME)
-                with audio_file.Data.GetSubRange(1, audio_file.Data.Length - 1) as temp_stream:
-                    temp_stream.CopyTo(fs)
-                child.Data = MemoryRange(Chunk(fs, 0, fs.Length))
-                child.Labels = Labels.Silk
-                child.Tags.Add(MediaTags.Audio)
-                child.Name = audio_file.Name + ".silk"
-                child.MetaData.Add(MetaDataField("Channels", "1"))
-                child.MetaData.Add(MetaDataField("Rate", "24000"))
-                child.MetaData.Add(MetaDataField("Bit", "16"))
-                audio_file.Children.Add(child)
-            #AMR
-            elif header[0] == '\x0c':
-                child = Node(NodeType.File|NodeType.Embedded)
-                child.Deleted = audio_file.Deleted
-                chunks = []
-                file_header = Chunk(ThreadSafeMemoryStream(to_byte_array( '#!AMR\n'), 0, 6),0,6)
-                child.Tags.Add(MediaTags.Audio)
-                child.Name = audio_file.Name + ".amr"
-                chunks.append(file_header)
-                chunks.extend(audio_file.Data.GetSubRange(0, audio_file.Data.Length).Chunks)
-                fs = ParserHelperTools.CreateIsolatedFileStream(self.APP_NAME)
-                with MemoryRange(chunks) as temp_stream:
-                    temp_stream.CopyTo(fs)
-                child.Data = MemoryRange(Chunk(fs, 0, fs.Length))
-                audio_file.Children.Add(child)
+                    comments = []
+                    if 'commentUsers' in root.Children:
+                        for comment_node in root.Children['commentUsers'].Values:
+                            sender_id = self._bpreader_node_get_value(comment_node, 'username', '')
+                            content = self._bpreader_node_get_value(comment_node, 'content', '')
+                            if type(sender_id) == str and len(sender_id) > 0 and type(content) == str:
+                                fc = model_im.FeedComment()
+                                fc.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
+                                fc.source = node.AbsolutePath
+                                fc.comment_id = self.comment_id
+                                fc.sender_id = sender_id
+                                fc.sender_name = self._bpreader_node_get_value(comment_node, 'nickname')
+                                fc.ref_user_id = self._bpreader_node_get_value(comment_node, 'refUserName')
+                                fc.content = content
+                                try:
+                                    fc.create_time = int(self._bpreader_node_get_value(comment_node, 'createTime'))
+                                except Exception as e:
+                                    pass
+                                try:
+                                    self.db_insert_table_feed_comment(fc)
+                                    comments.append(self.comment_id)
+                                except Exception as e:
+                                    pass
 
-    def parse_user(self, user_plist):
-        root = BPReader(user_plist.Data).top
-        if not root:
-            return
+                                self.comment_id += 1
+                    feed.comments = ','.join(str(item) for item in comments)
 
-        objs = root['$objects']
-        info = objs[1]
-
-        self.user_account.Deleted = user_plist.Deleted
-        self.user_account.ServiceType.Value = self.APP_NAME
-
-        val, src = self.getValSrcFromInfo('UsrName', objs, info)
-        if val:
-            self.user_account.Username.Value = val
-            if self.extract_source:
-                self.user_account.Username.Source = src
-
-        val, src = self.getValSrcFromInfo('NickName', objs, info)
-        if val:
-            self.user_account.Name.Value = val
-            if self.extract_source:
-                self.user_account.Name.Source = src
-        
-        val, src = self.getValSrcFromInfo('Email', objs, info)
-        if val:
-            email_address = EmailAddress()
-            email_address.Deleted = self.user_account.Deleted
-            email_address.Value.Value =  val
-            if self.extract_source:
-                email_address.Value.Source =  src
-            self.user_account.Entries.Add(email_address)
-
-        val, src = self.getValSrcFromInfo('Country', objs, info)
-        if val:
-            country = UserID()
-            country.Deleted = self.user_account.Deleted
-            country.Category.Value = 'Country'
-            country.Value.Init(val,src if self.extract_source else None)
-            self.user_account.Entries.Add(country)
-
-        #adding ids
-        for field, id in [('facebook_id', 'facebook id'), ('LastUUID', 'LastUUID'), ('Mobile', 'Phone Number'), ('LINKEDIN_ID', 'LINKEDIN ID') ]:
-            val, src = self.getValSrcFromInfo(field, objs, info)
-            if val:
-                userID = UserID()
-                userID.Deleted = self.user_account.Deleted
-                userID.Category.Value = id
-                userID.Value.Value =  val
-                if self.extract_source:
-                    userID.Value.Source =  src
-                self.user_account.Entries.Add(userID)
-
-
-    
-        val, src = self.getValSrcFromInfo('Signature', objs, info)   
-        if val:
-            self.user_account.Notes.Add( val )
-
-        bplist = BPReader.GetTree(user_plist)
-        if "new_dicsetting" in bplist and "headimgurl" in bplist["new_dicsetting"]:
-            self.user_account.Notes.Add("Profile pic URL {0}".format(bplist["new_dicsetting"]["headimgurl"]))
-
-    def parse_session_files(self):
-        parser = ProtobufParser()
-        option =  self._create_session_proto_options()
-        for session_file in self.root.Search("/session/data/.*/\w+$"):
-            if not session_file.Data: continue
+                    try:
+                        self.db_insert_table_feed(feed)
+                    except Exception as e:
+                        pass
             try:
-                obj = parser.Parse(session_file.Data, option)
-            except:
-                if session_file.Deleted == DeletedState.Intact:
-                    ServiceLog.Warning("WechatParser failed to parse: {0}".format(session_file.AbsolutePath))
-                    continue
-                obj = None
-            if obj:
-                self._parse_contact_from_session_buff(obj, session_file) 
-                self._parse_multi_chat_parties_from_session_buff(obj, session_file)
+                self.db_commit()
+            except Exception as e:
+                pass
+        return True
 
-    def _try_get_protobuff_path(self, buffer, *path):
-        try:
-            current = buffer
-            for tag in path:
-                if current.ContainsPath(tag):
-                    current = current.GetByPath(tag)[0]
-                    self.current = current                    
-                else:
-                    return None
-            return current.Value, MemoryRange(current.Source) if self.extract_source else None
-        except Exception , e:
-            return None
-
-    def _create_session_proto_options(self):
-        chatInnerOptions =  ProtobufComplexOptions();#in 1/1
-        chatInnerOptions.AddOption(CombinedTag(1, ProtobufType.LengthValue),  LengthValueOptions(LengthValueOptions.InnerDataType.String, "chat_user_id"))
-        chatInnerOptions.AddOption(CombinedTag(2, ProtobufType.LengthValue),  LengthValueOptions(LengthValueOptions.InnerDataType.String, "chat_username"))
-        chatInnerOptions.AddOption(CombinedTag(4, ProtobufType.LengthValue),  LengthValueOptions(LengthValueOptions.InnerDataType.String, "user_full_name"))
-        chatInnerOptions.AddOption(CombinedTag(5, ProtobufType.LengthValue),  LengthValueOptions(LengthValueOptions.InnerDataType.String, "user_full_name_no_space"))
-        chatInnerOptions.AddOption(CombinedTag(14, ProtobufType.LengthValue),  LengthValueOptions(LengthValueOptions.InnerDataType.String, "img_url_small"))
-        chatInnerOptions.AddOption(CombinedTag(15, ProtobufType.LengthValue),  LengthValueOptions(LengthValueOptions.InnerDataType.String, "img_url_big"))
-        chatInnerOptions.AddOption(CombinedTag(22, ProtobufType.LengthValue), LengthValueOptions(LengthValueOptions.InnerDataType.String))
-        chatOptions =  ProtobufComplexOptions();#in 1/
-        chatOptions.AddOption(CombinedTag(1, ProtobufType.LengthValue), chatInnerOptions)
-        chatOptions.AddOption(CombinedTag(3, ProtobufType.LengthValue),  LengthValueOptions(LengthValueOptions.InnerDataType.String, "multi_chat_participants_ids"))
-        chatOptions.AddOption(CombinedTag(4, ProtobufType.Varint),  NumericOptions())
-        chatOptions.AddOption(CombinedTag(5, ProtobufType.LengthValue),  LengthValueOptions(LengthValueOptions.InnerDataType.String, ))
-        chatOptions.AddOption(CombinedTag(6, ProtobufType.LengthValue), LengthValueOptions(LengthValueOptions.InnerDataType.String))
-        chatOptions.AddOption(CombinedTag(7, ProtobufType.LengthValue), LengthValueOptions(LengthValueOptions.InnerDataType.String))
-        chatOptions.AddOption(CombinedTag(8, ProtobufType.LengthValue), LengthValueOptions(LengthValueOptions.InnerDataType.String))
-        chatOptions.AddOption(CombinedTag(9, ProtobufType.LengthValue), LengthValueOptions(LengthValueOptions.InnerDataType.String))
-        chatOptions.AddOption(CombinedTag(10, ProtobufType.Varint), NumericOptions())
-        chatOptions.AddOption(CombinedTag(11, ProtobufType.Varint), NumericOptions())
-        chatOptions.AddOption(CombinedTag(12, ProtobufType.LengthValue), LengthValueOptions(LengthValueOptions.InnerDataType.String))
-        chatOptions.AddOption(CombinedTag(14, ProtobufType.LengthValue), LengthValueOptions(LengthValueOptions.InnerDataType.String))
-        chatOptions.AddOption(CombinedTag(17, ProtobufType.Varint), NumericOptions())
-        chatOptions.AddOption(CombinedTag(20, ProtobufType.Varint), NumericOptions())
-        chatOptions.AddOption(CombinedTag(14, ProtobufType.LengthValue), LengthValueOptions(LengthValueOptions.InnerDataType.String));
-        lastMessageOptions = ProtobufComplexOptions()
-        lastMessageOptions.AddOption(CombinedTag(1, ProtobufType.Varint), NumericOptions())
-        lastMessageOptions.AddOption(CombinedTag(2, ProtobufType.Varint), NumericOptions())
-        lastMessageOptions.AddOption(CombinedTag(3, ProtobufType.Varint), NumericOptions())
-        lastMessageOptions.AddOption(CombinedTag(4, ProtobufType.Varint), NumericOptions())
-        lastMessageOptions.AddOption(CombinedTag(5, ProtobufType.Varint), NumericOptions())
-        lastMessageOptions.AddOption(CombinedTag(6, ProtobufType.Varint), NumericOptions())
-        lastMessageOptions.AddOption(CombinedTag(7, ProtobufType.Varint), NumericOptions("recvtime"))
-        lastMessageOptions.AddOption(CombinedTag(8, ProtobufType.LengthValue), LengthValueOptions(LengthValueOptions.InnerDataType.String, "from_adress"))
-        lastMessageOptions.AddOption(CombinedTag(9, ProtobufType.LengthValue), LengthValueOptions(LengthValueOptions.InnerDataType.String, "to_address"))
-        lastMessageOptions.AddOption(CombinedTag(10, ProtobufType.LengthValue), LengthValueOptions(LengthValueOptions.InnerDataType.String, "sender_in_multi_chat"))
-        lastMessageOptions.AddOption(CombinedTag(11, ProtobufType.LengthValue), LengthValueOptions(LengthValueOptions.InnerDataType.String, "last_message"))
-        lastMessageOptions.AddOption(CombinedTag(12, ProtobufType.Varint), NumericOptions())
-        mainOptions = ProtobufComplexOptions()
-        mainOptions.AddOption(CombinedTag(1, ProtobufType.LengthValue), chatOptions )
-        mainOptions.AddOption(CombinedTag(2, ProtobufType.LengthValue), lastMessageOptions)
-        mainOptions.AddOption(CombinedTag(12, ProtobufType.Varint), NumericOptions())
-        return mainOptions
-    
-    #session files (protobuf) 包含 contact 详情和照片 url + the last message from or to that contact
-    def _parse_contact_from_session_buff(self, obj, session_file):
-        user_id = self._try_get_protobuff_path(obj, 1, 1, 1) #userID
-        username = self._try_get_protobuff_path(obj, 1, 1, 2) #username
-        printed_name = self._try_get_protobuff_path(obj, 1, 1, 4) #full name
-        printed_name_without_space = self._try_get_protobuff_path(obj, 1, 1, 5) #fullname
-        small_pic_url = self._try_get_protobuff_path(obj, 1, 1, 0x0E) 
-        large_pic_url = self._try_get_protobuff_path(obj, 1, 1, 0x0F)
-        if not user_id: return
-        c = Contact()
-        c.Source.Value = self.APP_NAME
-        uid = UserID()
-        uid.Category.Value = "username"
-        c.Deleted = uid.Deleted = session_file.Deleted
-        uid.Value.Init(*user_id)
-        c.Entries.Add(uid)
-        if printed_name and printed_name[0]:
-            c.Name.Init(*printed_name)
-        if small_pic_url and small_pic_url[0]:
-            c.Notes.Add(*small_pic_url)
-        if large_pic_url and large_pic_url[0]:
-            c.Notes.Add(*large_pic_url)
-        #查找用户的头像照片, 找到的话更新Contact对象
-        for photo_node in  (self.all_files[session_file.Name + ".pic_hd"] + self.all_files[session_file.Name + ".pic_usr"]):
-            cp = ContactPhoto()
-            cp.Deleted = photo_node.Deleted
-            cp.PhotoNode.Value = photo_node
-            c.Photos.Add(cp)
-        if uid.Value.Value in self.contacts:
-            ParserHelperTools.MergeContacts(self.contacts[uid.Value.Value], c)
-        else:
-            self.contacts[uid.Value.Value] = c
-            
-    def _parse_last_msg_from_session_buff(self, obj):
-        unknown = self._try_get_protobuff_path(obj, 1, 2, 1)
-        rec_MesLocalID = self._try_get_protobuff_path(obj, 1, 2, 2)
-        rec_Type = self._try_get_protobuff_path(obj, 1, 2, 3)
-        rec_Status = self._try_get_protobuff_path(obj, 1, 2, 4)
-        rec_ImgStatus = self._try_get_protobuff_path(obj, 1, 2, 5)
-        unknown = self._try_get_protobuff_path(obj, 1, 2, 6)
-        rec_CreateTime = self._try_get_protobuff_path(obj, 1, 2, 7)
-        from_user_id = self._try_get_protobuff_path(obj, 1, 2, 8)
-        to_user_id = self._try_get_protobuff_path(obj, 1, 2, 9)
-        sender_in_multi_chat = self._try_get_protobuff_path(obj, 1, 2, 0xA)
-        rec_Message = self._try_get_protobuff_path(obj, 1, 2, 0xB)
-        rec_MesSvrID = self._try_get_protobuff_path(obj, 1, 2, 0xC)
-
-    def _parse_multi_chat_parties_from_session_buff(self, obj, session_file):
-        parties_string = self._try_get_protobuff_path(obj, 1, 3)
-        chat_table_id = "".join(session_file.AbsolutePath.split('/')[-2:])
-        if not parties_string or not type(parties_string[0]) == str: return
-        for party_id in parties_string[0].split(';'):
-            if not party_id: continue
-            p = Party()
-            p.Deleted = session_file.Deleted
-            p.Identifier.Init(party_id, parties_string[1])
-            self.chat_participants[chat_table_id].add(p)
-
-    def parse_chat_praticipants(self, node):
+    def _parse_user_fts_db(self, node):
+        if node is None:
+            return False
+        
         db = SQLiteParser.Database.FromNode(node)
-        res = {}
-        if db is None:
-            return res
-        if "SessionAbstract" in db.Tables:
-            ts = SQLiteParser.TableSignature("SessionAbstract")
-            for record in db.ReadTableRecords(ts, self.extract_deleted):
-                if 'ConStrRes1' in record and not IsDBNull(record['ConStrRes1'].Value) and 'UsrName' in record and not IsDBNull(record['UsrName'].Value) and type(record['UsrName'].Value) == str:
-                    chat_table_id = record['ConStrRes1'].Value
-                    chat_table_id = "".join(chat_table_id.split('/')[-2:])
-                    #添加聊天群参与者
-                    if type(record["ConStrRes1"].Value) == str and  record["UsrName"].Value.endswith("@chatroom") and record["ConStrRes1"].Value != '':
-                        self.multi_chatrooms_ids.add(chat_table_id)
-                        participants_details = self.root.GetByPath(record["ConStrRes1"].Value)
-                        if not participants_details: continue
-                        chat_parties = self._get_parties_from_room_data(participants_details)
-                        for party in chat_parties:
-                            self.chat_participants[chat_table_id].add(party)
-                    else:
-                        p = Party()
-                        c = Contact()
-                        c.Source.Value = self.APP_NAME
-                        uid = UserID()
-                        uid.Category.Value = "username"
-                        c.Deleted = uid.Deleted = p.Deleted = record.Deleted
-                        SQLiteParser.Tools.ReadColumnToField(record, 'UsrName', p.Identifier, self.extract_source)
-                        SQLiteParser.Tools.ReadColumnToField(record, 'UsrName', uid.Value, self.extract_source)
-                        c.Entries.Add(uid)
-                        #if chat_table_id not in self.chat_participants:
-                        self.chat_participants[chat_table_id].add(p)
-                        #if the contact already exists merging them
-                        if uid.Value.Value in self.contacts: 
-                            ParserHelperTools.MergeContacts(self.contacts[uid.Value.Value], c)
-                        else:
-                            self.contacts[uid.Value.Value] = c
+        if not db:
+            return False
 
-    def _get_parties_from_room_data(self, participants_details):
-        result = set()
-        if not participants_details or not participants_details.Data:
-            return result
-        participants_details.Data.seek(0)
-        rd = participants_details.Data.read()
-        #roomData xml
-        room_data = rd[rd.find('<RoomData'):rd.find(r'</RoomData>')+len('</RoomData>')]
-        try:
-            ms = MemoryStream(Encoding.UTF8.GetBytes(room_data))
-            soup = XElement.Load(ms) 
-            xs = XPathExtensions.XPathSelectElements(soup,"Member[@UserName]")
-            xs=Enumerable.ToList[XElement](xs)
-        except Exception, e:# 错误的xml?
-            return result
-
-        for username, display_name in [(tg.Attribute('UserName').Value, tg.Element("DisplayName").Value if tg.Element("DisplayName") else None) for tg in xs]:
-            p = Party()
-            p.Deleted = participants_details.Deleted
-            if username:
-                p.Identifier.Init(username, participants_details.Data if self.extract_source else None)
-                result.add(p)
-        return result
-
-    def getValSrcFromInfo(self, key, objs, info):
-        if key in info.Keys and objs[info[key].Value].Value:
-            return objs[info[key].Value].Value, MemoryRange(objs[info[key].Value].Source)
-        return None, None
-    
-    def is_message_from_main_user(self, rec):
-        return rec['Des'].Value == 0
-        
-    def set_message_party(self, account_owner, chatid, im, rec):
-        is_party_in_msg = False
-        if rec['Type'].Value == 10000: return is_party_in_msg
-        if self.is_message_from_main_user(rec) and account_owner.HasContent: # message from the mainUser
-            im.From.Value = account_owner
-            return is_party_in_msg
-        if chatid not in self.chat_participants:
-            return is_party_in_msg
-        #if multi chat: the participant id is in the message body
-        if chatid in self.multi_chatrooms_ids or len(self.chat_participants[chatid]) > 2:
-            is_party_in_msg = True
-            if 'Message' in rec and type(rec['Message'].Value) == str and rec['Message'].Value[:rec['Message'].Value.find(":")] in [p.Identifier.Value for p in self.chat_participants[chatid]]:
-                username = rec['Message'].Value[:rec['Message'].Value.find(":")]
-                party = filter(lambda x: username == x.Identifier.Value, self.chat_participants[chatid])[0]
-                if username in self.contacts:
-                    party = Party()
-                    party.Name.Init(self.contacts[username].Name)
-                    party.Identifier.Init(username, MemoryRange(rec['Message'].Source) if self.extract_source else None)
-                im.From.Value = party
-        elif account_owner.Identifier.HasLogicalContent and len(self.chat_participants[chatid]) <= 2:
-            parties = filter(lambda x: account_owner.Identifier.Value != x.Identifier.Value, self.chat_participants[chatid])
-            if not parties or len(parties) != 1:
-                return is_party_in_msg
-            party = parties[0]
-            party.Deleted = DeletedState.Unknown
-            username = party.Identifier.Value
-            if username in self.contacts:
-                party.Name.Init(self.contacts[username].Name)
-            im.From.Value = party
-        return is_party_in_msg
-
-    def _get_msg_without_party_txt(self, text_field):
-        if not text_field or IsDBNull(text_field.Value):
-            return
-        text_to_check = text_field.Value
-        lines = text_to_check.split('\n')
-        if not lines or len(lines) <= 1:
-            return text_to_check
-        first_line = lines[0]
-        return text_field.Value[first_line.find(":") + 1:].lstrip()
-
-    def parse_contacts_from_Friend_table(self, db):
-        if 'Friend' in db.Tables:
-            ts = SQLiteParser.TableSignature('Friend')
+        username_ids = {}
+        if 'fts_username_id' in db.Tables:
+            ts = SQLiteParser.TableSignature('fts_username_id')
+            SQLiteParser.Tools.AddSignatureToTable(ts, "UsrName", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
+            SQLiteParser.Tools.AddSignatureToTable(ts, "usernameid", SQLiteParser.FieldType.Int, SQLiteParser.FieldConstraints.NotNull)
             for rec in db.ReadTableRecords(ts, self.extract_deleted):
-                if 'Type' not in rec or IsDBNull(rec['Type'].Value):
-                    continue
-                if rec['Type'].Value not in [3, 7, 8199]:
-                    continue
-                nameField = 'NickName'
-                if 'NickName' not in rec or IsDBNull(rec['NickName'].Value):
-                    nameField = 'FullPY'
-                    if 'FullPY' not in rec or IsDBNull(rec['FullPY'].Value):
-                        continue
-                cont = Contact()
-                uid = UserID()
-                uid.Category.Value = "username"
-                uid.Deleted = rec.Deleted
-                SQLiteParser.Tools.ReadColumnToField(rec, 'UsrName', uid.Value, self.extract_source)
-                if uid.HasLogicalContent:
-                    cont.Entries.Add(uid)
-                alias = UserID()
-                alias.Deleted = rec.Deleted                
-                alias.Category.Value = "Nickname"
-                SQLiteParser.Tools.ReadColumnToField(rec, 'FullPY', alias.Value, self.extract_source)
-                if alias.HasLogicalContent:
-                    cont.Entries.Add(alias)                
-                cont.Deleted = rec.Deleted
-                cont.Source.Value = self.APP_NAME
-                cont.Name.Value = rec[nameField].Value
-                cont.Name.Source = MemoryRange(rec[nameField].Source)
-                if rec['UsrName'].Value in self.contacts:
-                    ParserHelperTools.MergeContacts(self.contacts[rec['UsrName'].Value], cont)
-                else:
-                    self.contacts[rec['UsrName'].Value] = cont
+                username = self._db_record_get_value(rec, 'UsrName', '')
+                id = self._db_record_get_value(rec, 'usernameid', 0)
+                if username != '' and id != 0:
+                    username_ids[id] = username
 
-    def parse_contacs_from_Hello_table(self, db):
-        
-        attributes = re.compile(r"(\w+\s*\=\s*(\"[^\"]*\")|(\'[^\']*\'))")
-        for table in db.Tables:
-            if not table.startswith("Hello_"):
-                continue
+        tables = [t for t in db.Tables if t.startswith('fts_message_table_') and t.endswith('_content')]
+        for table in tables:
             ts = SQLiteParser.TableSignature(table)
+            SQLiteParser.Tools.AddSignatureToTable(ts, "c0usernameid", SQLiteParser.FieldType.Int, SQLiteParser.FieldConstraints.NotNull)
+            SQLiteParser.Tools.AddSignatureToTable(ts, "c3Message", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
             for rec in db.ReadTableRecords(ts, self.extract_deleted):
-                if 'Message' not in rec or IsDBNull(rec['Message'].Value):
+                id = self._db_record_get_value(rec, 'c0usernameid', 0)
+                if id not in username_ids:
                     continue
-        
-                user_properties = {}
-                data = rec['Message'].Value
-               
-                tokens = attributes.findall(data)
-                for tok in tokens:
-                    tok = tok[0]
-                    if '="' in tok:
-                        key = tok[0:tok.find('="')]
-                        val = tok[tok.find('="')  +2 : tok.rfind('"')]
-                        user_properties[key] = val
-                if user_properties.has_key('fromusername') and user_properties['fromusername']:
-        
-                    source = MemoryRange(rec['Message'].Source)
-        
-                    cont = Contact()
-                    cont.Deleted = rec.Deleted
-                    cont.Source.Value = self.APP_NAME
-        
-                    username = user_properties['fromusername']
-                    userID = UserID()
-                    userID.Deleted = cont.Deleted
-                    userID.Value.Value = username
-                    userID.Value.Source = source
-                    userID.Category.Value = "username"
-                    cont.Entries.Add(userID)
-                    if user_properties.has_key('fullpy') and user_properties['fullpy']:
-                        cont.Name.Value = user_properties['fullpy'];
-                        cont.Name.Source = source
-                    for field in ['alias', 'fromnickname', 'extnickname', 'weibonickname', 'qqnickname']:
-                        if user_properties.has_key(field) and user_properties[field]:
-                            alias = UserID()
-                            alias.Deleted = cont.Deleted
-                            alias.Value.Value = user_properties[field]
-                            alias.Value.Source = source
-                            alias.Category.Value = field
-                            cont.Entries.Add(alias)
-                    if cont.Name.Value in self.contacts:
-                        if cont.Name.Value in self.contacts:
-                            ParserHelperTools.MergeContacts(self.contacts[cont.Name.Value], cont)
-                        else:
-                            self.contacts[cont.Name.Value] = cont
-                    else:
-                        if username in self.contacts:
-                            ParserHelperTools.MergeContacts(self.contacts[username], cont)
-                        else:
-                            self.contacts[username] = cont
+                username = username_ids.get(id)
+                contact = self.contacts.get(username, {})
+                certification_flag = contact.get('certification_flag', 0)
+                content = self._db_record_get_value(rec, 'c3Message', '')
 
-    def parse_contacts_from_db_node(self, node):
-        db = SQLiteParser.Database.FromNode(node)
-        if not db:
-            return
-        self.parse_contacts_from_Friend_table(db)
-
-        self.parse_contacs_from_Hello_table(db)
-
-    def parse_contact_share_heuristic(self, rec, im):
-        c = Contact()
-        c.Deleted = DeletedState.Unknown
-        c.Source.Value = self.APP_NAME
-        msg_data = rec['Message'].Value
-
-        for att in ['bigheadimgurl', 'smallheadimgurl', 'fullpy', 'shortpy', 'alias', 'sign', 'sex', 'certinfo', 'brandIconUrl', 'brandHomeUrl', 'brandSubscriptConfigUrl', 'brandFlags', 'regionCode']:
-            key_value = re.search("(?P<key>{0})=\"(?P<value>\w*)".format(att), msg_data)
-            if key_value:
-                c.Notes.Add("{0}: {1}".format(att, key_value.group('value')), MemoryRange(rec['Message'].Source) if self.extract_source else None)
-        ui = UserID()
-        username_key_value = re.search("(?P<key>{0})=\"(?P<value>[^\"]*)".format('username'), msg_data)
-        if username_key_value:
-            ui.Deleted = DeletedState.Unknown
-            ui.Category.Value = "username"
-            ui.Value.Init(username_key_value.group('value'), MemoryRange(rec['Message'].Source) if self.extract_deleted else None)
-            c.Entries.Add(ui)
-        nickname_key_value = re.search("(?P<key>{0})=\"(?P<value>[^\"]*)".format('nickname'), msg_data)
-        if nickname_key_value:
-            c.Name.Init(nickname_key_value.group('value'), MemoryRange(rec['Message'].Source) if self.extract_deleted else None)
-        address = None
-        province_key_value = re.search("(?P<key>{0})=\"(?P<value>[^\"]*)".format('province'), msg_data)
-        if province_key_value:
-            address = "province: {0}".format(province_key_value.group('value'))
-        city_key_value = re.search("(?P<key>{0})=\"(?P<value>[^\"]*)".format('city'), msg_data)
-        if city_key_value:
-            if address:
-                address += ", "
-            address += "city: {0}".format(city_key_value.group('value'))
-        if address:
-            address_source = []
-            sa = StreetAddress()
-            sa.Deleted = DeletedState.Unknown
-            sa.Street1.Init(address, MemoryRange(rec['Message'].Source) if self.extract_source else None)
-            c.Addresses.Add(sa)
-        im.SharedContacts.Add(c)
-        c.Group.Value = "Shared"
-        if ui.Value.HasLogicalContent:
-            if ui.Value.Value in self.contacts:
-                ParserHelperTools.MergeContacts(self.contacts[ui.Value.Value], c)
-            else:
-                self.contacts[ui.Value.Value] = c
-
-    def parse_contact_share(self, rec, im):
-        doc = None
+                message = model_im.Message()
+                message.deleted = 1
+                message.repeated = contact.get('repeated', 0)
+                message.source = node.AbsolutePath
+                message.account_id = self.user_account.account_id
+                message.talker_id = username
+                message.talker_name = contact.get('nickname')
+                if username.endswith('@chatroom'):
+                    message.talker_type = model_im.USER_TYPE_CHATROOM
+                else:
+                    message.talker_type = model_im.USER_TYPE_FRIEND
+                message.content = content
+                try:
+                    self.db_insert_table_message(message)
+                except Exception as e:
+                    pass
         try:
-            doc = XSDocument.Load(MemoryRange(rec['Message'].Source))
-        except:
-            return self.parse_contact_share_heuristic(rec, im)
-        if doc.RootElements == None or len(doc.RootElements) == 0:
-            return self.parse_contact_share_heuristic(rec, im)
-        c = Contact()
-        c.Deleted = DeletedState.Unknown
-        c.Source.Value = self.APP_NAME
-        doc_attrs = doc.RootElements[0].Attributes
+            self.db_commit()
+        except Exception as e:
+            pass
+        return True
 
-        for att in ['bigheadimgurl', 'smallheadimgurl', 'fullpy', 'shortpy', 'alias', 'sign', 'sex', 'certinfo', 'brandIconUrl', 'brandHomeUrl', 'brandSubscriptConfigUrl', 'brandFlags', 'regionCode']:
-            if doc_attrs.ContainsKey(att) and type(doc_attrs[att].Value) == str and doc_attrs[att].Value:
-                c.Notes.Add("{0}: {1}".format(att, doc_attrs[att].Value), MemoryRange(doc_attrs[att].Source) if self.extract_source else None)
-        ui = UserID()
-        if doc_attrs.ContainsKey('username') and type(doc_attrs['username'].Value) == str and doc_attrs['username'].Value:
-            ui.Deleted = DeletedState.Unknown
-            ui.Category.Value = "username"
-            ui.Value.Init(doc_attrs['username'].Value, MemoryRange(doc_attrs['username'].Source) if self.extract_deleted else None)
-            c.Entries.Add(ui)
-        if doc_attrs.ContainsKey('nickname') and type(doc_attrs['nickname'].Value) == str and doc_attrs['nickname'].Value:
-            c.Name.Init(doc_attrs['nickname'].Value, MemoryRange(doc_attrs['nickname'].Source) if self.extract_deleted else None)
-        address = ''
-        if doc_attrs.ContainsKey('province') and type(doc_attrs['province'].Value) == str and doc_attrs['province'].Value:
-            address = "province: {0}".format(doc_attrs['province'].Value)
-        if doc_attrs.ContainsKey('city') and type(doc_attrs['city'].Value) == str and doc_attrs['city'].Value:
-            if address:
-                address += ", "
-            address += "city: {0}".format(doc_attrs['city'].Value)
-        if address:
-            address_source = []
-            address_source += doc_attrs['province'].Source
-            address_source += doc_attrs['city'].Source
-            sa = StreetAddress()
-            sa.Deleted = DeletedState.Unknown
-            sa.Street1.Init(address, MemoryRange(address_source) if self.extract_source else None)
-            c.Addresses.Add(sa)
-        im.SharedContacts.Add(c)
-        c.Group.Value = "Shared"
-        if ui.Value.HasLogicalContent:
-            if ui.Value.Value in self.contacts:
-                ParserHelperTools.MergeContacts(self.contacts[ui.Value.Value], c)
-            else:
-                self.contacts[ui.Value.Value] = c
+    @staticmethod
+    def _process_parse_contact_remark(blob):
+        nickname = ''
+        alias = ''
+        remark = ''
 
-    def parse_msg_from_chat_table(self, account_owner, chat, chat_messages, chatid, models, rec, record_ids):
-        im = InstantMessage()
-        im.Deleted = rec.Deleted
-        im.SourceApplication.Value = self.APP_NAME
-        recid = rec['MesLocalID'].Value
-        createTime = rec['CreateTime'].Value
-        create_time_str = str(createTime)
-        if 'MesSvrID' in rec and not IsDBNull(rec['MesSvrID'].Value) and len(str(rec['MesSvrID'].Value)) > 5 and self._was_already_added(rec['MesSvrID'].Value, rec, record_ids):
-                return
-        success_time_parse, create_time_int = UInt32.TryParse(create_time_str)
-        if success_time_parse and TimeStamp(TimeStampFormats.GetTimeStampEpoch1Jan1970(create_time_int)).IsValidForSmartphone():
-            if self._was_already_added(create_time_int, rec, record_ids):
-                    return
-            SQLiteParser.Tools.ReadColumnToField[TimeStamp](rec, 'CreateTime', im.TimeStamp, self.extract_source,
-                lambda ts: TimeStamp(TimeStampFormats.GetTimeStampEpoch1Jan1970(ts), True))
-        if rec.Deleted == DeletedState.Deleted and not im.TimeStamp.Value:
-            return
-    
-        is_multi_chat = self.set_message_party(account_owner, chatid, im, rec)
-        
-        att_list = []
-        
-        data_contains_nulls = type(rec['Message'].Value) == str and  '\0' in rec['Message'].Value
-        if not data_contains_nulls and rec['Type'].Value == 34:
-            att_list = filter(lambda node: "Audio/"+chatid in  node.AbsolutePath, self.root_files[str(recid)+".aud"])
-            children_lists = [att.Children for att in att_list if att.Children.Count]
-            if children_lists:
-                att_list = []
-                for children_list in children_lists:
-                    att_list.extend(children_list)
-        elif not data_contains_nulls and rec['Type'].Value == 49:
-            attachment_to_check = []
-            file_part_name = "OpenData/{0}/{1}".format(chatid, str(recid))
-            for node_name in self.root_files:
-                for node in self.root_files[node_name]:
-                    if file_part_name in  node.AbsolutePath:
-                        att_list.append(node)
-        elif not data_contains_nulls and rec['Type'].Value in [43, 62]:
-            att_list = filter(lambda node: "Video/"+chatid in  node.AbsolutePath, self.root_files[str(recid)+".mp4"]) 
-            if len(att_list) == 0:
-                att_list = filter(lambda node: "Video/"+chatid in  node.AbsolutePath, self.root_files[str(recid)+".video_thum"]) 
-        elif not data_contains_nulls and rec['Type'].Value == 3:
-            att_list =  filter(lambda node: "Img/"+chatid in  node.AbsolutePath, self.root_files[str(recid)+".pic"])  
-            if len(att_list) == 0:
-                att_list = filter(lambda node: "Img/"+chatid in  node.AbsolutePath, self.root_files[str(recid)+".pic_thum"])
-                
-            if len(att_list) == 0 and rec.Deleted == DeletedState.Deleted:
-                att = Attachment()
-                att.Deleted = rec.Deleted
-                att.Filename.Value = str(recid)+".pic"
-                im.Attachments.Add(att)
-        
-        elif not data_contains_nulls and rec['Type'].Value == 48: # Location
-            coor = self.parse_coordinate(rec, is_multi_chat)
-            if coor:
-                im.Position.Value = coor
-                loc = Location()
-                loc.Deleted = coor.Deleted
-                loc.Position.Value = coor
-                loc.Category.Value = self.APP_NAME
-                loc.TimeStamp.Init(im.TimeStamp)
-                loc.PositionAddress.Init(coor.PositionAddress)
-                loc.Description.Init(coor.Comment)
-                if im.TimeStamp:
-                    loc.TimeStamp.Init(im.TimeStamp)				
-                LinkModels(im, loc)
-                models.append(loc)
-        elif not data_contains_nulls and rec['Type'].Value == 50: # voice message
-            if "Message" in rec and not IsDBNull(rec['Message'].Value):
-                att = Attachment()
-                att.Deleted = rec.Deleted
-                att.MetaData.Add("type: voip message", MemoryRange(rec["Message"].Source))
-                messageData = rec["Message"].Value
-                
-                dur_start = messageData.find("<duration>")
-                dur_end = messageData.find("</duration>")
-                if dur_start < dur_end and dur_start >= 0:
-                    att.MetaData.Add("duration: "+messageData[dur_start + len("<duration>"):dur_end], MemoryRange(rec["Message"].Source))
-                im.Attachments.Add(att)
-                is_from_main_user = self.is_message_from_main_user(rec)
-                c = self.try_parse_msg_call(rec["Message"], rec.Deleted, is_from_main_user, rec, account_owner, is_multi_chat, chatid, im.TimeStamp)
-                if c:
-                    c.Source.Value = self.APP_NAME
-                    self.calls.add(c)
-                    LinkModels(c, im)
-
-        elif (not data_contains_nulls and  rec['Type'].Value == 42) or (type(rec['Message'].Value) == str and  rec['Message'].Value.startswith("<msg username")): # contact share
-            self.parse_contact_share(rec, im)
-        elif not data_contains_nulls and rec['Type'].Value == 64: # Conference call
-            c = self._try_parse_conference_call(chatid, rec["Message"], im)
-            if c:
-                c.Source.Value = self.APP_NAME
-                if not c.TimeStamp.HasLogicalContent and im.TimeStamp.HasLogicalContent :
-                    c.TimeStamp.Init(im.TimeStamp)
-                self.calls.add(c)
-                LinkModels(c, im)
-        else:
-            SQLiteParser.Tools.ReadColumnToField(rec, 'Message', im.Body, self.extract_source)
-        if len(att_list) > 0:
-            att = Attachment()
-            att.Deleted = rec.Deleted
-            att.Deleted = att_list[0].Deleted
-            att.Data.Source = att_list[0].Data
-            CreateSourceEvent(att_list[0], im)
-            att.Filename.Value = att_list[0].Name
-            if self._is_silk(att_list[0]):
-                att.MetaData.Add('silk')
-            im.Attachments.Add(att) 
-        msg_unique_id = str(recid) +  str(rec['CreateTime'].Value)
-        if recid == 0 or msg_unique_id not in chat_messages:
-            if recid == 0:
-                chat.Messages.Add(im)
-            else:
-                chat_messages[msg_unique_id] = im
-        
-    def parse_chat_table_intact_and_deleted(self, account_owner, db, models, node, record_ids, table):
-        ts = SQLiteParser.TableSignature(table)
-        SQLiteParser.Tools.AddSignatureToTable(ts, 'TableVer', SQLiteParser.Tools.SignatureType.Byte, SQLiteParser.Tools.SignatureType.Const0, SQLiteParser.Tools.SignatureType.Const1)
-        SQLiteParser.Tools.AddSignatureToTable(ts, 'MesSvrID', SQLiteParser.FieldType.Int)
-        SQLiteParser.Tools.AddSignatureToTable(ts, 'CreateTime', SQLiteParser.FieldType.Int)                
-        SQLiteParser.Tools.AddSignatureToTable(ts, 'Status', SQLiteParser.FieldType.Int)
-        SQLiteParser.Tools.AddSignatureToTable(ts, 'ImgStatus', SQLiteParser.FieldType.Int)                
-        SQLiteParser.Tools.AddSignatureToTable(ts, 'Des', SQLiteParser.Tools.SignatureType.Byte, SQLiteParser.Tools.SignatureType.Const0, SQLiteParser.Tools.SignatureType.Const1)
-        ts['Message'] = SQLiteParser.Signatures.SignatureFactory.GetFieldSignature(SQLiteParser.FieldType.Text)
-        chatid = table[5:]
-        if chatid not in self.chats:
-            chat = Chat()
-            chat.Source.Value = self.APP_NAME
-            chat.Deleted = node.Deleted
-            is_new_chat = True
-        else:
-            chat = self.chats[chatid]
-            is_new_chat = False 
-        
-        chat_messages = {}
-        
-        if account_owner.HasContent:
-                chat.Participants.Add(account_owner)
-        
-        if self.chat_participants.has_key(chatid):
-            for party in self.chat_participants[chatid]:
-                username = party.Identifier.Value if party.Identifier else None
-                if username != None and account_owner != None and username == account_owner.Identifier.Value:
-                    continue
-                if username and  username in self.contacts:
-                    party.Name.Init(self.contacts[username].Name)
-                chat.Participants.Add(party)
-        for rec in db.ReadTableRecords(ts, self.extract_deleted, False):
-            self.parse_msg_from_chat_table(account_owner, chat, chat_messages, chatid, models, rec, record_ids)
-        chat.Messages.AddRange(chat_messages.values())
-        chat.SetTimesByMessages()
-        chat.SetParticipantsByMessages()
-        if is_new_chat and chat.HasLogicalContent:
-            chat.ChatId.Value = chatid
-            self.chats[chatid] = chat
-    
-    def parse_chat_table_only_deep_carve_records(self, account_owner, db, models, record_ids, table):
-        ts = SQLiteParser.TableSignature(table)
-        SQLiteParser.Tools.AddSignatureToTable(ts, 'TableVer', SQLiteParser.Tools.SignatureType.Byte, SQLiteParser.Tools.SignatureType.Const0, SQLiteParser.Tools.SignatureType.Const1)
-        SQLiteParser.Tools.AddSignatureToTable(ts, 'MesSvrID', SQLiteParser.FieldType.Int)
-        SQLiteParser.Tools.AddSignatureToTable(ts, 'CreateTime', SQLiteParser.FieldType.Int)                
-        SQLiteParser.Tools.AddSignatureToTable(ts, 'Status', SQLiteParser.FieldType.Int)
-        SQLiteParser.Tools.AddSignatureToTable(ts, 'ImgStatus', SQLiteParser.FieldType.Int)                
-        SQLiteParser.Tools.AddSignatureToTable(ts, 'Des', SQLiteParser.Tools.SignatureType.Byte, SQLiteParser.Tools.SignatureType.Const0, SQLiteParser.Tools.SignatureType.Const1)
-        ts['Message'] = SQLiteParser.Signatures.SignatureFactory.GetFieldSignature(SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
-        for rec in db.ReadTableRecords(ts, True, True):
-            if rec.Deleted == DeletedState.Intact or self._was_already_added(rec.RecordId, rec, record_ids): continue
-            chat = Chat()
-            chat_messages = {}
-            chat.Source.Value = self.APP_NAME
-            chat.Deleted = DeletedState.Deleted
-            chatid = "{0} Unknown_Chat: {1}".format(self.APP_NAME, self.unknown_chat_counter)
-            is_new_chat = True
-            self.parse_msg_from_chat_table(account_owner, chat, chat_messages, chatid, models, rec, record_ids)
-            chat.Messages.AddRange(chat_messages.values())
-            chat.SetTimesByMessages()
-            chat.SetParticipantsByMessages()
-            if is_new_chat and chat.HasLogicalContent:
-                self.unknown_chat_counter += 1
-                chat.ChatId.Value = chatid
-                self.chats[chatid] = chat
-
-    def decode_chat(self, node):
-        db = SQLiteParser.Database.FromNode(node)
-        if not db:
-            return []
-        models = []
-        account_owner = Party()
-        if self.user_account.Name and self.user_account.Name.Value:
-            account_owner.Name.Init(self.user_account.Name) 
-            account_owner.Identifier.Init(self.user_account.Username)
-
-        record_ids = set()
-        for table in db.Tables:
-            if not table.startswith("Chat_"):
-                continue
-            self.parse_chat_table_intact_and_deleted(account_owner, db, models, node, record_ids, table)
-        if self.extract_deleted == True:
-            for table in db.Tables:
-                if not table.startswith("Chat_"):
-                    continue
-                self.parse_chat_table_only_deep_carve_records(account_owner, db, models, record_ids, table)
+        index = 0
+        while index + 2 < len(blob):
+            flag = blob[index]
+            size = blob[index + 1]
+            if index + 2 + size > len(blob):
                 break
-        return models
+            try:
+                content = bytes(blob[index + 2: index + 2 + size]).decode('utf-8')
+                if flag == 0x0a:  # nickname
+                    nickname = content
+                elif flag == 0x12:  # alias
+                    alias = content
+                elif flag == 0x1a:  # remark
+                    remark = content
+                index += 2 + size
+            except Exception as e:
+                # print('_process_parse_contact_remark error: %s' % e)
+                break
+        return nickname, alias, remark
 
-    def _was_already_added(self, rec_sig, rec, record_sigs):
-        if rec_sig in record_sigs:
-            return True
-        record_sigs.add(rec_sig)
-        return False
+    @staticmethod
+    def _process_parse_contact_head(blob):
+        head = None
+        head_hd = None
 
-    def _try_parse_conference_call(self, chatid, msg_call, im):
-        call = Call()
-        call.Deleted = im.Deleted
-        call.Type.Value = CallType.Conference
-        if chatid in self.chat_participants and self.chat_participants[chatid]:
-            call.Parties.AddRange(self.chat_participants[chatid])
-        if not msg_call or not msg_call.Value or IsDBNull(msg_call.Value):
-            return call
-        jnode = JNode.Parse(self._get_msg_without_party_txt(msg_call))
-        if jnode and jnode['createUserName'] and jnode['createUserName'].Value in self.contacts:
-            from_party = jnode['createUserName'].Value
-            for call_party in call.Parties:
-                if call_party.Identifier.Value == from_party:
-                    call_party.Role.Value = PartyRole.From
-        if jnode and jnode['msgContent'] and jnode['msgContent'].Value:
-            im.Body.Init(jnode['msgContent'].Value, MemoryRange(msg_call.Source) if self.extract_source else None )
-        LinkModels(call, im)
-        return call
-
-    def _parse_call_parties(self, account_owner, call, chatid, is_from_main_user, is_multi_chat, main_user_party, other_party):
-        if account_owner.HasLogicalContent:
-            main_user_party = ParserHelperTools.CloneParty(account_owner)
-            call.Parties.Add(main_user_party)
-        if not is_multi_chat and  chatid in self.chat_participants and len(self.chat_participants[chatid]) == 1 :
-            other_party = ParserHelperTools.CloneParty(list(self.chat_participants[chatid])[0])
-            if other_party.Identifier and other_party.Identifier.Value and other_party.Identifier.Value in self.contacts:
-                other_party.Name.Init(self.contacts[other_party.Identifier.Value].Name)
-            call.Parties.Add(other_party)                
-        if is_from_main_user:
-            if main_user_party:
-                main_user_party.Role.Value = PartyRole.From
-            if other_party:
-                other_party.Role.Value = PartyRole.To
-            call.Type.Value = CallType.Outgoing
-        else:
-            if main_user_party:
-                main_user_party.Role.Value = PartyRole.To
-            if other_party:
-                other_party.Role.Value = PartyRole.From
-            call.Type.Value = CallType.Incoming
-
-    def try_parse_msg_call(self, msg_call, deleted, is_from_main_user, rec, account_owner, is_multi_chat, chatid, msg_timestamp):
-        try:
-            call_xsdoc = XSDocument.Load(MemoryRange(msg_call.Source))
-        except Exception, e:
-            return 
-        call = Call()
-        call.Deleted = deleted
-        wording_type = duration = recvtime = roomid = status = invitetype = None
-        for x in call_xsdoc.RootElements:
-            if x.Name.Value == "voiplocalinfo":
-                wording_type = XMLParserTools.TryGetFirstElementByXPath(x, "voiplocalinfo/wordingtype")
-                duration = XMLParserTools.TryGetFirstElementByXPath(x, "voiplocalinfo/duration")
-            elif x.Name.Value == "voipextinfo":
-                recvtime = XMLParserTools.TryGetFirstElementByXPath(x, "voipextinfo/recvtime")
-            elif x.Name.Value == "voipinvitemsg":
-                roomid = XMLParserTools.TryGetFirstElementByXPath(x, "voipinvitemsg/roomid")
-                key = XMLParserTools.TryGetFirstElementByXPath(x, "voipinvitemsg/key")
-                status = XMLParserTools.TryGetFirstElementByXPath(x, "voipinvitemsg/status")
-                invitetype = XMLParserTools.TryGetFirstElementByXPath(x, "voipinvitemsg/invitetype")
-        if recvtime and recvtime.Value:
-            recived_time = ParserHelperTools.TryGetValidTimeStampEpoch1Jan1970(recvtime.Value)
-            if recived_time: 
-                call.TimeStamp.Init(recived_time, MemoryRange(recvtime.Source) if self.extract_source else None)
-        elif not call.TimeStamp.HasLogicalContent and msg_timestamp.HasLogicalContent:
-            call.TimeStamp.Init(msg_timestamp)
-        if duration and duration.Value and duration.Value.isdigit(): 
-            call.Duration.Init(TimeSpan(0, 0, int(duration.Value)), MemoryRange(duration.Source) if self.extract_source else None)
-        if invitetype and invitetype.Value == "0":
-            call.VideoCall.Init(True, MemoryRange(invitetype.Source) if self.extract_source else None) 
-        main_user_party = other_party = None  
-        self._parse_call_parties(account_owner, call, chatid, is_from_main_user, is_multi_chat, main_user_party, other_party)
-        if wording_type and wording_type.Value == "7":
-            call.Type.Value = CallType.Missed
-        if wording_type and wording_type.Value == "8":
-            call.Type.Value = CallType.Rejected
-        if call.Type.Value == CallType.Incoming and duration and duration.Value and duration.Value.isdigit() and int(duration.Value) == 0:
-            call.Type.Value = CallType.Missed
-
-        return call
-
-    def parse_coordinate(self, coor_rec, is_party_in_msg):
-        if IsDBNull(coor_rec['Message'].Value) or not coor_rec['Message'].Value:
-            return
-        data = coor_rec['Message'].Value
-        if is_party_in_msg: 
-            data = self._get_msg_without_party_txt(coor_rec['Message'])
-        try:
-            coor_data = XDocument.Parse(data)
-            loc_data = coor_data.Element('msg').Element('location')
-        except:
-            return
-        src = MemoryRange(coor_rec['Message'].Source) if self.extract_source else None
-        coor = Coordinate()
-        coor.Deleted = coor_rec.Deleted
-        for at in loc_data.Attributes():
-            if at.Name.LocalName == 'y':
-                coor.Longitude.Init(float(at.Value), src)
-            elif at.Name.LocalName == 'x':
-                coor.Latitude.Init(float(at.Value), src)
-            elif at.Name.LocalName == 'label':
-                coor.PositionAddress.Init(at.Value, src)
-            elif at.Name.LocalName == 'poiname':
-                coor.Comment.Init(at.Value, src)
-
-        if coor.HasContent:
-            return coor
-
-    def decode_xlog(self, node):
-        
-        self.UINFO_STRING = 'Class name: CUsrInfo'
-
-        ## imported wechat code
-
-        self.MAGIC_CRYPT_START = '\x01';
-        self.MAGIC_COMPRESS_CRYPT_START = '\x02';
-        self.MAGIC_END  = '\x00';
-        self.BASE_KEY  = 0xCC;
-
-        l = self.ParseFile(node.Data)
-        uinfo = []
-        for log in l:
-            
-            lines = log.splitlines()
-            index = lines.index(self.UINFO_STRING,0) if self.UINFO_STRING in lines else -1
-            
-            while index > -1:
-                d={}
-                timestamp = time.strptime(lines[index-2][10:29], '%Y-%m-%d %H:%M:%S')
-
-                d['Timestamp'] = timestamp
-                index += 1                
-                while index<len(lines) and lines[index].startswith('m_'):
-                    keyval = lines[index].split(':', 1)
-                    d[keyval[0][2:]] = keyval[1]
+        index = 2
+        while index + 1 < len(blob):
+            flag = blob[index]
+            size = blob[index + 1]
+            if size > 0:
+                index += 2
+                if blob[index] != 0x68:
                     index += 1
+                if index + size > len(blob):
+                    break
+                try:
+                    content = bytes(blob[index: index + size]).decode('utf-8')
+                    if flag == 0x12:
+                        head = content
+                    elif flag == 0x1a:
+                        head_hd = content
+                except Exception as e:
+                    break
+                index += size
+            else:
+                index += 2
 
-                uinfo.append(d)
+        return head, head_hd
 
-                index = lines.index(self.UINFO_STRING,index) if self.UINFO_STRING in lines[index:] else -1        
-        return uinfo
+    @staticmethod
+    def _process_parse_group_members(blob):
+        members = []
+        max_count = 0
 
-    def ParseFile(self, stream):  # adapted from wechat code
-        _buffer = stream.read()
-        startpos = self.GetLogStartPos(_buffer)
-        res = []
+        try:
+            data = bytes(blob)
+        except Exception as e:
+            return members, max_count
 
-        while True:
-            startpos, outbuffer = self.DecodeBuffer(_buffer, startpos)
-            if startpos == -1:
-                break
-            res.append(outbuffer)
+        prefix = b'<RoomData>'
+        suffix = b'</RoomData>'
+        if prefix in data and suffix in data:
+            index_begin = data.index(prefix)
+            index_end = data.index(suffix) + len(suffix)
+            content = data[index_begin:index_end].decode('utf-8')
+            ms = []
+            try:
+                xml = XElement.Parse(content)
+                max_count = int(xml.Element('MaxCount').Value)
+                ms = Enumerable.ToList[XElement](XPathExtensions.XPathSelectElements(xml,"Member[@UserName]"))
+            except Exception as e:
+                pass
+            for m in ms:
+                username = None
+                display_name = None
+                if m.Attribute('UserName'):
+                    username = m.Attribute('UserName').Value
+                if m.Element("DisplayName"):
+                    display_name = m.Element("DisplayName").Value
+                if username is not None:
+                    members.append({'username': username, 'display_name': display_name})
 
+                #for username, display_name in [(tg.Attribute('UserName').Value, tg.Element("DisplayName").Value if tg.Element("DisplayName") else None) for tg in ms]:
+                #    if username:
+                #        members.append({'username': username, 'display_name': display_name})
+        return members, max_count
 
-        return res
+    def _process_parse_friend_message(self, msg, msg_type, msg_local_id, user_node, friend_hash, model):
+        content = msg
+        img_path = ''
 
-    def IsGoodLogBuffer(self, _buffer, _offset, count):
+        if msg_type == MSG_TYPE_IMAGE:
+            node = user_node.GetByPath('Img/{0}/{1}.pic'.format(friend_hash, msg_local_id))
+            if node is not None:
+                img_path = node.AbsolutePath
+        elif msg_type == MSG_TYPE_VOICE:
+            node = user_node.GetByPath('Audio/{0}/{1}.aud'.format(friend_hash, msg_local_id))
+            if node is not None:
+                img_path = node.AbsolutePath 
+        #elif msg_type == MSG_TYPE_CONTACT_CARD:
+        #    pass
+        elif msg_type == MSG_TYPE_VIDEO or msg_type == MSG_TYPE_VIDEO_2:
+            node = user_node.GetByPath('Video/{0}/{1}.mp4'.format(friend_hash, msg_local_id))
+            if node is None:
+                node = user_node.GetByPath('Video/{0}/{1}.video_thum'.format(friend_hash, msg_local_id))
+            if node is not None:
+                img_path = node.AbsolutePath
+        elif msg_type == MSG_TYPE_EMOJI:
+            pass
+        elif msg_type == MSG_TYPE_LOCATION:
+            if model is not None:
+                location = model_im.Location()
+                location.deleted = model.deleted
+                location.source = model.source
+                location.location_id = self.location_id
+                self._process_parse_message_location(content, location)
+                model.location = self.location_id
+                self.location_id += 1
+                self.db_insert_table_location(location)
+            node = user_node.GetByPath('Location/{0}/{1}.pic_thum'.format(friend_hash, msg_local_id))
+            if node is not None:
+                img_path = node.AbsolutePath
+        elif msg_type == MSG_TYPE_LINK:
+            content = self._process_parse_message_link(content)
+        elif msg_type == MSG_TYPE_VOIP:
+            pass
+        elif msg_type == MSG_TYPE_VOIP_GROUP:
+            pass
+        elif msg_type == MSG_TYPE_SYSTEM or msg_type == MSG_TYPE_SYSTEM_2:
+            pass
+        else:  # MSG_TYPE_TEXT
+            pass
 
-        if _offset == len(_buffer): return True
-        if _offset + 1 + 4 + 1 + 1 > len(_buffer): return False
+        return content, img_path
 
-        if self.MAGIC_CRYPT_START!=_buffer[_offset] and self.MAGIC_COMPRESS_CRYPT_START!=_buffer[_offset]: return False
+    def _process_parse_group_message(self, msg, msg_type, msg_local_id, is_sender, user_node, group_hash, model):
+        sender = self.user_account.account_id
+        content = msg
+        img_path = ''
 
-        length = struct.unpack_from("I", buffer(_buffer, _offset+1, 4))[0]	
-        if _offset + 1 + 4 + length + 1 > len(_buffer): return False
-        if self.MAGIC_END!=_buffer[_offset + 1 + 4 + length]: return False
+        if not is_sender:
+            index = msg.find(':\n')
+            if index != -1:
+                sender = msg[:index]
+                content = msg[index+2:]
 
-        if (1>=count): return True
-        else: return self.IsGoodLogBuffer(_buffer, _offset+1+4+length+1, count-1)
-
-    def GetLogStartPos(self, _buffer):
-        offset = 0
-        while True:
-            if offset >= len(_buffer) : break
-            
-            if self.MAGIC_CRYPT_START==_buffer[offset] or self.MAGIC_COMPRESS_CRYPT_START==_buffer[offset]:
-                if self.IsGoodLogBuffer(_buffer, offset, 2): 
-                    return offset
-            offset+=1
-        return -1	
-
-    def DecodeBuffer(self, _buffer, _offset):
+        content, img_path = self._process_parse_friend_message(content, msg_type, msg_local_id, user_node, group_hash, model)
         
-        if _offset == len(_buffer): return -1, "";
-        if not self.IsGoodLogBuffer(_buffer, _offset, 1): return -1, ""
-        iscompress = False	
-        if self.MAGIC_COMPRESS_CRYPT_START==_buffer[_offset]: iscompress = True
-        length = struct.unpack_from("I", buffer(_buffer, _offset+1, 4))[0]
-        if iscompress:
-            key = self.BASE_KEY ^ (0xff & length) ^ ord(self.MAGIC_COMPRESS_CRYPT_START)
+        return content, img_path, sender
+
+    def _process_parse_message_link(self, xml_str):
+        content = ''
+        xml = None
+        try:
+            xml = XElement.Parse(xml_str)
+        except Exception as e:
+            pass
+        if xml is not None:
+            if xml.Name.LocalName == 'msg':
+                appmsg = xml.Element('appmsg')
+                if appmsg is not None:
+                    try:
+                        msg_type = int(appmsg.Element('type').Value) if appmsg.Element('type') else 0
+                    except Exception as e:
+                        msg_type = 0
+                    msg_title = appmsg.Element('title').Value if appmsg.Element('title') else ''
+                    mmreader = appmsg.Element('mmreader')
+                    if msg_title == '微信红包':
+                        content += '[标题]' + msg_title + '\n'  # type 2001  wcpayinfo
+                    elif msg_title == '微信转账':
+                        # type 2000  wcpayinfo
+                        content += '[标题]' + msg_title + '\n'
+                        if appmsg.Element('des'):
+                            content += '[内容]' + appmsg.Element('des').Value + '\n'
+                    elif mmreader:
+                        category = mmreader.Element('category')
+                        if category and category.Element('item'):
+                            item = category.Element('item')
+                            if item.Element('title'):
+                                content += '[标题]' + item.Element('title').Value + '\n'
+                            if item.Element('digest'):
+                                content += '[内容]' + item.Element('digest').Value + '\n'
+                            if item.Element('url'):
+                                content += '[链接]' + item.Element('url').Value + '\n'
+                    else:
+                        if appmsg.Element('title'):
+                            content += '[标题]' + appmsg.Element('title').Value + '\n'
+                        if appmsg.Element('des'):
+                            content += '[内容]' + appmsg.Element('des').Value + '\n'
+                        if appmsg.Element('url'):
+                            content += '[链接]' + appmsg.Element('url').Value + '\n'
+                        appinfo = xml.Element('appinfo')
+                        if appinfo and appinfo.Element('appname'):
+                            content += '[来自]' + appinfo.Element('appname').Value
+                else:
+                    pass
+            elif xml.Name.LocalName == 'mmreader':
+                category = xml.Element('category')
+                if category and category.Element('item'):
+                    item = category.Element('item')
+                    if item.Element('title'):
+                        content += '[标题]' + item.Element('title').Value + '\n'
+                    if item.Element('digest'):
+                        content += '[内容]' + item.Element('digest').Value + '\n'
+                    if item.Element('url'):
+                        content += '[链接]' + item.Element('url').Value + '\n'
+            elif xml.Name.LocalName == 'appmsg':
+                if xml.Element('title'):
+                    content += '[标题]' + xml.Element('title').Value + '\n'
+                if xml.Element('des'):
+                    content += '[内容]' + xml.Element('des').Value + '\n'
+                if xml.Element('url'):
+                    content += '[链接]' + xml.Element('url').Value + '\n'
+                appinfo = xml.Element('appinfo')
+                if appinfo and appinfo.Element('appname'):
+                    content += '[来自]' + appinfo.Element('appname').Value
+            else:
+                pass
+        if len(content) > 0:
+            return content
         else:
-            key = self.BASE_KEY ^ (0xff & length) ^ ord(self.MAGIC_CRYPT_START)
-        tmpbuffer = ""
-        for i in range(length):
-            tmpbuffer += chr(key ^ ord(_buffer[_offset+1+4+i]))
+            return xml_str
 
-        if iscompress: tmpbuffer = zlib.decompress(tmpbuffer)
+    def _process_parse_message_location(self, xml_str, model):
+        xml = None
+        try:
+            xml = XElement.Parse(xml_str)
+        except Exception as e:
+            pass
+        if xml is not None:
+            location = xml.Element('location')
+            if location.Attribute('x'):
+                try:
+                    model.latitude = float(location.Attribute('x').Value)
+                except Exception as e:
+                    pass
+            if location.Attribute('y'):
+                try:
+                    model.longitude = float(location.Attribute('y').Value)
+                except Exception as e:
+                    pass
+            if location.Attribute('poiname'):
+                model.address = location.Attribute('poiname').Value
 
-        return _offset+1+4+length+1, tmpbuffer
+    def _process_parse_message_voip(self, xml_str):
+        content = ''
+        xml = None
+        try:
+            xml = XElement.Parse(xml_str)
+        except Exception as e:
+            pass
+        if xml is not None:
+            pass
+        return content
+
+    def _process_parse_message_voip_group(self, msg):
+        pass
+
+    @staticmethod
+    def _db_record_get_value(record, column, default_value=None):
+        if not record[column].IsDBNull:
+            return record[column].Value
+        return default_value
+
+    @staticmethod
+    def _bpreader_node_get_value(node, key, default_value=None):
+        if key in node.Children and node.Children[key] is not None:
+            return node.Children[key].Value
+        return default_value
+
+    @staticmethod
+    def _convert_msg_type(msg_type):
+        if msg_type == MSG_TYPE_TEXT:
+            return model_im.MESSAGE_CONTENT_TYPE_TEXT
+        elif msg_type == MSG_TYPE_IMAGE:
+            return model_im.MESSAGE_CONTENT_TYPE_IMAGE
+        elif msg_type == MSG_TYPE_VOICE:
+            return model_im.MESSAGE_CONTENT_TYPE_VOICE
+        elif msg_type in [MSG_TYPE_VIDEO, MSG_TYPE_VIDEO_2]:
+            return model_im.MESSAGE_CONTENT_TYPE_VIDEO
+        elif msg_type == MSG_TYPE_EMOJI:
+            return model_im.MESSAGE_CONTENT_TYPE_EMOJI
+        elif msg_type == MSG_TYPE_LOCATION:
+            return model_im.MESSAGE_CONTENT_TYPE_LOCATION
+        elif msg_type in [MSG_TYPE_VOIP, MSG_TYPE_VOIP_GROUP]:
+            return model_im.MESSAGE_CONTENT_TYPE_VOIP
+        elif msg_type in [MSG_TYPE_SYSTEM, MSG_TYPE_SYSTEM_2]:
+            return model_im.MESSAGE_CONTENT_TYPE_SYSTEM
+        else:
+            return model_im.MESSAGE_CONTENT_TYPE_LINK
