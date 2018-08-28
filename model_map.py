@@ -311,14 +311,13 @@ class Genetate(object):
             if row[14]:
                 user.Signature.Value = row[14]
             if row[15]:
-                user.RegisterTime.Value = TimeStamp.FromUnixTime(row[15])
-            if row[16]:
-                user.LastLoginTime.Value = TimeStamp.FromUnixTime(row[16])
+                user.RegisterTime.Value = self._get_timestamp(row[15])
+                user.LastLoginTime.Value = self._get_timestamp(row[16])
             if row[17]:
                 data = pickle.loads(row[17])
                 for k,v in data.items():
                     datecount = DateCount()
-                    datecount.DateTime.Value = TimeStamp.FromUnixTime(k)
+                    datecount.DateTime.Value = self._get_timestamp(k)
                     datecount.Count.Value = v
                     user.RecentlyDateCount.Add(datecount)
             address = Contacts.StreetAddress()
@@ -379,9 +378,7 @@ class Genetate(object):
             journey.SourceApp.Value = row[13]
             journey.SourceFile.Value = row[14]
             if row[11]:
-                starttime = TimeStamp.FromUnixTime(row[11])
-            else:
-                starttime = TimeStamp.FromUnixTime(0)
+                starttime = self._get_timestamp(row[11])
             journey.StartTime.Value = starttime
             frompoint = Location()
             topoint = Location()
@@ -464,7 +461,7 @@ class Genetate(object):
             searchitem.SourceApp.Value = row[11]
             searchitem.SourceFile.Value = row[12]
             if row[2]:
-                searchitem.TimeStamp.Value = TimeStamp.FromUnixTime(row[2])
+                searchitem.TimeStamp.Value = self._get_timestamp(row[2])
             searchitem.Value.Value = row[1]
             searchitem.PositionAddress.Value = row[5]
             coo = Coordinate()
@@ -484,7 +481,17 @@ class Genetate(object):
             row = self.cursor.fetchone()
 
         return models
-
+    
+    
+    def _get_timestamp(self, timestamp):
+        if len(str(timestamp)) == 13:
+            timestamp = int(str(timestamp)[0:10])
+        elif len(str(timestamp)) != 13 and len(str(timestamp)) != 10:
+            timestamp = 0
+        ts = TimeStamp.FromUnixTime(timestamp, False)
+        if not ts.IsValidForSmartphone():
+            ts = None
+        return ts
              
 
 
