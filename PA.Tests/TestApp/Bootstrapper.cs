@@ -32,7 +32,7 @@ namespace TestApp
 
         internal static IParserProperties[] InstalAppNodes =
         {
-            new CSharpParserProperties(new string[]{""},new ParserFactory<AppsParser>(), "","Applications","应用列表",DescripCategories.Applications),
+            new CSharpParserProperties(new string[]{""},new ParserFactory<FullDumpAppsParser>(), "","Applications","应用列表",DescripCategories.Applications),
         };
 
         protected override void ConfigureServiceLocator()
@@ -55,7 +55,7 @@ namespace TestApp
 
                 var tarFile = Path.Combine(pack.ProjectDir.FullName, pack.Info.ImageFile);
                 var mntService = ServiceGetter.Get<IMountService>();
-                var fsMnt = mntService.MountTarFile(tarFile,@"C:\TestFs");
+                var fsMnt = mntService.MountTarFile(pack.RpcClient,tarFile,@"C:\TestFs");
                 if (fsMnt != null)
                 {
                     ds.FileSystems.Add(fsMnt);

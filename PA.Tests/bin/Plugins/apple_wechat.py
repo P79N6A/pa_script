@@ -176,6 +176,7 @@ class WeChatParser(model_im.IM):
             SQLiteParser.Tools.AddSignatureToTable(ts, "userName", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
             for rec in db.ReadTableRecords(ts, self.extract_deleted):
                 username = self._db_record_get_value(rec, 'userName')
+                contact_type = self._db_record_get_value(rec, 'type', 0)
                 certification_flag = self._db_record_get_value(rec, 'certificationFlag', 0)
                 nickname = None
                 alias = None
@@ -195,6 +196,7 @@ class WeChatParser(model_im.IM):
                     contact['remark'] = remark
                 if head:
                     contact['photo'] = head
+
                 if rec.Deleted == DeletedState.Intact: 
                     self.contacts[username] = contact
                 else:
@@ -233,12 +235,20 @@ class WeChatParser(model_im.IM):
                     except Exception as e:
                         pass
                 else:
+                    if certification_flag != 0:
+                        ft = model_im.FRIEND_TYPE_GH
+                    elif contact_type % 2 == 1:
+                        ft = model_im.FRIEND_TYPE_FRIEND
+                    else:
+                        ft = model_im.FRIEND_TYPE_STRANGER
+                    contact['type'] = ft
+
                     friend = model_im.Friend()
                     friend.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
                     friend.source = node.AbsolutePath
                     friend.account_id = self.user_account.account_id
                     friend.friend_id = username
-                    friend.type = model_im.FRIEND_TYPE_FRIEND if certification_flag == 0 else model_im.FRIEND_TYPE_FOLLOW
+                    friend.type = ft
                     friend.nickname = nickname
                     friend.remark = remark
                     friend.photo = head
@@ -289,14 +299,14 @@ class WeChatParser(model_im.IM):
                     message.sender_name = self.contacts.get(message.sender_id, {}).get('nickname')
                     message.content = content
                     message.media_path = media_path
-                    message.talker_type = model_im.USER_TYPE_CHATROOM
+                    message.talker_type = model_im.CHAT_TYPE_GROUP
                 else:
                     content, media_path = self._process_parse_friend_message(msg, msg_type, msg_local_id, self.root, user_hash, message)
                     message.sender_id = self.user_account.account_id if is_sender else username
                     message.sender_name = self.contacts.get(message.sender_id, {}).get('nickname')
                     message.content = content
                     message.media_path = media_path
-                    message.talker_type = model_im.USER_TYPE_FRIEND
+                    message.talker_type = model_im.CHAT_TYPE_FRIEND
                 try:
                     self.db_insert_table_message(message)
                 except Exception as e:
