@@ -59,7 +59,6 @@ class gaodeMap(object):
                 break
         stm.Close()
         f_dest.Close()
-        self.decoded = False
 
 
     def entrance(self):
