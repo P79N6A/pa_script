@@ -289,10 +289,14 @@ class Genetate(object):
             if row[20]:
                 user.SourceFile.Value = row[20]
             user.ID.Value = row[0]
-            user.Name.Value = row[1]
-            user.Username.Value = row[2]
-            user.Password.Value = row[3]
-            user.PhoneNumber.Value= row[5]
+            if row[1]:
+                user.Name.Value = row[1]
+            if row[2]:
+                user.Username.Value = row[2]
+            if row[3]:
+                user.Password.Value = row[3]
+            if row[5]:
+                user.PhoneNumber.Value= row[5]
             if row[4]:
                 user.PhotoUris.Add(Uri(row[4]))
             user.Email.Value = row[6]
@@ -302,8 +306,10 @@ class Genetate(object):
                 user.Sex.Value = Common.SexType.Women
             if row[8]:
                 user.Age.Value = row[8]
-            user.Birthday.Value = row[13]
-            user.Signature.Value = row[14]
+            if row[13]:
+                user.Birthday.Value = row[13]
+            if row[14]:
+                user.Signature.Value = row[14]
             if row[15]:
                 user.RegisterTime.Value = TimeStamp.FromUnixTime(row[15])
             if row[16]:
@@ -316,10 +322,14 @@ class Genetate(object):
                     datecount.Count.Value = v
                     user.RecentlyDateCount.Add(datecount)
             address = Contacts.StreetAddress()
-            address.Country.Value = row[9]
-            address.Neighborhood.Value = row[10]
-            address.City.Value = row[11]
-            address.FullName.Value = row[12]
+            if row[9]:
+                address.Country.Value = row[9]
+            if row[10]:
+                address.Neighborhood.Value = row[10]
+            if row[11]:
+                address.City.Value = row[11]
+            if row[12]:
+                address.FullName.Value = row[12]
             user.Addresses.Add(address)
             user.Deleted = DeletedState.Intact if row[21] == 0 else DeletedState.Deleted 
             models.append(user)
@@ -377,23 +387,29 @@ class Genetate(object):
             topoint = Location()
             fromcoo = Coordinate()
             tocoo = Coordinate()
-
-            fromcoo.Source.Value = row[12]
-            fromcoo.Longitude.Value = row[4] if row[4] else 0
-            fromcoo.Latitude.Value = row[5] if row[5] else 0
-            fromcoo.PositionAddress.Value = row[3]
-            
+            if row[12]:
+                fromcoo.Source.Value = row[12]
+            if row[4]:
+                fromcoo.Longitude.Value = row[4]
+            if row[5]:
+                fromcoo.Latitude.Value = row[5]
+            if row[3]:
+                fromcoo.PositionAddress.Value = row[3]
             tocoo.Source.Value = row[12]
-            tocoo.PositionAddress.Value = row[7]
-            tocoo.Longitude.Value = row[8] if row[8] else 0
-            tocoo.Latitude.Value = row[9] if row[9] else 0
+            if row[7]:
+                tocoo.PositionAddress.Value = row[7]
+            if row[8]:
+                tocoo.Longitude.Value = row[8]
+            if row[9]:
+                tocoo.Latitude.Value = row[9]
 
             frompoint.Position.Value = fromcoo
             topoint.Position.Value = tocoo
-
-            frompoint.PositionAddress.Value = row[3]
-            topoint.PositionAddress.Value = row[7]
-
+            if row[3]:
+                frompoint.PositionAddress.Value = row[3]
+            if row[7]:
+                topoint.PositionAddress.Value = row[7]
+            
             frompoint.Map.Value = row[12]
             topoint.Map.Value = row[12]
 
