@@ -85,6 +85,7 @@ class YiXinParser(model_im.IM):
             return False
 
         account = model_im.Account()
+        account.source = self.app_name
         account.account_id = self.user
         self.db_insert_table_account(account)
         self.db_commit()
@@ -110,6 +111,7 @@ class YiXinParser(model_im.IM):
                     continue
                 else:
                     self.contacts[contactid] = contact
+
                 if type == 1:
                     friend = model_im.Friend()
                     friend.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
@@ -148,65 +150,74 @@ class YiXinParser(model_im.IM):
         if self.user is None:
             return False
         
-        dbPath = self.root.GetByPath('/Documents/' + self.user + '/msg2.db')
-        db = SQLiteParser.Database.FromNode(dbPath)
-        if not db:
-            return False
+        for contact_id in self.contacts:
+            dbPath = self.root.GetByPath('/Documents/' + self.user + '/msg2.db')
+            db = SQLiteParser.Database.FromNode(dbPath)
+            if not db:
+                return False
         
-        if 'msglog' in db.Tables:
-            ts = SQLiteParser.TableSignature('msglog')
-            SQLiteParser.Tools.AddSignatureToTable(ts, "id", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
-            for rec in db.ReadTableRecords(ts, self.extract_deleted):
-                contact = self.contacts.get(rec['id'].Value)
-                message = model_im.Message()
-                message.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
-                message.repeated = contact.get('repeated', 0)
-                message.source = self.app_name
+            if 'msglog' in db.Tables:
+                ts = SQLiteParser.TableSignature('msglog')
+                SQLiteParser.Tools.AddSignatureToTable(ts, "id", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
+                for rec in db.ReadTableRecords(ts, self.extract_deleted):
+                    if contact_id != rec['id'].Value:
+                        continue
+                    contact = self.contacts.get(contact_id)
+                    message = model_im.Message()
+                    message.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
+                    message.repeated = contact.get('repeated', 0)
+                    message.source = self.app_name
 
-                message.msg_id = rec['uuid'].Value.replace('-', '')
-                message.account_id = self.user
-                message.is_sender = model_im.MESSAGE_TYPE_SEND if rec['msg_from_id'].Value == message.account_id else model_im.MESSAGE_TYPE_RECEIVE
-                message.talker_id = rec['id'].Value if message.is_sender else rec['msg_from_id'].Value
-                type = rec['msg_content_type'].Value
-                message.type = self.get_message_type(type)
-                message.send_time = rec['msg_time'].Value
-                message.content = rec['msg_body'].Value
-                contact_type = rec['msg_type']
-                if contact_type == 1:
-                    message.talker_type = model_im.USER_TYPE_FRIEND
-                if contact_type == 2:
-                    message_talker_type == model_im.USER_TYPE_CHATROOM
-                message.media_path = self.parse_message_content(message.content, message.type)
-                if message.type == model_im.MESSAGE_CONTENT_TYPE_LOCATION:
-                    lat, lng, name = self.get_location(message.content)
-                    message.location_lat = lat
-                    message.location_lng = lng
-                    message.location_name = name
-                self.db_insert_table_message(message)
+                    message.msg_id = rec['uuid'].Value.replace('-', '')
+                    message.account_id = self.user
+                    message.is_sender = model_im.MESSAGE_TYPE_SEND if rec['msg_from_id'].Value == message.account_id else model_im.MESSAGE_TYPE_RECEIVE
+                    message.talker_id = rec['id'].Value if message.is_sender else rec['msg_from_id'].Value
+                    message.send_id = rec['msg_from_id'].Value if message.is_sender == model_im.MESSAGE_TYPE_SEND else rec['id'].Value
+                    type = rec['msg_content_type'].Value
+                    message.type = self.get_message_type(type)
+                    message.send_time = rec['msg_time'].Value
+                    message.content = rec['msg_body'].Value
+                    contact_type = rec['msg_type']
+                    if contact_type == 1:
+                        message.talker_type = model_im.USER_TYPE_FRIEND
+                    if contact_type == 2:
+                        message_talker_type == model_im.USER_TYPE_CHATROOM
+                    message.media_path = self.parse_message_content(message.content, message.type)
+                    if message.type == model_im.MESSAGE_CONTENT_TYPE_LOCATION:
+                        message.location = self.get_location(message.content, message.send_time, message.deleted, message.repeated)
+                    self.db_insert_table_message(message)
         self.db_commit()
         return True
 
-    def get_location(self, content):
+    def get_location(self, content, time, deleted, repeated):
         object = json.loads(content)
-        lat = object['location'].split(',')[0]
-        lng = object['location'].split(',')[1]
-        name = object['description']
-        return lat, lng, name
+        location = model_im.Location()
+        location.source = self.app_name
+        location.deleted = deleted
+        location.repeated = repeated
+        location.latitude = object['location'].split(',')[0]
+        location.longitude = object['location'].split(',')[1]
+        location.address = object['description']
+        location.timestamp = time
+        
+        self.db_insert_table_location(location)
+        self.db_commit()
+        return location.address
 
     def get_message_type(self, type):
         msgtype = model_im.MESSAGE_CONTENT_TYPE_TEXT
         if type == 1:
             msgtype = model_im.MESSAGE_CONTENT_TYPE_IMAGE
         if type == 2:
-            msgtype = model_im.MESSAGE_CONTENT_TYPE_VIDEO
-        if type == 3:
             msgtype = model_im.MESSAGE_CONTENT_TYPE_VOICE
+        if type == 3:
+            msgtype = model_im.MESSAGE_CONTENT_TYPE_VIDEO
         if type == 4:
             msgtype = model_im.MESSAGE_CONTENT_TYPE_LOCATION
         if type == 7:
             msgtype = model_im.MESSAGE_CONTENT_TYPE_CHARTLET
         return msgtype
-
+    
     def parse_message_content(self, content, type):
         media_path = ""
         try:
@@ -230,3 +241,7 @@ class YiXinParser(model_im.IM):
         except:
             pass
         return media_path
+
+
+
+
