@@ -45,9 +45,9 @@ namespace TestApp
             
 
             //这个路径改成你们电脑上的实际案例路径
-            string casePath = @"E:\Android Physical\Manifest.pnfa"; 
+            string casePath = @"I:\Android Physical\Manifest.pnfa"; 
             var pack = CasePackage.FromPath(casePath);
-            if(pack!=null)
+            if(pack!=null && pack.RpcClient.Connect())
             {
                 var ds = pack.DataStore; //案例的DataStore对象
                 var progress = pack.Progress; //案例所关联的进度指示上下文
