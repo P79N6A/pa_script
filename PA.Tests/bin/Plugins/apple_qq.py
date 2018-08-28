@@ -1072,6 +1072,6 @@ class QQParser(object):
 
 def analyze_qq(root, extract_deleted, extract_source):	
     pr = ParserResults()
-    pr.Models.AddRange(QqParser(root, extract_deleted, extract_source).parse())
+    pr.Models.AddRange(QQParser(root, extract_deleted, extract_source).parse())
     pr.Build('QQ')
     return pr
