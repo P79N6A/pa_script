@@ -56,7 +56,7 @@ namespace TestApp
                 var tarFile = Path.Combine(pack.ProjectDir.FullName, pack.Info.ImageFile);
                 var mntService = ServiceGetter.Get<IMountService>();
                 //var fsMnt = mntService.MountTarFile(tarFile,@"C:\TestFs");
-                var fsMnt = mntService.MountExtFile(tarFile, @"C:\TestFs1");
+                var fsMnt = mntService.MountExtFile(pack.RpcClient,tarFile, @"C:\TestFs1");
                 if (fsMnt != null)
                 {
                     ds.FileSystems.Add(fsMnt);
