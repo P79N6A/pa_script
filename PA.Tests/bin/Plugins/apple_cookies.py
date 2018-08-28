@@ -25,11 +25,11 @@ class CookieParser(object):
         return results
 
     def analyze_cookiesDB(self):        
-        db = SQLiteParser.Tools.GetDatabaseByPath(self.node, "com.apple.itunesstored.2.sqlitedb", "cookies")
+        db = SQLiteParser.Tools.GetDatabaseByPath(self.node, "com.apple.itunesstored.2.sqlitedb", "cookies") #连接数据库，设置表名为cookies
         if db is None:
             return []
         results = []
-        ts = SQLiteParser.TableSignature("cookies")
+        ts = SQLiteParser.TableSignature("cookies") #读取cookies表
         if self.extractDeleted:
             SQLiteParser.Tools.AddSignatureToTable(ts, "expire_time", SQLiteParser.Tools.SignatureType.Int, SQLiteParser.Tools.SignatureType.Byte)
             SQLiteParser.Tools.AddSignatureToTable(ts, "user", SQLiteParser.Tools.SignatureType.Int, SQLiteParser.Tools.SignatureType.Byte)
@@ -38,12 +38,12 @@ class CookieParser(object):
             c = Cookie()
             c.RelatedApplication.Value = "iTunes"
             c.Deleted = rec.Deleted
-            SQLiteParser.Tools.ReadColumnToField(rec, "name", c.Name, self.extractSource)
+            SQLiteParser.Tools.ReadColumnToField(rec, "name", c.Name, self.extractSource)  #将name字段的值传给c.Name
             SQLiteParser.Tools.ReadColumnToField(rec, "value", c.Value, self.extractSource)
             SQLiteParser.Tools.ReadColumnToField(rec, "domain", c.Domain, self.extractSource)                    
             try:
-                if not IsDBNull(rec["expire_time"].Value) and rec["expire_time"].Value > 0:            
-                    SQLiteParser.Tools.ReadColumnToField[TimeStamp](rec, "expire_time", c.Expiry, self.extractSource, lambda x: TimeStamp(TimeStampFormats.GetTimeStampEpoch1Jan2001(x),True))            
+                if not IsDBNull(rec["expire_time"].Value) and rec["expire_time"].Value > 0: #筛选出有效cookie           
+                    SQLiteParser.Tools.ReadColumnToField[TimeStamp](rec, "expire_time", c.Expiry, self.extractSource, lambda x: TimeStamp(TimeStampFormats.GetTimeStampEpoch1Jan2001(x),True))  #将expire_time字段的值交给匿名函数运算后传给c.expiry          
             except:
                 pass
             if c not in results:
@@ -51,14 +51,14 @@ class CookieParser(object):
         return results
 
     def analyze_cookiesPlist(self):        
-        files = [self.node.GetByPath("Cookies.plist"), self.node.GetByPath("com.apple.itunesstored.plist")]
+        files = [self.node.GetByPath("Cookies.plist"), self.node.GetByPath("com.apple.itunesstored.plist")]  #储存plist文件位置
         results = []  
-        for f in files:
+        for f in files:  #设置迭代访问plist文件
             if f is None or f.Data is None:
                 continue
             try:
-                plist = PList()
-                p = plist.Parse(f.Data)
+                plist = PList()  #PList数据库模型类
+                p = plist.Parse(f.Data) #解码获取plist中的数据
             except SystemError:
                 continue
             if p is None:

@@ -31,6 +31,8 @@ FRIEND_TYPE_FOLLOW = 4
 FRIEND_TYPE_SPECAIL_FOLLOW = 5
 FRIEND_TYPE_MUTUAL_FOLLOW = 6
 FRIEND_TYPE_RECENT = 7
+FRIEND_TYPE_SUBSCRIBE = 8
+FRIEND_TYPE_STRANGER = 9
 
 CHAT_TYPE_FRIEND = 1
 CHAT_TYPE_GROUP = 2
@@ -56,9 +58,6 @@ MESSAGE_STATUS_UNSENT = 1
 MESSAGE_STATUS_SENT = 2
 MESSAGE_STATUS_UNREAD = 3
 MESSAGE_STATUS_READ = 4
-
-USER_TYPE_FRIEND = 0  # 好友
-USER_TYPE_CHATROOM = 1  # 群
 
 LABEL_DEFAULT = 0
 LABEL_LIKED = 1
@@ -503,7 +502,7 @@ class Message(Column):
         self.send_time = None  # 发送时间[INT]
         self.location = None  # 地址ID[TEXT]
         self.status = None  # 消息状态[INT]，MESSAGE_STATUS
-        self.talker_type = None  # 聊天类型[INT]，USER_TYPE
+        self.talker_type = None  # 聊天类型[INT]，CHAT_TYPE
 
     def get_values(self):
         return (self.account_id, self.talker_id, self.talker_name, self.sender_id, self.sender_name, 
@@ -620,7 +619,8 @@ class GenerateModel(object):
             contact = {}
             if row[15]:
                 user.Source.Value = row[15]
-            # user.Delete = DeletedState.Intact if row[16] == 0 else DeletedState.Deleted
+            if row[16]:
+                user.Deleted = self._convert_deleted_status(row[16])
             if row[0]:
                 user.ID.Value = row[0]
                 account_id = row[0]
@@ -687,7 +687,8 @@ class GenerateModel(object):
             contact = {}
             if row[13]:
                 friend.Source.Value = row[13]
-            # friend.Delete = DeletedState.Intact if row[14] == 0 else DeletedState.Deleted
+            if row[14]:
+                friend.Deleted = self._convert_deleted_status(row[14])
             if row[0]:
                 friend.OwnerUserID.Value = row[0]
                 account_id = row[0]
@@ -750,7 +751,8 @@ class GenerateModel(object):
             contact = {}
             if row[12]:
                 group.Source.Value = row[12]
-            # group.Delete = DeletedState.Intact if row[13] == 0 else DeletedState.Deleted
+            if row[13]:
+                group.Deleted = self._convert_deleted_status(row[13])
             if row[0]:
                 group.OwnerUserID.Value = row[0]
                 account_id = row[0]
@@ -775,7 +777,9 @@ class GenerateModel(object):
             if row[10]:
                 group.MemberMaxCount.Value = row[10]
             if row[11]:
-                group.JoinTime.Value = self._get_timestamp(row[11])
+                ts = self._get_timestamp(row[11])
+                if ts:
+                    group.JoinTime.Value = ts
             models.append(group)
 
             if account_id is not None and user_id is not None:
@@ -809,7 +813,8 @@ class GenerateModel(object):
 
             if row[14]:
                 message.Source.Value = row[14]
-            # message.Delete = DeletedState.Intact if row[13] == 0 else DeletedState.Deleted
+            if row[15]:
+                message.Deleted = self._convert_deleted_status(row[15])
             if row[0]:
                 message.OwnerUserID.Value = row[0]
                 account_id = row[0]
@@ -819,7 +824,7 @@ class GenerateModel(object):
             if row[2]:
                 talker_name = row[2]
             if row[3]:
-                message.Sender.Value = self._get_user_intro(account_id, row[3], row[4], talker_type)
+                message.Sender.Value = self._get_user_intro(account_id, row[3], row[4], talker_type==CHAT_TYPE_GROUP)
                 if row[3] == account_id:
                     message.Type.Value = Common.MessageType.Send
                 else:
@@ -827,7 +832,9 @@ class GenerateModel(object):
             if row[11]:
                 message.Content.Value.Location.Value = self._get_location(row[11])
             if row[10]:
-                message.TimeStamp.Value = self._get_timestamp(row[10])
+                ts = self._get_timestamp(row[10])
+                if ts:
+                    message.TimeStamp.Value = ts
 
             msg_type = row[7]
             content = row[8]
@@ -867,21 +874,22 @@ class GenerateModel(object):
                 else:
                     chat = Generic.Chat()
                     chat.Source.Value = message.Source.Value
+                    chat.Deleted = self._convert_deleted_status(0)
                     chat.OwnerUserID.Value = account_id
                     chat.ChatId.Value = talker_id
-                    if talker_type == USER_TYPE_FRIEND:
+                    if talker_type == CHAT_TYPE_GROUP:
+                        if talker_name is not None:
+                            chat.ChatName.Value = talker_name
+                        else:
+                            chat.ChatName.Value = self.chatrooms.get(key, {}).get('nickname', '')
+                        chat.Participants.AddRange(self._get_chatroom_member_models(account_id, talker_id))
+                    else:
                         if talker_name is not None:
                             chat.ChatName.Value = talker_name
                         else:
                             chat.ChatName.Value = self.friends.get(key, {}).get('nickname', '')
                         chat.Participants.Add(self._get_user_intro(account_id, talker_id))
                         chat.Participants.Add(self._get_user_intro(account_id, account_id))
-                    elif talker_type == USER_TYPE_CHATROOM:
-                        if talker_name is not None:
-                            chat.ChatName.Value = talker_name
-                        else:
-                            chat.ChatName.Value = self.chatrooms.get(key, {}).get('nickname', '')
-                        chat.Participants.AddRange(self._get_chatroom_member_models(account_id, talker_id))
                     chat.Messages.Add(message)
                     chats[key] = chat
 
@@ -907,6 +915,8 @@ class GenerateModel(object):
                 model = self._get_user_intro(account_id, row[2])
                 if row[3]:
                     model.Name.Value = row[3]
+                if row[13]:
+                    model.Deleted = self._convert_deleted_status(row[13])
                 models.append(model)
             row = cursor.fetchone()
         if cursor is not None:
@@ -933,7 +943,8 @@ class GenerateModel(object):
             account_id = None
             if row[14]:
                 moment.Source.Value = row[14]
-            # moment.Delete = DeletedState.Intact if row[15] == 0 else DeletedState.Deleted
+            if row[15]:
+                moment.Deleted = self._convert_deleted_status(row[15])
             if row[0]:
                 moment.OwnerUserID.Value = row[0]
                 account_id = row[0]
@@ -954,7 +965,9 @@ class GenerateModel(object):
             if row[13]:
                 moment.Location.Value = self._get_location(row[13])
             if row[10]:
-                moment.TimeStamp.Value = self._get_timestamp(row[10])
+                ts = self._get_timestamp(row[10])
+                if ts:
+                    moment.TimeStamp.Value = ts
             if row[11]:
                 moment.Likes.AddRange(self._get_feed_likes(account_id, row[11]))
             if row[12]:
@@ -965,17 +978,17 @@ class GenerateModel(object):
 
         return models 
 
-    def _get_user_intro(self, account_id, user_id, user_name=None, user_type=USER_TYPE_FRIEND):
+    def _get_user_intro(self, account_id, user_id, user_name=None, is_group=False):
         user = Common.UserIntro()
         user.ID.Value = user_id
 
         if account_id is not None and user_id is not None:
             key = account_id + "#" + user_id
             contact = None
-            if user_type == USER_TYPE_FRIEND:
-                contact = self.friends.get(key)
-            elif user_type == USER_TYPE_CHATROOM:
+            if is_group:
                 contact = self.chatrooms.get(key)
+            else:
+                contact = self.friends.get(key)
             
             if contact is not None:
                 user.Name.Value = contact.get('nickname', '')
@@ -988,10 +1001,13 @@ class GenerateModel(object):
         return user
 
     def _get_timestamp(self, timestamp):
-        ts = TimeStamp.FromUnixTime(timestamp, False)
-        if not ts.IsValidForSmartphone():
-            ts = None
-        return ts
+        try:
+            ts = TimeStamp.FromUnixTime(timestamp, False)
+            if not ts.IsValidForSmartphone():
+                ts = None
+            return ts
+        except Exception as e:
+            return None
 
     def _get_uri(self, path):
         if path.startswith('http') or len(path) == 0:
@@ -1023,9 +1039,13 @@ class GenerateModel(object):
                 if row[0]:
                     like.User.Value = self._get_user_intro(account_id, row[0], row[1])
                 if row[2]:
-                    like.TimeStamp.Value = self._get_timestamp(row[2])
+                    ts = self._get_timestamp(row[2])
+                    if ts:
+                        like.TimeStamp.Value = ts
                 if row[3]:
                     like.Source.Value = row[3]
+                if row[4]:
+                    like.Deleted = self._convert_deleted_status(row[4])
                 models.append(like)
 
                 row = cursor.fetchone()
@@ -1062,9 +1082,13 @@ class GenerateModel(object):
                 if row[4]:
                     comment.Content.Value = row[4]
                 if row[5]:
-                    comment.TimeStamp.Value = self._get_timestamp(row[5])
+                    ts = self._get_timestamp(row[5])
+                    if ts:
+                        comment.TimeStamp.Value = ts
                 if row[6]:
                     comment.Source.Value = row[6]
+                if row[7]:
+                    comment.Deleted = self._convert_deleted_status(row[7])
                 models.append(comment)
 
                 row = cursor.fetchone()
@@ -1097,9 +1121,13 @@ class GenerateModel(object):
                 if row[3]:
                     location.Position.Value.PositionAddress.Value = row[3]
                 if row[4]:
-                    location.TimeStamp.Value = self._get_timestamp(row[4])
+                    ts = self._get_timestamp(row[4])
+                    if ts:
+                        location.TimeStamp.Value = ts
                 if row[5]:
                     location.Source.Value = row[5]
+                if row[6]:
+                    location.Deleted = self._convert_deleted_status(row[6])
 
             if cursor is not None:
                 cursor.close()
@@ -1121,5 +1149,16 @@ class GenerateModel(object):
             return Common.FriendType.MutualFollow
         elif friend_type == FRIEND_TYPE_RECENT:
             return Common.FriendType.Recent
+        elif friend_type == FRIEND_TYPE_SUBSCRIBE:
+            return Common.FriendType.Subscribe
+        elif friend_type == FRIEND_TYPE_STRANGER:
+            return Common.FriendType.Stranger
         else:
             return Common.FriendType.None
+
+    @staticmethod
+    def _convert_deleted_status(deleted):
+        if deleted is None:
+            return DeletedState.Unknown
+        else:
+            return DeletedState.Intact if deleted == 0 else DeletedState.Deleted
