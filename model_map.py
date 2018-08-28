@@ -289,10 +289,14 @@ class Genetate(object):
             if row[20]:
                 user.SourceFile.Value = row[20]
             user.ID.Value = row[0]
-            user.Name.Value = row[1]
-            user.Username.Value = row[2]
-            user.Password.Value = row[3]
-            user.PhoneNumber.Value= row[5]
+            if row[1]:
+                user.Name.Value = row[1]
+            if row[2]:
+                user.Username.Value = row[2]
+            if row[3]:
+                user.Password.Value = row[3]
+            if row[5]:
+                user.PhoneNumber.Value= row[5]
             if row[4]:
                 user.PhotoUris.Add(Uri(row[4]))
             user.Email.Value = row[6]
@@ -302,24 +306,29 @@ class Genetate(object):
                 user.Sex.Value = Common.SexType.Women
             if row[8]:
                 user.Age.Value = row[8]
-            user.Birthday.Value = row[13]
-            user.Signature.Value = row[14]
+            if row[13]:
+                user.Birthday.Value = row[13]
+            if row[14]:
+                user.Signature.Value = row[14]
             if row[15]:
-                user.RegisterTime.Value = TimeStamp.FromUnixTime(row[15])
-            if row[16]:
-                user.LastLoginTime.Value = TimeStamp.FromUnixTime(row[16])
+                user.RegisterTime.Value = self._get_timestamp(row[15])
+                user.LastLoginTime.Value = self._get_timestamp(row[16])
             if row[17]:
                 data = pickle.loads(row[17])
                 for k,v in data.items():
                     datecount = DateCount()
-                    datecount.DateTime.Value = TimeStamp.FromUnixTime(k)
+                    datecount.DateTime.Value = self._get_timestamp(k)
                     datecount.Count.Value = v
                     user.RecentlyDateCount.Add(datecount)
             address = Contacts.StreetAddress()
-            address.Country.Value = row[9]
-            address.Neighborhood.Value = row[10]
-            address.City.Value = row[11]
-            address.FullName.Value = row[12]
+            if row[9]:
+                address.Country.Value = row[9]
+            if row[10]:
+                address.Neighborhood.Value = row[10]
+            if row[11]:
+                address.City.Value = row[11]
+            if row[12]:
+                address.FullName.Value = row[12]
             user.Addresses.Add(address)
             user.Deleted = DeletedState.Intact if row[21] == 0 else DeletedState.Deleted 
             models.append(user)
@@ -369,37 +378,40 @@ class Genetate(object):
             journey.SourceApp.Value = row[13]
             journey.SourceFile.Value = row[14]
             if row[11]:
-                starttime = TimeStamp.FromUnixTime(row[11])
-            else:
-                starttime = TimeStamp.FromUnixTime(0)
-            journey.StartTime.Value = starttime
+                starttime = self._get_timestamp(row[11])
+                journey.StartTime.Value = starttime
             frompoint = Location()
             topoint = Location()
             fromcoo = Coordinate()
             tocoo = Coordinate()
-
-            fromcoo.Source.Value = row[12]
-            fromcoo.Longitude.Value = row[4] if row[4] else 0
-            fromcoo.Latitude.Value = row[5] if row[5] else 0
-            fromcoo.PositionAddress.Value = row[3]
-            
+            if row[12]:
+                fromcoo.Source.Value = row[12]
+            if row[4]:
+                fromcoo.Longitude.Value = row[4]
+            if row[5]:
+                fromcoo.Latitude.Value = row[5]
+            if row[3]:
+                fromcoo.PositionAddress.Value = row[3]
             tocoo.Source.Value = row[12]
-            tocoo.PositionAddress.Value = row[7]
-            tocoo.Longitude.Value = row[8] if row[8] else 0
-            tocoo.Latitude.Value = row[9] if row[9] else 0
+            if row[7]:
+                tocoo.PositionAddress.Value = row[7]
+            if row[8]:
+                tocoo.Longitude.Value = row[8]
+            if row[9]:
+                tocoo.Latitude.Value = row[9]
 
             frompoint.Position.Value = fromcoo
             topoint.Position.Value = tocoo
-
-            frompoint.PositionAddress.Value = row[3]
-            topoint.PositionAddress.Value = row[7]
-
+            if row[3]:
+                frompoint.PositionAddress.Value = row[3]
+            if row[7]:
+                topoint.PositionAddress.Value = row[7]
+            
             frompoint.Map.Value = row[12]
             topoint.Map.Value = row[12]
 
             journey.FromPoint.Value = frompoint 
-            journey.ToPoint.Value = topoint 
-            journey.StartTime.Value = starttime
+            journey.ToPoint.Value = topoint
 
             journey.Deleted = DeletedState.Intact if row[15] == 0 else DeletedState.Deleted
 
@@ -448,7 +460,7 @@ class Genetate(object):
             searchitem.SourceApp.Value = row[11]
             searchitem.SourceFile.Value = row[12]
             if row[2]:
-                searchitem.TimeStamp.Value = TimeStamp.FromUnixTime(row[2])
+                searchitem.TimeStamp.Value = self._get_timestamp(row[2])
             searchitem.Value.Value = row[1]
             searchitem.PositionAddress.Value = row[5]
             coo = Coordinate()
@@ -468,7 +480,17 @@ class Genetate(object):
             row = self.cursor.fetchone()
 
         return models
-
+    
+    
+    def _get_timestamp(self, timestamp):
+        if len(str(timestamp)) == 13:
+            timestamp = int(str(timestamp)[0:10])
+        elif len(str(timestamp)) != 13 and len(str(timestamp)) != 10:
+            timestamp = 0
+        ts = TimeStamp.FromUnixTime(timestamp, False)
+        if not ts.IsValidForSmartphone():
+            ts = None
+        return ts
              
 
 

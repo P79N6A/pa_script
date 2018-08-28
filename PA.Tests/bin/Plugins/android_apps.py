@@ -10,6 +10,20 @@ def SafeLoadAssembly(asm):
 import clr
 SafeLoadAssembly('System.Core')
 SafeLoadAssembly('PA_runtime')
+SafeLoadAssembly('apple_ab')
+SafeLoadAssembly('apple_notes')
+SafeLoadAssembly('apple_locations')
+SafeLoadAssembly('apple_calenders')
+SafeLoadAssembly('apple_safari')
+SafeLoadAssembly('apple_mails')
+SafeLoadAssembly('apple_recents')
+SafeLoadAssembly('apple_cookies')
+SafeLoadAssembly('apple_calls')
+SafeLoadAssembly('apple_sms')
+SafeLoadAssembly('apple_wechat')
+SafeLoadAssembly('apple_qq')
+SafeLoadAssembly('apple_skype')
+SafeLoadAssembly('apple_exts')
 del clr
 
 #导入app4tests模块,测试时用来指定只跑那些模块
@@ -20,6 +34,10 @@ try:
 except:
     pass
 
+from android_baidumap import analyze_baidumap
+from android_tencentmap import analyze_tencentmap
+from android_gaodemap import analyze_gaodemap
+
 APP_FILTERS =[]
 if 'TestNodes' in locals():
     APP_FILTERS.extend(TestNodes)
@@ -27,14 +45,26 @@ if 'TestNodes' in locals():
 from System.Linq import Enumerable
 from PA_runtime import *
 from PA.InfraLib.Services import IApplicationService,ServiceGetter
+from android_qqmail import analyze_qqmail_android
 from android_wechat import analyze_wechat
+
 
 """
 根据正则表达式匹配解析的应用请在此节点下配置
 """
 FIND_BY_RGX_NODES = [
     ('/MicroMsg/.+/EnMicroMsg.db$', analyze_wechat, "Wechat","微信",DescripCategories.Wechat),
+    ('/data/com.tencent.mm$', analyze_wechat, "Wechat","微信",DescripCategories.Wechat),
+    ("com.tencent.androidqqmail", analyze_qqmail_android, "qqMail", "QQ邮箱", DescripCategories.BaiduMap),
+]
+
+FIND_BY_APPS_NODES = [
+    ("com.tencent.androidqqmail", analyze_qqmail_android, "qqMail", "QQ邮箱", DescripCategories.BaiduMap),
+    ('/MicroMsg/.+/EnMicroMsg.db$', analyze_wechat, "Wechat","微信",DescripCategories.Wechat),
     #('/data/com.tencent.mm$', analyze_wechat, "Wechat","微信",DescripCategories.Wechat),
+    ('/data/com\.baidu\.BaiduMap/databases/baidumapfav\.db$', analyze_baidumap, "BaiduMap", "百度地图", DescripCategories.BaiduMap),
+    ('/data/com\.tencent\.map/databases/route_search_history\.db$', analyze_tencentmap, "TencentMap", "腾讯地图", DescripCategories.TencentMap),
+    ('/com\.autonavi\.minimap/files/girf_sync\.db', analyze_gaodemap, "AMap", "高德地图", DescripCategories.AMap)
 ]
 
 def decode_nodes(fs, extract_deleted, extract_source, installed_apps):
@@ -55,6 +85,9 @@ def decode_nodes(fs, extract_deleted, extract_source, installed_apps):
         "GoChat": "com.3g.gochat",
         "VBrowse": "uk.co.bewhere.vbrowse",
         "Tumblr": "com.tumblr.tumblr",
+        "Navitel": "su.navitel.app",
+		"baiduMap":"com.baidu.map",
+        "qqMail":"com.tencent.androidqqmail"				
         "Navitel": "su.navitel.app"
     }
     results = ParserResults()
@@ -121,7 +154,7 @@ def run(ds,extract_deleted,progress,canceller):
     if not progress:
         progress = TaskProgress('',DescripCategories.None,1)
     apps_by_identity = create_apps_dictionary(ds)
-    
+
     for fs in list(ds.GetAllFileSystems()):
         results += decode_nodes(fs, extract_deleted,False, apps_by_identity)
     return results

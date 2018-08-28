@@ -142,23 +142,22 @@ class WeChatParser(model_im.IM):
         if not root or not root.Children:
             return
 
-        self.user_account.account_id = self._bpreader_node_get_value(root, 'UsrName', '')
-        self.user_account.nickname = self._bpreader_node_get_value(root, 'NickName')
-        self.user_account.gender = self._bpreader_node_get_value(root, 'Sex')
-        self.user_account.telephone = self._bpreader_node_get_value(root, 'Mobile')
-        self.user_account.email = self._bpreader_node_get_value(root, 'Email')
-        self.user_account.city = self._bpreader_node_get_value(root, 'City')
-        self.user_account.country = self._bpreader_node_get_value(root, 'Country')
-        self.user_account.province = self._bpreader_node_get_value(root, 'Province')
-        self.user_account.signature = self._bpreader_node_get_value(root, 'Signature')
+        self.user_account.account_id = self._bpreader_node_get_string_value(root, 'UsrName')
+        self.user_account.nickname = self._bpreader_node_get_string_value(root, 'NickName')
+        self.user_account.gender = self._bpreader_node_get_int_value(root, 'Sex')
+        self.user_account.telephone = self._bpreader_node_get_string_value(root, 'Mobile')
+        self.user_account.email = self._bpreader_node_get_string_value(root, 'Email')
+        self.user_account.city = self._bpreader_node_get_string_value(root, 'City')
+        self.user_account.country = self._bpreader_node_get_string_value(root, 'Country')
+        self.user_account.province = self._bpreader_node_get_string_value(root, 'Province')
+        self.user_account.signature = self._bpreader_node_get_string_value(root, 'Signature')
 
         if 'new_dicsetting' in root.Children:
             setting_node = root.Children['new_dicsetting']
-            self.user_account.headhdimgurl = self._bpreader_node_get_value(setting_node, 'headhdimgurl')
             if 'headhdimgurl' in setting_node.Children:
-                self.user_account.photo = self._bpreader_node_get_value(setting_node, 'headhdimgurl')
+                self.user_account.photo = self._bpreader_node_get_string_value(setting_node, 'headhdimgurl')
             else:
-                self.user_account.photo = self._bpreader_node_get_value(setting_node, 'headimgurl')
+                self.user_account.photo = self._bpreader_node_get_string_value(setting_node, 'headimgurl')
         self.user_account.source = user_plist.AbsolutePath
         self.db_insert_table_account(self.user_account)
         self.db_commit()
@@ -176,6 +175,7 @@ class WeChatParser(model_im.IM):
             SQLiteParser.Tools.AddSignatureToTable(ts, "userName", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
             for rec in db.ReadTableRecords(ts, self.extract_deleted):
                 username = self._db_record_get_value(rec, 'userName')
+                contact_type = self._db_record_get_value(rec, 'type', 0)
                 certification_flag = self._db_record_get_value(rec, 'certificationFlag', 0)
                 nickname = None
                 alias = None
@@ -195,6 +195,7 @@ class WeChatParser(model_im.IM):
                     contact['remark'] = remark
                 if head:
                     contact['photo'] = head
+
                 if rec.Deleted == DeletedState.Intact: 
                     self.contacts[username] = contact
                 else:
@@ -233,12 +234,17 @@ class WeChatParser(model_im.IM):
                     except Exception as e:
                         pass
                 else:
+                    ft = model_im.FRIEND_TYPE_STRANGER
+                    if certification_flag != 0:
+                        ft = model_im.FRIEND_TYPE_SUBSCRIBE
+                    elif contact_type % 2 == 1:
+                        ft = model_im.FRIEND_TYPE_FRIEND
                     friend = model_im.Friend()
                     friend.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
                     friend.source = node.AbsolutePath
                     friend.account_id = self.user_account.account_id
                     friend.friend_id = username
-                    friend.type = model_im.FRIEND_TYPE_FRIEND if certification_flag == 0 else model_im.FRIEND_TYPE_FOLLOW
+                    friend.type = ft
                     friend.nickname = nickname
                     friend.remark = remark
                     friend.photo = head
@@ -286,17 +292,17 @@ class WeChatParser(model_im.IM):
                 if username.endswith("@chatroom"):
                     content, media_path, sender_id = self._process_parse_group_message(msg, msg_type, msg_local_id, is_sender, self.root, user_hash, message)
                     message.sender_id = sender_id
-                    message.sender_name = self.contacts.get(message.sender_id, {}).get('nickname')
+                    message.sender_name = self.contacts.get(sender_id, {}).get('nickname')
                     message.content = content
                     message.media_path = media_path
-                    message.talker_type = model_im.USER_TYPE_CHATROOM
+                    message.talker_type = model_im.CHAT_TYPE_GROUP
                 else:
                     content, media_path = self._process_parse_friend_message(msg, msg_type, msg_local_id, self.root, user_hash, message)
                     message.sender_id = self.user_account.account_id if is_sender else username
                     message.sender_name = self.contacts.get(message.sender_id, {}).get('nickname')
                     message.content = content
                     message.media_path = media_path
-                    message.talker_type = model_im.USER_TYPE_FRIEND
+                    message.talker_type = model_im.CHAT_TYPE_FRIEND
                 try:
                     self.db_insert_table_message(message)
                 except Exception as e:
@@ -341,8 +347,8 @@ class WeChatParser(model_im.IM):
                     feed.source = node.AbsolutePath
                     feed.account_id = self.user_account.account_id
                     feed.sender_id = username
-                    feed.content = self._bpreader_node_get_value(root, 'contentDesc')
-                    feed.send_time = self._bpreader_node_get_value(root, 'createtime')
+                    feed.content = self._bpreader_node_get_string_value(root, 'contentDesc')
+                    feed.send_time = self._bpreader_node_get_int_value(root, 'createtime', None)
 
                     if 'locationInfo' in root.Children:
                         location_node = root.Children['locationInfo']
@@ -350,24 +356,15 @@ class WeChatParser(model_im.IM):
                         location.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
                         location.source = node.AbsolutePath
                         location.location_id = self.location_id
-                        try:
-                            location.latitude = float(self._bpreader_node_get_value(location_node, 'location_latitude', 0))
-                        except Exception as e:
-                                pass
-                        try:
-                            location.longitude = float(self._bpreader_node_get_value(location_node, 'location_longitude', 0))
-                        except Exception as e:
-                                pass
-                        location.address = self._bpreader_node_get_value(location_node, 'poiName')
+                        location.latitude = self._bpreader_node_get_float_value(location_node, 'location_latitude')
+                        location.longitude = self._bpreader_node_get_float_value(location_node, 'location_longitude')
+                        location.address = self._bpreader_node_get_string_value(location_node, 'poiName')
                         self.db_insert_table_location(location)
                         self.location_id += 1
 
                     if 'contentObj' in root.Children:
                         content_node = root.Children['contentObj']
-                        try:
-                            feed.type = int(self._bpreader_node_get_value(content_node, 'type', 0))
-                        except Exception as e:
-                            feed.type = 0
+                        feed.type = self._bpreader_node_get_int_value(content_node, 'type')
                         media_nodes = []
                         if 'mediaList' in content_node.Children and content_node.Children['mediaList'].Values:
                             media_nodes = content_node.Children['mediaList'].Values
@@ -386,26 +383,26 @@ class WeChatParser(model_im.IM):
                             feed.preview_urls = json.dumps(preview_urls)
 
                         if feed.type == MOMENT_TYPE_MUSIC:
-                            feed.attachment_title = self._bpreader_node_get_value(content_node, 'title')
-                            feed.attachment_link = self._bpreader_node_get_value(content_node, 'linkUrl')
-                            feed.attachment_desc = self._bpreader_node_get_value(content_node, 'desc')
+                            feed.attachment_title = self._bpreader_node_get_string_value(content_node, 'title')
+                            feed.attachment_link = self._bpreader_node_get_string_value(content_node, 'linkUrl')
+                            feed.attachment_desc = self._bpreader_node_get_string_value(content_node, 'desc')
                         elif feed.type == MOMENT_TYPE_SHARED:
                             for media_node in media_nodes:
-                                feed.attachment_title = self._bpreader_node_get_value(media_node, 'title')
+                                feed.attachment_title = self._bpreader_node_get_string_value(media_node, 'title')
 
                     likes = []
                     if 'likeUsers' in root.Children:
                         for like_node in root.Children['likeUsers'].Values:
-                            sender_id = self._bpreader_node_get_value(like_node, 'username', '')
+                            sender_id = self._bpreader_node_get_string_value(like_node, 'username')
                             if len(sender_id) > 0:
                                 fl = model_im.FeedLike()
                                 fl.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
                                 fl.source = node.AbsolutePath
                                 fl.like_id = self.like_id
                                 fl.sender_id = sender_id
-                                fl.sender_name = self._bpreader_node_get_value(like_node, 'nickname')
+                                fl.sender_name = self._bpreader_node_get_string_value(like_node, 'nickname')
                                 try:
-                                    fl.create_time = int(self._bpreader_node_get_value(like_node, 'createTime'))
+                                    fl.create_time = int(self._bpreader_node_get_int_value(like_node, 'createTime', None))
                                 except Exception as e:
                                     pass
                                 try:
@@ -420,21 +417,18 @@ class WeChatParser(model_im.IM):
                     comments = []
                     if 'commentUsers' in root.Children:
                         for comment_node in root.Children['commentUsers'].Values:
-                            sender_id = self._bpreader_node_get_value(comment_node, 'username', '')
-                            content = self._bpreader_node_get_value(comment_node, 'content', '')
+                            sender_id = self._bpreader_node_get_string_value(comment_node, 'username')
+                            content = self._bpreader_node_get_string_value(comment_node, 'content')
                             if type(sender_id) == str and len(sender_id) > 0 and type(content) == str:
                                 fc = model_im.FeedComment()
                                 fc.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
                                 fc.source = node.AbsolutePath
                                 fc.comment_id = self.comment_id
                                 fc.sender_id = sender_id
-                                fc.sender_name = self._bpreader_node_get_value(comment_node, 'nickname')
-                                fc.ref_user_id = self._bpreader_node_get_value(comment_node, 'refUserName')
+                                fc.sender_name = self._bpreader_node_get_string_value(comment_node, 'nickname')
+                                fc.ref_user_id = self._bpreader_node_get_string_value(comment_node, 'refUserName')
                                 fc.content = content
-                                try:
-                                    fc.create_time = int(self._bpreader_node_get_value(comment_node, 'createTime'))
-                                except Exception as e:
-                                    pass
+                                fc.create_time = self._bpreader_node_get_int_value(comment_node, 'createTime', None)
                                 try:
                                     self.db_insert_table_feed_comment(fc)
                                     comments.append(self.comment_id)
@@ -495,9 +489,9 @@ class WeChatParser(model_im.IM):
                 message.talker_id = username
                 message.talker_name = contact.get('nickname')
                 if username.endswith('@chatroom'):
-                    message.talker_type = model_im.USER_TYPE_CHATROOM
+                    message.talker_type = model_im.CHAT_TYPE_GROUP
                 else:
-                    message.talker_type = model_im.USER_TYPE_FRIEND
+                    message.talker_type = model_im.CHAT_TYPE_FRIEND
                 message.content = content
                 try:
                     self.db_insert_table_message(message)
@@ -780,9 +774,30 @@ class WeChatParser(model_im.IM):
         return default_value
 
     @staticmethod
-    def _bpreader_node_get_value(node, key, default_value=None):
+    def _bpreader_node_get_string_value(node, key, default_value=''):
         if key in node.Children and node.Children[key] is not None:
-            return node.Children[key].Value
+            try:
+                return str(node.Children[key].Value)
+            except Exception as e:
+                return default_value
+        return default_value
+
+    @staticmethod
+    def _bpreader_node_get_int_value(node, key, default_value=0):
+        if key in node.Children and node.Children[key] is not None:
+            try:
+                return int(node.Children[key].Value)
+            except Exception as e:
+                return default_value
+        return default_value
+
+    @staticmethod
+    def _bpreader_node_get_float_value(node, key, default_value=0):
+        if key in node.Children and node.Children[key] is not None:
+            try:
+                return float(node.Children[key].Value)
+            except Exception as e:
+                return default_value
         return default_value
 
     @staticmethod
