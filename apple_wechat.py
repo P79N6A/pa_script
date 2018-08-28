@@ -16,6 +16,7 @@ import os
 import hashlib
 import json
 import model_im
+import gc
 
 # app数据库版本
 VERSION_APP_VALUE = 1
@@ -100,6 +101,7 @@ class WeChatParser(model_im.IM):
             self.db_insert_table_version(model_im.VERSION_KEY_APP, VERSION_APP_VALUE)
             self.db_commit()
             self.db_close()
+            gc.collect()
 
         #self.covert_silk_and_amr()
         models = self.get_models_from_cache_db()
@@ -195,6 +197,7 @@ class WeChatParser(model_im.IM):
                     contact['remark'] = remark
                 if head:
                     contact['photo'] = head
+                contact['certification_flag'] = certification_flag
 
                 if rec.Deleted == DeletedState.Intact: 
                     self.contacts[username] = contact
@@ -210,6 +213,7 @@ class WeChatParser(model_im.IM):
                     chatroom.chatroom_id = username
                     chatroom.name = nickname
                     chatroom.photo = head
+                    chatroom.type = model_im.CHATROOM_TYPE_NORMAL if contact_type % 2 == 1 else model_im.CHATROOM_TYPE_TEMP
 
                     members, max_count = self._process_parse_group_members(self._db_record_get_value(rec, 'dbContactChatRoom'))
                     for member in members:
@@ -278,6 +282,7 @@ class WeChatParser(model_im.IM):
                 msg_local_id = self._db_record_get_value(rec, 'MesLocalID')
                 is_sender = 1 if self._db_record_get_value(rec, 'Des', 0) == 0 else 0
                 contact = self.contacts.get(username, {})
+                certification_flag = contact.get('certification_flag', 0)
 
                 message = model_im.Message()
                 message.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
@@ -302,7 +307,7 @@ class WeChatParser(model_im.IM):
                     message.sender_name = self.contacts.get(message.sender_id, {}).get('nickname')
                     message.content = content
                     message.media_path = media_path
-                    message.talker_type = model_im.CHAT_TYPE_FRIEND
+                    message.talker_type = model_im.CHAT_TYPE_FRIEND if certification_flag == 0 else model_im.CHAT_TYPE_OFFICIAL
                 try:
                     self.db_insert_table_message(message)
                 except Exception as e:
@@ -491,7 +496,7 @@ class WeChatParser(model_im.IM):
                 if username.endswith('@chatroom'):
                     message.talker_type = model_im.CHAT_TYPE_GROUP
                 else:
-                    message.talker_type = model_im.CHAT_TYPE_FRIEND
+                    message.talker_type = model_im.CHAT_TYPE_FRIEND if certification_flag == 0 else model_im.CHAT_TYPE_OFFICIAL
                 message.content = content
                 try:
                     self.db_insert_table_message(message)
@@ -625,7 +630,7 @@ class WeChatParser(model_im.IM):
                 location.source = model.source
                 location.location_id = self.location_id
                 self._process_parse_message_location(content, location)
-                model.location = self.location_id
+                model.extra_id = self.location_id
                 self.location_id += 1
                 self.db_insert_table_location(location)
             node = user_node.GetByPath('Location/{0}/{1}.pic_thum'.format(friend_hash, msg_local_id))

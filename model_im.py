@@ -34,9 +34,13 @@ FRIEND_TYPE_RECENT = 7
 FRIEND_TYPE_SUBSCRIBE = 8
 FRIEND_TYPE_STRANGER = 9
 
-CHAT_TYPE_FRIEND = 1
-CHAT_TYPE_GROUP = 2
-CHAT_TYPE_SYSTEM = 3
+CHATROOM_TYPE_NORMAL = 1  # 普通群
+CHATROOM_TYPE_TEMP = 2  # 临时群
+
+CHAT_TYPE_FRIEND = 1  # 好友聊天
+CHAT_TYPE_GROUP = 2  # 群聊天
+CHAT_TYPE_SYSTEM = 3  # 系统消息
+CHAT_TYPE_OFFICIAL = 4  # 公众号
 
 MESSAGE_TYPE_SEND = 1
 MESSAGE_TYPE_RECEIVE = 2
@@ -180,7 +184,7 @@ SQL_CREATE_TABLE_MESSAGE = '''
         content TEXT,
         media_path TEXT,
         send_time INT,
-        location TEXT,
+        extra_id TEXT,
         status INT,
         talker_type INT,
         source TEXT,
@@ -189,7 +193,7 @@ SQL_CREATE_TABLE_MESSAGE = '''
 
 SQL_INSERT_TABLE_MESSAGE = '''
     insert into message(account_id, talker_id, talker_name, sender_id, sender_name, is_sender, msg_id, type, content, 
-                        media_path, send_time, location, status, talker_type, source, deleted, repeated) 
+                        media_path, send_time, extra_id, status, talker_type, source, deleted, repeated) 
         values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
 
 SQL_CREATE_TABLE_FEED = '''
@@ -500,14 +504,14 @@ class Message(Column):
         self.content = None  # 内容[TEXT]
         self.media_path = None  # 媒体文件地址[TEXT]
         self.send_time = None  # 发送时间[INT]
-        self.location = None  # 地址ID[TEXT]
+        self.extra_id = None  # 扩展ID[TEXT]
         self.status = None  # 消息状态[INT]，MESSAGE_STATUS
         self.talker_type = None  # 聊天类型[INT]，CHAT_TYPE
 
     def get_values(self):
         return (self.account_id, self.talker_id, self.talker_name, self.sender_id, self.sender_name, 
                 self.is_sender, self.msg_id, self.type, self.content, self.media_path, self.send_time, 
-                self.location, self.status, self.talker_type) + super(Message, self).get_values()
+                self.extra_id, self.status, self.talker_type) + super(Message, self).get_values()
 
 
 class Feed(Column):
@@ -766,6 +770,8 @@ class GenerateModel(object):
             if row[3] and len(row[3]) > 0:
                 group.PhotoUris.Add(self._get_uri(row[3]))
                 contact['photo'] = row[3]
+            if row[4]:
+                group.Status.Value = self._convert_group_status(row[4])
             if row[6]:
                 group.Description.Value = row[6]
             if row[7]:
@@ -794,7 +800,7 @@ class GenerateModel(object):
         chats = {}
 
         sql = '''select account_id, talker_id, talker_name, sender_id, sender_name, is_sender, msg_id, type, 
-                        content, media_path, send_time, location, status, talker_type, source, deleted, repeated
+                        content, media_path, send_time, extra_id, status, talker_type, source, deleted, repeated
                  from message'''
         row = None
         try:
@@ -829,8 +835,6 @@ class GenerateModel(object):
                     message.Type.Value = Common.MessageType.Send
                 else:
                     message.Type.Value = Common.MessageType.Receive
-            if row[11]:
-                message.Content.Value.Location.Value = self._get_location(row[11])
             if row[10]:
                 ts = self._get_timestamp(row[10])
                 if ts:
@@ -857,8 +861,9 @@ class GenerateModel(object):
                     message.Content.Value.Gif.Value = self._get_uri(media_path)
             #elif msg_type == MESSAGE_CONTENT_TYPE_CONTACT_CARD:
             #    pass
-            #elif msg_type == MESSAGE_CONTENT_TYPE_LOCATION:
-            #    pass
+            elif msg_type == MESSAGE_CONTENT_TYPE_LOCATION:
+                if row[11]:
+                    message.Content.Value.Location.Value = self._get_location(row[11])
             #elif msg_type == MESSAGE_CONTENT_TYPE_LINK:
             #    pass
             #elif msg_type == MESSAGE_CONTENT_TYPE_VOIP:
@@ -877,6 +882,7 @@ class GenerateModel(object):
                     chat.Deleted = self._convert_deleted_status(0)
                     chat.OwnerUserID.Value = account_id
                     chat.ChatId.Value = talker_id
+                    chat.ChatType.Value = self._convert_chat_type(talker_type)
                     if talker_type == CHAT_TYPE_GROUP:
                         if talker_name is not None:
                             chat.ChatName.Value = talker_name
@@ -1155,6 +1161,26 @@ class GenerateModel(object):
             return Common.FriendType.Stranger
         else:
             return Common.FriendType.None
+
+    @staticmethod
+    def _convert_group_status(chatroom_type):
+        if chatroom_type == CHATROOM_TYPE_TEMP:
+            return Common.GroupStatus.Temp
+        else:
+            return Common.GroupStatus.Normal
+
+    @staticmethod
+    def _convert_chat_type(chat_type):
+        if chat_type == CHAT_TYPE_FRIEND:
+            return Common.ChatType.Friend
+        elif chat_type == CHAT_TYPE_GROUP:
+            return Common.ChatType.Group
+        elif chat_type == CHAT_TYPE_SYSTEM:
+            return Common.ChatType.System
+        elif chat_type == CHAT_TYPE_OFFICIAL:
+            return Common.ChatType.Official
+        else:
+            return Common.ChatType.None
 
     @staticmethod
     def _convert_deleted_status(deleted):
