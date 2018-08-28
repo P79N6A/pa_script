@@ -379,7 +379,7 @@ class Genetate(object):
             journey.SourceFile.Value = row[14]
             if row[11]:
                 starttime = self._get_timestamp(row[11])
-            journey.StartTime.Value = starttime
+                journey.StartTime.Value = starttime
             frompoint = Location()
             topoint = Location()
             fromcoo = Coordinate()
@@ -411,8 +411,7 @@ class Genetate(object):
             topoint.Map.Value = row[12]
 
             journey.FromPoint.Value = frompoint 
-            journey.ToPoint.Value = topoint 
-            journey.StartTime.Value = starttime
+            journey.ToPoint.Value = topoint
 
             journey.Deleted = DeletedState.Intact if row[15] == 0 else DeletedState.Deleted
 
