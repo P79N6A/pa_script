@@ -25,6 +25,7 @@ SafeLoadAssembly('apple_qq')
 SafeLoadAssembly('apple_skype')
 SafeLoadAssembly('apple_exts')
 SafeLoadAssembly('apple_youxin')
+SafeLoadAssembly('apple_yixin')
 SafeLoadAssembly('apple_baidumap')
 del clr
 
@@ -66,6 +67,7 @@ from apple_baidumap import analyze_baidumap
 from apple_gaodemap import analyze_gaodemap
 from apple_tencentmap import analyze_tencentmap
 from apple_youxin import analyze_youxin
+from apple_yixin import analyze_yixin
 from PA.InfraLib.Services import IApplicationService,ServiceGetter
 
 
@@ -114,6 +116,7 @@ FIND_BY_APPS_NODES = [
     ("com.autonavi.amap", analyze_gaodemap, "AMap", "高德地图", DescripCategories.AMap),
     ("com.telecom-guoling.feiin", analyze_youxin, "YouXin", "有信", DescripCategories.YouXin),
     ("com.network.uxin", analyze_youxin, "YouXin", "有信", DescripCategories.YouXin),
+    ("com.yixin.yixin", analyze_yixin, "YiXin", "易信", DescripCategories.QQ),
 ]
 
 if 'FIND_BY_APPS_NODES_EXTS' in locals():

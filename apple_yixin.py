@@ -216,8 +216,8 @@ class YiXinParser(model_im.IM):
             msgtype = model_im.MESSAGE_CONTENT_TYPE_VIDEO
         if type == 4:
             msgtype = model_im.MESSAGE_CONTENT_TYPE_LOCATION
-        if type == 7:
-            msgtype = model_im.MESSAGE_CONTENT_TYPE_CHARTLET
+        #if type == 7:
+        #    msgtype = model_im.MESSAGE_CONTENT_TYPE_CHARTLET
         return msgtype
     
     def parse_message_content(self, content, type):
@@ -236,10 +236,10 @@ class YiXinParser(model_im.IM):
                 node = self.root.GetByPath('/Documents/' + self.user + '/image')
                 if node is not None:
                     media_path = os.path.join(node.AbsolutePath, object['filename'])
-            if type == model_im.MESSAGE_CONTENT_TYPE_CHARTLET:
-                node = self.root.GetByPath('/Documents/' + self.user + '/chartlet')
-                if node is not None:
-                    media_path = os.path.join(node.AbsolutePath, object['filename'])
+            #if type == model_im.MESSAGE_CONTENT_TYPE_CHARTLET:
+            #    node = self.root.GetByPath('/Documents/' + self.user + '/chartlet')
+            #    if node is not None:
+            #        media_path = os.path.join(node.AbsolutePath, object['filename'])
         except:
             pass
         return media_path
