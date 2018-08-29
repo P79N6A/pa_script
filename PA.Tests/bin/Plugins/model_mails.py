@@ -557,6 +557,7 @@ class Generate(object):
             friend.PhoneNumber.Value = row[5]
             friend.Email.Value = row[7]
             friend.Name.Value = row[8]
+            row = self.cursor.fetchone()
         return models
 
     def _get_mail_folder_models(self):
