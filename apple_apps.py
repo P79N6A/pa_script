@@ -24,6 +24,8 @@ SafeLoadAssembly('apple_wechat')
 SafeLoadAssembly('apple_qq')
 SafeLoadAssembly('apple_skype')
 SafeLoadAssembly('apple_exts')
+SafeLoadAssembly('apple_yixin')
+SafeLoadAssembly('apple_youxin')
 del clr
 
 #导入app4tests模块,测试时用来指定只跑那些模块
@@ -64,6 +66,8 @@ from apple_baidumap import analyze_baidumap
 from apple_gaodemap import analyze_gaodemap
 from apple_tencentmap import analyze_tencentmap
 from apple_neteasemail import analyze_neteasemail
+from apple_youxin import analyze_youxin
+from apple_yixin import analyze_yixin
 from PA.InfraLib.Services import IApplicationService,ServiceGetter
 
 
@@ -102,7 +106,9 @@ FIND_BY_APPS_NODES = [
     ("com.tencent.sosomap", analyze_tencentmap, "TencentMap", "腾讯地图", DescripCategories.TencentMap),
     ("com.autonavi.amap", analyze_gaodemap, "AMap", "高德地图", DescripCategories.AMap),
     ("com.netease.mailmaster", analyze_neteasemail, "mailMaster", "网易邮箱大师", DescripCategories.NeteasesMail),
-
+    ("com.telecom-guoling.feiin", analyze_youxin, "YouXin", "有信", DescripCategories.YouXin),
+    ("com.network.uxin", analyze_youxin, "YouXin", "有信", DescripCategories.YouXin),
+    ("com.yixin.yixin", analyze_yixin, "YiXin", "易信", DescripCategories.QQ),
 ]
 
 if 'FIND_BY_APPS_NODES_EXTS' in locals():

@@ -20,6 +20,11 @@ try:
 except:
     pass
 
+from android_baidumap import analyze_baidumap
+from android_tencentmap import analyze_tencentmap
+from android_gaodemap import analyze_gaodemap
+from android_sogoumap import analyze_sogoumap
+
 APP_FILTERS =[]
 if 'TestNodes' in locals():
     APP_FILTERS.extend(TestNodes)
@@ -35,6 +40,10 @@ from android_wechat import analyze_wechat
 FIND_BY_RGX_NODES = [
     ('/MicroMsg/.+/EnMicroMsg.db$', analyze_wechat, "Wechat","微信",DescripCategories.Wechat),
     #('/data/com.tencent.mm$', analyze_wechat, "Wechat","微信",DescripCategories.Wechat),
+	('/com.baidu.BaiduMap/databases/baidumapfav.db$', analyze_baidumap, "BaiduMap", "百度地图", DescripCategories.BaiduMap),
+    ('/com.tencent.map/databases/route_search_history.db$', analyze_tencentmap, "TencentMap", "腾讯地图", DescripCategories.TencentMap),
+    ('/com.autonavi.minimap/files/girf_sync.db', analyze_gaodemap, "AMap", "高德地图", DescripCategories.AMap),
+    ('/com.sogou.map.android.maps/databases/com.sogou.map.mobile.android.history_result.db$', analyze_sogoumap, "SogouMap", "搜狗地图", DescripCategories.SogouMap)
 ]
 
 def decode_nodes(fs, extract_deleted, extract_source, installed_apps):
