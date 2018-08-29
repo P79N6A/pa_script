@@ -138,7 +138,7 @@ class YouXinParser(model_im.IM):
                 friend.account_id = self.user
                 friend.friend_id = contactid
                 friend.type = model_im.FRIEND_TYPE_FRIEND
-                friend.username = rec['[name]'].Value
+                friend.nickname = rec['[name]'].Value
                 self.contacts[contactid]['name'] = friend.username
                 friend.photo = rec['[small_head_image_url]'].Value
                 friend.signature = rec['[signature]'].Value
