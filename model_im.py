@@ -677,7 +677,7 @@ class GenerateModel(object):
             account_id = None
             contact = {}
             if row[15]:
-                user.Source.Value = row[15]
+                user.SourceFile.Value = row[15]
             if row[16]:
                 user.Deleted = self._convert_deleted_status(row[16])
             if row[0]:
@@ -745,7 +745,7 @@ class GenerateModel(object):
             user_id = None
             contact = {}
             if row[13]:
-                friend.Source.Value = row[13]
+                friend.SourceFile.Value = row[13]
             if row[14]:
                 friend.Deleted = self._convert_deleted_status(row[14])
             if row[0]:
@@ -809,7 +809,7 @@ class GenerateModel(object):
             user_id = None
             contact = {}
             if row[12]:
-                group.Source.Value = row[12]
+                group.SourceFile.Value = row[12]
             if row[13]:
                 group.Deleted = self._convert_deleted_status(row[13])
             if row[0]:
@@ -873,7 +873,7 @@ class GenerateModel(object):
             talker_type = row[13]
 
             if row[14]:
-                message.Source.Value = row[14]
+                message.SourceFile.Value = row[14]
             if row[15]:
                 message.Deleted = self._convert_deleted_status(row[15])
             if row[0]:
@@ -946,7 +946,7 @@ class GenerateModel(object):
                     chat.Messages.Add(message)
                 else:
                     chat = Generic.Chat()
-                    chat.Source.Value = message.Source.Value
+                    chat.SourceFile.Value = message.SourceFile.Value
                     chat.Deleted = self._convert_deleted_status(0)
                     chat.OwnerUserID.Value = account_id
                     chat.ChatId.Value = talker_id
@@ -1016,7 +1016,7 @@ class GenerateModel(object):
             moment.Content.Value = Common.MomentContent()
             account_id = None
             if row[14]:
-                moment.Source.Value = row[14]
+                moment.SourceFile.Value = row[14]
             if row[15]:
                 moment.Deleted = self._convert_deleted_status(row[15])
             if row[0]:
@@ -1117,7 +1117,7 @@ class GenerateModel(object):
                     if ts:
                         like.TimeStamp.Value = ts
                 if row[3]:
-                    like.Source.Value = row[3]
+                    like.SourceFile.Value = row[3]
                 if row[4]:
                     like.Deleted = self._convert_deleted_status(row[4])
                 models.append(like)
@@ -1160,7 +1160,7 @@ class GenerateModel(object):
                     if ts:
                         comment.TimeStamp.Value = ts
                 if row[6]:
-                    comment.Source.Value = row[6]
+                    comment.SourceFile.Value = row[6]
                 if row[7]:
                     comment.Deleted = self._convert_deleted_status(row[7])
                 models.append(comment)
@@ -1199,7 +1199,7 @@ class GenerateModel(object):
                     if ts:
                         location.TimeStamp.Value = ts
                 if row[5]:
-                    location.Source.Value = row[5]
+                    location.SourceFile.Value = row[5]
                 if row[6]:
                     location.Deleted = self._convert_deleted_status(row[6])
 
@@ -1235,7 +1235,7 @@ class GenerateModel(object):
                     if ts:
                         receipt.ExpireTime.Value = ts
                 if row[7]:
-                    receipt.Source.Value = row[7]
+                    receipt.SourceFile.Value = row[7]
                 if row[8]:
                     receipt.Deleted = self._convert_deleted_status(row[8])
 
@@ -1271,7 +1271,7 @@ class GenerateModel(object):
                     if ts:
                         receipt.ExpireTime.Value = ts
                 if row[7]:
-                    receipt.Source.Value = row[7]
+                    receipt.SourceFile.Value = row[7]
                 if row[8]:
                     receipt.Deleted = self._convert_deleted_status(row[8])
 
