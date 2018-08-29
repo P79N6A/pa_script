@@ -179,9 +179,11 @@ class YiXinParser(model_im.IM):
                     message.content = rec['msg_body'].Value
                     contact_type = rec['msg_type']
                     if contact_type == 1:
-                        message.talker_type = model_im.USER_TYPE_FRIEND
+                        message.talker_type = model_im.CHAT_TYPE_FRIEND
                     if contact_type == 2:
-                        message_talker_type == model_im.USER_TYPE_CHATROOM
+                        message.talker_type = model_im.CHAT_TYPE_GROUP
+                    if contact_type == 6:
+                        message.talker_type = model_im.CHAT_TYPE_OFFICIAL
                     message.media_path = self.parse_message_content(message.content, message.type)
                     if message.type == model_im.MESSAGE_CONTENT_TYPE_LOCATION:
                         message.location = self.get_location(message.content, message.send_time, message.deleted, message.repeated)

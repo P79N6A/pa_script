@@ -219,28 +219,23 @@ class MM(object):
 
     def db_insert_table_mails(self,Mails):
         if self.cursor is not None:
-            # self.cursor.execute(SQL_INSERT_TABLE_MAILS, Mails.get_values())
-            self.cursor.execute(SQL_INSERT_TABLE_MAILS_ANDROID, Mails.get_values())
+            self.cursor.execute(SQL_INSERT_TABLE_MAILS, Mails.get_values())
     
     def db_insert_table_account(self,Accounts):
         if self.cursor is not None:
-            # self.cursor.execute(SQL_INSERT_TABLE_ACCOUNT, Accounts.get_values())
-            self.cursor.execute(SQL_INSERT_TABLE_ACCOUNT_ANDROID, Accounts.get_values())
+            self.cursor.execute(SQL_INSERT_TABLE_ACCOUNT, Accounts.get_values())
 
     def db_insert_table_contact(self,Contact):
         if self.cursor is not None:
-            # self.cursor.execute(SQL_INSERT_TABLE_CONTACT, Contact.get_values())
-            self.cursor.execute(SQL_INSERT_TABLE_CONTACT_ANDROID, Contact.get_values())
+            self.cursor.execute(SQL_INSERT_TABLE_CONTACT, Contact.get_values())
 
     def db_insert_table_mail_folder(self,MailFolder):
         if self.cursor is not None:
-            # self.cursor.execute(SQL_INSERT_TABLE_MAIL_FOLDER, MailFolder.get_values())
-            self.cursor.execute(SQL_INSERT_TABLE_MAIL_FOLDER_ANDROID, MailFolder.get_values())
+            self.cursor.execute(SQL_INSERT_TABLE_MAIL_FOLDER, MailFolder.get_values())
 
     def db_insert_table_attach(self,Attach):
         if self.cursor is not None:
-            # self.cursor.execute(SQL_INSERT_TABLE_ATTACH, Attach.get_values())
-            self.cursor.execute(SQL_INSERT_TABLE_ATTACH_ANDROID, Attach.get_values())
+            self.cursor.execute(SQL_INSERT_TABLE_ATTACH, Attach.get_values())
 
     def db_insert_table_search(self,Search):
         pass
@@ -315,7 +310,8 @@ class Mails_Android(Column):
     
     def get_values(self):
         return (self.mailId, self.accountId, self.subject, self.abstract, self.fromEmail, self.receiveUtc, self.size, self.tos, 
-        self.isRead, self.account_email, self.alias, self.mail_folder, self.content, self.downloadSize, self.attachName, self.attachDir) + super(Mails_Android, self).get_values()
+        self.isRead, self.account_email, self.alias, self.mail_folder, self.content, self.downloadSize, self.attachName, self.attachDir,
+        self.source, self.deleted, self.repeated) + super(Mails_Android, self).get_values()
     
 
 
@@ -342,7 +338,7 @@ class Accounts_Android(Column):
         self.accountEmail = None
 
     def get_values(self):
-        return (self.accountId, self.alias, self.accountEmail) + super(Accounts_Android, self).get_values()
+        return (self.accountId, self.alias, self.accountEmail, self.source, self.deleted, self.repeated) + super(Accounts_Android, self).get_values()
 
 
 
@@ -489,35 +485,30 @@ class Generate(object):
                 mailMessage.Status.Value = MessageStatus.Unread if row[11] == 0 else MessageStatus.Read
             mailMessage.Subject.Value = row[1]
             mailMessage.Body.Value = row[17]
-            #mailMessage.TimeStamp.Value = TimeStamp.FromUnixTime(row[4], False)  #ios
-            mailMessage.TimeStamp.Value = TimeStamp.FromUnixTime(int(row[4][0:-3:1]), False)  #android
+            mailMessage.TimeStamp.Value = TimeStamp.FromUnixTime(row[4], False)
             party = Generic.Party()
             party.Identifier.Value = row[3]
             if row[9] is not None:
-                party.IPAddresses.Value.Add(str(row[9]))                
-            #party.DatePlayed.Value = TimeStamp.FromUnixTime(row[4], False)  #ios
-            party.DatePlayed.Value = TimeStamp.FromUnixTime(int(row[4][0:-3:1]), False)  #android
+                party.IPAddresses.Add(str(row[9]))                
+            party.DatePlayed.Value = TimeStamp.FromUnixTime(row[4], False)
             mailMessage.From.Value = party
             tos = row[6].split(';')
             for t in range(len(tos)-1):
                 party = Generic.Party()
                 party.Identifier.Value = tos[t]
-                #party.DatePlayed.Value = TimeStamp.FromUnixTime(row[4], False)  #ios
-                party.DatePlayed.Value = TimeStamp.FromUnixTime(int(row[4][0:-3:1]), False)  #android
+                party.DatePlayed.Value = TimeStamp.FromUnixTime(row[4], False)
                 mailMessage.To.Add(party)
             cc = row[7].split(';')
             for c in range(len(cc)-1):
                 party = Generic.Party()
                 party.Identifier.Value = cc[c]
-                #party.DatePlayed.Value = TimeStamp.FromUnixTime(row[4], False)  #ios
-                party.DatePlayed.Value = TimeStamp.FromUnixTime(int(row[4][0:-3:1]), False)  #android
+                party.DatePlayed.Value = TimeStamp.FromUnixTime(row[4], False)
                 mailMessage.Cc.Add(party)
             bcc = row[8].split(';')
             for b in range(len(bcc)-1):
                 party = Generic.Party()
                 party.Identifier.Value = bcc[b]
-                #party.DatePlayed.Value = TimeStamp.FromUnixTime(row[4], False)  #ios
-                party.DatePlayed.Value = TimeStamp.FromUnixTime(int(row[4][0:-3:1]), False)  #android
+                party.DatePlayed.Value = TimeStamp.FromUnixTime(row[4], False)
                 mailMessage.BCc.Add(party)
             if row[18] is not None:
                 for a in range(len(row[18].split(','))):
@@ -566,6 +557,7 @@ class Generate(object):
             friend.PhoneNumber.Value = row[5]
             friend.Email.Value = row[7]
             friend.Name.Value = row[8]
+            row = self.cursor.fetchone()
         return models
 
     def _get_mail_folder_models(self):

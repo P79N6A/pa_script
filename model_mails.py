@@ -489,7 +489,7 @@ class Generate(object):
             party = Generic.Party()
             party.Identifier.Value = row[3]
             if row[9] is not None:
-                party.IPAddresses.Value.Add(str(row[9]))                
+                party.IPAddresses.Add(str(row[9]))                
             party.DatePlayed.Value = TimeStamp.FromUnixTime(row[4], False)
             mailMessage.From.Value = party
             tos = row[6].split(';')
@@ -557,6 +557,7 @@ class Generate(object):
             friend.PhoneNumber.Value = row[5]
             friend.Email.Value = row[7]
             friend.Name.Value = row[8]
+            row = self.cursor.fetchone()
         return models
 
     def _get_mail_folder_models(self):
