@@ -719,8 +719,7 @@ class GenerateModel(object):
             models.append(user)
 
             if account_id is not None:
-                key = account_id + "#" + account_id
-                self.friends[key] = contact
+                self.friends[self._get_user_key(account_id, account_id)] = contact
 
             row = self.cursor.fetchone()
 
@@ -783,8 +782,7 @@ class GenerateModel(object):
             models.append(friend)
 
             if account_id is not None and user_id is not None:
-                key = account_id + "#" + user_id
-                self.friends[key] = contact
+                self.friends[self._get_user_key(account_id, user_id)] = contact
 
             row = self.cursor.fetchone()
 
@@ -844,8 +842,7 @@ class GenerateModel(object):
             models.append(group)
 
             if account_id is not None and user_id is not None:
-                key = account_id + "#" + user_id
-                self.chatrooms[key] = contact
+                self.chatrooms[self._get_user_key(account_id, user_id)] = contact
 
             row = self.cursor.fetchone()
 
@@ -939,7 +936,7 @@ class GenerateModel(object):
             #    pass
 
             if account_id is not None and talker_id is not None:
-                key = account_id + "#" + talker_id
+                key = self._get_user_key(account_id, talker_id)
                 if key in chats:
                     chat = chats[key]
                     chat.Messages.Add(message)
@@ -1051,12 +1048,15 @@ class GenerateModel(object):
 
         return models 
 
+    def _get_user_key(self, account_id, user_id):
+        return account_id + "#*#" + user_id
+
     def _get_user_intro(self, account_id, user_id, user_name=None, is_group=False):
         user = Common.UserIntro()
         user.ID.Value = user_id
 
         if account_id is not None and user_id is not None:
-            key = account_id + "#" + user_id
+            key = self._get_user_key(account_id, user_id)
             contact = None
             if is_group:
                 contact = self.chatrooms.get(key)
