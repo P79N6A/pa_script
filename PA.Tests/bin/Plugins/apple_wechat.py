@@ -69,7 +69,7 @@ class WeChatParser(model_im.IM):
     def parse(self):
         self.user_hash = self.get_user_hash()
         self.mount_dir = self.root.FileSystem.MountPoint
-        self.cache_path = ds.OpenCachePath('wechat')
+        self.cache_path = os.path.join(ds.OpenCachePath('wechat'), self.get_user_guid())
         if not os.path.exists(self.cache_path):
             os.makedirs(self.cache_path)
         self.cache_db = os.path.join(self.cache_path, self.user_hash + '.db')
@@ -115,6 +115,10 @@ class WeChatParser(model_im.IM):
 
     def get_user_hash(self):
         path = self.root.AbsolutePath
+        return os.path.basename(os.path.normpath(path))
+
+    def get_user_guid(self):
+        path = self.root.Parent.Parent.AbsolutePath
         return os.path.basename(os.path.normpath(path))
 
     #def _get_user_nodes(self):
@@ -262,13 +266,27 @@ class WeChatParser(model_im.IM):
         if not db:
             return False
 
+        tables = {}
         for username in self.contacts.keys():
             m = hashlib.md5()
             m.update(username.encode('utf8'))
             user_hash = m.hexdigest()
             table = 'Chat_' + user_hash
-            if table not in db.Tables:
+            tables[table] = username
+        # add self
+        m = hashlib.md5()
+        m.update(self.user_account.account_id.encode('utf8'))
+        user_hash = m.hexdigest()
+        table = 'Chat_' + user_hash
+        tables[table] = self.user_account.account_id
+
+        for table in db.Tables:
+            if not table.startswith('Chat_'):
                 continue
+            if table in tables:
+                username = tables[table]
+            else:
+                username = table[5:]
             ts = SQLiteParser.TableSignature(table)
             SQLiteParser.Tools.AddSignatureToTable(ts, "Message", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
             for rec in db.ReadTableRecords(ts, self.extract_deleted):
@@ -620,9 +638,9 @@ class WeChatParser(model_im.IM):
         elif msg_type == MSG_TYPE_LINK:
             content = self._process_parse_message_link(content, model)
         elif msg_type == MSG_TYPE_VOIP:
-            pass
+            content = self._process_parse_message_voip(content)
         elif msg_type == MSG_TYPE_VOIP_GROUP:
-            pass
+            content = self._process_parse_message_voip_group(content)
         elif msg_type == MSG_TYPE_SYSTEM or msg_type == MSG_TYPE_SYSTEM_2:
             pass
         else:  # MSG_TYPE_TEXT
@@ -809,15 +827,57 @@ class WeChatParser(model_im.IM):
         content = ''
         xml = None
         try:
+            xml_str = '<root>' + xml_str + '</root>'
             xml = XElement.Parse(xml_str)
         except Exception as e:
             pass
         if xml is not None:
-            pass
-        return content
+            voipinvitemsg = xml.Element('voipinvitemsg')
+            if voipinvitemsg:
+                if voipinvitemsg.Element('invitetype'):
+                    try:
+                        invitetype = int(voipinvitemsg.Element('invitetype').Value)
+                    except Exception as e:
+                        invitetype = None
+                    if invitetype == 0:
+                        content += '[视频通话]'
+                    elif invitetype == 1:
+                        content += '[语音通话]'
+            voiplocalinfo = xml.Element('voiplocalinfo')
+            if voiplocalinfo:
+                duration = 0
+                if voiplocalinfo.Element('duration'):
+                    duration = voiplocalinfo.Element('duration').Value
+                if voiplocalinfo.Element('wordingtype'):
+                    try:
+                        wordingtype = int(voiplocalinfo.Element('wordingtype').Value)
+                    except Exception as e:
+                        wordingtype = None
+                    if wordingtype == 4:
+                        content += '通话时长{0}秒'.format(duration)
+                    elif wordingtype == 1:
+                        content += '已取消'
+                    elif wordingtype == 8:
+                        content += '已拒绝'
+        if content not in [None, '']:
+            return content
+        else:
+            return xml_str
 
     def _process_parse_message_voip_group(self, msg):
-        pass
+        content = ''
+        info = None
+        try:
+            info = json.loads(msg)
+        except Exception as e:
+            pass
+        if info is not None:
+            content = info.get('msgContent')
+
+        if content not in [None, '']:
+            return content
+        else:
+            return msg
 
     @staticmethod
     def _db_record_get_value(record, column, default_value=None):
