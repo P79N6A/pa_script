@@ -150,7 +150,7 @@ class YiXinParser(model_im.IM):
         if self.user is None:
             return False
         
-        for contact_id in self.contacts:
+        for contact_id in self.contacts.keys():
             dbPath = self.root.GetByPath('/Documents/' + self.user + '/msg2.db')
             db = SQLiteParser.Database.FromNode(dbPath)
             if not db:
