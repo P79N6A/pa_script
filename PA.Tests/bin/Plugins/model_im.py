@@ -919,7 +919,6 @@ class GenerateModel(object):
             elif msg_type == MESSAGE_CONTENT_TYPE_LOCATION:
                 if row[11]:
                     message.Content.Value.Location.Value = self._get_location(row[11])
-                    message.Content.Value.Location.Value.OwnerUserID.Value = message.OwnerUserID.Value
             elif msg_type == MESSAGE_CONTENT_TYPE_RED_ENVELPOE:
                 if row[11]:
                     message.Content.Value.RedEnvelope.Value = self._get_aareceipts(row[11])
@@ -1208,7 +1207,7 @@ class GenerateModel(object):
         return location
 
     def _get_receipt(self, deal_id):
-        receipt = Common.AAReceipts()
+        receipt = Common.Receipt()
         if deal_id is not None:
             sql = '''select type, money, description, remark, status, expire_time, 
                             receive_info, source, deleted, repeated
@@ -1223,9 +1222,9 @@ class GenerateModel(object):
 
             if row is not None:
                 if row[1]:
-                    receipt.TotalMoney.Value = row[1]
-                #if row[2]:
-                #    receipt.Des.Value = row[2]
+                    receipt.Money.Value = row[1]
+                if row[2]:
+                    receipt.Description.Value = row[2]
                 if row[3]:
                     receipt.Remarks.Value = row[3]
                 if row[4]:
@@ -1260,8 +1259,8 @@ class GenerateModel(object):
             if row is not None:
                 if row[1]:
                     receipt.TotalMoney.Value = row[1]
-                #if row[2]:
-                #    receipt.Des.Value = row[2]
+                if row[2]:
+                    receipt.Description.Value = row[2]
                 if row[3]:
                     receipt.Remarks.Value = row[3]
                 #if row[4]:
