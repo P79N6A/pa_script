@@ -65,14 +65,9 @@ class WeChatParser(model_im.IM):
         self.root = node.Parent.Parent
         self.extract_deleted = False  # extract_deleted
         self.extract_source = extract_source
-        self.is_valid_user_dir = self._is_valid_user_dir()
 
     def parse(self):
-        if not self.is_valid_user_dir:
-            return []
-
         self.user_hash = self.get_user_hash()
-        self.APP_NAME = self.get_app_name()
         self.mount_dir = self.root.FileSystem.MountPoint
         self.cache_path = ds.OpenCachePath('wechat')
         if not os.path.exists(self.cache_path):
@@ -85,13 +80,14 @@ class WeChatParser(model_im.IM):
             self.contacts = {}
             self.user_account = model_im.Account()
 
-            user_plist = self.root.GetByPath('mmsetting.archive')
-            if user_plist is not None and user_plist.Deleted == DeletedState.Intact:
-                self._get_user_from_setting(user_plist)
-                self._parse_user_contact_db(self.root.GetByPath('/DB/WCDB_Contact.sqlite'))
-                self._parse_user_mm_db(self.root.GetByPath('/DB/MM.sqlite'))
-                self._parse_user_wc_db(self.root.GetByPath('/wc/wc005_008.db'))
-                self._parse_user_fts_db(self.root.GetByPath('/fts/fts_message.db'))
+            if not self._get_user_from_setting(self.root.GetByPath('mmsetting.archive')):
+                self.user_account.account_id = self.user_hash
+                self.db_insert_table_account(self.user_account)
+                self.db_commit()
+            self._parse_user_contact_db(self.root.GetByPath('/DB/WCDB_Contact.sqlite'))
+            self._parse_user_mm_db(self.root.GetByPath('/DB/MM.sqlite'))
+            self._parse_user_wc_db(self.root.GetByPath('/wc/wc005_008.db'))
+            self._parse_user_fts_db(self.root.GetByPath('/fts/fts_message.db'))
 
             # 数据库填充完毕，请将中间数据库版本和app数据库版本插入数据库，用来检测app是否需要重新解析
             self.db_insert_table_version(model_im.VERSION_KEY_DB, model_im.VERSION_VALUE_DB)
@@ -108,21 +104,18 @@ class WeChatParser(model_im.IM):
         models = model_im.GenerateModel(self.cache_db, self.mount_dir).get_models()
         return models
 
-    def _is_valid_user_dir(self):
-        if self.root is None:
-            return False
-        if self.root.GetByPath('mmsetting.archive') is None:
-            return False
-        if self.root.GetByPath('/DB/MM.sqlite') is None:
-            return False
-        return True
+    #def _is_valid_user_dir(self):
+    #    if self.root is None:
+    #        return False
+    #    if self.root.GetByPath('mmsetting.archive') is None:
+    #        return False
+    #    if self.root.GetByPath('/DB/MM.sqlite') is None:
+    #        return False
+    #    return True
 
     def get_user_hash(self):
         path = self.root.AbsolutePath
         return os.path.basename(os.path.normpath(path))
-
-    def get_app_name(self):
-        return '微信'
 
     #def _get_user_nodes(self):
     #    user_nodes = []
@@ -133,13 +126,16 @@ class WeChatParser(model_im.IM):
     #    return user_nodes
     
     def _get_user_from_setting(self, user_plist):
+        if user_plist is None:
+            return False
+
         root = None
         try:
             root = BPReader.GetTree(user_plist)
         except:
-            return
+            return False
         if not root or not root.Children:
-            return
+            return False
 
         self.user_account.account_id = self._bpreader_node_get_string_value(root, 'UsrName')
         self.user_account.nickname = self._bpreader_node_get_string_value(root, 'NickName')
@@ -160,6 +156,8 @@ class WeChatParser(model_im.IM):
         self.user_account.source = user_plist.AbsolutePath
         self.db_insert_table_account(self.user_account)
         self.db_commit()
+
+        return True
 
     def _parse_user_contact_db(self, node):
         if node is None:

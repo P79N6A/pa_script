@@ -719,8 +719,7 @@ class GenerateModel(object):
             models.append(user)
 
             if account_id is not None:
-                key = account_id + "#" + account_id
-                self.friends[key] = contact
+                self.friends[self._get_user_key(account_id, account_id)] = contact
 
             row = self.cursor.fetchone()
 
@@ -783,8 +782,7 @@ class GenerateModel(object):
             models.append(friend)
 
             if account_id is not None and user_id is not None:
-                key = account_id + "#" + user_id
-                self.friends[key] = contact
+                self.friends[self._get_user_key(account_id, user_id)] = contact
 
             row = self.cursor.fetchone()
 
@@ -844,8 +842,7 @@ class GenerateModel(object):
             models.append(group)
 
             if account_id is not None and user_id is not None:
-                key = account_id + "#" + user_id
-                self.chatrooms[key] = contact
+                self.chatrooms[self._get_user_key(account_id, user_id)] = contact
 
             row = self.cursor.fetchone()
 
@@ -919,7 +916,6 @@ class GenerateModel(object):
             elif msg_type == MESSAGE_CONTENT_TYPE_LOCATION:
                 if row[11]:
                     message.Content.Value.Location.Value = self._get_location(row[11])
-                    message.Content.Value.Location.Value.OwnerUserID.Value = message.OwnerUserID.Value
             elif msg_type == MESSAGE_CONTENT_TYPE_RED_ENVELPOE:
                 if row[11]:
                     message.Content.Value.RedEnvelope.Value = self._get_aareceipts(row[11])
@@ -940,7 +936,7 @@ class GenerateModel(object):
             #    pass
 
             if account_id is not None and talker_id is not None:
-                key = account_id + "#" + talker_id
+                key = self._get_user_key(account_id, talker_id)
                 if key in chats:
                     chat = chats[key]
                     chat.Messages.Add(message)
@@ -1052,12 +1048,15 @@ class GenerateModel(object):
 
         return models 
 
+    def _get_user_key(self, account_id, user_id):
+        return account_id + "#*#" + user_id
+
     def _get_user_intro(self, account_id, user_id, user_name=None, is_group=False):
         user = Common.UserIntro()
         user.ID.Value = user_id
 
         if account_id is not None and user_id is not None:
-            key = account_id + "#" + user_id
+            key = self._get_user_key(account_id, user_id)
             contact = None
             if is_group:
                 contact = self.chatrooms.get(key)
@@ -1208,7 +1207,7 @@ class GenerateModel(object):
         return location
 
     def _get_receipt(self, deal_id):
-        receipt = Common.AAReceipts()
+        receipt = Common.Receipt()
         if deal_id is not None:
             sql = '''select type, money, description, remark, status, expire_time, 
                             receive_info, source, deleted, repeated
@@ -1223,9 +1222,9 @@ class GenerateModel(object):
 
             if row is not None:
                 if row[1]:
-                    receipt.TotalMoney.Value = row[1]
-                #if row[2]:
-                #    receipt.Des.Value = row[2]
+                    receipt.Money.Value = row[1]
+                if row[2]:
+                    receipt.Description.Value = row[2]
                 if row[3]:
                     receipt.Remarks.Value = row[3]
                 if row[4]:
@@ -1260,8 +1259,8 @@ class GenerateModel(object):
             if row is not None:
                 if row[1]:
                     receipt.TotalMoney.Value = row[1]
-                #if row[2]:
-                #    receipt.Des.Value = row[2]
+                if row[2]:
+                    receipt.Description.Value = row[2]
                 if row[3]:
                     receipt.Remarks.Value = row[3]
                 #if row[4]:
