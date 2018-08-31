@@ -167,7 +167,7 @@ SQL_CREATE_TABLE_TODO = '''
         content TEXT,
         createdTime INTEGER,
         reminderTime INTEGER,
-        done INTEGER,
+        isdone INTEGER,
         isdeleted INTEGER,
         source TEXT,
         deleted INT, 
@@ -175,7 +175,7 @@ SQL_CREATE_TABLE_TODO = '''
     )'''
 
 SQL_INSERT_TABLE_TODO = '''
-    insert into todo(content, createdTime, reminderTime, done, deleted, source, deleted, repeated)
+    insert into todo(content, createdTime, reminderTime, isdone, isdeleted, source, deleted, repeated)
         values(?, ?, ?, ?, ?, ?, ?, ?)'''
 
 
@@ -237,6 +237,10 @@ class MM(object):
     def db_insert_table_attach(self,Attach):
         if self.cursor is not None:
             self.cursor.execute(SQL_INSERT_TABLE_ATTACH, Attach.get_values())
+
+    def db_insert_table_todo(self,Todo):
+        if self.cursor is not None:
+            self.cursor.execute(SQL_INSERT_TABLE_TODO, Todo.get_values())
 
     def db_insert_table_search(self,Search):
         pass
@@ -305,9 +309,6 @@ class Accounts(Column):
         self.accountImage, self.accountSign) + super(Accounts,self).get_values()
 
 
-
-
-
 class Contact(Column):
     def __init__(self):
         super(Contact, self).__init__()
@@ -328,7 +329,6 @@ class Contact(Column):
         return(self.contactName, self.contactBirthday, self.contactDepartment,
         self.contactFamilyAddress, self.contactMark, self.contactMobile, self.contactTelephone,
         self.contactEmail,self.contactNick, self.groupName, self.alias, self.accountEmail) + super(Contact, self).get_values()
-
 
 
 class MailFolder(Column):
@@ -365,6 +365,23 @@ class Attach(Column):
         return (self.mailId, self.accountNick, self.acocuntEmail, self.subject, self.downloadUtc,
         self.downloadSize, self.fromEmail, self.fromNick, self.mailUtc,
         self.attachName, self.exchangeField, self.attachType, self.attachDir, self.emailFolder) + super(Attach, self).get_values()
+
+
+class Todo(Column):
+    def __init__(self):
+        super(Todo, self).__init__()
+        self.content = None
+        self.createdTime = None
+        self.reminderTime = None
+        self.isdone = None
+        self.deleted = None
+
+    def get_values(self):
+        return (self.content,
+                self.createdTime,
+                self.reminderTime,
+                self.isdone,
+                self.deleted) + super(Todo, self).get_values()
 
 
 class Search(Column):
