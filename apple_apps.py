@@ -26,6 +26,8 @@ SafeLoadAssembly('apple_skype')
 SafeLoadAssembly('apple_exts')
 SafeLoadAssembly('apple_yixin')
 SafeLoadAssembly('apple_youxin')
+SafeLoadAssembly('apple_dingtalk')
+
 del clr
 
 #导入app4tests模块,测试时用来指定只跑那些模块
@@ -68,6 +70,7 @@ from apple_tencentmap import analyze_tencentmap
 from apple_neteasemail import analyze_neteasemail
 from apple_youxin import analyze_youxin
 from apple_yixin import analyze_yixin
+from apple_dingtalk import *
 from PA.InfraLib.Services import IApplicationService,ServiceGetter
 
 
@@ -109,6 +112,7 @@ FIND_BY_APPS_NODES = [
     ("com.telecom-guoling.feiin", analyze_youxin, "YouXin", "有信", DescripCategories.YouXin),
     ("com.network.uxin", analyze_youxin, "YouXin", "有信", DescripCategories.YouXin),
     ("com.yixin.yixin", analyze_yixin, "YiXin", "易信", DescripCategories.QQ),
+	("com.laiwang.DingTalk", parse_ding, "Dingtalk", "钉钉", DescripCategories.QQ)，
 ]
 
 if 'FIND_BY_APPS_NODES_EXTS' in locals():
