@@ -410,6 +410,7 @@ class LocationsParser(object):
         return results
 
 def analyze_locations(node, extract_deleted, extract_source):
+    extractDeleted = False #暂时禁用位置相关的数据恢复
     pr = ParserResults()
     pr.Models.AddRange(LocationsParser(node, extract_deleted, extract_source).parse())
     return pr
@@ -572,6 +573,7 @@ class FrequentLocationsParser(object):
 常去地地点数据解析(iOS7+)
 """
 def analyze_frequent_locations(root, extractDeleted, extractSource):
+    extractDeleted = False #暂时禁用位置相关的数据恢复
     pr = ParserResults()
     pr.Models.AddRange(FrequentLocationsParser(root, extractDeleted, extractSource).parse())
     return pr
@@ -613,7 +615,6 @@ class apple_maps(object):
         typeSource = mem.GetSubRange(nPointer, typeL)
         nPointer += typeL
         if nPointer > mem.Length or typeL == 0:
-            ## if we exceed the size of the file, we return the end of it as the new nPointer. If the curr type length is 0, we also return the end of the stream as nPointer
             return self.TLV(self.valueSourcePair(type, typeSource), self.valueSourcePair(0, None), self.valueSourcePair("", None)), mem.Length
         lengthL, length = self.parse_variable_integer(mem, nPointer, endianity)
         lengthSource = mem.GetSubRange(nPointer, lengthL)
@@ -724,7 +725,6 @@ class apple_maps(object):
         if 'BookmarksData' not in bp.Keys:
             return results
         for i in range(bp['BookmarksData'].Length):
-            ## older format of bookamrks was discoverd, for now it will be try catch to avoid exceptions. but it will be taken care of 
             try:
                 loc = Location()
                 loc.Deleted = DeletedState.Intact
@@ -1126,6 +1126,7 @@ def analyze_apple_maps(root, extractDeleted, extractSource):
     """
     解析苹果地图
     """
+    extractDeleted = False #暂时禁用位置相关的数据恢复
     maps = apple_maps(root, extractDeleted, extractSource)
     pr = ParserResults()
     pr.Models.AddRange(maps.analyze_maps_bookmarks())
@@ -1136,6 +1137,7 @@ def analyze_locations_from_deleted_photos(node, extractDeleted, extractSource):
     """
     从照片数据库中解析出地理位置信息,包括删除的照片及其记录
     """
+    extractDeleted = False #暂时禁用位置相关的数据恢复
     pr = ParserResults()
     if node is None:
         return pr
