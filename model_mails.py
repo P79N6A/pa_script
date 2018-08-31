@@ -132,6 +132,7 @@ SQL_INSERT_TABLE_MAIL_FOLDER_ANDROID = '''
 
 SQL_CREATE_TABLE_ATTACH = '''
     create table if not exists attach(
+        mailId INT,
         accountNick TEXT,
         accountEmail TEXT,
         subject TEXT,
@@ -151,9 +152,9 @@ SQL_CREATE_TABLE_ATTACH = '''
     )'''
 
 SQL_INSERT_TABLE_ATTACH = '''
-    insert into attach(accountNick, accountEmail, subject, downloadUtc, downloadSize,
+    insert into attach(mailId, accountNick, accountEmail, subject, downloadUtc, downloadSize,
     fromEmail, fromNick, mailUtc, attachName, exchangeField, attachType, attachDir, emailFolder, source, deleted, repeated)
-        values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
+        values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
 
 SQL_INSERT_TABLE_ATTACH_ANDROID = '''
     insert into attach(accountNick, accountEmail, subject, downloadUtc, downloadSize, 
@@ -345,6 +346,7 @@ class MailFolder(Column):
 class Attach(Column):
     def __init__(self):
         super(Attach, self).__init__()
+        self.mailId = None
         self.accountNick = None
         self.acocuntEmail = None
         self.subject = None
@@ -360,7 +362,7 @@ class Attach(Column):
         self.emailFolder = None
 
     def get_values(self):
-        return (self.accountNick, self.acocuntEmail, self.subject, self.downloadUtc,
+        return (self.mailId, self.accountNick, self.acocuntEmail, self.subject, self.downloadUtc,
         self.downloadSize, self.fromEmail, self.fromNick, self.mailUtc,
         self.attachName, self.exchangeField, self.attachType, self.attachDir, self.emailFolder) + super(Attach, self).get_values()
 
