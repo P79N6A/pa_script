@@ -132,6 +132,7 @@ SQL_INSERT_TABLE_MAIL_FOLDER_ANDROID = '''
 
 SQL_CREATE_TABLE_ATTACH = '''
     create table if not exists attach(
+        mailId INT,
         accountNick TEXT,
         accountEmail TEXT,
         subject TEXT,
@@ -151,9 +152,9 @@ SQL_CREATE_TABLE_ATTACH = '''
     )'''
 
 SQL_INSERT_TABLE_ATTACH = '''
-    insert into attach(accountNick, accountEmail, subject, downloadUtc, downloadSize,
+    insert into attach(mailId, accountNick, accountEmail, subject, downloadUtc, downloadSize,
     fromEmail, fromNick, mailUtc, attachName, exchangeField, attachType, attachDir, emailFolder, source, deleted, repeated)
-        values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
+        values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
 
 SQL_INSERT_TABLE_ATTACH_ANDROID = '''
     insert into attach(accountNick, accountEmail, subject, downloadUtc, downloadSize, 
@@ -166,7 +167,7 @@ SQL_CREATE_TABLE_TODO = '''
         content TEXT,
         createdTime INTEGER,
         reminderTime INTEGER,
-        done INTEGER,
+        isdone INTEGER,
         isdeleted INTEGER,
         source TEXT,
         deleted INT, 
@@ -174,7 +175,7 @@ SQL_CREATE_TABLE_TODO = '''
     )'''
 
 SQL_INSERT_TABLE_TODO = '''
-    insert into todo(content, createdTime, reminderTime, done, deleted, source, deleted, repeated)
+    insert into todo(content, createdTime, reminderTime, isdone, isdeleted, source, deleted, repeated)
         values(?, ?, ?, ?, ?, ?, ?, ?)'''
 
 
@@ -236,6 +237,10 @@ class MM(object):
     def db_insert_table_attach(self,Attach):
         if self.cursor is not None:
             self.cursor.execute(SQL_INSERT_TABLE_ATTACH, Attach.get_values())
+
+    def db_insert_table_todo(self,Todo):
+        if self.cursor is not None:
+            self.cursor.execute(SQL_INSERT_TABLE_TODO, Todo.get_values())
 
     def db_insert_table_search(self,Search):
         pass
@@ -304,9 +309,6 @@ class Accounts(Column):
         self.accountImage, self.accountSign) + super(Accounts,self).get_values()
 
 
-
-
-
 class Contact(Column):
     def __init__(self):
         super(Contact, self).__init__()
@@ -329,7 +331,6 @@ class Contact(Column):
         self.contactEmail,self.contactNick, self.groupName, self.alias, self.accountEmail) + super(Contact, self).get_values()
 
 
-
 class MailFolder(Column):
     def __init__(self):
         super(MailFolder, self).__init__()
@@ -345,6 +346,7 @@ class MailFolder(Column):
 class Attach(Column):
     def __init__(self):
         super(Attach, self).__init__()
+        self.mailId = None
         self.accountNick = None
         self.acocuntEmail = None
         self.subject = None
@@ -360,9 +362,26 @@ class Attach(Column):
         self.emailFolder = None
 
     def get_values(self):
-        return (self.accountNick, self.acocuntEmail, self.subject, self.downloadUtc,
+        return (self.mailId, self.accountNick, self.acocuntEmail, self.subject, self.downloadUtc,
         self.downloadSize, self.fromEmail, self.fromNick, self.mailUtc,
         self.attachName, self.exchangeField, self.attachType, self.attachDir, self.emailFolder) + super(Attach, self).get_values()
+
+
+class Todo(Column):
+    def __init__(self):
+        super(Todo, self).__init__()
+        self.content = None
+        self.createdTime = None
+        self.reminderTime = None
+        self.isdone = None
+        self.deleted = None
+
+    def get_values(self):
+        return (self.content,
+                self.createdTime,
+                self.reminderTime,
+                self.isdone,
+                self.deleted) + super(Todo, self).get_values()
 
 
 class Search(Column):
