@@ -369,3 +369,6 @@ def analyze_addressbook(node, extractDeleted, extractSource):
         message = ex.message
     prog.Report(100,message)
     return pr
+
+def execute(node,extracteDeleted):
+    return analyze_addressbook(node,extracteDeleted,False)
