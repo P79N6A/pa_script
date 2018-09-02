@@ -139,7 +139,7 @@ class YouXinParser(model_im.IM):
                 friend.friend_id = contactid
                 friend.type = model_im.FRIEND_TYPE_FRIEND
                 friend.nickname = rec['[name]'].Value
-                self.contacts[contactid]['name'] = friend.username
+                self.contacts[contactid]['name'] = friend.nickname
                 friend.photo = rec['[small_head_image_url]'].Value
                 friend.signature = rec['[signature]'].Value
                 friend.gender = 1 if rec['[sex]'].Value == '男' else 2
