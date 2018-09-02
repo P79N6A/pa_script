@@ -65,22 +65,14 @@ class WeChatParser(model_im.IM):
         self.root = node.Parent.Parent
         self.extract_deleted = False  # extract_deleted
         self.extract_source = extract_source
-        self.is_valid_user_dir = self._is_valid_user_dir()
 
     def parse(self):
-        if not self.is_valid_user_dir:
-            return []
-
         self.user_hash = self.get_user_hash()
-        self.APP_NAME = self.get_app_name()
         self.mount_dir = self.root.FileSystem.MountPoint
-        self.cache_path = ds.OpenCachePath('wechat')
+        self.cache_path = os.path.join(ds.OpenCachePath('wechat'), self.get_user_guid())
         if not os.path.exists(self.cache_path):
             os.makedirs(self.cache_path)
         self.cache_db = os.path.join(self.cache_path, self.user_hash + '.db')
-        self.like_id = 1
-        self.comment_id = 1
-        self.location_id = 1
 
         if self.need_parse(self.cache_db, VERSION_APP_VALUE):
             self.db_create(self.cache_db)
@@ -88,13 +80,14 @@ class WeChatParser(model_im.IM):
             self.contacts = {}
             self.user_account = model_im.Account()
 
-            user_plist = self.root.GetByPath('mmsetting.archive')
-            if user_plist is not None and user_plist.Deleted == DeletedState.Intact:
-                self._get_user_from_setting(user_plist)
-                self._parse_user_contact_db(self.root.GetByPath('/DB/WCDB_Contact.sqlite'))
-                self._parse_user_mm_db(self.root.GetByPath('/DB/MM.sqlite'))
-                self._parse_user_wc_db(self.root.GetByPath('/wc/wc005_008.db'))
-                self._parse_user_fts_db(self.root.GetByPath('/fts/fts_message.db'))
+            if not self._get_user_from_setting(self.root.GetByPath('mmsetting.archive')):
+                self.user_account.account_id = self.user_hash
+                self.db_insert_table_account(self.user_account)
+                self.db_commit()
+            self._parse_user_contact_db(self.root.GetByPath('/DB/WCDB_Contact.sqlite'))
+            self._parse_user_mm_db(self.root.GetByPath('/DB/MM.sqlite'))
+            self._parse_user_wc_db(self.root.GetByPath('/wc/wc005_008.db'))
+            self._parse_user_fts_db(self.root.GetByPath('/fts/fts_message.db'))
 
             # 数据库填充完毕，请将中间数据库版本和app数据库版本插入数据库，用来检测app是否需要重新解析
             self.db_insert_table_version(model_im.VERSION_KEY_DB, model_im.VERSION_VALUE_DB)
@@ -111,21 +104,22 @@ class WeChatParser(model_im.IM):
         models = model_im.GenerateModel(self.cache_db, self.mount_dir).get_models()
         return models
 
-    def _is_valid_user_dir(self):
-        if self.root is None:
-            return False
-        if self.root.GetByPath('mmsetting.archive') is None:
-            return False
-        if self.root.GetByPath('/DB/MM.sqlite') is None:
-            return False
-        return True
+    #def _is_valid_user_dir(self):
+    #    if self.root is None:
+    #        return False
+    #    if self.root.GetByPath('mmsetting.archive') is None:
+    #        return False
+    #    if self.root.GetByPath('/DB/MM.sqlite') is None:
+    #        return False
+    #    return True
 
     def get_user_hash(self):
         path = self.root.AbsolutePath
         return os.path.basename(os.path.normpath(path))
 
-    def get_app_name(self):
-        return '微信'
+    def get_user_guid(self):
+        path = self.root.Parent.Parent.AbsolutePath
+        return os.path.basename(os.path.normpath(path))
 
     #def _get_user_nodes(self):
     #    user_nodes = []
@@ -136,13 +130,16 @@ class WeChatParser(model_im.IM):
     #    return user_nodes
     
     def _get_user_from_setting(self, user_plist):
+        if user_plist is None:
+            return False
+
         root = None
         try:
             root = BPReader.GetTree(user_plist)
         except:
-            return
+            return False
         if not root or not root.Children:
-            return
+            return False
 
         self.user_account.account_id = self._bpreader_node_get_string_value(root, 'UsrName')
         self.user_account.nickname = self._bpreader_node_get_string_value(root, 'NickName')
@@ -163,6 +160,8 @@ class WeChatParser(model_im.IM):
         self.user_account.source = user_plist.AbsolutePath
         self.db_insert_table_account(self.user_account)
         self.db_commit()
+
+        return True
 
     def _parse_user_contact_db(self, node):
         if node is None:
@@ -267,13 +266,27 @@ class WeChatParser(model_im.IM):
         if not db:
             return False
 
+        tables = {}
         for username in self.contacts.keys():
             m = hashlib.md5()
             m.update(username.encode('utf8'))
             user_hash = m.hexdigest()
             table = 'Chat_' + user_hash
-            if table not in db.Tables:
+            tables[table] = username
+        # add self
+        m = hashlib.md5()
+        m.update(self.user_account.account_id.encode('utf8'))
+        user_hash = m.hexdigest()
+        table = 'Chat_' + user_hash
+        tables[table] = self.user_account.account_id
+
+        for table in db.Tables:
+            if not table.startswith('Chat_'):
                 continue
+            if table in tables:
+                username = tables[table]
+            else:
+                username = table[5:]
             ts = SQLiteParser.TableSignature(table)
             SQLiteParser.Tools.AddSignatureToTable(ts, "Message", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
             for rec in db.ReadTableRecords(ts, self.extract_deleted):
@@ -295,19 +308,14 @@ class WeChatParser(model_im.IM):
                 message.type = self._convert_msg_type(msg_type)
                 message.send_time = self._db_record_get_value(rec, 'CreateTime')
                 if username.endswith("@chatroom"):
-                    content, media_path, sender_id = self._process_parse_group_message(msg, msg_type, msg_local_id, is_sender, self.root, user_hash, message)
-                    message.sender_id = sender_id
-                    message.sender_name = self.contacts.get(sender_id, {}).get('nickname')
-                    message.content = content
-                    message.media_path = media_path
+                    self._process_parse_group_message(msg, msg_type, msg_local_id, is_sender, self.root, user_hash, message)
+                    message.sender_name = self.contacts.get(message.sender_id, {}).get('nickname')
                     message.talker_type = model_im.CHAT_TYPE_GROUP
                 else:
-                    content, media_path = self._process_parse_friend_message(msg, msg_type, msg_local_id, self.root, user_hash, message)
                     message.sender_id = self.user_account.account_id if is_sender else username
+                    self._process_parse_friend_message(msg, msg_type, msg_local_id, self.root, user_hash, message)
                     message.sender_name = self.contacts.get(message.sender_id, {}).get('nickname')
-                    message.content = content
-                    message.media_path = media_path
-                    message.talker_type = model_im.CHAT_TYPE_FRIEND if certification_flag == 0 else model_im.CHAT_TYPE_OFFICIAL
+                    message.talker_type = model_im.CHAT_TYPE_FRIEND if certification_flag == 0 else model_im.CHAT_TYPE_SUBSCRIBE
                 try:
                     self.db_insert_table_message(message)
                 except Exception as e:
@@ -360,12 +368,11 @@ class WeChatParser(model_im.IM):
                         location = model_im.Location()
                         location.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
                         location.source = node.AbsolutePath
-                        location.location_id = self.location_id
                         location.latitude = self._bpreader_node_get_float_value(location_node, 'location_latitude')
                         location.longitude = self._bpreader_node_get_float_value(location_node, 'location_longitude')
                         location.address = self._bpreader_node_get_string_value(location_node, 'poiName')
                         self.db_insert_table_location(location)
-                        self.location_id += 1
+                        feed.location = location.location_id
 
                     if 'contentObj' in root.Children:
                         content_node = root.Children['contentObj']
@@ -403,7 +410,6 @@ class WeChatParser(model_im.IM):
                                 fl = model_im.FeedLike()
                                 fl.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
                                 fl.source = node.AbsolutePath
-                                fl.like_id = self.like_id
                                 fl.sender_id = sender_id
                                 fl.sender_name = self._bpreader_node_get_string_value(like_node, 'nickname')
                                 try:
@@ -412,11 +418,9 @@ class WeChatParser(model_im.IM):
                                     pass
                                 try:
                                     self.db_insert_table_feed_like(fl)
-                                    likes.append(self.like_id)
+                                    likes.append(fl.like_id)
                                 except Exception as e:
                                     pass
-
-                                self.like_id += 1
                     feed.likes = ','.join(str(item) for item in likes)
 
                     comments = []
@@ -428,7 +432,6 @@ class WeChatParser(model_im.IM):
                                 fc = model_im.FeedComment()
                                 fc.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
                                 fc.source = node.AbsolutePath
-                                fc.comment_id = self.comment_id
                                 fc.sender_id = sender_id
                                 fc.sender_name = self._bpreader_node_get_string_value(comment_node, 'nickname')
                                 fc.ref_user_id = self._bpreader_node_get_string_value(comment_node, 'refUserName')
@@ -436,11 +439,9 @@ class WeChatParser(model_im.IM):
                                 fc.create_time = self._bpreader_node_get_int_value(comment_node, 'createTime', None)
                                 try:
                                     self.db_insert_table_feed_comment(fc)
-                                    comments.append(self.comment_id)
+                                    comments.append(fc.comment_id)
                                 except Exception as e:
                                     pass
-
-                                self.comment_id += 1
                     feed.comments = ','.join(str(item) for item in comments)
 
                     try:
@@ -496,7 +497,7 @@ class WeChatParser(model_im.IM):
                 if username.endswith('@chatroom'):
                     message.talker_type = model_im.CHAT_TYPE_GROUP
                 else:
-                    message.talker_type = model_im.CHAT_TYPE_FRIEND if certification_flag == 0 else model_im.CHAT_TYPE_OFFICIAL
+                    message.talker_type = model_im.CHAT_TYPE_FRIEND if certification_flag == 0 else model_im.CHAT_TYPE_SUBSCRIBE
                 message.content = content
                 try:
                     self.db_insert_table_message(message)
@@ -628,43 +629,41 @@ class WeChatParser(model_im.IM):
                 location = model_im.Location()
                 location.deleted = model.deleted
                 location.source = model.source
-                location.location_id = self.location_id
                 self._process_parse_message_location(content, location)
-                model.extra_id = self.location_id
-                self.location_id += 1
+                model.extra_id = location.location_id
                 self.db_insert_table_location(location)
             node = user_node.GetByPath('Location/{0}/{1}.pic_thum'.format(friend_hash, msg_local_id))
             if node is not None:
                 img_path = node.AbsolutePath
         elif msg_type == MSG_TYPE_LINK:
-            content = self._process_parse_message_link(content)
+            content = self._process_parse_message_link(content, model)
         elif msg_type == MSG_TYPE_VOIP:
-            pass
+            content = self._process_parse_message_voip(content)
         elif msg_type == MSG_TYPE_VOIP_GROUP:
-            pass
+            content = self._process_parse_message_voip_group(content)
         elif msg_type == MSG_TYPE_SYSTEM or msg_type == MSG_TYPE_SYSTEM_2:
             pass
         else:  # MSG_TYPE_TEXT
             pass
 
-        return content, img_path
+        model.content = content
+        model.media_path = img_path
 
     def _process_parse_group_message(self, msg, msg_type, msg_local_id, is_sender, user_node, group_hash, model):
-        sender = self.user_account.account_id
+        sender_id = self.user_account.account_id
         content = msg
         img_path = ''
 
         if not is_sender:
             index = msg.find(':\n')
             if index != -1:
-                sender = msg[:index]
+                sender_id = msg[:index]
                 content = msg[index+2:]
 
-        content, img_path = self._process_parse_friend_message(content, msg_type, msg_local_id, user_node, group_hash, model)
-        
-        return content, img_path, sender
+        model.sender_id = sender_id
+        self._process_parse_friend_message(content, msg_type, msg_local_id, user_node, group_hash, model)
 
-    def _process_parse_message_link(self, xml_str):
+    def _process_parse_message_link(self, xml_str, model):
         content = ''
         xml = None
         try:
@@ -679,35 +678,51 @@ class WeChatParser(model_im.IM):
                         msg_type = int(appmsg.Element('type').Value) if appmsg.Element('type') else 0
                     except Exception as e:
                         msg_type = 0
-                    msg_title = appmsg.Element('title').Value if appmsg.Element('title') else ''
-                    mmreader = appmsg.Element('mmreader')
-                    if msg_title == '微信红包':
-                        content += '[标题]' + msg_title + '\n'  # type 2001  wcpayinfo
-                    elif msg_title == '微信转账':
-                        # type 2000  wcpayinfo
-                        content += '[标题]' + msg_title + '\n'
-                        if appmsg.Element('des'):
-                            content += '[内容]' + appmsg.Element('des').Value + '\n'
-                    elif mmreader:
-                        category = mmreader.Element('category')
-                        if category and category.Element('item'):
-                            item = category.Element('item')
-                            if item.Element('title'):
-                                content += '[标题]' + item.Element('title').Value + '\n'
-                            if item.Element('digest'):
-                                content += '[内容]' + item.Element('digest').Value + '\n'
-                            if item.Element('url'):
-                                content += '[链接]' + item.Element('url').Value + '\n'
+                    if msg_type in [2000, 2001]:
+                        deal, sender_id = self._process_parse_message_deal(xml)
+                        deal.deleted = model.deleted
+                        deal.source = model.source
+                        if deal.type == model_im.DEAL_TYPE_RED_ENVELPOE:
+                            model.type = model_im.MESSAGE_CONTENT_TYPE_RED_ENVELPOE
+                            model.extra_id = deal.deal_id
+                            if model.sender_id in [None, ''] and sender_id not in [None, '']:
+                                model.sender_id = sender_id
+                            self.db_insert_table_deal(deal)
+                        elif deal.type == model_im.DEAL_TYPE_RECEIPT:
+                            model.type = model_im.MESSAGE_CONTENT_TYPE_RECEIPT
+                            model.extra_id = deal.deal_id
+                            if model.sender_id in [None, ''] and sender_id not in [None, '']:
+                                model.sender_id = sender_id
+                            self.db_insert_table_deal(deal)
+                        elif deal.type == model_im.DEAL_TYPE_AA_RECEIPT:
+                            model.type = model_im.MESSAGE_CONTENT_TYPE_AA_RECEIPT
+                            model.extra_id = deal.deal_id
+                            if model.sender_id in [None, ''] and sender_id not in [None, '']:
+                                model.sender_id = sender_id
+                            self.db_insert_table_deal(deal)
                     else:
-                        if appmsg.Element('title'):
-                            content += '[标题]' + appmsg.Element('title').Value + '\n'
-                        if appmsg.Element('des'):
-                            content += '[内容]' + appmsg.Element('des').Value + '\n'
-                        if appmsg.Element('url'):
-                            content += '[链接]' + appmsg.Element('url').Value + '\n'
-                        appinfo = xml.Element('appinfo')
-                        if appinfo and appinfo.Element('appname'):
-                            content += '[来自]' + appinfo.Element('appname').Value
+                        msg_title = appmsg.Element('title').Value if appmsg.Element('title') else ''
+                        mmreader = appmsg.Element('mmreader')
+                        if mmreader:
+                            category = mmreader.Element('category')
+                            if category and category.Element('item'):
+                                item = category.Element('item')
+                                if item.Element('title'):
+                                    content += '[标题]' + item.Element('title').Value + '\n'
+                                if item.Element('digest'):
+                                    content += '[内容]' + item.Element('digest').Value + '\n'
+                                if item.Element('url'):
+                                    content += '[链接]' + item.Element('url').Value + '\n'
+                        else:
+                            if appmsg.Element('title'):
+                                content += '[标题]' + appmsg.Element('title').Value + '\n'
+                            if appmsg.Element('des'):
+                                content += '[内容]' + appmsg.Element('des').Value + '\n'
+                            if appmsg.Element('url'):
+                                content += '[链接]' + appmsg.Element('url').Value + '\n'
+                            appinfo = xml.Element('appinfo')
+                            if appinfo and appinfo.Element('appname'):
+                                content += '[来自]' + appinfo.Element('appname').Value
                 else:
                     pass
             elif xml.Name.LocalName == 'mmreader':
@@ -737,6 +752,56 @@ class WeChatParser(model_im.IM):
         else:
             return xml_str
 
+    def _process_parse_message_deal(self, xml_element):
+        sender_id = None
+        deal = model_im.Deal()
+        if xml_element.Name.LocalName == 'msg':
+            appmsg = xml_element.Element('appmsg')
+            if appmsg is not None:
+                wcpayinfo = appmsg.Element('wcpayinfo')
+                if appmsg.Element('des') is not None:
+                    deal.description = appmsg.Element('des').Value
+                try:
+                    msg_type = int(appmsg.Element('type').Value) if appmsg.Element('type') else 0
+                except Exception as e:
+                    msg_type = 0
+                if msg_type == 2000:
+                    deal.type = model_im.DEAL_TYPE_RECEIPT
+                    if wcpayinfo is not None:
+                        if wcpayinfo.Element('feedesc') is not None:
+                            deal.money = wcpayinfo.Element('feedesc').Value
+                        if wcpayinfo.Element('invalidtime') is not None:
+                            try:
+                                deal.expire_time = int(wcpayinfo.Element('invalidtime').Value)
+                            except Exception as e:
+                                pass
+                        if wcpayinfo.Element('pay_memo') is not None:
+                            deal.remark = wcpayinfo.Element('pay_memo').Value
+                elif msg_type == 2001:
+                    if wcpayinfo is not None:
+                        newaa = wcpayinfo.Element('newaa')
+                        newaatype = 0
+                        if newaa and newaa.Element('newaatype'):
+                            try:
+                                newaatype = int(newaa.Element('newaatype').Value)
+                            except Exception as e:
+                                pass
+                        if newaatype != 0:
+                            deal.type = model_im.DEAL_TYPE_AA_RECEIPT
+                            if wcpayinfo.Element('receiverdes'):
+                                deal.description = wcpayinfo.Element('receiverdes').Value
+                            if wcpayinfo.Element('receivertitle'):
+                                deal.remark = wcpayinfo.Element('receivertitle').Value
+                        else:
+                            deal.type = model_im.DEAL_TYPE_RED_ENVELPOE
+                            if wcpayinfo.Element('receivertitle'):
+                                deal.remark = wcpayinfo.Element('receivertitle').Value
+
+            fromusername = xml_element.Element('fromusername')
+            if fromusername is not None:
+                sender_id = fromusername.Value
+        return deal, sender_id
+
     def _process_parse_message_location(self, xml_str, model):
         xml = None
         try:
@@ -762,15 +827,57 @@ class WeChatParser(model_im.IM):
         content = ''
         xml = None
         try:
+            xml_str = '<root>' + xml_str + '</root>'
             xml = XElement.Parse(xml_str)
         except Exception as e:
             pass
         if xml is not None:
-            pass
-        return content
+            voipinvitemsg = xml.Element('voipinvitemsg')
+            if voipinvitemsg:
+                if voipinvitemsg.Element('invitetype'):
+                    try:
+                        invitetype = int(voipinvitemsg.Element('invitetype').Value)
+                    except Exception as e:
+                        invitetype = None
+                    if invitetype == 0:
+                        content += '[视频通话]'
+                    elif invitetype == 1:
+                        content += '[语音通话]'
+            voiplocalinfo = xml.Element('voiplocalinfo')
+            if voiplocalinfo:
+                duration = 0
+                if voiplocalinfo.Element('duration'):
+                    duration = voiplocalinfo.Element('duration').Value
+                if voiplocalinfo.Element('wordingtype'):
+                    try:
+                        wordingtype = int(voiplocalinfo.Element('wordingtype').Value)
+                    except Exception as e:
+                        wordingtype = None
+                    if wordingtype == 4:
+                        content += '通话时长{0}秒'.format(duration)
+                    elif wordingtype == 1:
+                        content += '已取消'
+                    elif wordingtype == 8:
+                        content += '已拒绝'
+        if content not in [None, '']:
+            return content
+        else:
+            return xml_str
 
     def _process_parse_message_voip_group(self, msg):
-        pass
+        content = ''
+        info = None
+        try:
+            info = json.loads(msg)
+        except Exception as e:
+            pass
+        if info is not None:
+            content = info.get('msgContent')
+
+        if content not in [None, '']:
+            return content
+        else:
+            return msg
 
     @staticmethod
     def _db_record_get_value(record, column, default_value=None):

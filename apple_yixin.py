@@ -150,7 +150,7 @@ class YiXinParser(model_im.IM):
         if self.user is None:
             return False
         
-        for contact_id in self.contacts:
+        for contact_id in self.contacts.keys():
             dbPath = self.root.GetByPath('/Documents/' + self.user + '/msg2.db')
             db = SQLiteParser.Database.FromNode(dbPath)
             if not db:
@@ -179,9 +179,11 @@ class YiXinParser(model_im.IM):
                     message.content = rec['msg_body'].Value
                     contact_type = rec['msg_type']
                     if contact_type == 1:
-                        message.talker_type = model_im.USER_TYPE_FRIEND
+                        message.talker_type = model_im.CHAT_TYPE_FRIEND
                     if contact_type == 2:
-                        message_talker_type == model_im.USER_TYPE_CHATROOM
+                        message.talker_type = model_im.CHAT_TYPE_GROUP
+                    if contact_type == 6:
+                        message.talker_type = model_im.CHAT_TYPE_OFFICIAL
                     message.media_path = self.parse_message_content(message.content, message.type)
                     if message.type == model_im.MESSAGE_CONTENT_TYPE_LOCATION:
                         message.location = self.get_location(message.content, message.send_time, message.deleted, message.repeated)
@@ -214,8 +216,8 @@ class YiXinParser(model_im.IM):
             msgtype = model_im.MESSAGE_CONTENT_TYPE_VIDEO
         if type == 4:
             msgtype = model_im.MESSAGE_CONTENT_TYPE_LOCATION
-        if type == 7:
-            msgtype = model_im.MESSAGE_CONTENT_TYPE_CHARTLET
+        #if type == 7:
+        #    msgtype = model_im.MESSAGE_CONTENT_TYPE_CHARTLET
         return msgtype
     
     def parse_message_content(self, content, type):
@@ -234,10 +236,10 @@ class YiXinParser(model_im.IM):
                 node = self.root.GetByPath('/Documents/' + self.user + '/image')
                 if node is not None:
                     media_path = os.path.join(node.AbsolutePath, object['filename'])
-            if type == model_im.MESSAGE_CONTENT_TYPE_CHARTLET:
-                node = self.root.GetByPath('/Documents/' + self.user + '/chartlet')
-                if node is not None:
-                    media_path = os.path.join(node.AbsolutePath, object['filename'])
+            #if type == model_im.MESSAGE_CONTENT_TYPE_CHARTLET:
+            #    node = self.root.GetByPath('/Documents/' + self.user + '/chartlet')
+            #    if node is not None:
+            #        media_path = os.path.join(node.AbsolutePath, object['filename'])
         except:
             pass
         return media_path

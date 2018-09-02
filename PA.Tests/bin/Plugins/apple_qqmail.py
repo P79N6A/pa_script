@@ -85,9 +85,9 @@ class MailParser(object):
                 mails.fromEmail = row[5]  #发件人邮箱
                 mails.receiveUtc = row[6]  #收件时间
                 mails.size = row[7]  #邮件大小
-                mails.tos = row[8]  #收件人信息（"收件人昵称"<收件人邮箱>）
-                mails.cc = row[9]
-                mails.bcc = row[10]
+                mails.tos = self._deal(row[8])  #收件人信息（"收件人昵称"<收件人邮箱>）
+                mails.cc = self._deal(row[9])
+                mails.bcc = self._deal(row[10])
                 mails.ip = row[11]  #收件人ip
                 mails.isForward = row[12]
                 mails.isRead = row[13]
@@ -235,6 +235,17 @@ class MailParser(object):
         """
         pass
 
+    def _deal(self, row):
+        str = "".join(row)
+        lst = str.replace(' <',",").replace('<',",").replace('>;',",").split(',')
+        for i in range(len(lst)-1):
+            if i%2 == 0:
+                temp = lst[i]
+                lst[i] = lst[i+1]
+                lst[i+1] = temp
+        str = " ".join(lst)
+        return str
+
 
     def parse(self):
         self.analyze_mails()
@@ -249,7 +260,7 @@ class MailParser(object):
 
         generate = Generate(self.cachedb)
         models = generate.get_models()
-        return []
+        return models
     
 
 

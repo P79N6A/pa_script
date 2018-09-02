@@ -24,7 +24,7 @@ SQL_CREATE_TABLE_MAILS = '''
         subject TEXT,
         abstract TEXT,
         fromEmail TEXT, 
-        receiveUtc REAL,
+        receiveUtc INTEGER,
         size INTEGER,
         tos TEXT,
         cc TEXT,
@@ -132,6 +132,7 @@ SQL_INSERT_TABLE_MAIL_FOLDER_ANDROID = '''
 
 SQL_CREATE_TABLE_ATTACH = '''
     create table if not exists attach(
+        mailId INT,
         accountNick TEXT,
         accountEmail TEXT,
         subject TEXT,
@@ -151,14 +152,14 @@ SQL_CREATE_TABLE_ATTACH = '''
     )'''
 
 SQL_INSERT_TABLE_ATTACH = '''
-    insert into attach(accountNick, accountEmail, subject, downloadUtc, downloadSize,
-    fromEmail, fromNick, mailUtc, attachName, exchangeField, attachType, emailFolder, source, deleted, repeated)
-        values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
+    insert into attach(mailId, accountNick, accountEmail, subject, downloadUtc, downloadSize,
+    fromEmail, fromNick, mailUtc, attachName, exchangeField, attachType, attachDir, emailFolder, source, deleted, repeated)
+        values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
 
 SQL_INSERT_TABLE_ATTACH_ANDROID = '''
     insert into attach(accountNick, accountEmail, subject, downloadUtc, downloadSize, 
-    fromEmail, fromNick, attachName, emailFolder, source, deleted, repeated)
-    values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    fromEmail, fromNick, attachName, attachDir, emailFolder, source, deleted, repeated)
+    values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     '''
 
 SQL_CREATE_TABLE_TODO = '''
@@ -166,7 +167,7 @@ SQL_CREATE_TABLE_TODO = '''
         content TEXT,
         createdTime INTEGER,
         reminderTime INTEGER,
-        done INTEGER,
+        isdone INTEGER,
         isdeleted INTEGER,
         source TEXT,
         deleted INT, 
@@ -174,7 +175,7 @@ SQL_CREATE_TABLE_TODO = '''
     )'''
 
 SQL_INSERT_TABLE_TODO = '''
-    insert into todo(content, createdTime, reminderTime, done, deleted, source, deleted, repeated)
+    insert into todo(content, createdTime, reminderTime, isdone, isdeleted, source, deleted, repeated)
         values(?, ?, ?, ?, ?, ?, ?, ?)'''
 
 
@@ -237,6 +238,10 @@ class MM(object):
         if self.cursor is not None:
             self.cursor.execute(SQL_INSERT_TABLE_ATTACH, Attach.get_values())
 
+    def db_insert_table_todo(self,Todo):
+        if self.cursor is not None:
+            self.cursor.execute(SQL_INSERT_TABLE_TODO, Todo.get_values())
+
     def db_insert_table_search(self,Search):
         pass
 
@@ -287,33 +292,7 @@ class Mails(Column):
         self.isRead,self.isRecalled,self.sendStatus,self.account_email,self.alias,
         self.mail_folder, self.content, self.downloadUtc, 
         self.downloadSize, self.attachName, self.exchangeField, self.attachDir, self.attach_object) + super(Mails, self).get_values()
-
-class Mails_Android(Column):
-    def __init__(self):
-        super(Mails_Android,self).__init__()
-        self.mailId = None
-        self.accountId = None
-        self.subject = None
-        self.abstract = None
-        self.fromEmail = None
-        self.receiveUtc = None
-        self.size = None
-        self.tos = None
-        self.isRead = None
-        self.account_email = None
-        self.alias = None
-        self.mail_folder = None
-        self.content = None
-        self.downloadSize = None
-        self.attachName = None
-        self.attachDir = None
-    
-    def get_values(self):
-        return (self.mailId, self.accountId, self.subject, self.abstract, self.fromEmail, self.receiveUtc, self.size, self.tos, 
-        self.isRead, self.account_email, self.alias, self.mail_folder, self.content, self.downloadSize, self.attachName, self.attachDir,
-        self.source, self.deleted, self.repeated) + super(Mails_Android, self).get_values()
-    
-
+   
 
 class Accounts(Column):
     def __init__(self):
@@ -328,18 +307,6 @@ class Accounts(Column):
     def get_values(self):
         return (self.accountId, self.alias, self.accountEmail, self.loginDate,
         self.accountImage, self.accountSign) + super(Accounts,self).get_values()
-
-
-class Accounts_Android(Column):
-    def __init__(self):
-        super(Accounts_Android, self).__init__()
-        self.accountId = None
-        self.alias = None
-        self.accountEmail = None
-
-    def get_values(self):
-        return (self.accountId, self.alias, self.accountEmail, self.source, self.deleted, self.repeated) + super(Accounts_Android, self).get_values()
-
 
 
 class Contact(Column):
@@ -364,18 +331,6 @@ class Contact(Column):
         self.contactEmail,self.contactNick, self.groupName, self.alias, self.accountEmail) + super(Contact, self).get_values()
 
 
-class Contact_Android(Column):
-    def __init__(self):
-        super(Contact_Android, self).__init__()
-        self.contactName = None
-        self.contactEmail = None
-        self.contactNick = None
-        self.accountEmail = None
-
-    def get_values(self):
-        return (self.contactName, self.contactEmail, self.contactNick, self.accountEmail) + super(Contact_Android, self).get_values()
-
-
 class MailFolder(Column):
     def __init__(self):
         super(MailFolder, self).__init__()
@@ -388,20 +343,10 @@ class MailFolder(Column):
         return (self.folderTtpe, self.folderName, self.accountNick, self.accountEmail) + super(MailFolder, self).get_values()
 
 
-class MailFolder_Android(Column):
-    def __init__(self):
-        super(MailFolder_Android, self).__init__()
-        self.folderName = None
-        self.accountNick = None
-        self.accountEmail = None
-
-    def get_values(self):
-        return (self.folderName, self.accountNick, self.accountEmail) + super(MailFolder_Android, self).get_values()
-
-
 class Attach(Column):
     def __init__(self):
         super(Attach, self).__init__()
+        self.mailId = None
         self.accountNick = None
         self.acocuntEmail = None
         self.subject = None
@@ -413,29 +358,30 @@ class Attach(Column):
         self.attachName = None
         self.exchangeField = None
         self.attachType = None
+        self.attachDir = None
         self.emailFolder = None
 
     def get_values(self):
-        return (self.accountNick, self.acocuntEmail, self.subject, self.downloadUtc,
+        return (self.mailId, self.accountNick, self.acocuntEmail, self.subject, self.downloadUtc,
         self.downloadSize, self.fromEmail, self.fromNick, self.mailUtc,
-        self.attachName, self.exchangeField, self.attachType, self.emailFolder) + super(Attach, self).get_values()
+        self.attachName, self.exchangeField, self.attachType, self.attachDir, self.emailFolder) + super(Attach, self).get_values()
 
 
-class Attach_Android(Column):
+class Todo(Column):
     def __init__(self):
-        super(Attach_Android, self).__init__()
-        self.accountNick = None
-        self.accountEmail = None
-        self.subject = None
-        self.downloadUtc = None
-        self.downloadSize = None
-        self.fromEmail = None
-        self.fromNick = None
-        self.attachName = None
-        self.emailFolder = None
+        super(Todo, self).__init__()
+        self.content = None
+        self.createdTime = None
+        self.reminderTime = None
+        self.isdone = None
+        self.deleted = None
 
     def get_values(self):
-        return (self.accountNick, self.accountEmail, self.subject, self.downloadUtc, self.downloadSize, self.fromEmail, self.fromNick, self.attachName, self.emailFolder) + super(Attach_Android, self).get_values()
+        return (self.content,
+                self.createdTime,
+                self.reminderTime,
+                self.isdone,
+                self.deleted) + super(Todo, self).get_values()
 
 
 class Search(Column):
@@ -485,31 +431,40 @@ class Generate(object):
                 mailMessage.Status.Value = MessageStatus.Unread if row[11] == 0 else MessageStatus.Read
             mailMessage.Subject.Value = row[1]
             mailMessage.Body.Value = row[17]
-            mailMessage.TimeStamp.Value = TimeStamp.FromUnixTime(row[4], False)
+            mailMessage.TimeStamp.Value = TimeStamp.FromUnixTime(row[4], False)  
             party = Generic.Party()
             party.Identifier.Value = row[3]
             if row[9] is not None:
                 party.IPAddresses.Add(str(row[9]))                
             party.DatePlayed.Value = TimeStamp.FromUnixTime(row[4], False)
             mailMessage.From.Value = party
-            tos = row[6].split(';')
-            for t in range(len(tos)-1):
-                party = Generic.Party()
-                party.Identifier.Value = tos[t]
-                party.DatePlayed.Value = TimeStamp.FromUnixTime(row[4], False)
-                mailMessage.To.Add(party)
-            cc = row[7].split(';')
-            for c in range(len(cc)-1):
-                party = Generic.Party()
-                party.Identifier.Value = cc[c]
-                party.DatePlayed.Value = TimeStamp.FromUnixTime(row[4], False)
-                mailMessage.Cc.Add(party)
-            bcc = row[8].split(';')
-            for b in range(len(bcc)-1):
-                party = Generic.Party()
-                party.Identifier.Value = bcc[b]
-                party.DatePlayed.Value = TimeStamp.FromUnixTime(row[4], False)
-                mailMessage.BCc.Add(party)
+            if row[6] is not None:
+                tos = row[6].split(' ')
+                for t in range(len(tos)-1):
+                    if t%2 == 0:
+                        party = Generic.Party()
+                        party.Identifier.Value = tos[t]
+                        party.Name.Value = tos[t+1]
+                        party.DatePlayed.Value = TimeStamp.FromUnixTime((row[4]), False)
+                        mailMessage.To.Add(party)
+            if row[7] is not None:
+                cc = row[7].split(' ')
+                for c in range(len(cc)-1):
+                    if c%2 == 0:
+                        party = Generic.Party()
+                        party.Identifier.Value = cc[c]
+                        party.Name.Value = cc[c+1]
+                        party.DatePlayed.Value = TimeStamp.FromUnixTime((row[4]), False)
+                        mailMessage.Cc.Add(party)
+            if row[8] is not None:
+                bcc = row[8].split(' ')
+                for b in range(len(bcc)-1):
+                    if b%2 == 0:
+                        party = Generic.Party()
+                        party.Identifier.Value = bcc[b]
+                        party.Name.Value = tos[t+1]
+                        party.DatePlayed.Value = TimeStamp.FromUnixTime((row[4]), False)
+                        mailMessage.BCc.Add(party)
             if row[18] is not None:
                 for a in range(len(row[18].split(','))):
                     attachment = Generic.Attachment()
@@ -525,7 +480,8 @@ class Generate(object):
             user = Common.User()
             user.Name.Value = row[15]
             user.Username.Value = row[26]
-            user.LastLoginTime.Value = TimeStamp.FromUnixTime(row[27], False)
+            if row[27] is not None:
+                user.LastLoginTime.Value = TimeStamp.FromUnixTime(row[27], False)
             user.Email.Value = row[15]
             mailMessage.OwnerUser.Value = user
             models.append(mailMessage)
@@ -557,6 +513,7 @@ class Generate(object):
             friend.PhoneNumber.Value = row[5]
             friend.Email.Value = row[7]
             friend.Name.Value = row[8]
+            row = self.cursor.fetchone()
         return models
 
     def _get_mail_folder_models(self):

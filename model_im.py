@@ -17,6 +17,7 @@ from PA.InfraLib.Utils import *
 import os
 import sqlite3
 import json
+import uuid
 
 VERSION_VALUE_DB = 1
 
@@ -41,6 +42,7 @@ CHAT_TYPE_FRIEND = 1  # 好友聊天
 CHAT_TYPE_GROUP = 2  # 群聊天
 CHAT_TYPE_SYSTEM = 3  # 系统消息
 CHAT_TYPE_OFFICIAL = 4  # 公众号
+CHAT_TYPE_SUBSCRIBE = 5  # 订阅号
 
 MESSAGE_TYPE_SEND = 1
 MESSAGE_TYPE_RECEIVE = 2
@@ -55,6 +57,9 @@ MESSAGE_CONTENT_TYPE_LOCATION = 7  # 坐标
 MESSAGE_CONTENT_TYPE_LINK = 8  # 链接
 MESSAGE_CONTENT_TYPE_VOIP = 9  # 网络电话
 MESSAGE_CONTENT_TYPE_ATTACHMENT = 10  # 附件
+MESSAGE_CONTENT_TYPE_RED_ENVELPOE = 11  # 红包
+MESSAGE_CONTENT_TYPE_RECEIPT = 12  # 转账
+MESSAGE_CONTENT_TYPE_AA_RECEIPT = 13  # 群收款
 MESSAGE_CONTENT_TYPE_SYSTEM = 99  # 系统
 
 MESSAGE_STATUS_DEFAULT = 0
@@ -70,6 +75,14 @@ LABEL_STAR = 3
 
 PLATFORM_PC = 1
 PLATFORM_MOBILE = 2
+
+DEAL_TYPE_RED_ENVELPOE = 1  # 红包
+DEAL_TYPE_RECEIPT = 2  # 转账
+DEAL_TYPE_AA_RECEIPT = 3  # 群收款
+
+RECEIPT_STATUS_UNRECEIVE = 1  # 未领取
+RECEIPT_STATUS_RECEIVE = 2  # 已领取
+RECEIPT_STATUS_EXPIRE = 3  # 已失效
 
 VERSION_KEY_DB = 'db'
 VERSION_KEY_APP = 'app'
@@ -267,6 +280,25 @@ SQL_CREATE_TABLE_LOCATION = '''
 SQL_INSERT_TABLE_LOCATION = '''
     insert into location(location_id, latitude, longitude, elevation, address, timestamp, source, deleted, repeated) 
         values(?, ?, ?, ?, ?, ?, ?, ?, ?)'''
+        
+SQL_CREATE_TABLE_DEAL = '''
+    create table if not exists deal(
+        deal_id TEXT primary key,
+        type INT,
+        money TEXT,
+        description TEXT,
+        remark TEXT,
+        status INT,
+        expire_time INT,
+        receive_info TEXT,
+        source TEXT,
+        deleted INT DEFAULT 0, 
+        repeated INT DEFAULT 0)'''
+
+SQL_INSERT_TABLE_DEAL = '''
+    insert into deal(deal_id, type, money, description, remark, status, expire_time, 
+                     receive_info, source, deleted, repeated) 
+        values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
 
 SQL_CREATE_TABLE_VERSION = '''
     create table if not exists version(
@@ -290,6 +322,7 @@ class IM(object):
         self.cursor = self.db.cursor()
 
         self.db_create_table()
+        self.db_commit()
 
     def db_close(self):
         if self.cursor is not None:
@@ -314,6 +347,7 @@ class IM(object):
             self.cursor.execute(SQL_CREATE_TABLE_FEED_LIKE)
             self.cursor.execute(SQL_CREATE_TABLE_FEED_COMMENT)
             self.cursor.execute(SQL_CREATE_TABLE_LOCATION)
+            self.cursor.execute(SQL_CREATE_TABLE_DEAL)
             self.cursor.execute(SQL_CREATE_TABLE_VERSION)
 
     def db_insert_table_account(self, column):
@@ -351,6 +385,10 @@ class IM(object):
     def db_insert_table_location(self, column):
         if self.cursor is not None:
             self.cursor.execute(SQL_INSERT_TABLE_LOCATION, column.get_values())
+
+    def db_insert_table_deal(self, column):
+        if self.cursor is not None:
+            self.cursor.execute(SQL_INSERT_TABLE_DEAL, column.get_values())
 
     def db_insert_table_version(self, key, version):
         if self.cursor is not None:
@@ -504,7 +542,7 @@ class Message(Column):
         self.content = None  # 内容[TEXT]
         self.media_path = None  # 媒体文件地址[TEXT]
         self.send_time = None  # 发送时间[INT]
-        self.extra_id = None  # 扩展ID[TEXT]
+        self.extra_id = None  # 扩展ID[TEXT] 地址类型指向location_id、交易类型指向deal_id
         self.status = None  # 消息状态[INT]，MESSAGE_STATUS
         self.talker_type = None  # 聊天类型[INT]，CHAT_TYPE
 
@@ -541,7 +579,7 @@ class Feed(Column):
 class FeedLike(Column):
     def __init__(self):
         super(FeedLike, self).__init__()
-        self.like_id = None  # 赞ID[TEXT]
+        self.like_id = str(uuid.uuid1())  # 赞ID[TEXT]
         self.sender_id = None  # 发布者ID[TEXT]
         self.sender_name = None  # 发布者昵称[TEXT]
         self.create_time = None  # 发布时间[INT]
@@ -553,7 +591,7 @@ class FeedLike(Column):
 class FeedComment(Column):
     def __init__(self):
         super(FeedComment, self).__init__()
-        self.comment_id = None  # 评论ID[TEXT]
+        self.comment_id = str(uuid.uuid1())  # 评论ID[TEXT]
         self.sender_id = None  # 发布者ID[TEXT]
         self.sender_name = None  # 发布者昵称[TEXT]
         self.ref_user_id = None  # 回复用户ID[TEXT]
@@ -569,7 +607,7 @@ class FeedComment(Column):
 class Location(Column):
     def __init__(self):
         super(Location, self).__init__()
-        self.location_id = None  # 地址ID[TEXT]
+        self.location_id = str(uuid.uuid1())  # 地址ID[TEXT]
         self.latitude = None  # 纬度[REAL]
         self.longitude = None  # 经度[REAL]
         self.elevation = None  # 海拔[REAL]
@@ -579,6 +617,23 @@ class Location(Column):
     def get_values(self):
         return (self.location_id, self.latitude, self.longitude, self.elevation, self.address, 
                 self.timestamp) + super(Location, self).get_values()
+
+
+class Deal(Column):
+    def __init__(self):
+        super(Deal, self).__init__()
+        self.deal_id = str(uuid.uuid1())  # 交易ID[TEXT]
+        self.type = None  # 类型[INT]
+        self.money = None  # 金额[TEXT]
+        self.description = None  # 描述[TEXT]
+        self.remark = None  # 备注[TEXT]
+        self.status = None  # 状态[INT]
+        self.expire_time = None  # 失效时间[INT]
+        self.receive_info = None  # 收款信息[TEXT]
+
+    def get_values(self):
+        return (self.deal_id, self.type, self.money, self.description, self.remark, self.status,
+                self.expire_time, self.receive_info) + super(Deal, self).get_values()
 
 
 class GenerateModel(object):
@@ -621,8 +676,8 @@ class GenerateModel(object):
             user = Common.User()
             account_id = None
             contact = {}
-            if row[15]:
-                user.Source.Value = row[15]
+            if row[15] not in [None, '']:
+                user.SourceFile.Value = self._get_source_file(row[15])
             if row[16]:
                 user.Deleted = self._convert_deleted_status(row[16])
             if row[0]:
@@ -664,8 +719,7 @@ class GenerateModel(object):
             models.append(user)
 
             if account_id is not None:
-                key = account_id + "#" + account_id
-                self.friends[key] = contact
+                self.friends[self._get_user_key(account_id, account_id)] = contact
 
             row = self.cursor.fetchone()
 
@@ -689,8 +743,8 @@ class GenerateModel(object):
             account_id = None
             user_id = None
             contact = {}
-            if row[13]:
-                friend.Source.Value = row[13]
+            if row[13] not in [None, '']:
+                friend.SourceFile.Value = self._get_source_file(row[13])
             if row[14]:
                 friend.Deleted = self._convert_deleted_status(row[14])
             if row[0]:
@@ -723,13 +777,12 @@ class GenerateModel(object):
             friend.FriendType.Value = Common.FriendType.Friend
             address = Contacts.StreetAddress()
             if row[10]:
-                address.FullName = row[10]
+                address.FullName.Value = row[10]
             friend.Addresses.Add(address)
             models.append(friend)
 
             if account_id is not None and user_id is not None:
-                key = account_id + "#" + user_id
-                self.friends[key] = contact
+                self.friends[self._get_user_key(account_id, user_id)] = contact
 
             row = self.cursor.fetchone()
 
@@ -753,8 +806,8 @@ class GenerateModel(object):
             account_id = None
             user_id = None
             contact = {}
-            if row[12]:
-                group.Source.Value = row[12]
+            if row[12] not in [None, '']:
+                group.SourceFile.Value = self._get_source_file(row[12])
             if row[13]:
                 group.Deleted = self._convert_deleted_status(row[13])
             if row[0]:
@@ -764,6 +817,7 @@ class GenerateModel(object):
                 group.ID.Value = row[1]
                 user_id = row[1]
                 contact['user_id'] = row[1]
+                group.Members.AddRange(self._get_chatroom_member_models(account_id, user_id))
             if row[2]:
                 group.Name.Value = row[2]
                 contact['nickname'] = row[2]
@@ -789,8 +843,7 @@ class GenerateModel(object):
             models.append(group)
 
             if account_id is not None and user_id is not None:
-                key = account_id + "#" + user_id
-                self.chatrooms[key] = contact
+                self.chatrooms[self._get_user_key(account_id, user_id)] = contact
 
             row = self.cursor.fetchone()
 
@@ -817,8 +870,8 @@ class GenerateModel(object):
             talker_name = None
             talker_type = row[13]
 
-            if row[14]:
-                message.Source.Value = row[14]
+            if row[14] not in [None, '']:
+                message.SourceFile.Value = self._get_source_file(row[14])
             if row[15]:
                 message.Deleted = self._convert_deleted_status(row[15])
             if row[0]:
@@ -864,6 +917,18 @@ class GenerateModel(object):
             elif msg_type == MESSAGE_CONTENT_TYPE_LOCATION:
                 if row[11]:
                     message.Content.Value.Location.Value = self._get_location(row[11])
+            elif msg_type == MESSAGE_CONTENT_TYPE_RED_ENVELPOE:
+                if row[11]:
+                    message.Content.Value.RedEnvelope.Value = self._get_aareceipts(row[11])
+                    message.Content.Value.RedEnvelope.Value.OwnerUserID.Value = message.OwnerUserID.Value
+            elif msg_type == MESSAGE_CONTENT_TYPE_RECEIPT:
+                if row[11]:
+                    message.Content.Value.Receipt.Value = self._get_receipt(row[11])
+                    message.Content.Value.Receipt.Value.OwnerUserID.Value = message.OwnerUserID.Value
+            elif msg_type == MESSAGE_CONTENT_TYPE_AA_RECEIPT:
+                if row[11]:
+                    message.Content.Value.AAReceipts.Value = self._get_aareceipts(row[11])
+                    message.Content.Value.AAReceipts.Value.OwnerUserID.Value = message.OwnerUserID.Value
             #elif msg_type == MESSAGE_CONTENT_TYPE_LINK:
             #    pass
             #elif msg_type == MESSAGE_CONTENT_TYPE_VOIP:
@@ -872,13 +937,13 @@ class GenerateModel(object):
             #    pass
 
             if account_id is not None and talker_id is not None:
-                key = account_id + "#" + talker_id
+                key = self._get_user_key(account_id, talker_id)
                 if key in chats:
                     chat = chats[key]
                     chat.Messages.Add(message)
                 else:
                     chat = Generic.Chat()
-                    chat.Source.Value = message.Source.Value
+                    chat.SourceFile.Value = message.SourceFile.Value
                     chat.Deleted = self._convert_deleted_status(0)
                     chat.OwnerUserID.Value = account_id
                     chat.ChatId.Value = talker_id
@@ -903,6 +968,8 @@ class GenerateModel(object):
         return chats.values() 
 
     def _get_chatroom_member_models(self, account_id, chatroom_id):
+        if account_id in [None, ''] or chatroom_id in [None, '']:
+            return []
         models = []
         sql = '''select account_id, chatroom_id, member_id, display_name, photo, telephone, email, 
                         gender, age, address, birthday, signature, source, deleted, repeated
@@ -947,8 +1014,8 @@ class GenerateModel(object):
             moment = Common.Moment()
             moment.Content.Value = Common.MomentContent()
             account_id = None
-            if row[14]:
-                moment.Source.Value = row[14]
+            if row[14] not in [None, '']:
+                moment.SourceFile.Value = self._get_source_file(row[14])
             if row[15]:
                 moment.Deleted = self._convert_deleted_status(row[15])
             if row[0]:
@@ -984,12 +1051,15 @@ class GenerateModel(object):
 
         return models 
 
+    def _get_user_key(self, account_id, user_id):
+        return account_id + "#*#" + user_id
+
     def _get_user_intro(self, account_id, user_id, user_name=None, is_group=False):
         user = Common.UserIntro()
         user.ID.Value = user_id
 
         if account_id is not None and user_id is not None:
-            key = account_id + "#" + user_id
+            key = self._get_user_key(account_id, user_id)
             contact = None
             if is_group:
                 contact = self.chatrooms.get(key)
@@ -1021,6 +1091,9 @@ class GenerateModel(object):
         else:
             return ConvertHelper.ToUri(self.mount_dir + path.replace('/', '\\'))
 
+    def _get_source_file(self, source_file):
+        return self.mount_dir + source_file.replace('/', '\\')
+
     def _get_feed_likes(self, account_id, likes):
         models = []
         like_ids = []
@@ -1048,8 +1121,8 @@ class GenerateModel(object):
                     ts = self._get_timestamp(row[2])
                     if ts:
                         like.TimeStamp.Value = ts
-                if row[3]:
-                    like.Source.Value = row[3]
+                if row[3] not in [None, '']:
+                    like.SourceFile.Value = self._get_source_file(row[3])
                 if row[4]:
                     like.Deleted = self._convert_deleted_status(row[4])
                 models.append(like)
@@ -1091,8 +1164,8 @@ class GenerateModel(object):
                     ts = self._get_timestamp(row[5])
                     if ts:
                         comment.TimeStamp.Value = ts
-                if row[6]:
-                    comment.Source.Value = row[6]
+                if row[6] not in [None, '']:
+                    comment.SourceFile.Value = self._get_source_file(row[6])
                 if row[7]:
                     comment.Deleted = self._convert_deleted_status(row[7])
                 models.append(comment)
@@ -1130,14 +1203,86 @@ class GenerateModel(object):
                     ts = self._get_timestamp(row[4])
                     if ts:
                         location.TimeStamp.Value = ts
-                if row[5]:
-                    location.Source.Value = row[5]
+                if row[5] not in [None, '']:
+                    location.SourceFile.Value = self._get_source_file(row[5])
                 if row[6]:
                     location.Deleted = self._convert_deleted_status(row[6])
 
             if cursor is not None:
                 cursor.close()
         return location
+
+    def _get_receipt(self, deal_id):
+        receipt = Common.Receipt()
+        if deal_id is not None:
+            sql = '''select type, money, description, remark, status, expire_time, 
+                            receive_info, source, deleted, repeated
+                     from deal where deal_id='{0}' '''.format(deal_id)
+            cursor = self.db.cursor()
+            row = None
+            try:
+                cursor.execute(sql)
+                row = cursor.fetchone()
+            except Exception as e:
+                print(e)
+
+            if row is not None:
+                if row[1]:
+                    receipt.Money.Value = row[1]
+                if row[2]:
+                    receipt.Description.Value = row[2]
+                if row[3]:
+                    receipt.Remarks.Value = row[3]
+                if row[4]:
+                    receipt.Status.Value = self._convert_receipt_status(row[4])
+                if row[5]:
+                    ts = self._get_timestamp(row[5])
+                    if ts:
+                        receipt.ExpireTime.Value = ts
+                if row[7] not in [None, '']:
+                    receipt.SourceFile.Value = self._get_source_file(row[7])
+                if row[8]:
+                    receipt.Deleted = self._convert_deleted_status(row[8])
+
+            if cursor is not None:
+                cursor.close()
+        return receipt
+
+    def _get_aareceipts(self, deal_id):
+        receipt = Common.AAReceipts()
+        if deal_id is not None:
+            sql = '''select type, money, description, remark, status, expire_time, 
+                            receive_info, source, deleted, repeated
+                     from deal where deal_id='{0}' '''.format(deal_id)
+            cursor = self.db.cursor()
+            row = None
+            try:
+                cursor.execute(sql)
+                row = cursor.fetchone()
+            except Exception as e:
+                print(e)
+
+            if row is not None:
+                if row[1]:
+                    receipt.TotalMoney.Value = row[1]
+                if row[2]:
+                    receipt.Description.Value = row[2]
+                if row[3]:
+                    receipt.Remarks.Value = row[3]
+                #if row[4]:
+                #    receipt.Status.Value = self._convert_receipt_status(row[4])
+                if row[5]:
+                    ts = self._get_timestamp(row[5])
+                    if ts:
+                        receipt.ExpireTime.Value = ts
+                if row[7] not in [None, '']:
+                    receipt.SourceFile.Value = self._get_source_file(row[7])
+                if row[8]:
+                    receipt.Deleted = self._convert_deleted_status(row[8])
+
+            if cursor is not None:
+                cursor.close()
+        return receipt
 
     @staticmethod
     def _convert_friend_type(friend_type):
@@ -1179,8 +1324,19 @@ class GenerateModel(object):
             return Common.ChatType.System
         elif chat_type == CHAT_TYPE_OFFICIAL:
             return Common.ChatType.Official
+        elif chat_type == CHAT_TYPE_SUBSCRIBE:
+            return Common.ChatType.Subscribe
         else:
             return Common.ChatType.None
+
+    @staticmethod
+    def _convert_receipt_status(status):
+        if status == RECEIPT_STATUS_RECEIVE:
+            return Common.ReceiptStatus.Receive
+        elif status == RECEIPT_STATUS_EXPIRE:
+            return Common.ReceiptStatus.Expire
+        else:
+            return Common.ReceiptStatus.UnReceive
 
     @staticmethod
     def _convert_deleted_status(deleted):

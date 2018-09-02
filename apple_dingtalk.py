@@ -324,7 +324,7 @@ class Ding(object):
                 g.chatroom_id = GetString(reader, 0)
                 g.name = GetString(reader, 1)
                 # g.photo #TODO fix picture finder...
-                g.create_time = GetInt64(reader, 2)
+                g.create_time = GetInt64(reader, 2) / 1000
                 g.owner_id = GetInt64(reader, 4)
                 g.max_member_count = GetInt64(reader, 5)
                 g.member_count = GetInt64(reader, 6)
@@ -487,7 +487,7 @@ class Ding(object):
             while reader.Read():
                 s_id = GetInt64(reader, 1)
                 d_id = GetInt64(reader, 0)
-                s_time = GetInt64(reader, 2)
+                s_time = GetInt64(reader, 2) / 1000
                 s_content = GetString(reader, 3)
                 feed = model_im.Feed()
                 feed.sender_id = s_id
@@ -550,7 +550,7 @@ class Ding(object):
                 address:{}
                 method:{}
                 '''.format(s_type, addr, method)
-                feed.send_time = time
+                feed.send_time = time / 1000
                 self.im.db_insert_table_feed(feed)
             self.im.db_commit()
             cmd.Dispose()
@@ -558,8 +558,15 @@ class Ding(object):
             
 def parse_ding(root, extract_deleted, extract_source):
     #n_node = FileSystem.FromLocalDir(r'D:\ios_case\ding\5D59B4C6-C37F-43A3-86AF-312C5C3D427C')
-    d = Ding(n_node, extract_deleted, extract_source)
+    d = Ding(root, extract_deleted, extract_source)
     d.search_account()
     d.parse()
-    models = model_im.GenerateModel(d.cache_res, root.PathWithMountPoint)
+    models = model_im.GenerateModel(d.cache_res, root.PathWithMountPoint).get_models()
+    mlm = ModelListMerger()
+    pr = ParserResults()
+    pr.Categories = DescripCategories.QQ
+
+    pr.Models.AddRange(list(mlm.GetUnique(models)))
+    pr.Build('钉钉')
+    return pr
     

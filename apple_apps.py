@@ -1,11 +1,17 @@
 #coding=utf-8
 import os
+import sys
 import inspect
+
 def SafeLoadAssembly(asm):
     try:
         clr.AddReference(asm)
     except:
         pass
+
+filePath = os.path.split(os.path.realpath(__file__))[0]
+filePath = "{0}\\Lib".format(filePath)
+sys.path.append(filePath)
 
 import clr
 SafeLoadAssembly('System.Core')
@@ -24,6 +30,11 @@ SafeLoadAssembly('apple_wechat')
 SafeLoadAssembly('apple_qq')
 SafeLoadAssembly('apple_skype')
 SafeLoadAssembly('apple_exts')
+SafeLoadAssembly('apple_yixin')
+SafeLoadAssembly('apple_youxin')
+SafeLoadAssembly('apple_accts')
+SafeLoadAssembly('apple_dingtalk')
+
 del clr
 
 #导入app4tests模块,测试时用来指定只跑那些模块
@@ -43,7 +54,6 @@ APP_FILTERS =[]
 if 'TestNodes' in locals():
     APP_FILTERS.extend(TestNodes)
 
-from System.Linq import Enumerable
 from PA_runtime import *
 from apple_ab import analyze_addressbook
 from apple_notes import analyze_notes,analyze_old_notes
@@ -64,13 +74,19 @@ from apple_baidumap import analyze_baidumap
 from apple_gaodemap import analyze_gaodemap
 from apple_tencentmap import analyze_tencentmap
 from apple_neteasemail import analyze_neteasemail
-from PA.InfraLib.Services import IApplicationService,ServiceGetter
+from apple_youxin import analyze_youxin
+from apple_yixin import analyze_yixin
+from apple_accts import analyze_accounts
+from apple_dingtalk import *
 
+from PA.InfraLib.Services import IApplicationService,ServiceGetter
+from System.Linq import Enumerable
 
 """
 根据正则表达式匹配解析的应用请在此节点下配置
 """
 FIND_BY_RGX_NODES = [
+    ("/Library/Accounts/Accounts3\.sqlite$", analyze_accounts, "Accounts","账号",DescripCategories.Accounts),
     ('/DB/MM\.sqlite$', analyze_wechat, "Wechat","微信",DescripCategories.Wechat),
     ("/Library/CallHistoryDB/CallHistory\.storedata$", analyze_call_history, "Calls", "通话记录(系统)",DescripCategories.Calls),#新版本数据库兼容,别忘了老版本数据库!
     ('/PhotoData/Photos\.sqlite$', analyze_locations_from_deleted_photos, "PhotoDB","地理位置信息(已删除照片)",DescripCategories.Locations), #这里只处理照片(已删除)的地理位置信息
@@ -101,8 +117,11 @@ FIND_BY_APPS_NODES = [
     ("com.baidu.map", analyze_baidumap, "BaiduMap", "百度地图", DescripCategories.BaiduMap),
     ("com.tencent.sosomap", analyze_tencentmap, "TencentMap", "腾讯地图", DescripCategories.TencentMap),
     ("com.autonavi.amap", analyze_gaodemap, "AMap", "高德地图", DescripCategories.AMap),
-    ("com.netease.mailmaster", analyze_neteasemail, "mailMaster", "网易邮箱大师", DescripCategories.NeteasesMail),
-
+    ("com.netease.mailmaster", analyze_neteasemail, "mailMaster", "网易邮箱大师", DescripCategories.NeteaseMail),
+    ("com.telecom-guoling.feiin", analyze_youxin, "YouXin", "有信", DescripCategories.YouXin),
+    ("com.network.uxin", analyze_youxin, "YouXin", "有信", DescripCategories.YouXin),
+    ("com.yixin.yixin", analyze_yixin, "YiXin", "易信", DescripCategories.QQ),
+	("com.laiwang.DingTalk", parse_ding, "Dingtalk", "钉钉", DescripCategories.QQ),
 ]
 
 if 'FIND_BY_APPS_NODES_EXTS' in locals():
