@@ -39,35 +39,43 @@ class QQParser(object):
         self.contacts = {}  # uin to contact
         self.c2cmsgtables =set()
         self.troopmsgtables =set()
-        self.troops = collections.defaultdict()
+        self.troops = collections.defaultdict(Chatroom)
         self.im = IM()
         self.cachepath = ds.OpenCachePath("QQ")
         self.cachedb =  self.cachepath  + "/QQ.db"
-        self.im.db_create(self.cachedb)
+        #self.im.db_create(self.cachedb)
+        self.VERSION_APP_VALUE = 10000
     def parse(self):        
-        self.decode_accounts()
-        for acc_id in self.accounts:
-            self.friendsNickname.clear()
-            self.friendsGroups.clear()
-            self.groupContact.clear()
-            self.nickname = ''
-            self.contacts = {}			
-            self.troopmsgtables =[]
-            self.c2cmsgtables =set()
-            self.troopmsgtables =set()
-            self.decode_friends(acc_id)
-            self.decode_group_info(acc_id)
-            self.decode_groupMember_info(acc_id)
-            self.decode_friend_messages(acc_id)
-            self.decode_group_messages(acc_id)	
-            self.decode_fts_messages(acc_id)		
-            self.decode_db_calls(acc_id)        
-            self.decode_recover_friends(acc_id)
-            self.decode_recover_group_info(acc_id)
-            self.decode_recover_groupMember_info(acc_id)
-            self.decode_recover_friend_messages(acc_id)
-            self.decode_recover_group_messages(acc_id)
-            self.decode_recover_fts_messages(acc_id)
+        if self.im.need_parse(self.cachedb, self.VERSION_APP_VALUE):
+            self.im.db_create(self.cachedb)
+            self.decode_accounts()
+            for acc_id in self.accounts:
+                self.friendsNickname.clear()
+                self.friendsGroups.clear()
+                self.groupContact.clear()
+                self.troops.clear()
+                self.nickname = ''
+                self.contacts = {}			
+                self.troopmsgtables =[]
+                self.c2cmsgtables =set()
+                self.troopmsgtables =set()
+                self.decode_friends(acc_id)
+                self.decode_group_info(acc_id)
+                self.decode_groupMember_info(acc_id)
+                self.decode_friend_messages(acc_id)
+                self.decode_group_messages(acc_id)	
+                self.decode_fts_messages(acc_id)		
+                self.decode_db_calls(acc_id)        
+                self.decode_recover_friends(acc_id)
+                self.decode_recover_group_info(acc_id)
+                self.decode_recover_groupMember_info(acc_id)
+                self.decode_recover_friend_messages(acc_id)
+                self.decode_recover_group_messages(acc_id)
+                self.decode_recover_fts_messages(acc_id)
+            self.im.db_insert_table_version(VERSION_KEY_DB, VERSION_VALUE_DB)
+            self.im.db_insert_table_version(VERSION_KEY_APP, self.VERSION_APP_VALUE)
+            self.im.db_commit()
+            self.im.db_close()
         gen = GenerateModel(self.cachedb,self.root.FileSystem.MountPoint)
         return gen.get_models()
     def decode_fts_messages(self,acc_id):
@@ -128,7 +136,7 @@ class QQParser(object):
                     msg.type = MESSAGE_CONTENT_TYPE_TEXT
                     msg.content = content
                     msg.send_time = sendtime
-                    msg.talker_type = USER_TYPE_FRIEND				
+                    msg.talker_type = CHAT_TYPE_FRIEND				
                     self.im.db_insert_table_message(msg)
                 except:					
                     pass
@@ -172,7 +180,7 @@ class QQParser(object):
                     msg.type = MESSAGE_CONTENT_TYPE_TEXT
                     msg.content = content
                     msg.send_time = sendtime
-                    msg.talker_type = USER_TYPE_CHATROOM
+                    msg.talker_type = CHAT_TYPE_GROUP
                     self.im.db_insert_table_message(msg)
                 except:					
                     pass
@@ -292,11 +300,8 @@ class QQParser(object):
         self.im.db_commit()
     def decode_friends(self, acc_id):
         self.decode_friendlist_v3(acc_id)
-    def decode_group_info(self,acc_id):
-        plist =  None
+    def decode_group_info(self,acc_id):        
         node = self.root.GetByPath('/Documents/contents/' + acc_id + '/QQTroopMemo')
-        if node is None:
-            return
         if node is  not None:
             groups = PlistHelper.ReadPlist(node)                
             if(groups is not None):                
@@ -306,8 +311,8 @@ class QQParser(object):
                         v = data.Value
                         g.chatroom_id = data.Key
                         g.account_id = acc_id
-                        g.name = v["name"]
-                        g.notice = v["memo"]
+                        g.name = v["name"].ToString()
+                        g.notice = v["memo"].ToString()
                         g.source = node.AbsolutePath
                         self.troops[g.chatroom_id] = g
                     except:
@@ -326,13 +331,15 @@ class QQParser(object):
         else:
             sql = 'select groupCode, groupName , groupMemNum  from tb_troop_new'
         cursor = conn.execute(sql)
-        for row in cursor:
+        for row in cursor:            
             groupCode = str(row[0])
             groupName = str(row[1])
             groupMemNum = row[2]
             group = self.troops[groupCode]
             group.member_count = groupMemNum
             group.name = groupName
+            group.chatroom_id = groupCode
+            group.account_id = acc_id
             if(group.source is None):
                 group.source = node.AbsolutePath
             self.im.db_insert_table_chatroom(group)
@@ -390,7 +397,7 @@ class QQParser(object):
                         chatmem.gender = GENDER_FEMALE
                     else:
                         chatmem.gender = GENDER_OTHER
-                    chatmem.jiontime = JoinTime
+                    chatmem.JoinTime = JoinTime
                     chatmem.lastspeektime = LastSpeakTime
         for k in chatroommmebers:
             self.im.db_insert_table_chatroom_member(chatroommmebers[k])
@@ -450,7 +457,7 @@ class QQParser(object):
                     msg.sender_id = uin
                     msg.talker_name = self.troops[group_id].name
                     msg.sender_name = nickname
-                    msg.talker_type = USER_TYPE_CHATROOM
+                    msg.talker_type = CHAT_TYPE_GROUP
                     msg.source = node.AbsolutePath
                     if(bread == 0):
                         msg.status = MESSAGE_STATUS_UNREAD
@@ -487,10 +494,11 @@ class QQParser(object):
                     elif(msgtype == 337):                        
                         loc = self.get_location(acc_id,content)
                         if(loc is not None):
-                            msg.location  = uuid.uuid1()
+                           
                             msg.type = MESSAGE_CONTENT_TYPE_LOCATION
+                            msg.extra_id  = uuid.uuid1()
                             locat = Location()
-                            locat.location_id = msg.location
+                            locat.location_id = msg.extra_id
                             locat.latitude = loc[1]
                             locat.longitude = loc[2]
                             locat.address = loc[0]
@@ -523,7 +531,7 @@ class QQParser(object):
                     msg = Message()
                     msg.account_id = acc_id
                     msg.talker_id = uin
-                    msg.talker_type = USER_TYPE_FRIEND
+                    msg.talker_type = CHAT_TYPE_FRIEND
                     msg.source = node.AbsolutePath
                     try:
                         msg.talker_name = self.friendsNickname[uin][0]					
@@ -566,10 +574,10 @@ class QQParser(object):
                     elif(msgtype == 337):
                         loc = self.get_location(acc_id,content)
                         if(loc is not None):
-                            msg.location  = uuid.uuid1()
+                            msg.extra_id  = uuid.uuid1()
                             msg.type = MESSAGE_CONTENT_TYPE_LOCATION
                             locat = Location()
-                            locat.location_id = msg.location
+                            locat.location_id = msg.extra_id 
                             locat.latitude = loc[1]
                             locat.longitude = loc[2]
                             locat.address = loc[0]
@@ -760,7 +768,7 @@ class QQParser(object):
                     msg = Message()
                     msg.account_id = acc_id
                     msg.talker_id = uin
-                    msg.talker_type = USER_TYPE_FRIEND
+                    msg.talker_type = CHAT_TYPE_FRIEND
                     msg.source = node.AbsolutePath
                     try:
                         msg.talker_name = self.friendsNickname[uin][0]					
@@ -802,10 +810,10 @@ class QQParser(object):
                     elif(msgtype == 337):
                         loc = self.get_location(acc_id,content)
                         if(loc is not None):
-                            msg.location  = uuid.uuid1()
+                            msg.extra_id   = uuid.uuid1()
                             msg.type = MESSAGE_CONTENT_TYPE_LOCATION
                             locat = Location()
-                            locat.location_id = msg.location
+                            locat.location_id = msg.extra_id 
                             locat.latitude = loc[1]
                             locat.longitude = loc[2]
                             locat.address = loc[0]
@@ -852,7 +860,7 @@ class QQParser(object):
                     msg.sender_id = uin
                     msg.talker_name = self.troops[group_id].name
                     msg.sender_name = nickname
-                    msg.talker_type = USER_TYPE_CHATROOM
+                    msg.talker_type = CHAT_TYPE_GROUP
                     msg.source = node.AbsolutePath
                     if(bread == 0):
                         msg.status = MESSAGE_STATUS_UNREAD
@@ -888,10 +896,10 @@ class QQParser(object):
                     elif(msgtype == 337):
                         loc = self.get_location(acc_id,content)
                         if(loc is not None):
-                            msg.location  = uuid.uuid1()
+                            msg.extra_id   = uuid.uuid1()
                             msg.type = MESSAGE_CONTENT_TYPE_LOCATION
                             locat = Location()
-                            locat.location_id = msg.location
+                            locat.location_id = msg.extra_id 
                             locat.latitude = loc[1]
                             locat.longitude = loc[2]
                             locat.address = loc[0]
@@ -953,7 +961,7 @@ class QQParser(object):
                 msg.type = MESSAGE_CONTENT_TYPE_TEXT
                 msg.content = content
                 msg.send_time = sendtime
-                msg.talker_type = USER_TYPE_FRIEND				
+                msg.talker_type = CHAT_TYPE_FRIEND				
                 self.im.db_insert_table_message(msg)
             except:					
                 pass
@@ -1008,7 +1016,7 @@ class QQParser(object):
                 msg.type = MESSAGE_CONTENT_TYPE_TEXT
                 msg.content = content
                 msg.send_time = sendtime
-                msg.talker_type = USER_TYPE_CHATROOM
+                msg.talker_type = CHAT_TYPE_GROUP
                 self.im.db_insert_table_message(msg)
             except:					
                 pass
@@ -1063,7 +1071,7 @@ class QQParser(object):
                 msg.type = MESSAGE_CONTENT_TYPE_TEXT
                 msg.content = content
                 msg.send_time = sendtime
-                msg.talker_type = USER_TYPE_CHATROOM
+                msg.talker_type = CHAT_TYPE_GROUP
                 self.im.db_insert_table_message(msg)
             except:					
                 pass
