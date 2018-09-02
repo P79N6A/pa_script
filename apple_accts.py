@@ -42,3 +42,6 @@ def analyze_accounts(node, extracteDeleted, extractSource):
     pr = ParserResults()
     pr.Models.AddRange(results)
     return pr
+
+def execute(node,extracteDeleted):
+    return analyze_accounts(node,extracteDeleted,False)

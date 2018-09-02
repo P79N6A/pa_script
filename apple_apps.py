@@ -2,11 +2,13 @@
 import os
 import sys
 import inspect
+
 def SafeLoadAssembly(asm):
     try:
         clr.AddReference(asm)
     except:
         pass
+
 filePath = os.path.split(os.path.realpath(__file__))[0]
 filePath = "{0}\\Lib".format(filePath)
 sys.path.append(filePath)
@@ -52,7 +54,6 @@ APP_FILTERS =[]
 if 'TestNodes' in locals():
     APP_FILTERS.extend(TestNodes)
 
-from System.Linq import Enumerable
 from PA_runtime import *
 from apple_ab import analyze_addressbook
 from apple_notes import analyze_notes,analyze_old_notes
@@ -77,8 +78,9 @@ from apple_youxin import analyze_youxin
 from apple_yixin import analyze_yixin
 from apple_accts import analyze_accounts
 from apple_dingtalk import *
-from PA.InfraLib.Services import IApplicationService,ServiceGetter
 
+from PA.InfraLib.Services import IApplicationService,ServiceGetter
+from System.Linq import Enumerable
 
 """
 根据正则表达式匹配解析的应用请在此节点下配置
@@ -119,7 +121,7 @@ FIND_BY_APPS_NODES = [
     ("com.telecom-guoling.feiin", analyze_youxin, "YouXin", "有信", DescripCategories.YouXin),
     ("com.network.uxin", analyze_youxin, "YouXin", "有信", DescripCategories.YouXin),
     ("com.yixin.yixin", analyze_yixin, "YiXin", "易信", DescripCategories.QQ),
-	("com.laiwang.DingTalk", parse_ding, "Dingtalk", "钉钉", DescripCategories.QQ)，
+	("com.laiwang.DingTalk", parse_ding, "Dingtalk", "钉钉", DescripCategories.QQ),
 ]
 
 if 'FIND_BY_APPS_NODES_EXTS' in locals():

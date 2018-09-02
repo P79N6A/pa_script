@@ -11,6 +11,9 @@ def analyze_cookies(node, extractDeleted, extractSource):
     pr.Models.AddRange(CookieParser(node, extractDeleted, extractSource).Parse())
     return pr
 
+def execute(node,extracteDeleted):
+    return analyze_cookies(node,extracteDeleted,False)
+
 class CookieParser(object):
     def __init__(self, node, extractDeleted, extractSource):        
         self.node = node
