@@ -449,7 +449,7 @@ class Ding(object):
                             msg.content = GetString(reader, 3) if GetString(reader, 3) is not '' else GetString(reader, 6)
                             msg.type = model_im.MESSAGE_CONTENT_TYPE_SYSTEM
                     except:
-                            self.log_print('error occurs: {}' format(reader, 3))
+                            self.log_print('error occurs: {}'.format(reader, 3))
                     self.im.db_insert_table_message(msg)
                 cmd.Dispose()
                 # group members....
