@@ -58,11 +58,12 @@ class baiduMapParser(object):
             bplist = BPReader.GetTree(accountNode)
             if bplist == None:
                 raise  Exception("bplist is null")
-            name = bplist["sapi_displayname"].Value
-            account.username = name if name else ""
-            HEADIMG_URL = bplist["HEADIMG_URL"].Value
-            account.photo = HEADIMG_URL
-            appVersion = bplist["thisAPPVer"].Value
+            if bplist["sapi_displayname"]:
+                name = bplist["sapi_displayname"].Value
+                account.username = name
+            if bplist["HEADIMG_URL"]:
+                HEADIMG_URL = bplist["HEADIMG_URL"].Value
+                account.photo = HEADIMG_URL
 
             # city id
             city_id = bplist["adsCityId"].Value if bplist["adsCityId"] else None
