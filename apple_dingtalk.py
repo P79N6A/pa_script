@@ -97,7 +97,7 @@ class Ding(object):
                 res = os.path.exists(os.path.join(sql_dir, '{}/db.sqlite'.format(i)))
                 if res:
                     scops.append(i)
-        self.log_print('''total find %d accounts''' % len(scops))
+        #self.log_print('''total find %d accounts''' % len(scops))
         cache = ds.OpenCachePath('Dingtalk')
         for i in scops:
             r = device_id + i
