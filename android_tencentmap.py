@@ -175,7 +175,7 @@ class TencentMap(object):
             self.parse_fav_addr()
             self.tencentdb.db_close()
         
-        generate = model_map.Genetate(db_path)   
+        generate = model_map.Genetate(db_path, r"C:\TestFs1")   
         tmpresult = generate.get_models()
         return tmpresult        
             
@@ -187,3 +187,5 @@ def analyze_tencentmap(node, extract_Deleted, extract_Source):
             pr.Models.Add(i)
     return pr
     
+def execute(node, extract_deleted):
+    return analyze_tencentmap(node, extract_deleted, False)

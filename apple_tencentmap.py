@@ -6,7 +6,7 @@ import model_map
 import json
 
 # 想重新分析并生成数据库 在这里修改一下版本号
-APPVERSION = "2.0"
+APPVERSION = "1.0"
 
 class TencentMap(object):
 
@@ -171,7 +171,6 @@ class TencentMap(object):
 
     def get_dict_from_bplist(self, bp, dictvalue):
         values = {}
-        # if bp[dictvalue].__getattribute__("Keys"):
         attrs = dir(bp[dictvalue])
         if "Keys" in attrs:
             for key in bp[dictvalue].Keys:
@@ -289,7 +288,7 @@ class TencentMap(object):
             self.get_route_by_car()         # 得到导航记录通过汽车
             self.get_route_by_walk()        # 得到导航记录通过步行
             self.tencentMap.db_close()
-        generate = model_map.Genetate(db_path)   
+        generate = model_map.Genetate(db_path, r"C:\TestFs")   
         tmpresult = generate.get_models()
         return tmpresult
         
@@ -301,3 +300,7 @@ def analyze_tencentmap(node, extract_deleted, extract_source):
         for i in results:
             pr.Models.Add(i)
     return pr
+
+
+def execute(node, extract_deleted):
+    return analyze_tencentmap(node, extract_deleted, False)

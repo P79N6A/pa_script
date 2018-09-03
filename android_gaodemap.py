@@ -344,16 +344,15 @@ class gaodeMap(object):
         decode_db_path = self.cache + "/girf_sync_decode.db"
         db_path = self.cache + "/gaode_db_1.0.db"
         
-
         if not os.path.exists(decode_db_path):
             self.decode_db()
-
-        generate = model_map.Genetate(db_path)
 
         if self.check_to_update(db_path, APPVERSION):
             self.gaodemap.db_create(db_path)
             self.entrance()
             self.gaodemap.db_close()
+        
+        generate = model_map.Genetate(db_path, r"C:\TestFs1")
         tmpresult = generate.get_models()
         return tmpresult
       
@@ -366,3 +365,6 @@ def analyze_gaodemap(node, extract_deleted, extract_source):
         for i in prResult:
             pr.Models.Add(i)
     return pr
+
+def execute(node, extract_deleted):
+    return analyze_gaodemap(node, extract_deleted, False)

@@ -2,7 +2,7 @@
 import PA_runtime
 import json
 from PA_runtime import *
-import mode l_map
+import model_map
 import re
 import os
 
@@ -18,6 +18,8 @@ class BaiduMap(object):
         self.cache = ds.OpenCachePath("baiduMap")  
 
     def parse_favorites_poi(self):
+        if self.root is None:
+            return
         try:
             db = SQLiteParser.Database.FromNode(self.root)
             if db is None:
@@ -59,6 +61,8 @@ class BaiduMap(object):
 
     def parse_search(self):
         search_node = self.root.Parent.Parent.GetByPath("files/poi_his.sdb")
+        if search_node is None:
+            return
         try:
             db = SQLiteParser.Database.FromNode(search_node)
             if db is None:
@@ -95,6 +99,8 @@ class BaiduMap(object):
 
     def parse_route(self):
         route_node = self.root.Parent.Parent.GetByPath("files/route_his.sdb")
+        if route_node is None:
+            return
         try:
             db = SQLiteParser.Database.FromNode(route_node)
             if db is None:
@@ -108,6 +114,9 @@ class BaiduMap(object):
                     addr =  model_map.Address()
                     if rec.Deleted == DeletedState.Deleted:
                         addr.deleted = 1
+                    addr.source = "百度地图:"
+                    addr.sourceApp = "百度地图"
+                    addr.sourceFile = route_node.AbsolutePath
                     tmp = rec["value"].Value
                     try:
                         b = bytes(tmp)
@@ -158,7 +167,7 @@ class BaiduMap(object):
             self.parse_route()
             self.baidudb.db_close()
         
-        generate = model_map.Genetate(db_path)   
+        generate = model_map.Genetate(db_path, r"C:\TestFs1")   
         tmpresult = generate.get_models()
         return tmpresult 
 
@@ -169,3 +178,6 @@ def analyze_baidumap(node, extract_Deleted, extract_Source):
             for i in results:
                 pr.Models.Add(i)
         return pr
+
+def execute(node, extract_deleted):
+    return analyze_baidumap(node, extract_deleted, False)
