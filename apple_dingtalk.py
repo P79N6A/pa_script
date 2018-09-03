@@ -5,7 +5,6 @@ clr.AddReference('Base3264-UrlEncoder')
 del clr
 
 import System.Data.SQLite as sql
-import PA
 from PA_runtime import *
 from System.Text import *
 from System.IO import *
@@ -83,6 +82,7 @@ class Ding(object):
         pre_node = self.root.GetByPath('Library/Preferences/com.laiwang.DingTalk.plist')
         if pre_node is None:
             self.log_print('''Can't find preferences node, parse exits!''')
+            return
         bp = BPReader(pre_node.Data).top
         # pass...
         device_id = bp['UTDID']['UTDID'].Value
@@ -108,6 +108,8 @@ class Ding(object):
             f_dest_fts = open(dest_sql_fts, 'wb')
             source_node = self.root.GetByPath('Documents/db/{}/db.sqlite'.format(i))
             source_node_fts = self.root.GetByPath('Documents/db/{}/db.sqlite_fts'.format(i))
+            if source_node is None:
+                continue
             data = source_node.Data
             sz = source_node.Size
             idx = 0
@@ -125,6 +127,8 @@ class Ding(object):
             f_dest.close()
             self.result_sql.append(dest_sql)
             # for further using...
+            if source_node_fts is None:
+                continue
             sz = source_node_fts.Size
             data = source_node_fts.Data
             idx = 0
@@ -323,7 +327,7 @@ class Ding(object):
                 g.account_id = current_id
                 g.chatroom_id = GetString(reader, 0)
                 g.name = GetString(reader, 1)
-                # g.photo #TODO fix picture finder...
+                g.photo = self.get_picture(GetString(reader, 8), AVATAR)
                 g.create_time = GetInt64(reader, 2) / 1000
                 g.owner_id = GetInt64(reader, 4)
                 g.max_member_count = GetInt64(reader, 5)
