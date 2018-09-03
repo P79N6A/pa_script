@@ -29,7 +29,7 @@ class baiduMapParser(object):
             self.analyze_search_history()
             self.my_history_address()
 
-        result = model_map.Genetate(path)
+        result = model_map.Genetate(path, r"C:\TestFs")
         tmpresult = result.get_models()
 
         self.baidumap.db_close()
@@ -134,8 +134,11 @@ class baiduMapParser(object):
                 # blob数据类型
                 x = rec["value"].Value
                 b = bytes(x)
-                jsonfile = b.decode("utf-16")
-                dicts = json.loads(jsonfile)
+                try:
+                    jsonfile = b.decode("utf-16")
+                    dicts = json.loads(jsonfile)
+                except Exception as e:
+                    pass
                 search_name = dicts.get("historyMainTitleKey") if dicts.get("historyMainTitleKey") else dicts.get("poiHisValue")
                 #search_time = TimeStamp(TimeStampFormats.GetTimeStampEpoch1Jan2001(dicts.get("addtimesec")))
                 search.keyword = search_name
@@ -167,7 +170,6 @@ class baiduMapParser(object):
                 seach_history = rec["key"].Value
                 seach_info = rec["value"].Value
         except Exception as e:
-            #logging.error(e) 
             pass
 
 
@@ -207,8 +209,11 @@ class baiduMapParser(object):
                 seach_history = rec["key"].Value
                 seach_info = rec["value"].Value
                 b = bytes(seach_info)
-                jsonflie = b.decode('utf-16')
-                dicts= json.loads(jsonflie)
+                try:
+                    jsonflie = b.decode('utf-16')
+                    dicts= json.loads(jsonflie)
+                except Exception as e:
+                    pass
                 search_time = dicts.get("addtimesec")
                 routeaddr.create_time = search_time
 
@@ -244,8 +249,7 @@ def analyze_baidumap(root, extract_deleted, extract_source):
     pr = ParserResults()
     prResult = baiduMapParser(root, extract_deleted, extract_source).parse()
     if prResult:
-        for i in prResult:
-            pr.Models.Add(i) 
+        map(pr.Models.Add(i) for i in prResult)
     return pr
 
 def execute(node, extract_deleted):

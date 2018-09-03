@@ -83,8 +83,14 @@ class Ding(object):
         pre_node = self.root.GetByPath('Library/Preferences/com.laiwang.DingTalk.plist')
         if pre_node is None:
             self.log_print('''Can't find preferences node, parse exits!''')
+            return
         bp = BPReader(pre_node.Data).top
         # pass...
+        #device_id = bp['UTDID']['UTDID'].Value
+        b = bp['UTDID']
+        if b is None:
+            self.log_print("EXCEPTION OF NONE DATA!")
+            return 
         device_id = bp['UTDID']['UTDID'].Value
         abs_path = self.root.PathWithMountPoint
         sql_dir = os.path.join(abs_path, 'Documents/db')
@@ -96,7 +102,7 @@ class Ding(object):
                 res = os.path.exists(os.path.join(sql_dir, '{}/db.sqlite'.format(i)))
                 if res:
                     scops.append(i)
-        self.log_print('''total find %d accounts''' % len(scops))
+        #self.log_print('''total find %d accounts''' % len(scops))
         cache = ds.OpenCachePath('Dingtalk')
         for i in scops:
             r = device_id + i
@@ -108,6 +114,8 @@ class Ding(object):
             f_dest_fts = open(dest_sql_fts, 'wb')
             source_node = self.root.GetByPath('Documents/db/{}/db.sqlite'.format(i))
             source_node_fts = self.root.GetByPath('Documents/db/{}/db.sqlite_fts'.format(i))
+            if source_node is None:
+                continue
             data = source_node.Data
             sz = source_node.Size
             idx = 0
@@ -125,6 +133,8 @@ class Ding(object):
             f_dest.close()
             self.result_sql.append(dest_sql)
             # for further using...
+            if source_node_fts is None:
+                continue
             sz = source_node_fts.Size
             data = source_node_fts.Data
             idx = 0
@@ -323,7 +333,7 @@ class Ding(object):
                 g.account_id = current_id
                 g.chatroom_id = GetString(reader, 0)
                 g.name = GetString(reader, 1)
-                # g.photo #TODO fix picture finder...
+                g.photo = self.get_picture(GetString(reader, 8), AVATAR)
                 g.create_time = GetInt64(reader, 2) / 1000
                 g.owner_id = GetInt64(reader, 4)
                 g.max_member_count = GetInt64(reader, 5)
@@ -362,86 +372,89 @@ class Ding(object):
                     msg.talker_type = model_im.CHAT_TYPE_GROUP if msg.talker_id.__contains__(':') else model_im.CHAT_TYPE_FRIEND
                     #TODO add other message decryptor.... and parse etc.
                     tp = GetInt64(reader, 4)
-                    if tp == 1 or tp == 500 or tp == 501:
-                        msg.type = model_im.MESSAGE_CONTENT_TYPE_TEXT
-                    elif tp == 1101:
-                        msg.type = model_im.MESSAGE_CONTENT_TYPE_TEXT
-                        msg.content = '[call message]'
-                    elif tp == 600:
-                        msg.type = model_im.MESSAGE_CONTENT_TYPE_CONTACT_CARD
-                        string = GetString(reader, 6)
-                        js = json.loads(string)
-                        name = js.get('attachments')[0].get('extension').get('name')
-                        uid = js.get('attachments')[0].get('extension').get('uid')
-                        msg.content = 'uid:{}\nname:{}'.format(uid, name)
-                    elif tp == 102:
-                        msg.type = model_im.MESSAGE_CONTENT_TYPE_CONTACT_CARD
-                        string = GetString(reader, 6)
-                        js = json.loads(string)
-                        title = js.get('attachments')[0].get('extension').get('title')
-                        text = js.get('attachments')[0].get('extension').get('text')
-                        pic = js.get('attachments')[0].get('extension').get('picUrl')
-                        msg.content = 'title:{}\ntext:{}\npicUrl:{}'.format(title, text, pic)
-                    elif tp == 202 or tp == 103:
-                        msg.type = model_im.MESSAGE_CONTENT_TYPE_VIDEO
-                        string = GetString(reader, 6)
-                        js = json.loads(string)
-                        media_id = js.get('attachments')[0].get('extension').get('picUrl')
-                        abs_path = self.root.PathWithMountPoint
-                        f_name = os.path.join(abs_path, "Library/Caches/videoCaches/%s.mp4" %media_id)
-                        if os.path.exists(f_name):
-                            msg.media_path = f_name
-                        else:
-                            msg.content = "video message: not cached"
+                    try:
+                        if tp == 1 or tp == 500 or tp == 501:
                             msg.type = model_im.MESSAGE_CONTENT_TYPE_TEXT
-                    elif tp == 104: # location ?
-                        string = GetString(reader, 6)
-                        js = json.loads(string)
-                        lati = js.get('attachments')[0].get('extension').get('latitude')
-                        lng = js.get('attachments')[0].get('extension').get('longitude')
-                        name = js.get('attachments')[0].get('extension').get('locationName')
-                        msg.location = md5(str(lati) + str(lng))
-                        msg.type = model_im.MESSAGE_CONTENT_TYPE_LOCATION
-                        msg.content = name
-                        l = model_im.Location()
-                        l.location_id = msg.location
-                        l.deleted = 0
-                        l.latitude = lati
-                        l.longitude = lng
-                        l.address = name
-                        l.timestamp = GetInt64(reader, 2)
-                        self.im.db_insert_table_location(l)
-                    elif tp == 2: # image
-                        msg.type = model_im.MESSAGE_CONTENT_TYPE_IMAGE
-                        string = GetString(reader, 6)
-                        js = json.loads(string)
-                        media_id = js.get('photoContent').get('mediaId')
-                        t_f_name = js.get('photoContent').get('filename')
-                        if t_f_name is None or t_f_name == "":
-                            print(string)
-                            ext = ''
-                        else:
-                            fn, ext = os.path.splitext(t_f_name)
-                        if ext == "JPG" or ext == "jpg" or ext == 'MOV' or ext == 'mov':
-                            fn = self.get_picture(media_id, JPG)
-                        elif ext == 'PNG' or ext == 'png':
-                            fn = self.get_picture(media_id, PNG)
-                        elif ext == 'gif' or ext == 'GIF':
-                            fn = self.get_picture(media_id, GIF)
-                        else:
-                            fn = self.get_picture(media_id, SYSTEM)
-                        if fn != "":
-                            msg.media_path = fn
-                        else:
-                            msg.content = 'image message not cached...'
+                        elif tp == 1101:
                             msg.type = model_im.MESSAGE_CONTENT_TYPE_TEXT
-                    #TODO Fix it after rp is certain...
-                    elif tp == 900 or tp == 901:
-                        msg.content = GetString(reader, 6)
-                        msg.type = model_im.MESSAGE_CONTENT_TYPE_TEXT
-                    else:
-                        msg.content = GetString(reader, 3) if GetString(reader, 3) is not '' else GetString(reader, 6)
-                        msg.type = model_im.MESSAGE_CONTENT_TYPE_SYSTEM
+                            msg.content = '[call message]'
+                        elif tp == 600:
+                            msg.type = model_im.MESSAGE_CONTENT_TYPE_CONTACT_CARD
+                            string = GetString(reader, 6)
+                            js = json.loads(string)
+                            name = js.get('attachments')[0].get('extension').get('name')
+                            uid = js.get('attachments')[0].get('extension').get('uid')
+                            msg.content = 'uid:{}\nname:{}'.format(uid, name)
+                        elif tp == 102:
+                            msg.type = model_im.MESSAGE_CONTENT_TYPE_CONTACT_CARD
+                            string = GetString(reader, 6)
+                            js = json.loads(string)
+                            title = js.get('attachments')[0].get('extension').get('title')
+                            text = js.get('attachments')[0].get('extension').get('text')
+                            pic = js.get('attachments')[0].get('extension').get('picUrl')
+                            msg.content = 'title:{}\ntext:{}\npicUrl:{}'.format(title, text, pic)
+                        elif tp == 202 or tp == 103:
+                            msg.type = model_im.MESSAGE_CONTENT_TYPE_VIDEO
+                            string = GetString(reader, 6)
+                            js = json.loads(string)
+                            media_id = js.get('attachments')[0].get('extension').get('picUrl')
+                            abs_path = self.root.PathWithMountPoint
+                            f_name = os.path.join(abs_path, "Library/Caches/videoCaches/%s.mp4" %media_id)
+                            if os.path.exists(f_name):
+                                msg.media_path = f_name
+                            else:
+                                msg.content = "video message: not cached"
+                                msg.type = model_im.MESSAGE_CONTENT_TYPE_TEXT
+                        elif tp == 104: # location ?
+                            string = GetString(reader, 6)
+                            js = json.loads(string)
+                            lati = js.get('attachments')[0].get('extension').get('latitude')
+                            lng = js.get('attachments')[0].get('extension').get('longitude')
+                            name = js.get('attachments')[0].get('extension').get('locationName')
+                            msg.location = md5(str(lati) + str(lng))
+                            msg.type = model_im.MESSAGE_CONTENT_TYPE_LOCATION
+                            msg.content = name
+                            l = model_im.Location()
+                            l.location_id = msg.location
+                            l.deleted = 0
+                            l.latitude = lati
+                            l.longitude = lng
+                            l.address = name
+                            l.timestamp = GetInt64(reader, 2)
+                            self.im.db_insert_table_location(l)
+                        elif tp == 2: # image
+                            msg.type = model_im.MESSAGE_CONTENT_TYPE_IMAGE
+                            string = GetString(reader, 6)
+                            js = json.loads(string)
+                            media_id = js.get('photoContent').get('mediaId')
+                            t_f_name = js.get('photoContent').get('filename')
+                            if t_f_name is None or t_f_name == "":
+                                print(string)
+                                ext = ''
+                            else:
+                                fn, ext = os.path.splitext(t_f_name)
+                            if ext == "JPG" or ext == "jpg" or ext == 'MOV' or ext == 'mov':
+                                fn = self.get_picture(media_id, JPG)
+                            elif ext == 'PNG' or ext == 'png':
+                                fn = self.get_picture(media_id, PNG)
+                            elif ext == 'gif' or ext == 'GIF':
+                                fn = self.get_picture(media_id, GIF)
+                            else:
+                                fn = self.get_picture(media_id, SYSTEM)
+                            if fn != "":
+                                msg.media_path = fn
+                            else:
+                                msg.content = 'image message not cached...'
+                                msg.type = model_im.MESSAGE_CONTENT_TYPE_TEXT
+                        #TODO Fix it after rp is certain...
+                        elif tp == 900 or tp == 901:
+                            msg.content = GetString(reader, 6)
+                            msg.type = model_im.MESSAGE_CONTENT_TYPE_TEXT
+                        else:
+                            msg.content = GetString(reader, 3) if GetString(reader, 3) is not '' else GetString(reader, 6)
+                            msg.type = model_im.MESSAGE_CONTENT_TYPE_SYSTEM
+                    except:
+                            self.log_print('error occurs: {}'.format(reader, 3))
                     self.im.db_insert_table_message(msg)
                 cmd.Dispose()
                 # group members....

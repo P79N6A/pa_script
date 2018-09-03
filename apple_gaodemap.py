@@ -30,6 +30,8 @@ class gaodeMap(object):
         AES.ECB with key = a4a11bb9ef4b2f4c
         """
         node = self.root.GetByPath('/Documents/cloundSyncData/girf_sync.db')
+        if node is None:
+            return
         self.sourcefile = node.AbsolutePath
         f_dest = File.OpenWrite(self.cache + "/girf_sync_decode.db")
         data=Encoding.UTF8.GetBytes("SQLite format 3\0")
@@ -62,7 +64,8 @@ class gaodeMap(object):
 
 
     def entrance(self):
-        path = (self.cache + "/girf_sync_decode.db")
+        path = self.cache + "/girf_sync_decode.db"
+        self.sourcefile = self.root.AbsolutePath
         conn = connect(path)
         cursor = conn.cursor()
         find_user_sql = "select tbl_name from sqlite_master where tbl_name like '%POI_SNAPSHOT%' and type ='table'"
@@ -283,7 +286,6 @@ class gaodeMap(object):
                     tmpc = "ROUTE_HISTORY_V2_SNAPSHOT{0}".format(user_id)
                     print(tmpc + "is not exists!")
 
-
         self.gaodemap.db_commit()
         self.gaodemap.db_close()
 
@@ -336,26 +338,18 @@ class gaodeMap(object):
 
 
     def parse(self):
-        
-        #self.gaodemap.db_create(self.cache + "/gaode_db.db")
         decode_db_path = self.cache + "/girf_sync_decode.db"
         db_path = self.cache + "/gaode_db_1.0.db"
         
-
         if not os.path.exists(decode_db_path):
             self.decode_db()
-
-        generate = model_map.Genetate(db_path)
-        #db_version = generate.get_appversion()
-
         if self.check_to_update(db_path, APPVERSION):
             self.gaodemap.db_create(db_path)
             self.entrance()
-        
+        generate = model_map.Genetate(db_path, r"C:\TestFs")
         tmpresult = generate.get_models()
         return tmpresult
 
-        
 
 def analyze_gaodemap(node, extract_deleted, extract_source):
     
@@ -367,4 +361,4 @@ def analyze_gaodemap(node, extract_deleted, extract_source):
     return pr
 
 def execute(node, extract_deleted):
-    return analyze_gaodemap(node, extract_deleted, False):
+    return analyze_gaodemap(node, extract_deleted, False)
