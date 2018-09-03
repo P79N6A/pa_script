@@ -433,7 +433,8 @@ class Generate(object):
                         party = Generic.Party()
                         party.Identifier.Value = tos[t]
                         party.Name.Value = tos[t+1]
-                        party.DatePlayed.Value = TimeStamp.FromUnixTime((row[4]), False)
+                        if row[4] is not None:
+                            party.DatePlayed.Value = TimeStamp.FromUnixTime((row[4]), False)
                         mailMessage.To.Add(party)
             if row[7] is not None:
                 cc = row[7].split(' ')
@@ -442,7 +443,8 @@ class Generate(object):
                         party = Generic.Party()
                         party.Identifier.Value = cc[c]
                         party.Name.Value = cc[c+1]
-                        party.DatePlayed.Value = TimeStamp.FromUnixTime((row[4]), False)
+                        if row[4] is not None:
+                            party.DatePlayed.Value = TimeStamp.FromUnixTime((row[4]), False)
                         mailMessage.Cc.Add(party)
             if row[8] is not None:
                 bcc = row[8].split(' ')
