@@ -19,6 +19,7 @@ import json
 import model_im
 import uuid
 import re
+import hashlib
 
 # app 数据库版本
 VERSION_APP_VALUE = 1
@@ -267,36 +268,69 @@ class RenRenParser(model_im.IM):
                     message.source = self.app_name
                     message.account_id = self.user
                     message.is_sender = model_im.MESSAGE_TYPE_SEND if rec['from_user_id'].Value == self.user else model_im.MESSAGE_TYPE_RECEIVE
-                    message.talker_id = rec['from_user_id'].Value if message.is_sender else rec['to_user_id'].Value
+                    message.talker_id = contactid
                     if contact.get('type', 0) == CONTACT_TYPE_FRIEND:
                         message.talker_type = model_im.CHAT_TYPE_GROUP
                     if contact.get('type', 0) == CONTACT_TYPE_GROUP:
                         message.talker_type = model_im.CHAT_TYPE_FRIEND
                     message.talker_name = rec['fname'].Value
                     message.sender_id = message.talker_id
-                    message.sender_name = rec['fname'].Value
+                    message.sender_name = message.talker_name
                     message.type = self.parse_message_type(rec['class_type'].Value, rec['child_node_string'].Value)
                     message.content = rec['summary'].Value
                     message.send_time = rec['time_stamp'].Value
-                    message.media_path = self.get_media_path(rec['child_node_string'].Value, rec['elements'].Value, 
+                    message.media_path = self.get_media_path(contactid, message.is_sender, rec['child_node_string'].Value, rec['elements'].Value, 
                                                              message.type, message.send_time, message.deleted, message.repeated)
                     message.msg_id = str(uuid.uuid1()).replace('-', '')
                     self.db_insert_table_message(message)
             self.db_commit()
             return True
 
-    def get_media_path(self, xml_string, media_content, type, time, deleted, repeated):
+    def get_media_path(self, contactid, is_sender, xml_string, media_content, type, time, deleted, repeated):
             media_path = ''
             if type == model_im.MESSAGE_CONTENT_TYPE_IMAGE:
-
-
-
-                media_path = ''
+                src     = ''
+                thumb   = ''
+                origninal = ''
+                img = re.search('headsrc=\"(.*)/(.*)\"', xml_string, re.M | re.I)
+                if img is not None:
+                    src = img.group(1)
+                    thumb = hashlib.md5(img.group(1)).hexdigest()
+                img = re.search('originalsrc=\"(.*?)\"', xml_string, re.M | re.I)
+                if img is not None:
+                    src = img.group(0)
+                    origninal = hashlib.md5(img.group(0)).hexdigest()
+                
             if type == model_im.MESSAGE_CONTENT_TYPE_VOICE:
-
-                media_path = ''
+                root = None
+                try:
+                    memoryRange = MemoryRange.FromBytes(media_content)
+                    root = BPReader.GetTree(memoryRange)
+                except:
+                    traceback.print_exc()
+                   
+                obj = root.Value[0].Children['audioUrl'].Value
+                if obj is not None:
+                    node = self.root.GetByPath('/Documents/chatfile/' + self.user + '/' + contactid)
+                    if node is not None:
+                        file = 'I' if is_sender == model_im.MESSAGE_TYPE_SEND else ''
+                        file += root.Value[0].Children['elementId'].Value + '.spx'
+                        media_path = os.path.join(node.AbsolutePath, file)
             if type == model_im.MESSAGE_CONTENT_TYPE_VIDEO:
-                media_path = ''
+                root = None
+                try:
+                    memoryRange = MemoryRange.FromBytes(media_content)
+                    root = BPReader.GetTree(memoryRange)
+                except:
+                    traceback.print_exc()
+                   
+                obj = root.Value[0].Children['localvideoUrl'].Value
+                if obj is not None:
+                    node = self.root.GetByPath('/Documents/chatfile/' + self.user + '/' + contactid)
+                    if node is not None:
+                        file = 'I' if is_sender == model_im.MESSAGE_TYPE_SEND else ''
+                        file += root.Value[0].Children['elementId'].Value + '.mp4'
+                        media_path = os.path.join(node.AbsolutePath, file)
             return media_path
 
     def parse_message_type(self, type, xml_string):
