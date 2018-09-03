@@ -100,7 +100,6 @@ class MailParser(object):
                 mails.downloadUtc = row[21]  #附件下载时间
                 mails.downloadSize = row[22]  #附件下载大小
                 mails.attachName = row[24]  #附件名
-                mails.exchangeField = row[25]  #附件路径
                 self.attachNode = self.node.GetByPath("/Documents/attachmentCacheFolder/").PathWithMountPoint
                 mails.attachDir = self.attachNode + '''\\Documents\\attachmentCacheFolder\\ '''+ str(row[1]) if row[24] is not None else None
                 self.mm.db_insert_table_mails(mails)
