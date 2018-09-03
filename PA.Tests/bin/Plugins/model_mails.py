@@ -455,19 +455,18 @@ class Generate(object):
                         party.Name.Value = tos[t+1]
                         if row[4] is not None:
                             party.DatePlayed.Value = TimeStamp.FromUnixTime((row[4]), False)
-                        mailMessage.BCc.Add(party)
+                        mailMessage.Bcc.Add(party)
             if row[18] is not None:
                 for a in range(len(row[18].split(','))):
                     attachment = Generic.Attachment()
                     if row[20] is not None:
-                        attachment.Filename.Value = row[20][a]
+                        attachment.Filename.Value = row[20].split(',')[a]
                     if row[21] is not None:
-                        attachment.URL.Value = row[21][a]
-                        attachment.Uri.Value = row[21][a]
+                        attachment.URL.Value = row[21].split(',')[a]
                     if row[18] is not None:
-                        attachment.DownloadTime.Value = row[18][a]
+                        attachment.DownloadTime.Value = TimeStamp.FromUnixTime(int(float(row[18].split(',')[a])),False)
                     if row[19] is not None:
-                        attachment.Size.Value = row[19][a]
+                        attachment.Size.Value = int(row[19].split(',')[a])
                     mailMessage.Attachments.Add(attachment)
             if row[2] is not None:
                 mailMessage.Abstract.Value = row[2]
