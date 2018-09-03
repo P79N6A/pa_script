@@ -301,3 +301,7 @@ def analyze_tencentmap(node, extract_deleted, extract_source):
         for i in results:
             pr.Models.Add(i)
     return pr
+
+
+def execute(node, extract_deleted):
+    return analyze_tencentmap(node, extract_deleted, False)

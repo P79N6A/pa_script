@@ -187,3 +187,5 @@ def analyze_tencentmap(node, extract_Deleted, extract_Source):
             pr.Models.Add(i)
     return pr
     
+def execute(node, extract_deleted):
+    return analyze_tencentmap(node, extract_deleted, False)

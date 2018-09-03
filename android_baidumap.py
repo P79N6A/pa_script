@@ -2,7 +2,7 @@
 import PA_runtime
 import json
 from PA_runtime import *
-import mode l_map
+import model_map
 import re
 import os
 
@@ -169,3 +169,6 @@ def analyze_baidumap(node, extract_Deleted, extract_Source):
             for i in results:
                 pr.Models.Add(i)
         return pr
+
+def execute(node, extract_deleted):
+    return analyze_baidumap(node, extract_deleted, False)

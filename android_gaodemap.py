@@ -366,3 +366,6 @@ def analyze_gaodemap(node, extract_deleted, extract_source):
         for i in prResult:
             pr.Models.Add(i)
     return pr
+
+def execute(node, extract_deleted):
+    return analyze_gaodemap(node, extract_deleted, False)

@@ -104,3 +104,6 @@ def analyze_sogoumap(node, extractDeleted, extractSource):
         for i in results:
             pr.Models.Add(i)
     return pr
+
+def execute(node, extract_deleted):
+    return analyze_sogoumap(node, extract_deleted, False)

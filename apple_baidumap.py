@@ -248,4 +248,5 @@ def analyze_baidumap(root, extract_deleted, extract_source):
             pr.Models.Add(i) 
     return pr
 
-
+def execute(node, extract_deleted):
+    return analyze_baidumap(node, extract_deleted, False)
