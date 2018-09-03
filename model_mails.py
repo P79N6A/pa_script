@@ -410,21 +410,22 @@ class Generate(object):
                 elif row[16] == '草稿箱':
                     mailMessage.Status.Value = MessageStatus.Unsent
                 else:
-                    mailMessage.Status.Value = MessageStatus.Unread if row[11] == 0 else MessageStatus.Read
+                    if row[11] is not None:
+                        mailMessage.Status.Value = MessageStatus.Unread if row[11] == 0 else MessageStatus.Read
             if row[1] is not None:
                 mailMessage.Subject.Value = row[1]
             if row[17] is not None:
                 mailMessage.Body.Value = row[17]
             if row[4] is not None:
                 mailMessage.TimeStamp.Value = TimeStamp.FromUnixTime(row[4], False)
-            party = Generic.Party()
             if row[3] is not None:
+                party = Generic.Party()
                 party.Identifier.Value = row[3]
             if row[9] is not None:
                 party.IPAddresses.Add(str(row[9]))
-            if row[4] is not None:
-                party.DatePlayed.Value = TimeStamp.FromUnixTime(row[4], False)
-            mailMessage.From.Value = party
+                if row[4] is not None:                
+                    party.DatePlayed.Value = TimeStamp.FromUnixTime(row[4], False)
+                mailMessage.From.Value = party
             if row[6] is not None:
                 tos = row[6].split(' ')
                 for t in range(len(tos)-1):
@@ -509,8 +510,8 @@ class Generate(object):
                 friend.FullName.Value = row[0]
             if row[2] is not None:
                 friend.CompanyName.Value = row[2]
+            addr = Contacts.StreetAddress()
             if row[3] is not None:
-                addr = Contacts.StreetAddress()
                 addr.FullName.Value = row[3]
                 friend.LivingAddresses.Add(addr)
             if row[4] is not None:
@@ -535,4 +536,3 @@ class Generate(object):
     def _get_search_models(self):
         models = []
         return models
-
