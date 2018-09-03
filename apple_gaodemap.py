@@ -356,7 +356,8 @@ def analyze_gaodemap(node, extract_deleted, extract_source):
     pr = ParserResults()
     prResult = gaodeMap(node, extract_deleted, extract_source).parse()
     if prResult:
-        map(pr.Models.Add(i) for i in prResult)
+        for i in prResult:
+            pr.Models.Add(i)
     return pr
 
 def execute(node, extract_deleted):
