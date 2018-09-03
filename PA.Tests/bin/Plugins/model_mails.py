@@ -410,19 +410,21 @@ class Generate(object):
                 elif row[16] == '草稿箱':
                     mailMessage.Status.Value = MessageStatus.Unsent
                 else:
-                    mailMessage.Status.Value = MessageStatus.Unread if row[11] == 0 else MessageStatus.Read
+                    if row[11] is not None:
+                        mailMessage.Status.Value = MessageStatus.Unread if row[11] == 0 else MessageStatus.Read
             if row[1] is not None:
                 mailMessage.Subject.Value = row[1]
             if row[17] is not None:
                 mailMessage.Body.Value = row[17]
             if row[4] is not None:
-                mailMessage.TimeStamp.Value = TimeStamp.FromUnixTime(row[4], False)  
+                mailMessage.TimeStamp.Value = TimeStamp.FromUnixTime(row[4], False)
             if row[3] is not None:
                 party = Generic.Party()
                 party.Identifier.Value = row[3]
             if row[9] is not None:
-                party.IPAddresses.Add(str(row[9]))                
-                party.DatePlayed.Value = TimeStamp.FromUnixTime(row[4], False)
+                party.IPAddresses.Add(str(row[9]))
+                if row[4] is not None:                
+                    party.DatePlayed.Value = TimeStamp.FromUnixTime(row[4], False)
                 mailMessage.From.Value = party
             if row[6] is not None:
                 tos = row[6].split(' ')
@@ -449,16 +451,21 @@ class Generate(object):
                         party = Generic.Party()
                         party.Identifier.Value = bcc[b]
                         party.Name.Value = tos[t+1]
-                        party.DatePlayed.Value = TimeStamp.FromUnixTime((row[4]), False)
+                        if row[4] is not None:
+                            party.DatePlayed.Value = TimeStamp.FromUnixTime((row[4]), False)
                         mailMessage.BCc.Add(party)
             if row[18] is not None:
                 for a in range(len(row[18].split(','))):
                     attachment = Generic.Attachment()
-                    attachment.Filename.Value = row[20][a]
-                    attachment.URL.Value = row[21][a]
-                    attachment.Uri.Value = row[21][a]
-                    attachment.DownloadTime.Value = row[18][a]
-                    attachment.Size.Value = row[19][a]
+                    if row[20] is not None:
+                        attachment.Filename.Value = row[20][a]
+                    if row[21] is not None:
+                        attachment.URL.Value = row[21][a]
+                        attachment.Uri.Value = row[21][a]
+                    if row[18] is not None:
+                        attachment.DownloadTime.Value = row[18][a]
+                    if row[19] is not None:
+                        attachment.Size.Value = row[19][a]
                     mailMessage.Attachments.Add(attachment)
             if row[2] is not None:
                 mailMessage.Abstract.Value = row[2]
@@ -527,4 +534,3 @@ class Generate(object):
     def _get_search_models(self):
         models = []
         return models
-
