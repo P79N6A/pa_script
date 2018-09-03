@@ -15,6 +15,10 @@ MAIL_OUTBOX = 3       # 已发送
 MAIL_DRAFTBOX = 2     # 草稿箱
 
 
+def execute(node, extract_deleted):
+    """ main """
+    return analyze_neteasemail(node, extract_deleted, extract_source=False)
+
 def analyze_neteasemail(node, extract_deleted, extract_source):
     """
         ios 网易邮箱大师 (Documents/imail.db)
@@ -28,6 +32,13 @@ def exc():
     """ handle exception """
     # traceback.print_exc()
     pass
+
+def set_rec_value(key, value):
+    """ i. e.
+        mail.abstract = rec['xx'].Value if not IsDBNull(rec['xx'].Value) else None 
+    """
+    if not IsDBNull(value):
+        key = value
 
 class NeteaseMailParser(object):
     def __init__(self, node, extract_deleted, extract_source):
@@ -77,6 +88,7 @@ class NeteaseMailParser(object):
             account = Accounts()
             account.accountId = rec['accountId'].Value 
             account.accountEmail = rec['email'].Value
+            
             if rec['type'].Value == 1 and rec['deleted'].Value == 0:
                 self.accounts[account.accountId] = {'email': account.accountEmail}
             try:
@@ -91,7 +103,7 @@ class NeteaseMailParser(object):
         for rec in self.my_read_table(db=imail_db, table_name='mailBox'):
             folder = MailFolder()
             self.mail_folder[rec['mailBoxId'].Value] = rec['name'].Value
-            folder.folderName =  rec['name'].Value
+            set_rec_value(folder.folderName, rec['name'].Value)
             folder.accountEmail =  self.accounts[rec['accountRawId'].Value]['email']
             try:
                 self.mm.db_insert_table_mail_folder(folder)
@@ -106,12 +118,12 @@ class NeteaseMailParser(object):
             if IsDBNull(rec['name'].Value) or IsDBNull(rec['mailId'].Value):
                 continue
             attach = Attach()
-            attach.attachName = rec['name'].Value
-            attach.attachDir = rec['localPath'].Value if not IsDBNull(rec['localPath'].Value) else None
-            attach.attachType = rec['contentType'].Value if not IsDBNull(rec['contentType'].Value) else None
-            attach.downloadUtc = rec['createdate'].Value if not IsDBNull(rec['createdate'].Value) else None
-            attach.downloadSize = rec['size'].Value if not IsDBNull(rec['size'].Value) else None
-            attach.mailId = rec['mailId'].Value
+            set_rec_value(attach.attachName, rec['name'].Value)
+            set_rec_value(attach.attachDir, rec['localPath'].Value)
+            set_rec_value(attach.attachType, rec['contentType'].Value)
+            set_rec_value(attach.downloadUtc, rec['createdate'].Value)
+            set_rec_value(attach.downloadSize, rec['size'].Value)
+            set_rec_value(attach.mailId, rec['mailId'].Value)
             try:
                 self.mm.db_insert_table_attach(attach)
             except:
@@ -131,23 +143,23 @@ class NeteaseMailParser(object):
                 mail = Mails()
                 if IsDBNull(rec['subject'].Value):
                     continue
-                mail.mailId = rec['localId'].Value if not IsDBNull(rec['localId'].Value) else None
+                set_rec_value(mail.mailId, rec['localId'].Value)
                 mail.mail_folder = self.mail_folder.get(rec['mailBoxId'].Value, None)
-                mail.subject = rec['subject'].Value
-                mail.abstract = rec['summary'].Value if not IsDBNull(rec['summary'].Value) else None
-                mail.accountId = rec['accountRawId'].Value
-                mail.fromEmail = self._convert_email_format(rec['mailFrom'].Value) if not IsDBNull(rec['mailFrom'].Value) else None
-                mail.tos = self._convert_email_format(rec['mailTos'].Value) if not IsDBNull(rec['mailTos'].Value) else None
-                mail.cc = self._convert_email_format(rec['ccs'].Value) if not IsDBNull(rec['ccs'].Value) else None
-                mail.bcc = rec['bccs'].Value if not IsDBNull(rec['bccs'].Value) else None
-                mail.isForward = rec['forwarded'].Value if not IsDBNull(rec['forwarded'].Value) else None
-                mail.isRead = rec['unread'].Value ^ 1 if not IsDBNull(rec['unread'].Value) else None
+                set_rec_value(mail.subject, rec['subject'].Value)
+                set_rec_value(mail.abstract, rec['summary'].Value)
+                set_rec_value(mail.accountId, rec['accountRawId'].Value)
+                set_rec_value(mail.fromEmail, self._convert_email_format(rec['mailFrom'].Value))
+                set_rec_value(mail.tos, self._convert_email_format(rec['mailTos'].Value))
+                set_rec_value(mail.cc, self._convert_email_format(rec['ccs'].Value))
+                set_rec_value(mail.bcc, rec['bccs'].Value)
+                set_rec_value(mail.isForward, rec['forwarded'].Value)
+                set_rec_value(mail.isRead, rec['unread'].Value ^ 1)
                 if rec['mailBoxId'].Value == MAIL_OUTBOX:     # 发件箱
                     mail.sendStatus = 1
                 elif rec['mailBoxId'].Value == MAIL_DRAFTBOX: # 草稿箱
                     mail.sendStatus = 0
-                mail.receiveUtc = rec['sentDate'].Value if not IsDBNull(rec['sentDate'].Value) else None
-                mail.downloadSize = rec['size'].Value if not IsDBNull(rec['size'].Value) else None
+                set_rec_value(mail.receiveUtc, rec['sentDate'].Value)
+                set_rec_value(mail.downloadSize, rec['size'].Value)
                 # 附件
                 if rec['hasAttachments'].Value == 1:
                     self.mm.cursor.execute(SELECT_ATTACH_SQL, (mail.mailId,))
@@ -175,10 +187,11 @@ class NeteaseMailParser(object):
                 if rec['type'].Value == CONTENT_TYPE_TEXT: # 只提取 HTML 格式, 跳过纯文本类型
                     continue
                 elif rec['type'].Value == CONTENT_TYPE_HTML:
-                    mailId = rec['mailId'].Value
-                    mailContent = rec['value'].Value
+                    mailId, mailContent = None, None
+                    set_rec_value(mailId, rec['mailId'].Value)
+                    set_rec_value(mailContent, rec['value'].Value)
                     try:
-                        self.mm.cursor.execute(SQL_UPDATE_EMAIL_CONTENT, a)
+                        self.mm.cursor.execute(SQL_UPDATE_EMAIL_CONTENT, (mailContent, mailId))
                     except:
                         exc()
             self.mm.db_commit()
@@ -195,8 +208,8 @@ class NeteaseMailParser(object):
                 return
             for rec in self.my_read_table(db=todo_db, table_name='recentcontact'):
                 contact = Contact()
-                contact.contactName = rec['name'].Value
-                contact.contactEmail = rec['email'].Value
+                set_rec_value(contact.contactName, rec['name'].Value)
+                set_rec_value(contact.contactEmail, rec['email'].Value)
                 try:
                     self.mm.db_insert_table_contact(contact)
                 except:
@@ -221,6 +234,29 @@ class NeteaseMailParser(object):
                     break
         try:
             self.mm.cursor.executemany(SQL_UPDATE_ACCOUNTS_password, password_accountEmail)
+            self.mm.db_commit()
+        except:
+            exc()
+
+    def parse_todo(self, node):
+        """ 
+            待办事项 
+        """
+        try:
+            todo_db = SQLiteParser.Database.FromNode(node)
+            if todo_db is None:
+                return
+            for rec in self.my_read_table(db=todo_db, table_name='todoList'):
+                t = Todo()
+                set_rec_value(t.content, rec['content'].Value)
+                set_rec_value(t.createdTime, rec['createdTime'].Value)
+                set_rec_value(t.reminderTime, rec['reminderTime'].Value)
+                set_rec_value(t.isdone, rec['done'].Value)
+                set_rec_value(t.isdeleted, rec['deleted'].Value)
+                try:
+                    self.mm.db_insert_table_todo(t)
+                except:
+                    exc()
             self.mm.db_commit()
         except:
             exc()
@@ -269,26 +305,4 @@ class NeteaseMailParser(object):
             res = None
             exc()
         return res
-
-    def parse_todo(self, node):
-        """ 
-            待办事项 
-        """
-        try:
-            todo_db = SQLiteParser.Database.FromNode(node)
-            if todo_db is None:
-                return
-            for rec in self.my_read_table(db=todo_db, table_name='todoList'):
-                t = Todo()
-                t.content = rec['content'].Value
-                t.createdTime = rec['createdTime'].Value
-                t.reminderTime = rec['reminderTime'].Value
-                t.done = rec['done'].Value
-                t.isdeleted = rec['deleted'].Value
-                try:
-                    self.mm.db_insert_table_todo(t)
-                except:
-                    exc()
-            self.mm.db_commit()
-        except:
-            exc()        
+        
