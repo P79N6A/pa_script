@@ -15,6 +15,10 @@ MAIL_OUTBOX = 3       # 已发送
 MAIL_DRAFTBOX = 2     # 草稿箱
 
 
+def execute(node, extract_deleted):
+    """ main """
+    return analyze_neteasemail(node, extract_deleted, extract_source=False)
+
 def analyze_neteasemail(node, extract_deleted, extract_source):
     """
         ios 网易邮箱大师 (Documents/imail.db)
@@ -28,6 +32,7 @@ def exc():
     """ handle exception """
     # traceback.print_exc()
     pass
+
 
 class NeteaseMailParser(object):
     def __init__(self, node, extract_deleted, extract_source):
@@ -105,7 +110,7 @@ class NeteaseMailParser(object):
     
             if IsDBNull(rec['name'].Value) or IsDBNull(rec['mailId'].Value):
                 continue
-            attach = Attach()
+            attach = Attach()   
             attach.attachName = rec['name'].Value
             attach.attachDir = rec['localPath'].Value if not IsDBNull(rec['localPath'].Value) else None
             attach.attachType = rec['contentType'].Value if not IsDBNull(rec['contentType'].Value) else None
@@ -139,6 +144,7 @@ class NeteaseMailParser(object):
                 mail.fromEmail = self._convert_email_format(rec['mailFrom'].Value) if not IsDBNull(rec['mailFrom'].Value) else None
                 mail.tos = self._convert_email_format(rec['mailTos'].Value) if not IsDBNull(rec['mailTos'].Value) else None
                 mail.cc = self._convert_email_format(rec['ccs'].Value) if not IsDBNull(rec['ccs'].Value) else None
+                mail.size = rec['size'].Value if not IsDBNull(rec['size'].Value) else None
                 mail.bcc = rec['bccs'].Value if not IsDBNull(rec['bccs'].Value) else None
                 mail.isForward = rec['forwarded'].Value if not IsDBNull(rec['forwarded'].Value) else None
                 mail.isRead = rec['unread'].Value ^ 1 if not IsDBNull(rec['unread'].Value) else None
