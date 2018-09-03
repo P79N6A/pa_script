@@ -132,7 +132,6 @@ SQL_INSERT_TABLE_MAIL_FOLDER_ANDROID = '''
 
 SQL_CREATE_TABLE_ATTACH = '''
     create table if not exists attach(
-        mailId INT,
         accountNick TEXT,
         accountEmail TEXT,
         subject TEXT,
@@ -152,9 +151,9 @@ SQL_CREATE_TABLE_ATTACH = '''
     )'''
 
 SQL_INSERT_TABLE_ATTACH = '''
-    insert into attach(mailId, accountNick, accountEmail, subject, downloadUtc, downloadSize,
+    insert into attach(accountNick, accountEmail, subject, downloadUtc, downloadSize,
     fromEmail, fromNick, mailUtc, attachName, exchangeField, attachType, attachDir, emailFolder, source, deleted, repeated)
-        values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
+        values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
 
 SQL_INSERT_TABLE_ATTACH_ANDROID = '''
     insert into attach(accountNick, accountEmail, subject, downloadUtc, downloadSize, 
@@ -167,7 +166,7 @@ SQL_CREATE_TABLE_TODO = '''
         content TEXT,
         createdTime INTEGER,
         reminderTime INTEGER,
-        isdone INTEGER,
+        done INTEGER,
         isdeleted INTEGER,
         source TEXT,
         deleted INT, 
@@ -175,7 +174,7 @@ SQL_CREATE_TABLE_TODO = '''
     )'''
 
 SQL_INSERT_TABLE_TODO = '''
-    insert into todo(content, createdTime, reminderTime, isdone, isdeleted, source, deleted, repeated)
+    insert into todo(content, createdTime, reminderTime, done, deleted, source, deleted, repeated)
         values(?, ?, ?, ?, ?, ?, ?, ?)'''
 
 
@@ -237,10 +236,6 @@ class MM(object):
     def db_insert_table_attach(self,Attach):
         if self.cursor is not None:
             self.cursor.execute(SQL_INSERT_TABLE_ATTACH, Attach.get_values())
-
-    def db_insert_table_todo(self,Todo):
-        if self.cursor is not None:
-            self.cursor.execute(SQL_INSERT_TABLE_TODO, Todo.get_values())
 
     def db_insert_table_search(self,Search):
         pass
@@ -309,6 +304,9 @@ class Accounts(Column):
         self.accountImage, self.accountSign) + super(Accounts,self).get_values()
 
 
+
+
+
 class Contact(Column):
     def __init__(self):
         super(Contact, self).__init__()
@@ -331,6 +329,7 @@ class Contact(Column):
         self.contactEmail,self.contactNick, self.groupName, self.alias, self.accountEmail) + super(Contact, self).get_values()
 
 
+
 class MailFolder(Column):
     def __init__(self):
         super(MailFolder, self).__init__()
@@ -346,7 +345,6 @@ class MailFolder(Column):
 class Attach(Column):
     def __init__(self):
         super(Attach, self).__init__()
-        self.mailId = None
         self.accountNick = None
         self.acocuntEmail = None
         self.subject = None
@@ -362,26 +360,9 @@ class Attach(Column):
         self.emailFolder = None
 
     def get_values(self):
-        return (self.mailId, self.accountNick, self.acocuntEmail, self.subject, self.downloadUtc,
+        return (self.accountNick, self.acocuntEmail, self.subject, self.downloadUtc,
         self.downloadSize, self.fromEmail, self.fromNick, self.mailUtc,
         self.attachName, self.exchangeField, self.attachType, self.attachDir, self.emailFolder) + super(Attach, self).get_values()
-
-
-class Todo(Column):
-    def __init__(self):
-        super(Todo, self).__init__()
-        self.content = None
-        self.createdTime = None
-        self.reminderTime = None
-        self.isdone = None
-        self.deleted = None
-
-    def get_values(self):
-        return (self.content,
-                self.createdTime,
-                self.reminderTime,
-                self.isdone,
-                self.deleted) + super(Todo, self).get_values()
 
 
 class Search(Column):
@@ -422,22 +403,27 @@ class Generate(object):
             print(e)
         while row is not None:
             mailMessage = Generic.MailMessage()
-            mailMessage.Folder.Value = row[16]
-            if row[16] == '已发送':
-                mailMessage.Status.Value = MessageStatus.Sent
-            elif row[16] == '草稿箱':
-                mailMessage.Status.Value = MessageStatus.Unsent
-            else:
-                mailMessage.Status.Value = MessageStatus.Unread if row[11] == 0 else MessageStatus.Read
-            mailMessage.Subject.Value = row[1]
-            mailMessage.Body.Value = row[17]
-            mailMessage.TimeStamp.Value = TimeStamp.FromUnixTime(row[4], False)  
-            party = Generic.Party()
-            party.Identifier.Value = row[3]
+            if row[16] is not None:
+                mailMessage.Folder.Value = row[16]
+                if row[16] == '已发送':
+                    mailMessage.Status.Value = MessageStatus.Sent
+                elif row[16] == '草稿箱':
+                    mailMessage.Status.Value = MessageStatus.Unsent
+                else:
+                    mailMessage.Status.Value = MessageStatus.Unread if row[11] == 0 else MessageStatus.Read
+            if row[1] is not None:
+                mailMessage.Subject.Value = row[1]
+            if row[17] is not None:
+                mailMessage.Body.Value = row[17]
+            if row[4] is not None:
+                mailMessage.TimeStamp.Value = TimeStamp.FromUnixTime(row[4], False)  
+            if row[3] is not None:
+                party = Generic.Party()
+                party.Identifier.Value = row[3]
             if row[9] is not None:
                 party.IPAddresses.Add(str(row[9]))                
-            party.DatePlayed.Value = TimeStamp.FromUnixTime(row[4], False)
-            mailMessage.From.Value = party
+                party.DatePlayed.Value = TimeStamp.FromUnixTime(row[4], False)
+                mailMessage.From.Value = party
             if row[6] is not None:
                 tos = row[6].split(' ')
                 for t in range(len(tos)-1):
@@ -474,15 +460,21 @@ class Generate(object):
                     attachment.DownloadTime.Value = row[18][a]
                     attachment.Size.Value = row[19][a]
                     mailMessage.Attachments.Add(attachment)
-            mailMessage.Abstract.Value = row[2]
-            mailMessage.Size.Value = row[5]
-            mailMessage.IsRecall.Value = row[12]
+            if row[2] is not None:
+                mailMessage.Abstract.Value = row[2]
+            if row[5] is not None:
+                mailMessage.Size.Value = row[5]
+            if row[12] is not None:
+                mailMessage.IsRecall.Value = row[12]
             user = Common.User()
-            user.Name.Value = row[15]
-            user.Username.Value = row[26]
+            if row[15] is not None:
+                user.Name.Value = row[15]
+            if row[26] is not None:
+                user.Username.Value = row[26]
             if row[27] is not None:
                 user.LastLoginTime.Value = TimeStamp.FromUnixTime(row[27], False)
-            user.Email.Value = row[15]
+            if row[15] is not None:
+                user.Email.Value = row[15]
             mailMessage.OwnerUser.Value = user
             models.append(mailMessage)
             row = self.cursor.fetchone()
@@ -503,16 +495,24 @@ class Generate(object):
             print(e)
         while row is not None:
             friend = Common.Friend()
-            friend.OwnerUserID.Value = row[11]
-            friend.FullName.Value = row[0]
-            friend.CompanyName.Value = row[2]
+            if row[11] is not None:
+                friend.OwnerUserID.Value = row[11]
+            if row[0] is not None:
+                friend.FullName.Value = row[0]
+            if row[2] is not None:
+                friend.CompanyName.Value = row[2]
             addr = Contacts.StreetAddress()
-            addr.FullName.Value = row[3]
-            friend.LivingAddresses.Add(addr)
-            friend.Remarks.Value = row[4]
-            friend.PhoneNumber.Value = row[5]
-            friend.Email.Value = row[7]
-            friend.Name.Value = row[8]
+            if row[3] is not None:
+                addr.FullName.Value = row[3]
+                friend.LivingAddresses.Add(addr)
+            if row[4] is not None:
+                friend.Remarks.Value = row[4]
+            if row[5] is not None:
+                friend.PhoneNumber.Value = row[5]
+            if row[7] is not None:
+                friend.Email.Value = row[7]
+            if row[8] is not None:
+                friend.Name.Value = row[8]
             row = self.cursor.fetchone()
         return models
 
