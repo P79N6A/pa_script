@@ -262,10 +262,10 @@ class MailParser(object):
         return models
     
 
-
-
-
 def analyze_qqmail(node, extractDeleted, extractSource):
     pr = ParserResults()
     pr.Models.AddRange(MailParser(node, extractDeleted, extractSource).parse())
     return pr
+
+def execute(node, extractDeleted):
+    return analyze_qqmail(node, extractDeleted, False)
