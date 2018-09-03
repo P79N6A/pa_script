@@ -18,7 +18,6 @@ def execute(node, extract_deleted):
     """ main """
     return analyze_neteasemail(node, extract_deleted, extract_source=False)
 
-
 def analyze_neteasemail(node, extract_deleted, extract_source):
     """
         ios 网易邮箱大师 (Documents/imail.db)
@@ -111,10 +110,10 @@ class NeteaseMailParser(object):
                 continue
             attach = Attach()
             attach.attachName = rec['name'].Value
-            attach.attachDir = rec['localPath'].Value if not IsDBNull(rec['localPath'].Value) else None
-            attach.attachType = rec['contentType'].Value if not IsDBNull(rec['contentType'].Value) else None
-            attach.downloadUtc = rec['createdate'].Value if not IsDBNull(rec['createdate'].Value) else None
-            attach.downloadSize = rec['size'].Value if not IsDBNull(rec['size'].Value) else None
+            attach.attachDir = rec['localPath'].Value 
+            attach.attachType = rec['contentType'].Value 
+            attach.downloadUtc = rec['createdate'].Value 
+            attach.downloadSize = rec['size'].Value 
             attach.mailId = rec['mailId'].Value
             try:
                 self.mm.db_insert_table_attach(attach)
@@ -135,24 +134,24 @@ class NeteaseMailParser(object):
                 mail = Mails()
                 if IsDBNull(rec['subject'].Value):
                     continue
-                mail.mailId = rec['localId'].Value if not IsDBNull(rec['localId'].Value) else None
+                mail.mailId = rec['localId'].Value 
                 mail.mail_folder = self.mail_folder.get(rec['mailBoxId'].Value, None)
                 mail.subject = rec['subject'].Value
-                mail.abstract = rec['summary'].Value if not IsDBNull(rec['summary'].Value) else None
+                mail.abstract = rec['summary'].Value 
                 mail.accountId = rec['accountRawId'].Value
-                mail.fromEmail = self._convert_email_format(rec['mailFrom'].Value) if not IsDBNull(rec['mailFrom'].Value) else None
-                mail.tos = self._convert_email_format(rec['mailTos'].Value) if not IsDBNull(rec['mailTos'].Value) else None
-                mail.cc = self._convert_email_format(rec['ccs'].Value) if not IsDBNull(rec['ccs'].Value) else None
-                mail.bcc = rec['bccs'].Value if not IsDBNull(rec['bccs'].Value) else None
-                mail.size =  rec['size'].Value if not IsDBNull(rec['size'].Value) else None
-                mail.isForward = rec['forwarded'].Value if not IsDBNull(rec['forwarded'].Value) else None
-                mail.isRead = rec['unread'].Value ^ 1 if not IsDBNull(rec['unread'].Value) else None
+                mail.fromEmail = self._convert_email_format(rec['mailFrom'].Value) 
+                mail.tos = self._convert_email_format(rec['mailTos'].Value) 
+                mail.cc = self._convert_email_format(rec['ccs'].Value) 
+                mail.bcc = rec['bccs'].Value 
+                mail.size =  rec['size'].Value 
+                mail.isForward = rec['forwarded'].Value 
+                mail.isRead = rec['unread'].Value ^ 1 
                 if rec['mailBoxId'].Value == MAIL_OUTBOX:     # 发件箱
                     mail.sendStatus = 1
                 elif rec['mailBoxId'].Value == MAIL_DRAFTBOX: # 草稿箱
                     mail.sendStatus = 0
-                mail.receiveUtc = rec['sentDate'].Value if not IsDBNull(rec['sentDate'].Value) else None
-                mail.downloadSize = rec['size'].Value if not IsDBNull(rec['size'].Value) else None
+                mail.receiveUtc = rec['sentDate'].Value 
+                mail.downloadSize = rec['size'].Value 
                 # 附件
                 if rec['hasAttachments'].Value == 1:
                     self.mm.cursor.execute(SELECT_ATTACH_SQL, (mail.mailId,))
@@ -230,9 +229,32 @@ class NeteaseMailParser(object):
         except:
             exc()
 
+    def parse_todo(self, node):
+        """ 
+            待办事项 
+        """
+        try:
+            todo_db = SQLiteParser.Database.FromNode(node)
+            if todo_db is None:
+                return
+            for rec in self.my_read_table(db=todo_db, table_name='todoList'):
+                t = Todo()
+                t.content = rec['content'].Value
+                t.createdTime = rec['createdTime'].Value
+                t.reminderTime = rec['reminderTime'].Value
+                t.isdone = rec['done'].Value
+                t.isdeleted = rec['deleted'].Value
+                try:
+                    self.mm.db_insert_table_todo(t)
+                except:
+                    exc()
+            self.mm.db_commit()
+        except:
+            exc()
+
     def my_read_table(self, table_name, db_path=None, db=None):
         """ 
-            读取手机数据库 参数 db_path, db 二选一
+            读取手机数据库, 参数 db_path, db 二选一
         :type table_name: str
         :type db_path: str
         :type db: SQLiteParser.Database.FromNode(node)
@@ -258,6 +280,8 @@ class NeteaseMailParser(object):
         from: [{"name":"pangu_x01","email":"pangu_x01@163.com"}]
         to:   pangu_x01@163.com pangu_x01
         """
+        if IsDBNull(name_email):
+            return None
         res = ''
         try:
             name_email = eval(name_email)
@@ -274,26 +298,3 @@ class NeteaseMailParser(object):
             res = None
             exc()
         return res
-
-    def parse_todo(self, node):
-        """ 
-            待办事项 
-        """
-        try:
-            todo_db = SQLiteParser.Database.FromNode(node)
-            if todo_db is None:
-                return
-            for rec in self.my_read_table(db=todo_db, table_name='todoList'):
-                t = Todo()
-                t.content = rec['content'].Value
-                t.createdTime = rec['createdTime'].Value
-                t.reminderTime = rec['reminderTime'].Value
-                t.done = rec['done'].Value
-                t.isdeleted = rec['deleted'].Value
-                try:
-                    self.mm.db_insert_table_todo(t)
-                except:
-                    exc()
-            self.mm.db_commit()
-        except:
-            exc()        
