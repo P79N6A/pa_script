@@ -86,6 +86,11 @@ class Ding(object):
             return
         bp = BPReader(pre_node.Data).top
         # pass...
+        #device_id = bp['UTDID']['UTDID'].Value
+        b = bp['UTDID']
+        if b is None:
+            self.log_print("EXCEPTION OF NONE DATA!")
+            return 
         device_id = bp['UTDID']['UTDID'].Value
         abs_path = self.root.PathWithMountPoint
         sql_dir = os.path.join(abs_path, 'Documents/db')
