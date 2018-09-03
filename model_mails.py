@@ -416,14 +416,15 @@ class Generate(object):
             if row[17] is not None:
                 mailMessage.Body.Value = row[17]
             if row[4] is not None:
-                mailMessage.TimeStamp.Value = TimeStamp.FromUnixTime(row[4], False)  
+                mailMessage.TimeStamp.Value = TimeStamp.FromUnixTime(row[4], False)
+            party = Generic.Party()
             if row[3] is not None:
-                party = Generic.Party()
                 party.Identifier.Value = row[3]
             if row[9] is not None:
-                party.IPAddresses.Add(str(row[9]))                
+                party.IPAddresses.Add(str(row[9]))
+            if row[4] is not None:
                 party.DatePlayed.Value = TimeStamp.FromUnixTime(row[4], False)
-                mailMessage.From.Value = party
+            mailMessage.From.Value = party
             if row[6] is not None:
                 tos = row[6].split(' ')
                 for t in range(len(tos)-1):
@@ -431,7 +432,8 @@ class Generate(object):
                         party = Generic.Party()
                         party.Identifier.Value = tos[t]
                         party.Name.Value = tos[t+1]
-                        party.DatePlayed.Value = TimeStamp.FromUnixTime((row[4]), False)
+                        if row[4] is not None:
+                            party.DatePlayed.Value = TimeStamp.FromUnixTime((row[4]), False)
                         mailMessage.To.Add(party)
             if row[7] is not None:
                 cc = row[7].split(' ')
@@ -440,7 +442,8 @@ class Generate(object):
                         party = Generic.Party()
                         party.Identifier.Value = cc[c]
                         party.Name.Value = cc[c+1]
-                        party.DatePlayed.Value = TimeStamp.FromUnixTime((row[4]), False)
+                        if row[4] is not None:
+                            party.DatePlayed.Value = TimeStamp.FromUnixTime((row[4]), False)
                         mailMessage.Cc.Add(party)
             if row[8] is not None:
                 bcc = row[8].split(' ')
@@ -449,16 +452,21 @@ class Generate(object):
                         party = Generic.Party()
                         party.Identifier.Value = bcc[b]
                         party.Name.Value = tos[t+1]
-                        party.DatePlayed.Value = TimeStamp.FromUnixTime((row[4]), False)
+                        if row[4] is not None:
+                            party.DatePlayed.Value = TimeStamp.FromUnixTime((row[4]), False)
                         mailMessage.BCc.Add(party)
             if row[18] is not None:
                 for a in range(len(row[18].split(','))):
                     attachment = Generic.Attachment()
-                    attachment.Filename.Value = row[20][a]
-                    attachment.URL.Value = row[21][a]
-                    attachment.Uri.Value = row[21][a]
-                    attachment.DownloadTime.Value = row[18][a]
-                    attachment.Size.Value = row[19][a]
+                    if row[20] is not None:
+                        attachment.Filename.Value = row[20][a]
+                    if row[21] is not None:
+                        attachment.URL.Value = row[21][a]
+                        attachment.Uri.Value = row[21][a]
+                    if row[18] is not None:
+                        attachment.DownloadTime.Value = row[18][a]
+                    if row[19] is not None:
+                        attachment.Size.Value = row[19][a]
                     mailMessage.Attachments.Add(attachment)
             if row[2] is not None:
                 mailMessage.Abstract.Value = row[2]
@@ -501,8 +509,8 @@ class Generate(object):
                 friend.FullName.Value = row[0]
             if row[2] is not None:
                 friend.CompanyName.Value = row[2]
-            addr = Contacts.StreetAddress()
             if row[3] is not None:
+                addr = Contacts.StreetAddress()
                 addr.FullName.Value = row[3]
                 friend.LivingAddresses.Add(addr)
             if row[4] is not None:
