@@ -51,13 +51,14 @@ class baiduMapParser(object):
         account.source = "百度地图:"
         account.sourceApp = "百度地图"
         accountNode = self.root.GetByPath("Library/Preferences/com.baidu.map.plist")
-        account.sourceFile = accountNode.AbsolutePath
         if accountNode is None:
-            TraceService.Trace(TraceLevel.Debug, "node is null")
+            #TraceService.Trace(TraceLevel.Debug, "node is null")
+            return 
         else:
             bplist = BPReader.GetTree(accountNode)
+            account.sourceFile = accountNode.AbsolutePath
             if bplist == None:
-                raise  Exception("bplist is null")
+                return
             if bplist["sapi_displayname"]:
                 name = bplist["sapi_displayname"].Value
                 account.username = name
@@ -112,7 +113,6 @@ class baiduMapParser(object):
         """
         分析搜索历史记录
         """
-        search = model_map.Search()
         dicts = defaultdict(lambda: 'None')
         historyNode = self.root.GetByPath("Documents/his_record.sdb")
         try:
@@ -123,6 +123,7 @@ class baiduMapParser(object):
             if self.extract_deleted:
                 SQLiteParser.Tools.AddSignatureToTable(tb, "key", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
             for rec in db.ReadTableRecords(tb, self.extract_deleted, True):
+                search = model_map.Search()
                 if rec.Deleted == DeletedState.Intact:
                     search.deleted = 0
                 elif rec.Deleted == DeletedState.Deleted:
@@ -135,22 +136,25 @@ class baiduMapParser(object):
                 x = rec["value"].Value
                 b = bytes(x)
                 try:
+                    #b = bytes(x)
                     jsonfile = b.decode("utf-16")
                     dicts = json.loads(jsonfile)
+                    search_name = dicts.get("historyMainTitleKey") if dicts.get("historyMainTitleKey") else dicts.get("poiHisValue")
+                    search.keyword = search_name
+                    search.create_time = dicts.get("addtimesec")
                 except Exception as e:
                     pass
-                search_name = dicts.get("historyMainTitleKey") if dicts.get("historyMainTitleKey") else dicts.get("poiHisValue")
-                #search_time = TimeStamp(TimeStampFormats.GetTimeStampEpoch1Jan2001(dicts.get("addtimesec")))
-                search.keyword = search_name
-                search.create_time = dicts.get("addtimesec")
+                # search_name = dicts.get("historyMainTitleKey") if dicts.get("historyMainTitleKey") else dicts.get("poiHisValue")
+                # search.keyword = search_name
+                # search.create_time = dicts.get("addtimesec")
                 try:
                     self.baidumap.db_insert_table_search(search)
                 except Exception as e:
                     pass
         except Exception as e:
             print(e)
-        finally:
-            self.baidumap.db_commit()
+        
+        self.baidumap.db_commit()
 
 
     def analyze_ususal_address(self):
@@ -190,17 +194,17 @@ class baiduMapParser(object):
         """
         导航记录
         """      
-        routeaddr = model_map.Address()  
         hsAddressNode = self.root.GetByPath("Documents/routeHis_record.sdb")
         try:
             db = SQLiteParser.Database.FromNode(hsAddressNode)
             if db is None:
-                return []
+                return 
             tb = SQLiteParser.TableSignature('routeHis_record')
             if self.extract_deleted:
                 pass
             
             for rec in db.ReadTableRecords(tb, self.extract_deleted, True):
+                routeaddr = model_map.Address() 
                 if rec.Deleted == DeletedState.Deleted:
                     routeaddr.deleted = 1
                 routeaddr.source = "百度地图:"
@@ -210,34 +214,51 @@ class baiduMapParser(object):
                 seach_info = rec["value"].Value
                 b = bytes(seach_info)
                 try:
+                    #b = bytes(seach_info)
                     jsonflie = b.decode('utf-16')
                     dicts= json.loads(jsonflie)
+                    search_time = dicts.get("addtimesec")
+                    routeaddr.create_time = search_time
+
+                    from_name = dicts.get("sfavnode").get("name")
+                    from_geoptx = dicts.get("sfavnode").get("geoptx")
+                    from_geopty = dicts.get("sfavnode").get("geopty")
+                    routeaddr.from_name = from_name
+                    routeaddr.from_posX = from_geoptx
+                    routeaddr.from_posY = from_geopty
+
+                    to_name = dicts.get("efavnode").get("name")
+                    to_geoptx = dicts.get("efavnode").get("geoptx")
+                    to_geopty = dicts.get("efavnode").get("geopty")
+                    routeaddr.to_name = to_name
+                    routeaddr.to_posX = to_geoptx
+                    routeaddr.to_posY = to_geopty
                 except Exception as e:
                     pass
-                search_time = dicts.get("addtimesec")
-                routeaddr.create_time = search_time
+                # search_time = dicts.get("addtimesec")
+                # routeaddr.create_time = search_time
 
-                from_name = dicts.get("sfavnode").get("name")
-                from_geoptx = dicts.get("sfavnode").get("geoptx")
-                from_geopty = dicts.get("sfavnode").get("geopty")
-                routeaddr.from_name = from_name
-                routeaddr.from_posX = from_geoptx
-                routeaddr.from_posY = from_geopty
+                # from_name = dicts.get("sfavnode").get("name")
+                # from_geoptx = dicts.get("sfavnode").get("geoptx")
+                # from_geopty = dicts.get("sfavnode").get("geopty")
+                # routeaddr.from_name = from_name
+                # routeaddr.from_posX = from_geoptx
+                # routeaddr.from_posY = from_geopty
 
-                to_name = dicts.get("efavnode").get("name")
-                to_geoptx = dicts.get("efavnode").get("geoptx")
-                to_geopty = dicts.get("efavnode").get("geopty")
-                routeaddr.to_name = to_name
-                routeaddr.to_posX = to_geoptx
-                routeaddr.to_posY = to_geopty
+                # to_name = dicts.get("efavnode").get("name")
+                # to_geoptx = dicts.get("efavnode").get("geoptx")
+                # to_geopty = dicts.get("efavnode").get("geopty")
+                # routeaddr.to_name = to_name
+                # routeaddr.to_posX = to_geoptx
+                # routeaddr.to_posY = to_geopty
                 try:
                     self.baidumap.db_insert_table_address(routeaddr)
                 except Exception as e:
                     pass
         except Exception as e:
             print(e)
-        finally:
-            self.baidumap.db_commit()
+        
+        self.baidumap.db_commit()
 
 
 def analyze_baidumap(root, extract_deleted, extract_source):
@@ -249,7 +270,8 @@ def analyze_baidumap(root, extract_deleted, extract_source):
     pr = ParserResults()
     prResult = baiduMapParser(root, extract_deleted, extract_source).parse()
     if prResult:
-        map(pr.Models.Add(i) for i in prResult)
+        for i in prResult:
+            pr.Models.Add(i)
     return pr
 
 def execute(node, extract_deleted):
