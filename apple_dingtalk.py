@@ -548,22 +548,25 @@ class Ding(object):
             except:
                 reader = None
             while reader is not None and reader.Read():
-                string = GetString(reader, 0)
-                js = json.loads(string)
-                feed = model_im.Feed()
-                feed.sender_id = current_id
-                addr = js.get('checkResult').get('address')
-                time = js.get('checkResult').get('checkTime')
-                f_id = js.get('checkResult').get('id')
-                method = js.get('checkResult').get('locationMethod')
-                s_type = js.get('checkResult').get('scheduleType')
-                feed.content = '''
-                event:{}
-                address:{}
-                method:{}
-                '''.format(s_type, addr, method)
-                feed.send_time = time / 1000
-                self.im.db_insert_table_feed(feed)
+                try:
+                    string = GetString(reader, 0)
+                    js = json.loads(string)
+                    feed = model_im.Feed()
+                    feed.sender_id = current_id
+                    addr = js.get('checkResult').get('address')
+                    time = js.get('checkResult').get('checkTime')
+                    f_id = js.get('checkResult').get('id')
+                    method = js.get('checkResult').get('locationMethod')
+                    s_type = js.get('checkResult').get('scheduleType')
+                    feed.content = '''
+                    event:{}
+                    address:{}
+                    method:{}
+                    '''.format(s_type, addr, method)
+                    feed.send_time = time / 1000
+                    self.im.db_insert_table_feed(feed)
+                except:
+                    continue
             self.im.db_commit()
             cmd.Dispose()
             connection.Close()

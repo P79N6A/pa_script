@@ -269,5 +269,5 @@ def analyse_twitter(root, extract_deleted, extract_source):
     pr.Categories = DescripCategories.QQ
     pr.Models.AddRange(list(mlm.GetUnique(models)))
     pr.Build('Twitter')
-    pass
+    return pr
     
