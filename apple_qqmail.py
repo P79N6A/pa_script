@@ -6,7 +6,6 @@ import time
 from PA_runtime import *
 import logging
 import sqlite3
-from System.Linq import Enumerable
 from model_mails import MM,Mails,Accounts,Contact,MailFolder,Attach,Generate
 
 SQL_ASSOCIATE_TABLE_MAILS = '''

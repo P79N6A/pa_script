@@ -24,6 +24,7 @@ from android_baidumap import analyze_baidumap
 from android_tencentmap import analyze_tencentmap
 from android_gaodemap import analyze_gaodemap
 from android_sogoumap import analyze_sogoumap
+from android_whatsapp import analyze_whatsapp
 
 APP_FILTERS =[]
 if 'TestNodes' in locals():
@@ -43,7 +44,9 @@ FIND_BY_RGX_NODES = [
 	('/com.baidu.BaiduMap/databases/baidumapfav.db$', analyze_baidumap, "BaiduMap", "百度地图", DescripCategories.BaiduMap),
     ('/com.tencent.map/databases/route_search_history.db$', analyze_tencentmap, "TencentMap", "腾讯地图", DescripCategories.TencentMap),
     ('/com.autonavi.minimap/files/girf_sync.db', analyze_gaodemap, "AMap", "高德地图", DescripCategories.AMap),
-    ('/com.sogou.map.android.maps/databases/com.sogou.map.mobile.android.history_result.db$', analyze_sogoumap, "SogouMap", "搜狗地图", DescripCategories.SogouMap)
+    ('/com.sogou.map.android.maps/databases/com.sogou.map.mobile.android.history_result.db$', analyze_sogoumap, "SogouMap", "搜狗地图", DescripCategories.SogouMap),
+	('/data/com.whatsapp$', analyze_whatsapp, "WhatsApp", "WhatsApp", DescripCategories.WhatsApp),
+	
 ]
 
 def decode_nodes(fs, extract_deleted, extract_source, installed_apps):

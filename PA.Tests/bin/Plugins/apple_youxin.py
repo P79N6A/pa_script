@@ -35,6 +35,9 @@ def analyze_youxin(root, extract_deleted, extract_source):
     pr.Models.AddRange(list(mlm.GetUnique(models)))
 
     return pr
+    
+def execute(node,extracteDeleted):
+    return analyze_renren(node, extracteDeleted, False)
 
 class YouXinParser(model_im.IM):
     def __init__(self, node, extract_deleted, extract_source):

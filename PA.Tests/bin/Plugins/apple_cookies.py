@@ -57,8 +57,7 @@ class CookieParser(object):
             if f is None or f.Data is None:
                 continue
             try:
-                plist = PList()  #PList数据库模型类
-                p = plist.Parse(f.Data) #解码获取plist中的数据
+                p = PList.Parse(f.Data) #解码获取plist中的数据
             except SystemError:
                 continue
             if p is None:
