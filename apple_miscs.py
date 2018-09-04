@@ -225,7 +225,7 @@ def analyze_tethering(node, extract_deleted, extract_source):
     """Finds the timestamp of the last Personal Hotspot activation and returns it as a DeviceInfo field."""
     pr = ParserResults()
     if node is not None and node.ModifyTime:
-        pr.DeviceInfoFields.Add(MetaDataField('LastActivationTime', str(node.ModifyTime),'Tethering')
+        pr.DeviceInfoFields.Add(MetaDataField('LastActivationTime', str(node.ModifyTime),'Tethering'))
     return pr
 
 def analyze_ithmb(node, extract_deleted, extract_source):

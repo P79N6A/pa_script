@@ -1295,7 +1295,7 @@ def analyze_maps_search(node, extractDeleted, extractSource):
     pr.Models.AddRange(results)
     return pr
 
-def analyze_wifi_from_plist(node, extractDeleted, extractSource):
+def analyze_wifi_from_plist(f, extractDeleted, extractSource):
     results = []
     if f.Data is None or f.Data.Length == 0:
         return
