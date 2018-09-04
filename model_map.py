@@ -288,7 +288,7 @@ class Genetate(object):
             user.Source.Value = row[18]
             user.SourceApp.Value = row[19]
             if row[20]:
-                user.SourceFile.Value =self._get_source_file(rowp[20])
+                user.SourceFile.Value =self._get_source_file(row[20])
             user.ID.Value = row[0]
             if row[1]:
                 user.Name.Value = row[1]
