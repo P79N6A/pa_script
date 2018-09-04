@@ -30,16 +30,13 @@ SQL_ASSOCIATE_TABLE_CONTACT1 = """attach database '"""
 SQL_ASSOCIATE_TABLE_CONTACT2 = """' as 'FMailDB';"""
 
 SQL_ASSOCIATE_TABLE_CONTACT3 = """
-    select e.*, f.alias, f.name as accountEmail from (
-        select c.*,d.name as groupName from (
+    select c.*, d.alias, d.name as accountEmail from (
             select a.accountid, a.name as contactName, a.birthday as contactBirthday,
             a.department as contactDepartment, a.familyAddress as contactFamilyAddress,
             a.mark as contactMark, a.mobile as contactMobile, a.telephone as contactTelephone,
             b.contactgroup as contactGroup, b.email as contactEmail, b.nick as contactNick from
             FMContact as a left join FMContactItem as b on a.contactid = b.contactid)
-            as c left join FMContactGroup as d on c.contactgroup = d.groupid)
-        as e inner join FMailDB.FM_Account
-    as f on e.accountid = f.id"""
+            as c inner join FMailDB.FM_Account as d on c.accountid = d.id"""
 
 SQL_ASSOCIATE_TABLE_MAIL_FOLDER = '''select distinct a.id, a.folderType, a.showName as folderName, b.alias as accountNick, b.name as accountEmail from 
     FM_Folder as a left join FM_Account as b'''
@@ -103,6 +100,7 @@ class MailParser(object):
                 if self.node.GetByPath("/Documents/attachmentCacheFolder/") is not None:
                     self.attachNode = self.node.GetByPath("/Documents/attachmentCacheFolder/").PathWithMountPoint
                     mails.attachDir = self.attachNode + '''\\Documents\\attachmentCacheFolder\\ '''+ str(row[1]) if row[24] is not None else None
+                mails.source = 'QQ邮箱'
                 self.mm.db_insert_table_mails(mails)
             self.mm.db_commit()
         except Exception as e:
@@ -131,6 +129,7 @@ class MailParser(object):
                 accounts.loginDate = row[3]  #登陆时间
                 accounts.accountImage = row[4]  #账户头像
                 accounts.accountSign = row[5]  #账户登陆信息（密码之类的）
+                accounts.source = 'QQ邮箱'
                 self.mm.db_insert_table_account(accounts)
             self.mm.db_commit()
         except Exception as e:
@@ -164,9 +163,9 @@ class MailParser(object):
                 contact.contactTelephone = row[7]
                 contact.contactEmail = row[9]
                 contact.contactNick = row[10]
-                contact.groupName = row[11]
-                contact.alias = row[12]
-                contact.accountEmail = row[13]
+                contact.alias = row[11]
+                contact.accountEmail = row[12]
+                contact.source = 'QQ邮箱'
                 self.mm.db_insert_table_contact(contact)
             self.mm.db_commit()
         except Exception as e:
@@ -191,6 +190,7 @@ class MailParser(object):
                 mailFolder.folderName = row[2]  #邮箱分类名
                 mailFolder.accountNick = row[3]  #邮箱分类所属账户昵称
                 mailFolder.accountEmail = row[4]  #邮箱分类所属账户邮箱
+                mailFolder.source = 'QQ邮箱'
                 self.mm.db_insert_table_mail_folder(mailFolder)
             self.mm.db_commit()
         except Exception as e:
@@ -223,6 +223,7 @@ class MailParser(object):
                 attach.exchangeField = row[11]  #附件路径
                 attach.attachType = row[12]  #附件类型
                 attach.emailFolder = row[13]  #邮件类型
+                attach.source = 'QQ邮箱'
                 self.mm.db_insert_table_attach(attach)
             self.mm.db_commit()
         except Exception as e:
