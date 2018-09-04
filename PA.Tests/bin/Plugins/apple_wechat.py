@@ -72,7 +72,7 @@ class WeChatParser(model_im.IM):
     def __init__(self, node, extract_deleted, extract_source):
         super(WeChatParser, self).__init__()
         self.root = node.Parent.Parent
-        self.extract_deleted = False  # extract_deleted
+        self.extract_deleted = extract_deleted
         self.extract_source = extract_source
 
     def parse(self):
@@ -747,7 +747,7 @@ class WeChatParser(model_im.IM):
 
         prefix = b'<RoomData>'
         suffix = b'</RoomData>'
-        if prefix in blob and suffix in blob:
+        if blob is not None and prefix in blob and suffix in blob:
             index_begin = blob.index(prefix)
             index_end = blob.index(suffix) + len(suffix)
             content = blob[index_begin:index_end].decode('utf-8')
@@ -1077,7 +1077,8 @@ class WeChatParser(model_im.IM):
     def _db_record_get_blob_value(record, column, default_value=None):
         if not record[column].IsDBNull:
             try:
-                return bytes(record[column].Value)
+                value = record[column].Value
+                return bytes(value)
             except Exception as e:
                 return default_value
         return default_value
