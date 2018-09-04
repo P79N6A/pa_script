@@ -5,6 +5,7 @@ from PA_runtime import *
 import clr
 clr.AddReference('System.Core')
 clr.AddReference('System.Xml.Linq')
+clr.AddReference('System.Data.SQLite')
 del clr
 
 from System.IO import MemoryStream
@@ -13,6 +14,7 @@ from System.Xml.Linq import *
 from System.Linq import Enumerable
 from System.Xml.XPath import Extensions as XPathExtensions
 from PA.InfraLib.Utils import *
+import System.Data.SQLite as SQLite
 
 import os
 import sqlite3
@@ -312,87 +314,102 @@ SQL_INSERT_TABLE_VERSION = '''
 class IM(object):
     def __init__(self):
         self.db = None
-        self.cursor = None
+        self.db_cmd = None
+        self.db_trans = None
 
     def db_create(self, db_path):
         if os.path.exists(db_path):
             os.remove(db_path)
 
-        self.db = sqlite3.connect(db_path)
-        self.cursor = self.db.cursor()
+        self.db = SQLite.SQLiteConnection('Data Source = {}'.format(db_path))
+        self.db.Open()
+        self.db_cmd = SQLite.SQLiteCommand(self.db)
+        self.db_trans = self.db.BeginTransaction()
 
         self.db_create_table()
         self.db_commit()
 
     def db_close(self):
-        if self.cursor is not None:
-            self.cursor.close()
-            self.cursor = None
+        self.db_trans = None
+        if self.db_cmd is not None:
+            self.db_cmd.Dispose()
+            self.db_cmd = None
         if self.db is not None:
-            self.db.close()
+            self.db.Close()
             self.db = None
 
     def db_commit(self):
-        if self.db is not None:
-            self.db.commit()
+        if self.db_trans is not None:
+            self.db_trans.Commit()
+        self.db_trans = self.db.BeginTransaction()
 
     def db_create_table(self):
-        if self.cursor is not None:
-            self.cursor.execute(SQL_CREATE_TABLE_ACCOUNT)
-            self.cursor.execute(SQL_CREATE_TABLE_FRIEND)
-            self.cursor.execute(SQL_CREATE_TABLE_CHATROOM)
-            self.cursor.execute(SQL_CREATE_TABLE_CHATROOM_MEMBER)
-            self.cursor.execute(SQL_CREATE_TABLE_MESSAGE)
-            self.cursor.execute(SQL_CREATE_TABLE_FEED)
-            self.cursor.execute(SQL_CREATE_TABLE_FEED_LIKE)
-            self.cursor.execute(SQL_CREATE_TABLE_FEED_COMMENT)
-            self.cursor.execute(SQL_CREATE_TABLE_LOCATION)
-            self.cursor.execute(SQL_CREATE_TABLE_DEAL)
-            self.cursor.execute(SQL_CREATE_TABLE_VERSION)
+        if self.db_cmd is not None:
+            self.db_cmd.CommandText = SQL_CREATE_TABLE_ACCOUNT
+            self.db_cmd.ExecuteNonQuery()
+            self.db_cmd.CommandText = SQL_CREATE_TABLE_FRIEND
+            self.db_cmd.ExecuteNonQuery()
+            self.db_cmd.CommandText = SQL_CREATE_TABLE_CHATROOM
+            self.db_cmd.ExecuteNonQuery()
+            self.db_cmd.CommandText = SQL_CREATE_TABLE_CHATROOM_MEMBER
+            self.db_cmd.ExecuteNonQuery()
+            self.db_cmd.CommandText = SQL_CREATE_TABLE_MESSAGE
+            self.db_cmd.ExecuteNonQuery()
+            self.db_cmd.CommandText = SQL_CREATE_TABLE_FEED
+            self.db_cmd.ExecuteNonQuery()
+            self.db_cmd.CommandText = SQL_CREATE_TABLE_FEED_LIKE
+            self.db_cmd.ExecuteNonQuery()
+            self.db_cmd.CommandText = SQL_CREATE_TABLE_FEED_COMMENT
+            self.db_cmd.ExecuteNonQuery()
+            self.db_cmd.CommandText = SQL_CREATE_TABLE_LOCATION
+            self.db_cmd.ExecuteNonQuery()
+            self.db_cmd.CommandText = SQL_CREATE_TABLE_DEAL
+            self.db_cmd.ExecuteNonQuery()
+            self.db_cmd.CommandText = SQL_CREATE_TABLE_VERSION
+            self.db_cmd.ExecuteNonQuery()
+
+    def db_insert_table(self, sql, values):
+        if self.db_cmd is not None:
+            self.db_cmd.CommandText = sql
+            self.db_cmd.Parameters.Clear()
+            for value in values:
+                param = self.db_cmd.CreateParameter()
+                param.Value = value
+                self.db_cmd.Parameters.Add(param)
+            self.db_cmd.ExecuteNonQuery()
 
     def db_insert_table_account(self, column):
-        if self.cursor is not None:
-            self.cursor.execute(SQL_INSERT_TABLE_ACCOUNT, column.get_values())
+        self.db_insert_table(SQL_INSERT_TABLE_ACCOUNT, column.get_values())
 
     def db_insert_table_friend(self, column):
-        if self.cursor is not None:
-            self.cursor.execute(SQL_INSERT_TABLE_FRIEND, column.get_values())
+        self.db_insert_table(SQL_INSERT_TABLE_FRIEND, column.get_values())
 
     def db_insert_table_chatroom(self, column):
-        if self.cursor is not None:
-            self.cursor.execute(SQL_INSERT_TABLE_CHATROOM, column.get_values())
+        self.db_insert_table(SQL_INSERT_TABLE_CHATROOM, column.get_values())
 
     def db_insert_table_chatroom_member(self, column):
-        if self.cursor is not None:
-            self.cursor.execute(SQL_INSERT_TABLE_CHATROOM_MEMBER, column.get_values())
+        self.db_insert_table(SQL_INSERT_TABLE_CHATROOM_MEMBER, column.get_values())
 
     def db_insert_table_message(self, column):
-        if self.cursor is not None:
-            self.cursor.execute(SQL_INSERT_TABLE_MESSAGE, column.get_values())
+        self.db_insert_table(SQL_INSERT_TABLE_MESSAGE, column.get_values())
 
     def db_insert_table_feed(self, column):
-        if self.cursor is not None:
-            self.cursor.execute(SQL_INSERT_TABLE_FEED, column.get_values())
+        self.db_insert_table(SQL_INSERT_TABLE_FEED, column.get_values())
 
     def db_insert_table_feed_like(self, column):
-        if self.cursor is not None:
-            self.cursor.execute(SQL_INSERT_TABLE_FEED_LIKE, column.get_values())
+        self.db_insert_table(SQL_INSERT_TABLE_FEED_LIKE, column.get_values())
 
     def db_insert_table_feed_comment(self, column):
-        if self.cursor is not None:
-            self.cursor.execute(SQL_INSERT_TABLE_FEED_COMMENT, column.get_values())
+        self.db_insert_table(SQL_INSERT_TABLE_FEED_COMMENT, column.get_values())
 
     def db_insert_table_location(self, column):
-        if self.cursor is not None:
-            self.cursor.execute(SQL_INSERT_TABLE_LOCATION, column.get_values())
+        self.db_insert_table(SQL_INSERT_TABLE_LOCATION, column.get_values())
 
     def db_insert_table_deal(self, column):
-        if self.cursor is not None:
-            self.cursor.execute(SQL_INSERT_TABLE_DEAL, column.get_values())
+        self.db_insert_table(SQL_INSERT_TABLE_DEAL, column.get_values())
 
     def db_insert_table_version(self, key, version):
-        if self.cursor is not None:
-            self.cursor.execute(SQL_INSERT_TABLE_VERSION, (key, version))
+        self.db_insert_table(SQL_INSERT_TABLE_VERSION, (key, version))
 
     '''
     版本检测分为两部分
@@ -774,7 +791,6 @@ class GenerateModel(object):
                 friend.Age.Value = row[9]
             if row[12]:
                 friend.Signature.Value = row[12]
-            friend.FriendType.Value = Common.FriendType.Friend
             address = Contacts.StreetAddress()
             if row[10]:
                 address.FullName.Value = row[10]
