@@ -74,6 +74,7 @@ from apple_sogoumap import analyze_sogoumap
 from apple_baidumap import analyze_baidumap
 from apple_gaodemap import analyze_gaodemap
 from apple_tencentmap import analyze_tencentmap
+from android_whatsapp import analyze_whatsapp
 from apple_neteasemail import analyze_neteasemail
 from apple_youxin import analyze_youxin
 from apple_yixin import analyze_yixin
@@ -105,6 +106,7 @@ FIND_BY_RGX_NODES = [
     ("/Library/Notes/notes\.sqlite$", analyze_notes, "Notes","备忘录",DescripCategories.Notes),
     ("/Library/Notes/notes\.db$", analyze_old_notes, "Notes","备忘录",DescripCategories.Notes),
     ("/AddressBook$", analyze_addressbook, "AddressBook","通讯录(系统)",DescripCategories.Contacts),
+	('/data/com.whatsapp$', analyze_whatsapp, "WhatsApp", "WhatsApp", DescripCategories.WhatsApp),
 ]
 
 """
