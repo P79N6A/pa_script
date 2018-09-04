@@ -17,6 +17,7 @@ import hashlib
 import json
 import model_im
 import gc
+import string
 
 # app数据库版本
 VERSION_APP_VALUE = 1
@@ -44,6 +45,7 @@ MOMENT_TYPE_MUSIC = 4  # 带音乐的（存的是封面）
 MOMENT_TYPE_EMOJI = 10  # 分享了表情包
 MOMENT_TYPE_VIDEO = 15  # 视频
 
+
 def analyze_wechat(root, extract_deleted, extract_source):
     """
     微信 (/DB/MM.sqlite)
@@ -58,12 +60,17 @@ def analyze_wechat(root, extract_deleted, extract_source):
     pr.Build('微信')
     return pr
 
+
+def execute(node,extracteDeleted):
+    return analyze_wechat(node, extracteDeleted, False)
+
+
 class WeChatParser(model_im.IM):
     
     def __init__(self, node, extract_deleted, extract_source):
         super(WeChatParser, self).__init__()
         self.root = node.Parent.Parent
-        self.extract_deleted = False  # extract_deleted
+        self.extract_deleted = extract_deleted
         self.extract_source = extract_source
 
     def parse(self):
@@ -175,9 +182,11 @@ class WeChatParser(model_im.IM):
             ts = SQLiteParser.TableSignature('Friend')
             SQLiteParser.Tools.AddSignatureToTable(ts, "userName", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
             for rec in db.ReadTableRecords(ts, self.extract_deleted):
-                username = self._db_record_get_value(rec, 'userName')
-                contact_type = self._db_record_get_value(rec, 'type', 0)
-                certification_flag = self._db_record_get_value(rec, 'certificationFlag', 0)
+                username = self._db_record_get_string_value(rec, 'userName')
+                if len(username) == 0:
+                    continue
+                contact_type = self._db_record_get_int_value(rec, 'type')
+                certification_flag = self._db_record_get_int_value(rec, 'certificationFlag')
                 nickname = None
                 alias = None
                 remark = None
@@ -290,10 +299,10 @@ class WeChatParser(model_im.IM):
             ts = SQLiteParser.TableSignature(table)
             SQLiteParser.Tools.AddSignatureToTable(ts, "Message", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
             for rec in db.ReadTableRecords(ts, self.extract_deleted):
-                msg = self._db_record_get_value(rec, 'Message')
-                msg_type = self._db_record_get_value(rec, 'Type', MSG_TYPE_TEXT)
-                msg_local_id = self._db_record_get_value(rec, 'MesLocalID')
-                is_sender = 1 if self._db_record_get_value(rec, 'Des', 0) == 0 else 0
+                msg = self._db_record_get_string_value(rec, 'Message')
+                msg_type = self._db_record_get_int_value(rec, 'Type', MSG_TYPE_TEXT)
+                msg_local_id = self._db_record_get_string_value(rec, 'MesLocalID')
+                is_sender = 1 if self._db_record_get_int_value(rec, 'Des') == 0 else 0
                 contact = self.contacts.get(username, {})
                 certification_flag = contact.get('certification_flag', 0)
 
@@ -306,7 +315,7 @@ class WeChatParser(model_im.IM):
                 message.is_sender = is_sender
                 message.msg_id = msg_local_id
                 message.type = self._convert_msg_type(msg_type)
-                message.send_time = self._db_record_get_value(rec, 'CreateTime')
+                message.send_time = self._db_record_get_int_value(rec, 'CreateTime', None)
                 if username.endswith("@chatroom"):
                     self._process_parse_group_message(msg, msg_type, msg_local_id, is_sender, self.root, user_hash, message)
                     message.sender_name = self.contacts.get(message.sender_id, {}).get('nickname')
@@ -341,7 +350,7 @@ class WeChatParser(model_im.IM):
             SQLiteParser.Tools.AddSignatureToTable(ts, "Buffer", SQLiteParser.FieldType.Blob, SQLiteParser.FieldConstraints.NotNull)
             
             for rec in db.ReadTableRecords(ts, self.extract_deleted):
-                username = self._db_record_get_value(rec, 'FromUser')
+                username = self._db_record_get_string_value(rec, 'FromUser')
                 if not rec["Buffer"].IsDBNull:
                     root_mr = MemoryRange(rec["Buffer"].Source)
                     root_mr.seek(0)
@@ -360,7 +369,7 @@ class WeChatParser(model_im.IM):
                     feed.source = node.AbsolutePath
                     feed.account_id = self.user_account.account_id
                     feed.sender_id = username
-                    feed.content = self._bpreader_node_get_string_value(root, 'contentDesc')
+                    feed.content = self._bpreader_node_get_string_value(root, 'contentDesc', deleted = feed.deleted)
                     feed.send_time = self._bpreader_node_get_int_value(root, 'createtime', None)
 
                     if 'locationInfo' in root.Children:
@@ -370,7 +379,7 @@ class WeChatParser(model_im.IM):
                         location.source = node.AbsolutePath
                         location.latitude = self._bpreader_node_get_float_value(location_node, 'location_latitude')
                         location.longitude = self._bpreader_node_get_float_value(location_node, 'location_longitude')
-                        location.address = self._bpreader_node_get_string_value(location_node, 'poiName')
+                        location.address = self._bpreader_node_get_string_value(location_node, 'poiName', deleted = feed.deleted)
                         self.db_insert_table_location(location)
                         feed.location = location.location_id
 
@@ -395,23 +404,23 @@ class WeChatParser(model_im.IM):
                             feed.preview_urls = json.dumps(preview_urls)
 
                         if feed.type == MOMENT_TYPE_MUSIC:
-                            feed.attachment_title = self._bpreader_node_get_string_value(content_node, 'title')
-                            feed.attachment_link = self._bpreader_node_get_string_value(content_node, 'linkUrl')
-                            feed.attachment_desc = self._bpreader_node_get_string_value(content_node, 'desc')
+                            feed.attachment_title = self._bpreader_node_get_string_value(content_node, 'title', deleted = feed.deleted)
+                            feed.attachment_link = self._bpreader_node_get_string_value(content_node, 'linkUrl', deleted = feed.deleted)
+                            feed.attachment_desc = self._bpreader_node_get_string_value(content_node, 'desc', deleted = feed.deleted)
                         elif feed.type == MOMENT_TYPE_SHARED:
                             for media_node in media_nodes:
-                                feed.attachment_title = self._bpreader_node_get_string_value(media_node, 'title')
+                                feed.attachment_title = self._bpreader_node_get_string_value(media_node, 'title', deleted = feed.deleted)
 
                     likes = []
                     if 'likeUsers' in root.Children:
                         for like_node in root.Children['likeUsers'].Values:
-                            sender_id = self._bpreader_node_get_string_value(like_node, 'username')
+                            sender_id = self._bpreader_node_get_string_value(like_node, 'username', deleted = feed.deleted)
                             if len(sender_id) > 0:
                                 fl = model_im.FeedLike()
                                 fl.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
                                 fl.source = node.AbsolutePath
                                 fl.sender_id = sender_id
-                                fl.sender_name = self._bpreader_node_get_string_value(like_node, 'nickname')
+                                fl.sender_name = self._bpreader_node_get_string_value(like_node, 'nickname', deleted = feed.deleted)
                                 try:
                                     fl.create_time = int(self._bpreader_node_get_int_value(like_node, 'createTime', None))
                                 except Exception as e:
@@ -426,15 +435,15 @@ class WeChatParser(model_im.IM):
                     comments = []
                     if 'commentUsers' in root.Children:
                         for comment_node in root.Children['commentUsers'].Values:
-                            sender_id = self._bpreader_node_get_string_value(comment_node, 'username')
-                            content = self._bpreader_node_get_string_value(comment_node, 'content')
+                            sender_id = self._bpreader_node_get_string_value(comment_node, 'username', deleted = feed.deleted)
+                            content = self._bpreader_node_get_string_value(comment_node, 'content', deleted = feed.deleted)
                             if type(sender_id) == str and len(sender_id) > 0 and type(content) == str:
                                 fc = model_im.FeedComment()
                                 fc.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
                                 fc.source = node.AbsolutePath
                                 fc.sender_id = sender_id
-                                fc.sender_name = self._bpreader_node_get_string_value(comment_node, 'nickname')
-                                fc.ref_user_id = self._bpreader_node_get_string_value(comment_node, 'refUserName')
+                                fc.sender_name = self._bpreader_node_get_string_value(comment_node, 'nickname', deleted = feed.deleted)
+                                fc.ref_user_id = self._bpreader_node_get_string_value(comment_node, 'refUserName', deleted = feed.deleted)
                                 fc.content = content
                                 fc.create_time = self._bpreader_node_get_int_value(comment_node, 'createTime', None)
                                 try:
@@ -468,8 +477,8 @@ class WeChatParser(model_im.IM):
             SQLiteParser.Tools.AddSignatureToTable(ts, "UsrName", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
             SQLiteParser.Tools.AddSignatureToTable(ts, "usernameid", SQLiteParser.FieldType.Int, SQLiteParser.FieldConstraints.NotNull)
             for rec in db.ReadTableRecords(ts, self.extract_deleted):
-                username = self._db_record_get_value(rec, 'UsrName', '')
-                id = self._db_record_get_value(rec, 'usernameid', 0)
+                username = self._db_record_get_string_value(rec, 'UsrName', '')
+                id = self._db_record_get_int_value(rec, 'usernameid')
                 if username != '' and id != 0:
                     username_ids[id] = username
 
@@ -479,13 +488,13 @@ class WeChatParser(model_im.IM):
             SQLiteParser.Tools.AddSignatureToTable(ts, "c0usernameid", SQLiteParser.FieldType.Int, SQLiteParser.FieldConstraints.NotNull)
             SQLiteParser.Tools.AddSignatureToTable(ts, "c3Message", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
             for rec in db.ReadTableRecords(ts, self.extract_deleted):
-                id = self._db_record_get_value(rec, 'c0usernameid', 0)
+                id = self._db_record_get_int_value(rec, 'c0usernameid', 0)
                 if id not in username_ids:
                     continue
                 username = username_ids.get(id)
                 contact = self.contacts.get(username, {})
                 certification_flag = contact.get('certification_flag', 0)
-                content = self._db_record_get_value(rec, 'c3Message', '')
+                content = self._db_record_get_string_value(rec, 'c3Message', '')
 
                 message = model_im.Message()
                 message.deleted = 1
@@ -886,10 +895,43 @@ class WeChatParser(model_im.IM):
         return default_value
 
     @staticmethod
-    def _bpreader_node_get_string_value(node, key, default_value=''):
+    def _db_record_get_string_value(record, column, default_value=''):
+        if not record[column].IsDBNull:
+            try:
+                value = str(record[column].Value)
+                if record.Deleted != DeletedState.Intact:
+                    value = filter(lambda x: x in string.printable, value)
+                return value
+            except Exception as e:
+                return default_value
+        return default_value
+
+    @staticmethod
+    def _db_record_get_int_value(record, column, default_value=0):
+        if not record[column].IsDBNull:
+            try:
+                return int(record[column].Value)
+            except Exception as e:
+                return default_value
+        return default_value
+
+    @staticmethod
+    def _db_record_get_float_value(record, column, default_value=0):
+        if not record[column].IsDBNull:
+            try:
+                return float(record[column].Value)
+            except Exception as e:
+                return default_value
+        return default_value
+
+    @staticmethod
+    def _bpreader_node_get_string_value(node, key, default_value='', deleted=0):
         if key in node.Children and node.Children[key] is not None:
             try:
-                return str(node.Children[key].Value)
+                value = str(node.Children[key].Value)
+                if deleted != 0:
+                    value = filter(lambda x: x in string.printable, value)
+                return value
             except Exception as e:
                 return default_value
         return default_value

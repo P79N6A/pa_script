@@ -92,7 +92,7 @@ class SogouMap(object):
             self.parse_search()
             self.sogoudb.db_close()
         
-        generate = model_map.Genetate(db_path)
+        generate = model_map.Genetate(db_path, r"C:\TestFs1")
         tmpresult = generate.get_models()
         return tmpresult
         
@@ -104,3 +104,6 @@ def analyze_sogoumap(node, extractDeleted, extractSource):
         for i in results:
             pr.Models.Add(i)
     return pr
+
+def execute(node, extract_deleted):
+    return analyze_sogoumap(node, extract_deleted, False)
