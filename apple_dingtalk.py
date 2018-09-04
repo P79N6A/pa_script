@@ -5,7 +5,6 @@ clr.AddReference('Base3264-UrlEncoder')
 del clr
 
 import System.Data.SQLite as sql
-import PA
 from PA_runtime import *
 from System.Text import *
 from System.IO import *
