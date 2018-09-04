@@ -192,7 +192,7 @@ class SogouMap(object):
             self.parse_route_data()
             self.sogoudb.db_close()
 
-        generate = model_map.Genetate(db_path)   
+        generate = model_map.Genetate(db_path, r"C:\TestFs")   
         tmpresult = generate.get_models()
         return tmpresult
 

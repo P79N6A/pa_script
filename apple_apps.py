@@ -32,6 +32,7 @@ SafeLoadAssembly('apple_skype')
 SafeLoadAssembly('apple_exts')
 SafeLoadAssembly('apple_yixin')
 SafeLoadAssembly('apple_youxin')
+SafeLoadAssembly('apple_renren')
 SafeLoadAssembly('apple_accts')
 SafeLoadAssembly('apple_dingtalk')
 
@@ -73,9 +74,11 @@ from apple_sogoumap import analyze_sogoumap
 from apple_baidumap import analyze_baidumap
 from apple_gaodemap import analyze_gaodemap
 from apple_tencentmap import analyze_tencentmap
+from android_whatsapp import analyze_whatsapp
 from apple_neteasemail import analyze_neteasemail
 from apple_youxin import analyze_youxin
 from apple_yixin import analyze_yixin
+from apple_renren import analyze_renren
 from apple_accts import analyze_accounts
 from apple_dingtalk import *
 
@@ -103,6 +106,7 @@ FIND_BY_RGX_NODES = [
     ("/Library/Notes/notes\.sqlite$", analyze_notes, "Notes","备忘录",DescripCategories.Notes),
     ("/Library/Notes/notes\.db$", analyze_old_notes, "Notes","备忘录",DescripCategories.Notes),
     ("/AddressBook$", analyze_addressbook, "AddressBook","通讯录(系统)",DescripCategories.Contacts),
+	('/data/com.whatsapp$', analyze_whatsapp, "WhatsApp", "WhatsApp", DescripCategories.WhatsApp),
 ]
 
 """
@@ -120,7 +124,8 @@ FIND_BY_APPS_NODES = [
     ("com.netease.mailmaster", analyze_neteasemail, "mailMaster", "网易邮箱大师", DescripCategories.NeteaseMail),
     ("com.telecom-guoling.feiin", analyze_youxin, "YouXin", "有信", DescripCategories.YouXin),
     ("com.network.uxin", analyze_youxin, "YouXin", "有信", DescripCategories.YouXin),
-    ("com.yixin.yixin", analyze_yixin, "YiXin", "易信", DescripCategories.QQ),
+    ("com.yixin.yixin", analyze_yixin, "YiXin", "易信", DescripCategories.YiXin),
+    ("com.xiaonei.xiaonei", analyze_renren, "RenRen", "人人", DescripCategories.RenRen),
 	("com.laiwang.DingTalk", parse_ding, "Dingtalk", "钉钉", DescripCategories.QQ),
 ]
 

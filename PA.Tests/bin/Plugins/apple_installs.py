@@ -89,10 +89,9 @@ def analyze_installation(f, extractDeleted, extractSource):
                             res.Identifier.Value, res.AppGUID.Value)
                 results.append(res)
     else:
-        plist = PList()
         f.seek(0)
         try:
-            p = plist.Parse(f.Data)
+            p = PList.Parse(f.Data)
         except:
             p = None
         if p is None:
@@ -193,8 +192,7 @@ def analyze_last_launch_services_map(f, extractDeleted, extractSource):
                             res.Identifier.Value, res.AppGUID.Value)
                 results.append(res)
     else:
-        plist = PList()
-        p = plist.Parse(f.Data)
+        p = PList.Parse(f.Data)
         if p is None:
             return
         p = p[0]
@@ -289,9 +287,8 @@ def analyze_metadata(f, extractDeleted, extractSource):
         return pr
 
     else:
-        plist = PList()
         try:
-            p = plist.Parse(f.Data)
+            p = PList.Parse(f.Data)
         except:
             return
         if p is None:

@@ -225,8 +225,9 @@ class Search(Column):
 
 class Genetate(object):
 
-    def __init__(self, cache_db):
+    def __init__(self, cache_db, mount_dir):
         self.cache_db = cache_db
+        self.mount_dir = mount_dir
 
     def get_models(self):
         models = []
@@ -287,7 +288,7 @@ class Genetate(object):
             user.Source.Value = row[18]
             user.SourceApp.Value = row[19]
             if row[20]:
-                user.SourceFile.Value = row[20]
+                user.SourceFile.Value =self._get_source_file(row[20])
             user.ID.Value = row[0]
             if row[1]:
                 user.Name.Value = row[1]
@@ -376,7 +377,7 @@ class Genetate(object):
             journey = Journey()
             journey.Source.Value = row[12]
             journey.SourceApp.Value = row[13]
-            journey.SourceFile.Value = row[14]
+            journey.SourceFile.Value = self._get_source_file(row[14])
             if row[11]:
                 starttime = self._get_timestamp(row[11])
                 journey.StartTime.Value = starttime
@@ -458,7 +459,7 @@ class Genetate(object):
             searchitem = SearchedItem()
             searchitem.Source.Value = row[10]
             searchitem.SourceApp.Value = row[11]
-            searchitem.SourceFile.Value = row[12]
+            searchitem.SourceFile.Value = self._get_source_file(row[12])
             if row[2]:
                 searchitem.TimeStamp.Value = self._get_timestamp(row[2])
             searchitem.Value.Value = row[1]
@@ -478,7 +479,6 @@ class Genetate(object):
             models.append(searchitem)
 
             row = self.cursor.fetchone()
-
         return models
     
     
@@ -492,5 +492,6 @@ class Genetate(object):
             ts = None
         return ts
              
-
+    def _get_source_file(self, source_file):
+        return self.mount_dir + source_file.replace('/', '\\')
 

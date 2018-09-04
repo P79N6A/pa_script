@@ -1,5 +1,11 @@
 #coding:utf-8
-import microblog_base
+import clr
+clr.AddReference('System.Data.SQLite')
+del clr
+
+import System.Data.SQLite as sql
+
+import model_im
 import os
 import sys
 from PA_runtime import *
@@ -8,7 +14,19 @@ from System.Text import *
 from System.IO import *
 import logging
 import re
+import unity_c37r
+#####################Get Functions######################################
+def GetString(reader, idx):
+    return reader.GetString(idx) if not reader.IsDBNull(idx) else ""
 
+def GetInt64(reader, idx):
+    return reader.GetInt64(idx) if not reader.IsDBNull(idx) else 0
+
+def GetBlob(reader, idx):
+    return reader.GetValue(idx) if not reader.IsDBNull(idx) else None
+
+def GetReal(reader, idx):
+    return reader.GetDouble(idx) if not reader.IsDBNull(idx) else 0.0
 
 def _db_record_get_value(record, column, default_value=None):
     if not record[column].IsDBNull:
@@ -26,13 +44,12 @@ class TIphone(object):
         self.blogs = list()
         self.search = list()
         cache = ds.OpenCachePath('Twitter')
+        self.cache = cache
         if not os.path.exists(cache):
             os.mkdir(cache)
-        version = 1
-        env = dict()
-        env['cache'] = cache
-        env['version'] = version
-        self.mb = microblog_base.BlogBase(env)
+        #self.mb = microblog_base.BlogBase(env)
+        self.im = model_im.IM()
+        self.im.db_create(cache + '/C37R')
         
     @staticmethod
     def check_account_id(account_str):
@@ -75,7 +92,7 @@ class TIphone(object):
             return list()
         self.parse()
 
-    def deserialize_message(self, bp_arr, aid, src_file):
+    def deserialize_message(self, bp_arr, aid, src_file, account_id):
         try:
             sz = bp_arr.Length
             idx = 0
@@ -141,17 +158,17 @@ class TIphone(object):
                 uids = k.split('-')
                 objid = uids[0] if uids[0] != aid else uids[1]
                 for m in l:
-                    msg = microblog_base.MicroBlogMessage()
-                    msg.account_id = aid
+                    #msg = microblog_base.MicroBlogMessage()
+                    msg = model_im.Message()
+                    msg.account_id = account_id
                     msg.content = m['text']
-                    msg.timestamp = int(m['time'])
-                    msg.media = 1
+                    msg.send_time = unity_c37r.format_mac_timestamp(m['time'])
+                    msg.type = model_im.MESSAGE_CONTENT_TYPE_TEXT
                     msg.sender_id = objid if m['pkey'] == m['cid'] else aid
                     msg.is_sender = 1 if msg.sender_id == aid else 0
-                    msg.talk_id = k
-                    msg.source_file = src_file
-                    t = msg.generate_sqlite_turple()
-                    self.mb.insert_messages(t)
+                    msg.talker_id = k
+                    msg.source = src_file
+                    self.im.db_insert_table_message(msg)
         except Exception as e:
             logging.error(e)
             print('decode message plist failed, data is skipped...')
@@ -171,69 +188,58 @@ class TIphone(object):
             if a_dir == "":
                 continue
             db_id = os.listdir(os.path.join(m_dir, a_dir))[0] # not with full path....
-            
-            #
-            # sqlite ---> sqlite_parser
-            #
             m_sql = "/Library/Caches/databases/{}/{}/twitter.db".format(a_dir, db_id)
             sub_node = self.node.GetByPath(m_sql)
-            # create sqlite
-            r_sql = SQLiteParser.Database.FromNode(sub_node)
-            ts = SQLiteParser.TableSignature("Users")
-            result = r_sql.ReadTableRecords(ts, False)
-            friend_dict = dict()
-            for rec in result:
-                if aid == rec['screenName'].Value:
-                    reg_account = microblog_base.MicroBlogAccount()
-                    reg_account.user_id = str(rec['id'].Value)
-                    reg_account.account_id = aid
-                    reg_account.icon = "" # we need to analysing photo data, check save one for deserialization... keep in record...
-                    reg_account.nick_name = _db_record_get_value(rec, "name")
-                    reg_account.area_string = _db_record_get_value(rec, "location")
-                    reg_account.description = _db_record_get_value(rec, 'description')
-                    reg_account.noticed_quantity = _db_record_get_value(rec, 'followingCount')
-                    reg_account.blog_quantity = _db_record_get_value(rec, 'statusesCount')
-                    reg_account.fans_quantity = _db_record_get_value(rec, 'followersCount')
-                    reg_account.source_file = sub_node.PathWithMountPoint
-                    self.mb.insert_account(reg_account.generate_sqlite_turple())
-                else:
-                    friend = microblog_base.MricoBlogFriends()
-                    friend.account = aid
-                    friend.account_id = _db_record_get_value(rec,'screenName')
-                    friend.user_id = str(rec['id'].Value) # note this is string this must not be null!
-                    friend.nick_name = _db_record_get_value(rec, 'name')
-                    friend.area_string = _db_record_get_value(rec, 'location')
-                    friend.description = _db_record_get_value(rec, 'description')
-                    friend.reg_time = _db_record_get_value(rec, 'createdDate')
-                    friend.update_time = int(_db_record_get_value(rec, 'updatedAt', 0) * 100000) / 100000 # as it may be float data
-                    friend.fan_quantity = _db_record_get_value(rec, 'followersCount')
-                    friend.follow_quantity = _db_record_get_value(rec, 'followingCount')
-                    friend.blog_quantity = _db_record_get_value(rec, 'statusesCount')
-                    friend.home_page = _db_record_get_value(rec, 'url')
-                    friend.source_file = sub_node.PathWithMountPoint
-                    self.mb.insert_friends(friend.generate_sqlite_turple())
-                    friend_dict[friend.account_id] = friend # insert into dict, we serialize it later....
-            
-            ts = SQLiteParser.TableSignature("Statuses")
-            record = r_sql.ReadTableRecords(ts, False)
-            for r in record:
-                blog = microblog_base.MircorBlogBlogs()
-                blog.account = aid
-                blog.sender = _db_record_get_value(r, "userId")
-                blog.content = _db_record_get_value(r, "text")
-                blog.blog_id = _db_record_get_value(r, "id")
-                blog.send_time = _db_record_get_value(r, "date")
-                blog.comment_quantity = _db_record_get_value(r, "replyCount")
-                blog.retweet_quantity = _db_record_get_value(r, "retweetCount")
-                blog.like_quantity = _db_record_get_value(r, "favoriteCount")
-                if friend_dict.__contains__(blog.sender):
-                    blog.sender_name = friend_dict[blog.sender].nick_name
-                blog.source_file = sub_node.PathWithMountPoint
-                self.mb.insert_blogs(blog.generate_sqlite_turple())
-                # url may be important, but.... suit your self.
-                pass
-            self.mb.on_commit() 
-            # messages decription...
+            if sub_node is None:
+                print('fatal error!')
+                continue
+            r_sql = sql.SQLiteConnection('Data Source = {}; ReadOnly = True'.format(sub_node.PathWithMountPoint))
+            r_sql.Open()
+            cmd = sql.SQLiteCommand(r_sql)
+            cmd.CommandText = '''
+                select id, screenName, name, location, description from Users where screenName = '{}'
+            '''.format(aid)
+            reader = cmd.ExecuteReader()
+            reader.Read()
+            a = model_im.Account()
+            a.account_id = GetInt64(reader, 0)
+            a.username = aid
+            current_id = GetInt64(reader, 0)
+            a.photo = ""
+            a.nickname = GetString(reader, 2)
+            a.address = GetString(reader, 3)
+            a.signature = GetString(reader, 4)
+            self.im.db_insert_table_account(a)
+            cmd.Dispose()
+            cmd.CommandText = '''
+                select id, screenName, name, location, description from Users where screenName != '{}'
+            '''.format(aid)
+            reader = cmd.ExecuteReader()
+            while reader.Read():
+                    f = model_im.Friend()
+                    f.account_id = current_id
+                    f.friend_id = GetInt64(reader, 0)
+                    f.remark = GetString(reader, 1)
+                    f.address = GetString(reader, 3)
+                    f.nickname = GetString(reader, 2)
+                    f.signature = GetString(reader, 4)
+                    self.im.db_insert_table_friend(f)
+            self.im.db_commit()
+            cmd.Dispose()
+            cmd.CommandText = '''
+                select userId, text, date from Statuses
+            '''
+            reader = cmd.ExecuteReader()
+            while reader.Read():
+                blog = model_im.Feed()
+                blog.account_id = current_id
+                blog.content = GetString(reader, 1)
+                #blog.send_time = unity_c37r.format_mac_timestamp(GetReal(reader, 2))
+                blog.send_time = int(GetReal(reader, 2))
+                blog.sender_id = GetInt64(reader, 0)
+                blog.type = model_im.MESSAGE_CONTENT_TYPE_TEXT
+                self.im.db_insert_table_feed(blog)
+            self.im.db_commit()
             root_path = self.node.PathWithMountPoint
             m_path = os.path.join(root_path, 'Documents/com.atebits.tweetie.application-state')
             talk_file = None
@@ -245,56 +251,23 @@ class TIphone(object):
                 talk_file = d
                 talk_node = self.node.GetByPath('/Documents/com.atebits.tweetie.application-state/{}'.format(talk_file))
                 talk_file = talk_node.PathWithMountPoint # absolute path
-                #bp = BPReader(talk_node.Data).top
                 print(talk_node.Size)
                 bp = BPReader(talk_node.Data).top
                 bp_arr = bp['$objects']
-                self.deserialize_message(bp_arr, aid, talk_file)
-                self.mb.on_commit()
-            #self.models.append(self.decode_account(bp['$objects'], acc_ind.Value))
-            # this code can not run with real-data
-            pass
-
-class TAndroid(object):
-    def __init__(self, root, extract_deleted, extract_source):
-        self.node = root
-        self.extract_deleted = extract_deleted
-        self.extract_source = extract_source
-        cache = ds.OpenCache('TwitterAndroid')
-        if not os.path.exists(cache):
-            os.mkdir(cache)
-        env = dict()
-        version = 1
-        env['version'] = version
-        env['cache'] = cache
-        self.mb = microblog_base.BlogBase(env)
-        self.account = list()
-
-    def searh_account(self):
-        pref_node = self.node.GetByPath('/databases')
-        dir_path = pref_node.PathWithMountPoint
-        dirs = os.listdir(dir_path)
-        for d in dirs:
-            try:
-                ret_v = int(d)
-                # 0 暂时不分析
-                if ret_v == 0:
-                    continue
-                if self.account.__contains__(ret_v):
-                    continue
-                self.account.append(d)
-            except ValueError as e:
-                continue
-        # db_node = self.node.GetByPath('/databases')
-        # dir_path = db_node.PathWithMountPoint
-        # some file...
-        for aid in self.account:
-
-            pass
-    pass
+                self.deserialize_message(bp_arr, aid, talk_file, current_id)
+            self.im.db_commit()
 
 def analyse_twitter(root, extract_deleted, extract_source):
-    t = TIphone(root, extract_deleted, extract_source)
+    #node = FileSystem.FromLocalDir(r'D:\ios_case\tweet\tw')
+    node = root
+    t = TIphone(node, extract_deleted, extract_source)
     t.parse_account()
+    t.im.db_close()
+    models = model_im.GenerateModel(t.cache + "/C37R", root.PathWithMountPoint).get_models()
+    mlm = ModelListMerger()
+    pr = ParserResults()
+    pr.Categories = DescripCategories.QQ
+    pr.Models.AddRange(list(mlm.GetUnique(models)))
+    pr.Build('Twitter')
     pass
     

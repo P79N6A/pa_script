@@ -60,8 +60,7 @@ class CookieParser(object):
             if f is None or f.Data is None:
                 continue
             try:
-                plist = PList()
-                p = plist.Parse(f.Data)
+                p = PList.Parse(f.Data)
             except SystemError:
                 continue
             if p is None:

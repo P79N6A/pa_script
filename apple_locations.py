@@ -1213,3 +1213,358 @@ def analyze_locations_from_deleted_photos(node, extractDeleted, extractSource):
 
     pr.Models.AddRange(locs)
     return pr
+
+def read_old_locationd(bp, cat, extractSource,srcfile):
+    pr = ParserResults()
+    for desc in bp.Keys:
+        if not type(bp[desc]) == BPArray:
+            continue
+        for i in range(bp[desc].Length):
+            fix = bp[desc][i]
+            result = Location()
+            result.Deleted = DeletedState.Intact
+            result.Category.Value = cat
+            result.Description.Value = desc
+            result.Source.Value = '系统'
+            result.SourceApp.Value ='系统'
+            result.SourceFile = srcfile
+            result.TimeStamp.Value = TimeStamp(epoch.AddSeconds(fix['Timestamp'].Value), True)
+            if extractSource:
+                result.TimeStamp.Source = MemoryRange(fix['Timestamp'].Source)
+
+            cor = Coordinate()
+            cor.Latitude.Value = fix['Latitude'].Value
+            cor.Longitude.Value = fix['Longitude'].Value
+            cor.Elevation.Value = fix['Altitude'].Value
+            if extractSource:
+                cor.Latitude.Source = MemoryRange(fix['Latitude'].Source)
+                cor.Longitude.Source = MemoryRange(fix['Longitude'].Source)
+                cor.Elevation.Source = MemoryRange(fix['Altitude'].Source)
+            result.Position.Value = cor
+            pr.Models.Add(result)
+
+    return pr
+
+def analyze_hcells_from_plist(node, extractDeleted, extractSource):
+    if node.Data is None or node.Data.Length <= 0:
+        return 
+    try:
+        bp = BPReader(node.Data).top
+    except:
+        bp = None
+    if bp is None:
+        return
+    srcfile = node.AbsolutePathWithFileSystem
+    return read_old_locationd(bp, LocationCategories.CELL_TOWERS, extractSource ,srcfile)
+
+def analyze_hwifis_from_plist(node, extractDeleted, extractSource):
+    if node.Data is None or node.Data.Length <= 0:
+        return 
+    try:
+        bp = BPReader(node.Data).top
+    except:
+        bp = None
+    if bp is None:
+        return
+    srcfile = node.AbsolutePathWithFileSystem
+    return read_old_locationd(bp, LocationCategories.WIFI_NETWORKS, extractSource,srcfile)
+
+def analyze_maps_search(node, extractDeleted, extractSource):
+    if node.Data is None or node.Data.Length <= 0:
+        return 
+    try:
+        bp = BPReader(node.Data).top
+    except:
+        bp = None
+    if bp is None:
+        return
+
+    results = []
+    if 'HistoryItems' in bp.Keys:
+        for i in range(bp['HistoryItems'].Length):
+            search_rec = bp['HistoryItems'][i]
+            search = SearchedItem()
+            search.Deleted = DeletedState.Intact
+            search.Source.Value = 'Maps'
+            if 'Query' in search_rec.Keys:
+                search.Value.Value = search_rec['Query'].Value
+                if extractSource:
+                    search.Value.Source = MemoryRange(search_rec['Query'].Source)
+                results.append(search)
+    pr = ParserResults()
+    pr.Models.AddRange(results)
+    return pr
+
+def analyze_wifi_from_plist(f, extractDeleted, extractSource):
+    results = []
+    if f.Data is None or f.Data.Length == 0:
+        return
+    try:
+        p = PList.Parse(f.Data)    
+        if p != None:
+            top = p[0].Value       
+            if not 'List of known networks' in top:
+                return None
+            for d in top['List of known networks'].Value:
+                res = WirelessNetwork()
+                res.Deleted = DeletedState.Intact
+                if 'BSSID' in d:
+                    res.BSSId.Value = LocationsParser.normalize_mac(d['BSSID'].Value)
+                    if extractSource:
+                        res.BSSId.Source = MemoryRange(d['BSSID'].Source)
+                if 'SSID_STR' in d:
+                    res.SSId.Value = d['SSID_STR'].Value
+                    if extractSource:
+                        res.SSId.Source = MemoryRange(d['SSID_STR'].Source)
+                if 'SecurityMode' in d:
+                    res.SecurityMode.Value = d['SecurityMode'].Value 
+                    if extractSource:
+                        res.SecurityMode.Source = MemoryRange(d['SecurityMode'].Source)
+                if 'lastAutoJoined' in d:
+                    res.LastAutoConnection.Value = TimeStamp(d['lastAutoJoined'].Value)
+                    if extractSource:
+                        res.LastAutoConnection.Source = MemoryRange(d['lastAutoJoined'].Source)
+                if 'lastJoined' in d:
+                    res.LastConnection.Value = TimeStamp(d['lastJoined'].Value)
+                    if extractSource:
+                        res.LastConnection.Source = MemoryRange(d['lastJoined'].Source)
+
+                if res not in results:
+                    results.append(res)
+        else:
+            top = BPReader(f.Data).top
+            if top == None:
+                return 
+            if not 'List of known networks' in top.Keys:
+                return 
+            for i in range(top['List of known networks'].Length):            
+                d = top['List of known networks'][i]
+                for i in range(top['List of known networks'].Length):
+                    d = top['List of known networks'][i]
+                    res = WirelessNetwork()
+                    res.Deleted = DeletedState.Intact            
+                    if 'BSSID' in d.Keys:
+                        res.BSSId.Value = LocationsParser.normalize_mac(d['BSSID'].Value)
+                        if extractSource:
+                            res.BSSId.Source = d['BSSID'].Source
+                    if 'SSID_STR' in d.Keys:
+                        res.SSId.Value = d['SSID_STR'].Value
+                        if extractSource:
+                            res.SSId.Source = d['SSID_STR'].Source
+                    if 'SecurityMode' in d.Keys:
+                        res.SecurityMode.Value = d['SecurityMode'].Value
+                        if extractSource:
+                            res.SecurityMode.Source = d['SecurityMode'].Source
+                    if 'lastAutoJoined' in d.Keys:
+                        res.LastAutoConnection.Value = TimeStamp(d['lastAutoJoined'].Value, True)
+                        if extractSource:
+                            res.LastAutoConnection.Source = MemoryRange(d['lastAutoJoined'].Source)
+                    if 'lastJoined' in d.Keys:
+                        res.LastConnection.Value = TimeStamp(d['lastJoined'].Value,True)
+                        if extractSource:
+                            res.LastConnection.Source = MemoryRange(d['lastJoined'].Source)
+                    if res not in results:
+                        results.append(res)
+    except:        
+        bptree = BPReader.GetTree(f)
+        if bptree and bptree.ContainsKey('List of known networks'):
+            network_tree = bptree['List of known networks']
+            for network in network_tree.Value:                
+                res = analyze_network(network,extractDeleted,extractSource)
+                res.Deleted = f.Deleted
+                if res not in results:
+                    results.append(res)        
+
+    locs = []
+    for net in results:
+        locs.extend(net.ToLocations())
+        
+    pr = ParserResults()
+    pr.Models.AddRange(results)
+    pr.Models.AddRange(locs)
+    return pr   
+
+def analyze_passbook(d, extractDeleted, extractSource):
+    results = []
+    last_location = d.GetByPath('LastLocation.archive')
+    if last_location is not None and last_location.Data is not None:
+        bp = BPReader(last_location.Data).top
+        if bp != None and bp.ContainsKey('$objects') and type(bp['$objects'][1]) == BPDict:
+            data = bp['$objects'][1]
+            l = Location()
+            l.Deleted = DeletedState.Intact
+            l.Category.Value = 'Passbook'
+            l.Name.Value = 'Last Location'            
+            data.ReadValue[TimeStamp]('kCLLocationCodingKeyTimestamp', l.TimeStamp, extractSource, lambda x: TimeStamp(epoch.AddSeconds(x), True))
+            c = Coordinate()
+            data.ReadValue('kCLLocationCodingKeyCoordinateLongitude', c.Longitude, extractSource)
+            data.ReadValue('kCLLocationCodingKeyCoordinateLatitude', c.Latitude, extractSource)
+            data.ReadValue('kCLLocationCodingKeyAltitude', c.Elevation, extractSource)            
+            c.Deleted = DeletedState.Intact
+            l.Position.Value = c            
+            if data.ContainsKey('kCLLocationCodingKeyVerticalAccuracy') and data.ContainsKey('kCLLocationCodingKeyHorizontalAccuracy'):
+                l.Precision.Value = str(math.sqrt(math.pow(data['kCLLocationCodingKeyVerticalAccuracy'].Value,2) + math.pow(data['kCLLocationCodingKeyHorizontalAccuracy'].Value,2)))
+                if extractSource:
+                    chunks = []
+                    chunks.append(data['kCLLocationCodingKeyVerticalAccuracy'].Source)
+                    chunks.append(data['kCLLocationCodingKeyHorizontalAccuracy'].Source)
+                    l.Precision.Source = MemoryRange(chunks)
+            results.append(l)
+    db = SQLiteParser.Database.FromNode(d.GetByPath('passes23.sqlite'))
+    pr = ParserResults()        
+    if db == None:
+        pr.Models.AddRange(results)
+        return pr
+    
+    passType = {0: 'coupon',
+                1: 'storeCard',
+                2: 'eventTicket',
+                4: 'boardingPass',
+                5: 'generic'
+                }
+
+    ticketType = {0: MobileCardType.Coupon,
+                  1: MobileCardType.StoreCard,
+                  2: MobileCardType.EventTicket,
+                  4: MobileCardType.BoardingPass,
+                  5: MobileCardType.Generic}
+
+    coordinates = {}
+    cards = {}
+    if 'location' in db.Tables:
+        ts = SQLiteParser.TableSignature('location')
+        if extractDeleted:
+            SQLiteParser.Tools.AddSignatureToTable(ts, 'latitude', SQLiteParser.Tools.SignatureType.Null, SQLiteParser.Tools.SignatureType.Float)
+            SQLiteParser.Tools.AddSignatureToTable(ts, 'longitude', SQLiteParser.Tools.SignatureType.Null, SQLiteParser.Tools.SignatureType.Float)
+            SQLiteParser.Tools.AddSignatureToTable(ts, 'altitude', SQLiteParser.Tools.SignatureType.Null, SQLiteParser.Tools.SignatureType.Float)            
+            SQLiteParser.Tools.AddSignatureToTable(ts, 'card_pid', SQLiteParser.Tools.SignatureType.Long)
+            SQLiteParser.Tools.AddSignatureToTable(ts, 'location_source_pid', SQLiteParser.Tools.SignatureType.Long)
+            
+        for rec in db.ReadTableRecords(ts, extractDeleted, True):                        
+            c = Coordinate()
+            c.Deleted = rec.Deleted
+            SQLiteParser.Tools.ReadColumnToField[float](rec, 'longitude', c.Longitude, extractSource, lambda x: float(x))
+            SQLiteParser.Tools.ReadColumnToField[float](rec, 'latitude', c.Latitude, extractSource, lambda x: float(x))
+            SQLiteParser.Tools.ReadColumnToField[float](rec, 'altitude', c.Elevation, extractSource, lambda x: float(x))                        
+            if 'card_pid' in rec and not IsDBNull(rec['card_pid'].Value) and rec['card_pid'].Value not in coordinates:
+                coordinates[rec['card_pid'].Value] = c  
+            elif 'location_source_pid' in rec and not IsDBNull(rec['location_source_pid'].Value) and rec['location_source_pid'].Value not in coordinates:
+                coordinates[rec['location_source_pid'].Value] = c
+
+    if 'pass_location_source' in db.Tables:
+        tempCoordinates = {}
+        tempCoordinates.update(coordinates)
+        coordinates = {}
+        ts = SQLiteParser.TableSignature('pass_location_source')
+        if extractDeleted:
+            SQLiteParser.Tools.AddSignatureToTable(ts, 'pass_pid', SQLiteParser.Tools.SignatureType.Long)
+            SQLiteParser.Tools.AddSignatureToTable(ts, 'location_source_pid', SQLiteParser.Tools.SignatureType.Long)
+        for rec in db.ReadTableRecords(ts, extractDeleted, True):
+            if IsDBNull(rec['location_source_pid'].Value) or IsDBNull(rec['pass_pid'].Value):
+                continue
+            if rec['location_source_pid'].Value in tempCoordinates:
+                coordinates[rec['pass_pid'].Value] = tempCoordinates[rec['location_source_pid'].Value]
+
+    tableName = ''
+    if 'card' in db.Tables:
+        tableName = 'card'
+    elif 'pass' in db.Tables:
+        tableName = 'pass'
+    if tableName != '':
+        ts = SQLiteParser.TableSignature(tableName)
+        if extractDeleted:            
+            SQLiteParser.Tools.AddSignatureToTable(ts, 'ingested_date', SQLiteParser.Tools.SignatureType.Int, SQLiteParser.Tools.SignatureType.Float)
+            SQLiteParser.Tools.AddSignatureToTable(ts, 'modified_date', SQLiteParser.Tools.SignatureType.Int, SQLiteParser.Tools.SignatureType.Float)
+            SQLiteParser.Tools.AddSignatureToTable(ts, 'activation_date', SQLiteParser.Tools.SignatureType.Int, SQLiteParser.Tools.SignatureType.Float)            
+            SQLiteParser.Tools.AddSignatureToTable(ts, 'card_type_pid', SQLiteParser.Tools.SignatureType.Long)
+            
+        for rec in db.ReadTableRecords(ts, extractDeleted, True):
+            if rec['pid'].Value in cards:
+                continue
+            cards[rec['pid'].Value] = MobileCard()
+            card = cards[rec['pid'].Value]
+            card.Deleted = rec.Deleted
+            card.Source.Value = 'Passbook'
+            SQLiteParser.Tools.ReadColumnToField(rec, 'name', card.Name, extractSource)
+            card.Organization.Value = Organization()
+            card.Organization.Value.Deleted = rec.Deleted
+            SQLiteParser.Tools.ReadColumnToField(rec, 'organization_name', card.Organization.Value.Name, extractSource)            
+            SQLiteParser.Tools.ReadColumnToField[MobileCardType](rec, 'template', card.Type, extractSource, lambda x: ticketType.get(x, MobileCardType.Unknown))
+            try:
+                SQLiteParser.Tools.ReadColumnToField[TimeStamp](rec, 'ingested_date', card.PurchaseTime, extractSource, lambda x: TimeStamp(epoch.AddSeconds(x),True))
+            except:
+                pass
+            try:
+                SQLiteParser.Tools.ReadColumnToField[TimeStamp](rec, 'modified_date', card.ModifyTime, extractSource, lambda x: TimeStamp(epoch.AddSeconds(x),True))
+            except:
+                pass
+            try:
+                SQLiteParser.Tools.ReadColumnToField[TimeStamp](rec, 'activation_date', card.ActivationTime, extractSource, lambda x: TimeStamp(epoch.AddSeconds(x),True))
+            except:
+                pass
+            try:
+                SQLiteParser.Tools.ReadColumnToField[TimeStamp](rec, 'expiration_date', card.ExpirationTime, extractSource, lambda x: TimeStamp(epoch.AddSeconds(x),True))
+            except:
+                pass
+            if not IsDBNull(rec['unique_id'].Value):
+                pass_file = d.GetByPath("Cards/{0}.pkpass/pass.json".format(rec['unique_id'].Value))
+                if pass_file is not None and pass_file.Data is not None:
+                    pass_file.Data.seek(0)
+                    try:
+                        encoding_chk = pass_file.Data.read(2)
+                        encoding = 'utf-8'
+                        if encoding_chk[:2] == '\xFF\xFE':
+                            encoding = 'utf-16'
+                        elif encoding_chk[:2] == '\xFE\xFF':
+                            encoding = 'utf-16-be'
+                        pass_file.Data.seek(0)
+                        j = cellebritejson.load(pass_file.Data, encoding).Value
+                    except:
+                        j = None
+                    if j is not None:
+                        if 'barcode' in j and 'message' in j['barcode'].Value:
+                            card.Barcode.Value = j['barcode'].Value['message'].Value
+                            if extractSource:
+                                card.Barcode.Source = MemoryRange(j['barcode'].Value['message'].Source)
+                        if 'description' in j:
+                            card.Description.Value = j['description'].Value
+                            if extractSource:
+                                card.Description.Source = MemoryRange(j['description'].Source)
+                            if not IsDBNull(rec['template'].Value) and rec['template'].Value in passType and passType[rec['template'].Value] in j:
+                                if 'backFields' in j[passType[rec['template'].Value]].Value:
+                                    details = ""
+                                    for det in j[passType[rec['template'].Value]].Value['backFields'].Value:
+                                        if 'label' in det.Value and 'value' in det.Value:
+                                            card.Details.Add(FieldOperations.JoinStringFields(\
+                                                [det.Value['label'].Value, det.Value['value'].Value], \
+                                                [det.Value['label'].Source, det.Value['value'].Source], \
+                                                ": "))
+                    
+            if rec['pid'].Value in coordinates:
+                c = coordinates[rec['pid'].Value]
+                card.Position.Value = c                
+                l = Location()
+                l.Deleted = rec.Deleted
+                l.Category.Value = 'Passbook'
+                l.Position.Value = c
+                desc = []
+                chunks = []                
+                for des in [card.Organization.Value.Name, card.Name]:
+                    if des.Value is not None:
+                        desc.append(des.Value)
+                        if extractSource and des.Source is not None:
+                            chunks.append(Chunk(des.Source, 0, des.Source.Length))
+                if desc != []:                    
+                    l.Description.Value = ', '.join(desc)
+                    if extractSource:
+                        l.Description.Source =  MemoryRange(chunks)
+                l.TimeStamp.Value = card.PurchaseTime.Value
+                if extractSource:
+                    l.TimeStamp.Source = card.PurchaseTime.Source   
+                if l not in results: 
+                    LinkModels(card, l)           
+                    results.append(l)
+            if card not in results:
+                results.append(card)
+    pr.Models.AddRange(results)
+    return pr
