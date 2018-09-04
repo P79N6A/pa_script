@@ -26,7 +26,7 @@ def GetBlob(reader, idx):
     return reader.GetValue(idx) if not reader.IsDBNull(idx) else None
 
 def GetReal(reader, idx):
-    return reader.GetDouble(idx) if not reader.IsDBNull(idx) else None
+    return reader.GetDouble(idx) if not reader.IsDBNull(idx) else 0.0
 
 def _db_record_get_value(record, column, default_value=None):
     if not record[column].IsDBNull:
