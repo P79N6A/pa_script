@@ -11,7 +11,7 @@ from model_mails import *
 CONTENT_TYPE_HTML = 1 # HTML 格式
 CONTENT_TYPE_TEXT = 2 # 纯文本
 # 邮件类型
-MAIL_OUTBOX = 3       # 已发送
+MAIL_OUTBOX   = 3       # 已发送
 MAIL_DRAFTBOX = 2     # 草稿箱
 
 def execute(node, extract_deleted):
@@ -36,13 +36,14 @@ class NeteaseMailParser(object):
     def __init__(self, node, extract_deleted, extract_source):
         self.root = node 
         self.extract_deleted = extract_deleted
-        self.extract_source = extract_source
+        self.extract_source  = extract_source
 
         self.mm = MM()        
         self.cachepath = ds.OpenCachePath("NeteaseMasterMail")
-        self.cachedb = self.cachepath + "\\NeteaseMasterMail.db"
+        self.cachedb   = self.cachepath + "\\NeteaseMasterMail.db"
         self.mm.db_create(self.cachedb) 
         self.mm.db_create_table()
+        
         self.accounts = {}
         self.mail_folder = {}
 
@@ -53,6 +54,8 @@ class NeteaseMailParser(object):
         self.mm.db_close()
         generate = Generate(self.cachedb)
         return generate.get_models()
+
+
         
     def parse_email(self, node):
         """ 
@@ -61,6 +64,8 @@ class NeteaseMailParser(object):
         imail_db = SQLiteParser.Database.FromNode(node)
         if imail_db is None:
             return
+        self.source_imail_db = node.AbsolutePath
+
         self.parse_email_account(imail_db)
         self.parse_email_mailbox(imail_db)
         self.parse_email_attachment(imail_db)
@@ -78,8 +83,9 @@ class NeteaseMailParser(object):
                 continue
 
             account = Accounts()
-            account.accountId = rec['accountId'].Value 
+            account.accountId    = rec['accountId'].Value
             account.accountEmail = rec['email'].Value
+            account.source       = self.source_imail_db
             if rec['type'].Value == 1 and rec['deleted'].Value == 0:
                 self.accounts[account.accountId] = {'email': account.accountEmail}
             try:
@@ -96,6 +102,7 @@ class NeteaseMailParser(object):
             self.mail_folder[rec['mailBoxId'].Value] = rec['name'].Value
             folder.folderName =  rec['name'].Value
             folder.accountEmail =  self.accounts[rec['accountRawId'].Value]['email']
+            folder.source =  self.source_imail_db
             try:
                 self.mm.db_insert_table_mail_folder(folder)
             except:
@@ -109,12 +116,15 @@ class NeteaseMailParser(object):
             if IsDBNull(rec['name'].Value) or IsDBNull(rec['mailId'].Value):
                 continue
             attach = Attach()
-            attach.attachName = rec['name'].Value
-            attach.attachDir = rec['localPath'].Value 
-            attach.attachType = rec['contentType'].Value 
-            attach.downloadUtc = rec['createdate'].Value 
-            attach.downloadSize = rec['size'].Value 
-            attach.mailId = rec['mailId'].Value
+            attach.attachName   = rec['name'].Value
+            attach.attachDir    = rec['localPath'].Value
+            attach.attachType   = rec['contentType'].Value
+            attach.downloadUtc  = rec['createdate'].Value
+            attach.downloadSize = rec['size'].Value
+            attach.mailId       = rec['mailId'].Value
+            attach.source       = self.source_imail_db
+            # "/private/var/mobile/Containers/Data/Application/C14C9546-5284-487E-B5A7-93EA4620013F/Documents/imail.db"
+
             try:
                 self.mm.db_insert_table_attach(attach)
             except:
@@ -134,24 +144,28 @@ class NeteaseMailParser(object):
                 mail = Mails()
                 if IsDBNull(rec['subject'].Value):
                     continue
-                mail.mailId = rec['localId'].Value 
+                mail.mailId      = rec['localId'].Value
                 mail.mail_folder = self.mail_folder.get(rec['mailBoxId'].Value, None)
-                mail.subject = rec['subject'].Value
-                mail.abstract = rec['summary'].Value 
-                mail.accountId = rec['accountRawId'].Value
-                mail.fromEmail = self._convert_email_format(rec['mailFrom'].Value) 
-                mail.tos = self._convert_email_format(rec['mailTos'].Value) 
-                mail.cc = self._convert_email_format(rec['ccs'].Value) 
-                mail.bcc = rec['bccs'].Value 
-                mail.size =  rec['size'].Value 
-                mail.isForward = rec['forwarded'].Value 
-                mail.isRead = rec['unread'].Value ^ 1 
+                mail.subject     = rec['subject'].Value
+                mail.abstract    = rec['summary'].Value
+                mail.accountId   = rec['accountRawId'].Value
+                mail.fromEmail   = self._convert_email_format(rec['mailFrom'].Value)
+                mail.tos         = self._convert_email_format(rec['mailTos'].Value)
+                mail.cc          = self._convert_email_format(rec['ccs'].Value)
+                mail.bcc         = rec['bccs'].Value
+                mail.size        = rec['size'].Value
+                mail.isForward   = rec['forwarded'].Value
+                mail.isRead      = rec['unread'].Value ^ 1
+                mail.deleted     = rec['deleted'].Value
+                mail.source      = self.source_imail_db
                 if rec['mailBoxId'].Value == MAIL_OUTBOX:     # 发件箱
                     mail.sendStatus = 1
                 elif rec['mailBoxId'].Value == MAIL_DRAFTBOX: # 草稿箱
                     mail.sendStatus = 0
-                mail.receiveUtc = rec['sentDate'].Value 
-                mail.downloadSize = rec['size'].Value 
+                mail.receiveUtc   = rec['sentDate'].Value
+                mail.downloadSize = rec['size'].Value
+                mail.source       = self.source_imail_db
+
                 # 附件
                 if rec['hasAttachments'].Value == 1:
                     self.mm.cursor.execute(SELECT_ATTACH_SQL, (mail.mailId,))
@@ -179,7 +193,7 @@ class NeteaseMailParser(object):
                 if rec['type'].Value == CONTENT_TYPE_TEXT: # 只提取 HTML 格式, 跳过纯文本类型
                     continue
                 elif rec['type'].Value == CONTENT_TYPE_HTML:
-                    mailId = rec['mailId'].Value
+                    mailId      = rec['mailId'].Value
                     mailContent = rec['value'].Value
                     try:
                         self.mm.cursor.execute(SQL_UPDATE_EMAIL_CONTENT, (mailContent, mailId))
@@ -199,8 +213,11 @@ class NeteaseMailParser(object):
                 return
             for rec in self.my_read_table(db=todo_db, table_name='recentcontact'):
                 contact = Contact()
-                contact.contactName = rec['name'].Value
+                contact.contactName  = rec['name'].Value
                 contact.contactEmail = rec['email'].Value
+                contact.source       = node.AbsolutePath
+
+
                 try:
                     self.mm.db_insert_table_contact(contact)
                 except:
@@ -239,11 +256,13 @@ class NeteaseMailParser(object):
                 return
             for rec in self.my_read_table(db=todo_db, table_name='todoList'):
                 t = Todo()
-                t.content = rec['content'].Value
-                t.createdTime = rec['createdTime'].Value
+                t.content      = rec['content'].Value
+                t.createdTime  = rec['createdTime'].Value
                 t.reminderTime = rec['reminderTime'].Value
-                t.isdone = rec['done'].Value
-                t.isdeleted = rec['deleted'].Value
+                t.isdone       = rec['done'].Value
+                t.deleted      = rec['deleted'].Value
+                t.source       = node.AbsolutePath
+
                 try:
                     self.mm.db_insert_table_todo(t)
                 except:
@@ -287,13 +306,13 @@ class NeteaseMailParser(object):
             name_email = eval(name_email)
             if type(name_email) == list:
                 for i in name_email:
-                    name = i['name']
-                    email = i['email']
-                    res += ' ' + email.strip() + ' ' + name.strip()
+                    name   = i['name']
+                    email  = i['email']
+                    res   += ' ' + email.strip() + ' ' + name.strip()
             elif type(name_email) == dict:
-                name = name_email['name']
-                email = name_email['email']
-                res += ' ' + email.strip() + ' ' + name.strip()
+                name   = name_email['name']
+                email  = name_email['email']
+                res   += ' ' + email.strip() + ' ' + name.strip()
         except:
             res = None
             exc()
