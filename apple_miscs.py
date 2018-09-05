@@ -151,6 +151,7 @@ def analyze_connections_from_plist(f, extractDeleted, extractSource):
                 res.Deleted = f.Deleted
                 results.add(res)
     pr.Models.AddRange(results)
+    pr.Build('网络连接')
     return pr
 
 def analyze_startup_time(node, extract_deleted, extract_source):
@@ -180,6 +181,7 @@ def analyze_startup_time(node, extract_deleted, extract_source):
         else:
             pe.TimeStamp.Value = ts
         pr.Models.Add(pe)
+    pr.Build('开机记录')
     return pr
 
 def analyze_permissions(node, extract_deleted, extract_source, installed_apps):
@@ -226,6 +228,7 @@ def analyze_tethering(node, extract_deleted, extract_source):
     pr = ParserResults()
     if node is not None and node.ModifyTime:
         pr.DeviceInfoFields.Add(MetaDataField('LastActivationTime', str(node.ModifyTime),None,'Tethering'))
+    pr.Build('个人热点')
     return pr
 
 def analyze_ithmb(node, extract_deleted, extract_source):
@@ -239,6 +242,7 @@ def analyze_ithmb(node, extract_deleted, extract_source):
     rows, cols = int(rowStr),int(colStr)
     ithmbParser = IthmbParser(node,rows,cols)
     pr = ithmbParser.Parse()
+    pr.Build('缩略图')
     return pr
 
 def analyze_bluetooth_from_plist(node, extractDeleted, extractSource):
@@ -263,5 +267,5 @@ def analyze_bluetooth_from_plist(node, extractDeleted, extractSource):
                 res.Name.Source = MemoryRange(bp[mac]['Name'].Source)
                                 
         pr.Models.Add(res)
-
+    pr.Build('蓝牙信息')
     return pr

@@ -195,6 +195,7 @@ def analyze_sms_spotlight(node, extractDeleted, extractSource, existingMessages)
         
     pr = ParserResults()
     pr.Models.AddRange(results)
+    pr.Build('已删除短信')
     return pr
 
 EXTEND_SMS = [
@@ -242,4 +243,5 @@ def analyze_smss(fs, extract_deleted, extract_source, installed_apps):
     ds.ApplicationsManager.AddTag(name, app_id)
     sms_results = decode_smss(fs, extract_deleted, extract_source)   
     update_app_model(sms_results, installed_apps, app_id)
+    sms_results.Build('系统短信')
     return sms_results

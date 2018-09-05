@@ -741,4 +741,5 @@ def analyze_emails(mail_dir, extractDeleted, extractSource):
         results.extend(read_old_mail(mail_dir, envelope_db, extractDeleted, extractSource))
 
     pr.Models.AddRange(results)
+    pr.Build('系统邮件')
     return pr

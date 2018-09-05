@@ -72,7 +72,7 @@ def analyze_notes(node, extractDeleted, extractSource):
             except:
                 pass
         pr.Models.Add(res)
-
+    pr.Build('备忘录')
     return pr
 
 def analyze_old_notes(node, extractDeleted, extractSource):
@@ -124,5 +124,5 @@ def analyze_old_notes(node, extractDeleted, extractSource):
             if extractSource:
                 res.Modification.Source = MemoryRange(record['modification_date'].Source)
         pr.Models.Add(res)
-
+    pr.Build('备忘录')
     return pr

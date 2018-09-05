@@ -60,11 +60,6 @@ class TIphone(object):
     
     @staticmethod
     def check_app_account_id(fname, account_id):
-        '''
-            something like :
-            app.acct.ecxAkAKUaUgeimn-531809610917628.detail.11
-            app.acct.()
-        '''
         res = re.search('app\\.acct\\.{}-(.*)\\.detail\\.11'.format(account_id), fname, re.I | re.M)
         if res is not None:
             return True

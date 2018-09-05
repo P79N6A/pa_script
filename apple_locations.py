@@ -410,9 +410,10 @@ class LocationsParser(object):
         return results
 
 def analyze_locations(node, extract_deleted, extract_source):
-    extractDeleted = False #暂时禁用位置相关的数据恢复
+    #extractDeleted = False #暂时禁用位置相关的数据恢复
     pr = ParserResults()
     pr.Models.AddRange(LocationsParser(node, extract_deleted, extract_source).parse())
+    pr.Build('地理位置')
     return pr
 
 class FrequentLocationsParser(object):
@@ -573,9 +574,10 @@ class FrequentLocationsParser(object):
 常去地地点数据解析(iOS7+)
 """
 def analyze_frequent_locations(root, extractDeleted, extractSource):
-    extractDeleted = False #暂时禁用位置相关的数据恢复
+    #extractDeleted = False #暂时禁用位置相关的数据恢复
     pr = ParserResults()
     pr.Models.AddRange(FrequentLocationsParser(root, extractDeleted, extractSource).parse())
+    pr.Build('常去地点')
     return pr
 
 
@@ -1126,11 +1128,12 @@ def analyze_apple_maps(root, extractDeleted, extractSource):
     """
     解析苹果地图
     """
-    extractDeleted = False #暂时禁用位置相关的数据恢复
+    #extractDeleted = False #暂时禁用位置相关的数据恢复
     maps = apple_maps(root, extractDeleted, extractSource)
     pr = ParserResults()
     pr.Models.AddRange(maps.analyze_maps_bookmarks())
     pr.Models.AddRange(maps.analyze_maps_history())
+    pr.Build('苹果地图')
     return pr
     
 def analyze_locations_from_deleted_photos(node, extractDeleted, extractSource):
@@ -1212,6 +1215,7 @@ def analyze_locations_from_deleted_photos(node, extractDeleted, extractSource):
                 locs.Add(loc)
 
     pr.Models.AddRange(locs)
+    pr.Build('已删除照片')
     return pr
 
 def read_old_locationd(bp, cat, extractSource,srcfile):
@@ -1242,7 +1246,7 @@ def read_old_locationd(bp, cat, extractSource,srcfile):
                 cor.Elevation.Source = MemoryRange(fix['Altitude'].Source)
             result.Position.Value = cor
             pr.Models.Add(result)
-
+    pr.Build('地理位置')
     return pr
 
 def analyze_hcells_from_plist(node, extractDeleted, extractSource):
@@ -1293,6 +1297,7 @@ def analyze_maps_search(node, extractDeleted, extractSource):
                 results.append(search)
     pr = ParserResults()
     pr.Models.AddRange(results)
+    pr.Build('苹果地图')
     return pr
 
 def analyze_wifi_from_plist(f, extractDeleted, extractSource):
@@ -1382,6 +1387,7 @@ def analyze_wifi_from_plist(f, extractDeleted, extractSource):
     pr = ParserResults()
     pr.Models.AddRange(results)
     pr.Models.AddRange(locs)
+    pr.Build('地理位置')
     return pr   
 
 def analyze_network(network,extractDeleted,extractSource):
@@ -1583,4 +1589,5 @@ def analyze_passbook(d, extractDeleted, extractSource):
             if card not in results:
                 results.append(card)
     pr.Models.AddRange(results)
+    pr.Build('Passbook')
     return pr

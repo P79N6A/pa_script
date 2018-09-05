@@ -345,4 +345,5 @@ def analyze_safari(node, extractDeleted, extractSource):
 
     pr = ParserResults()
     pr.Models.AddRange(SafariParser(node, extractDeleted, extractSource).parse())
+    pr.Build('Safari')
     return pr

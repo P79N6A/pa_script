@@ -248,4 +248,5 @@ def analyze_calender(node, extractDeleted, extractSource):
                 results.append(res)
     pr = ParserResults()
     pr.Models.AddRange(results)
+    pr.Build('系统日历')
     return pr

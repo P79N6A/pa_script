@@ -86,4 +86,5 @@ def analyze_accounts_from_plist(node, extractDeleted, extractSource):
 
     pr = ParserResults()
     pr.Models.AddRange(results)
+    pr.Build('用户账号')
     return pr

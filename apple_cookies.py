@@ -9,10 +9,8 @@ from PA_runtime import *
 def analyze_cookies(node, extractDeleted, extractSource):
     pr = ParserResults()
     pr.Models.AddRange(CookieParser(node, extractDeleted, extractSource).Parse())
+    pr.Build('Cookie痕迹')
     return pr
-
-def execute(node,extracteDeleted):
-    return analyze_cookies(node,extracteDeleted,False)
 
 class CookieParser(object):
     def __init__(self, node, extractDeleted, extractSource):        
@@ -129,7 +127,7 @@ class CookieParser(object):
         c.Domain.Value          = url[1]    
         cloudURLs =  ['.login.live.com', 'i.instagram.com', 'instagram.com']
         if c.Domain.Value in cloudURLs:
-            c.ModelLabels = Labels.CloudAccountPackage;
+            c.ModelLabels = Labels.CloudAcctData;
         c.Name.Value            = name[1]    
         c.Path.Value            = path[1]    
         c.Value.Value           = value[1]

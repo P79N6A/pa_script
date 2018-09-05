@@ -340,4 +340,6 @@ class iphone_aps_parser(object):
 
 def analyze_apple_push_service(aps_node,extract_deleted,extract_source):
     aps_parser = iphone_aps_parser(aps_node,extract_deleted,extract_source)
-    return aps_parser.parse()
+    pr = aps_parser.parse()
+    pr.Build('苹果推送服务')
+    return pr
