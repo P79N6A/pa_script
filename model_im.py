@@ -21,7 +21,7 @@ import sqlite3
 import json
 import uuid
 
-VERSION_VALUE_DB = 1
+VERSION_VALUE_DB = 2
 
 GENDER_MALE = 0
 GENDER_FEMALE = 1
@@ -654,9 +654,8 @@ class Deal(Column):
 
 
 class GenerateModel(object):
-    def __init__(self, cache_db, mount_dir):
+    def __init__(self, cache_db):
         self.cache_db = cache_db
-        self.mount_dir = mount_dir
         self.friends = {}
         self.chatrooms = {}
 
@@ -1106,9 +1105,6 @@ class GenerateModel(object):
             return ConvertHelper.ToUri(path)
         else:
             return ConvertHelper.ToUri(path)
-
-    def _get_source_file(self, source_file):
-        return self.mount_dir + source_file.replace('/', '\\')
 
     def _get_feed_likes(self, account_id, likes):
         models = []
