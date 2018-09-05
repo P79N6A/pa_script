@@ -352,7 +352,7 @@ class gaodeMap(object):
             self.entrance()
             self.gaodemap.db_close()
         
-        generate = model_map.Genetate(db_path)
+        generate = model_map.Genetate(db_path, r"C:\TestFs1")
         tmpresult = generate.get_models()
         return tmpresult
       
@@ -364,6 +364,7 @@ def analyze_gaodemap(node, extract_deleted, extract_source):
     if prResult:
         for i in prResult:
             pr.Models.Add(i)
+    pr.Build("高德地图")
     return pr
 
 def execute(node, extract_deleted):

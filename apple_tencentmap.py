@@ -30,7 +30,6 @@ class TencentMap(object):
         if account_bplist is None:
             return 
         account = model_map.Account()
-        account.sourceApp = "腾讯地图"
         account.sourceFile = accountNode.AbsolutePath
         if "loginKeysDictionary_OpenQQAPI" in account_bplist:
             if "fullName" in account_bplist["loginKeysDictionary_OpenQQAPI"]:
@@ -64,7 +63,6 @@ class TencentMap(object):
     def decode_search_data(self, bp, dictvalue, search_node):
         search = model_map.Search()
         search.source = "腾讯地图:"
-        search.sourceApp = "腾讯地图"
         search.sourceFile = search_node.AbsolutePath
         search.item_type = 0
         values = self.get_dict_from_search(bp, dictvalue)
@@ -111,7 +109,6 @@ class TencentMap(object):
         if json_data.get("fav_list"):
             favorite_search = model_map.Search()
             favorite_search.source = "腾讯地图:"
-            favorite_search.sourceApp = "腾讯地图"
             favorite_search.sourceFile = favorites_address_node.AbsolutePath
             favorite_search.item_type = 1
             for rs in json_data.get("fav_list"):
@@ -152,7 +149,6 @@ class TencentMap(object):
         if values:
             home_company = model_map.Search()
             home_company.source = "腾讯地图:"
-            home_company.sourceApp = "腾讯地图"
             home_company.sourceFile = home_company_node.AbsolutePath
             home_company.item_type = 1
             if "name" in values:
@@ -199,14 +195,15 @@ class TencentMap(object):
         if startvalues and endvalues:
             route_address = model_map.Address()
             route_address.source = "腾讯地图:"
-            route_address.sourceApp = "腾讯地图"
             route_address.sourceFile = route.AbsolutePath
             if "name" in startvalues and "name" in endvalues:
                 route_address.from_name = startvalues.get("name").Value
                 route_address.to_name = endvalues.get("name").Value
             if "addr" in startvalues and "addr" in endvalues:
-                route_address.from_addr = startvalues.get("addr").Value
-                route_address.to_addr = endvalues.get("addr").Value
+                if startvalues["addr"] != "$null":
+                    route_address.from_addr = startvalues.get("addr").Value
+                if endvalues["addr"] != "$null":
+                    route_address.to_addr = endvalues.get("addr").Value
             if "pointX" in startvalues and "pointX" in endvalues:
                 route_address.from_posX = startvalues.get("pointX") if startvalues.get("pointX") else 0
                 route_address.to_posX = endvalues.get("pointX") if endvalues.get("pointX") else 0
@@ -214,8 +211,10 @@ class TencentMap(object):
                 route_address.from_posY = startvalues.get("pointY") if startvalues.get("pointY") else 0
                 route_address.to_posY = endvalues.get("pointY") if endvalues.get("pointY") else 0
             if "cityName" in startvalues and "cityName" in endvalues:
-                route_address.city_name = startvalues.get("cityName").Value
-                route_address.city_name = endvalues.get("cityName").Value
+                if startvalues["cityName"] != "$null":
+                    route_address.city_name = startvalues.get("cityName").Value
+                if endvalues["cityName"] != "$null":
+                    route_address.city_name = endvalues.get("cityName").Value
             try:
                 self.tencentMap.db_insert_table_address(route_address)
             except Exception as e:
@@ -288,7 +287,7 @@ class TencentMap(object):
             self.get_route_by_car()         # 得到导航记录通过汽车
             self.get_route_by_walk()        # 得到导航记录通过步行
             self.tencentMap.db_close()
-        generate = model_map.Genetate(db_path)   
+        generate = model_map.Genetate(db_path, r"C:\TestFs")   
         tmpresult = generate.get_models()
         return tmpresult
         
@@ -299,6 +298,7 @@ def analyze_tencentmap(node, extract_deleted, extract_source):
     if results:
         for i in results:
             pr.Models.Add(i)
+    pr.Build("腾讯地图")
     return pr
 
 
