@@ -92,7 +92,7 @@ class SogouMap(object):
             self.parse_search()
             self.sogoudb.db_close()
         
-        generate = model_map.Genetate(db_path)
+        generate = model_map.Genetate(db_path, r"C:\TestFs1")
         tmpresult = generate.get_models()
         return tmpresult
         
@@ -103,6 +103,7 @@ def analyze_sogoumap(node, extractDeleted, extractSource):
     if results:
         for i in results:
             pr.Models.Add(i)
+    pr.Build("搜狗地图")
     return pr
 
 def execute(node, extract_deleted):
