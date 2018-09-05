@@ -20,12 +20,13 @@ class SogouMap(object):
 
     def parse_history_data(self):
         history_node = self.root.GetByPath("Documents/MapData.data")
+        if history_node is None:
+            return
         try:
             mapdb = SQLiteParser.Database.FromNode(history_node)
             if mapdb is None:
                 print("Documents/MapData.data is not exists!")
                 return 
-
             tb = SQLiteParser.TableSignature("ZSGMHISTORYENTITY")
             if self.extract_deleted:
                 SQLiteParser.Tools.AddSignatureToTable(tb, "ZCAPTION", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
@@ -60,6 +61,8 @@ class SogouMap(object):
     
     def parse_user_data(self):
         user_node = self.root.GetByPath("Documents/MapData.data")
+        if user_node is None:
+            return
         try:
             mapdb = SQLiteParser.Database.FromNode(user_node)
             if mapdb is None:
@@ -94,6 +97,8 @@ class SogouMap(object):
 
     def parse_favorites_data(self):
         addr_node = self.root.GetByPath("Documents/MapData.data")
+        if addr_node is None:
+            return
         try:
             mapdb = SQLiteParser.Database.FromNode(addr_node)
             if mapdb is None:
@@ -192,7 +197,7 @@ class SogouMap(object):
             self.parse_route_data()
             self.sogoudb.db_close()
 
-        generate = model_map.Genetate(db_path)   
+        generate = model_map.Genetate(db_path, r"C:\TestFs")   
         tmpresult = generate.get_models()
         return tmpresult
 
@@ -203,6 +208,7 @@ def analyze_sogoumap(node, extract_deleted, extract_source):
     if results:
         for i in results:
             pr.Models.Add(i)
+    pr.Build("搜狗地图")
     return pr
 
 
