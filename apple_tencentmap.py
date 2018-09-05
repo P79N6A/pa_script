@@ -288,7 +288,7 @@ class TencentMap(object):
             self.get_route_by_car()         # 得到导航记录通过汽车
             self.get_route_by_walk()        # 得到导航记录通过步行
             self.tencentMap.db_close()
-        generate = model_map.Genetate(db_path, r"C:\TestFs")   
+        generate = model_map.Genetate(db_path)   
         tmpresult = generate.get_models()
         return tmpresult
         

@@ -346,7 +346,7 @@ class gaodeMap(object):
         if self.check_to_update(db_path, APPVERSION):
             self.gaodemap.db_create(db_path)
             self.entrance()
-        generate = model_map.Genetate(db_path, r"C:\TestFs")
+        generate = model_map.Genetate(db_path)
         tmpresult = generate.get_models()
         return tmpresult
 
