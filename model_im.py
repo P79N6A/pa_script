@@ -694,7 +694,7 @@ class GenerateModel(object):
             account_id = None
             contact = {}
             if row[15] not in [None, '']:
-                user.SourceFile.Value = self._get_source_file(row[15])
+                user.SourceFile.Value = row[15]
             if row[16]:
                 user.Deleted = self._convert_deleted_status(row[16])
             if row[0]:
@@ -761,7 +761,7 @@ class GenerateModel(object):
             user_id = None
             contact = {}
             if row[13] not in [None, '']:
-                friend.SourceFile.Value = self._get_source_file(row[13])
+                friend.SourceFile.Value = row[13]
             if row[14]:
                 friend.Deleted = self._convert_deleted_status(row[14])
             if row[0]:
@@ -823,7 +823,7 @@ class GenerateModel(object):
             user_id = None
             contact = {}
             if row[12] not in [None, '']:
-                group.SourceFile.Value = self._get_source_file(row[12])
+                group.SourceFile.Value = row[12]
             if row[13]:
                 group.Deleted = self._convert_deleted_status(row[13])
             if row[0]:
@@ -887,7 +887,7 @@ class GenerateModel(object):
             talker_type = row[13]
 
             if row[14] not in [None, '']:
-                message.SourceFile.Value = self._get_source_file(row[14])
+                message.SourceFile.Value = row[14]
             if row[15]:
                 message.Deleted = self._convert_deleted_status(row[15])
             if row[0]:
@@ -1031,7 +1031,7 @@ class GenerateModel(object):
             moment.Content.Value = Common.MomentContent()
             account_id = None
             if row[14] not in [None, '']:
-                moment.SourceFile.Value = self._get_source_file(row[14])
+                moment.SourceFile.Value = row[14]
             if row[15]:
                 moment.Deleted = self._convert_deleted_status(row[15])
             if row[0]:
@@ -1105,7 +1105,7 @@ class GenerateModel(object):
         if path.startswith('http') or len(path) == 0:
             return ConvertHelper.ToUri(path)
         else:
-            return ConvertHelper.ToUri(self.mount_dir + path.replace('/', '\\'))
+            return ConvertHelper.ToUri(path)
 
     def _get_source_file(self, source_file):
         return self.mount_dir + source_file.replace('/', '\\')
@@ -1138,7 +1138,7 @@ class GenerateModel(object):
                     if ts:
                         like.TimeStamp.Value = ts
                 if row[3] not in [None, '']:
-                    like.SourceFile.Value = self._get_source_file(row[3])
+                    like.SourceFile.Value = row[3]
                 if row[4]:
                     like.Deleted = self._convert_deleted_status(row[4])
                 models.append(like)
@@ -1181,7 +1181,7 @@ class GenerateModel(object):
                     if ts:
                         comment.TimeStamp.Value = ts
                 if row[6] not in [None, '']:
-                    comment.SourceFile.Value = self._get_source_file(row[6])
+                    comment.SourceFile.Value = row[6]
                 if row[7]:
                     comment.Deleted = self._convert_deleted_status(row[7])
                 models.append(comment)
@@ -1220,7 +1220,7 @@ class GenerateModel(object):
                     if ts:
                         location.TimeStamp.Value = ts
                 if row[5] not in [None, '']:
-                    location.SourceFile.Value = self._get_source_file(row[5])
+                    location.SourceFile.Value = row[5]
                 if row[6]:
                     location.Deleted = self._convert_deleted_status(row[6])
 
@@ -1256,7 +1256,7 @@ class GenerateModel(object):
                     if ts:
                         receipt.ExpireTime.Value = ts
                 if row[7] not in [None, '']:
-                    receipt.SourceFile.Value = self._get_source_file(row[7])
+                    receipt.SourceFile.Value = row[7]
                 if row[8]:
                     receipt.Deleted = self._convert_deleted_status(row[8])
 
@@ -1292,7 +1292,7 @@ class GenerateModel(object):
                     if ts:
                         receipt.ExpireTime.Value = ts
                 if row[7] not in [None, '']:
-                    receipt.SourceFile.Value = self._get_source_file(row[7])
+                    receipt.SourceFile.Value = row[7]
                 if row[8]:
                     receipt.Deleted = self._convert_deleted_status(row[8])
 
