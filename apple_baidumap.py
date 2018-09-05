@@ -29,7 +29,7 @@ class baiduMapParser(object):
             self.analyze_search_history()
             self.my_history_address()
 
-        result = model_map.Genetate(path, r"C:\TestFs")
+        result = model_map.Genetate(path)
         tmpresult = result.get_models()
 
         self.baidumap.db_close()

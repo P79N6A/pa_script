@@ -16,7 +16,6 @@ from System.Xml.XPath import Extensions as XPathExtensions
 
 import os
 import sqlite3
-import logging
 
 SQL_CREATE_TABLE_MAILS = '''
     create table if not exists mails(
@@ -169,15 +168,14 @@ SQL_CREATE_TABLE_TODO = '''
         createdTime INTEGER,
         reminderTime INTEGER,
         isdone INTEGER,
-        isdeleted INTEGER,
         source TEXT,
         deleted INT, 
         repeated INT
     )'''
 
 SQL_INSERT_TABLE_TODO = '''
-    insert into todo(content, createdTime, reminderTime, isdone, isdeleted, source, deleted, repeated)
-        values(?, ?, ?, ?, ?, ?, ?, ?)'''
+    insert into todo(content, createdTime, reminderTime, isdone, source, deleted, repeated)
+        values(?, ?, ?, ?, ?, ?, ?)'''
 
 
 SQL_CREATE_TABLE_SEARCH = ''''''
@@ -374,6 +372,7 @@ class Attach(Column):
         self.attachName, self.exchangeField, self.attachType, self.attachDir, self.emailFolder,
         self.mailId) + super(Attach, self).get_values()
 
+
 class Todo(Column):
     def __init__(self):
         super(Todo, self).__init__()
@@ -381,14 +380,12 @@ class Todo(Column):
         self.createdTime = None
         self.reminderTime = None
         self.isdone = None
-        self.isdeleted = None
 
     def get_values(self):
         return (self.content,
                 self.createdTime,
                 self.reminderTime,
-                self.isdone,
-                self.isdeleted) + super(Todo, self).get_values()
+                self.isdone) + super(Todo, self).get_values()
 
 
 class Search(Column):
@@ -425,10 +422,13 @@ class Generate(object):
             self.cursor.execute(sql)
             row = self.cursor.fetchone()
         except Exception as e:
-            logging.error(e)
             print(e)
         while row is not None:
             mailMessage = Generic.MailMessage()
+            if row[22] not in [None, '']:
+                        mailMessage.SourceFile.Value = self._get_source_file(row[22])
+            if row[24] is not None:
+                        mailMessage.Deleted = self._convert_deleted_status(row[24])
             if row[16] is not None:
                 mailMessage.Folder.Value = row[16]
                 if row[16] == '已发送':
@@ -509,7 +509,8 @@ class Generate(object):
                 user.LastLoginTime.Value = TimeStamp.FromUnixTime(row[27], False)
             if row[15] is not None:
                 user.Email.Value = row[15]
-            mailMessage.OwnerUser.Value = user
+
+            #mailMessage.OwnerUser.Value = user
             models.append(mailMessage)
             row = self.cursor.fetchone()
         return models
@@ -529,6 +530,10 @@ class Generate(object):
             print(e)
         while row is not None:
             friend = Common.Friend()
+            if row[12] not in [None, '']:
+                        friend.SourceFile.Value = self._get_source_file(row[12])
+            if row[13] is not None:
+                        friend.Deleted = self._convert_deleted_status(row[13])
             if row[11] is not None:
                 friend.OwnerUserID.Value = row[11]
             if row[0] is not None:
@@ -561,3 +566,14 @@ class Generate(object):
     def _get_search_models(self):
         models = []
         return models
+
+
+    @staticmethod
+    def _convert_deleted_status(deleted):
+        if deleted is None:
+            return DeletedState.Unknown
+        else:
+            return DeletedState.Intact if deleted == 0 else DeletedState.Deleted
+
+    def _get_source_file(self, source_file):
+        return source_file.replace('/', '\\')

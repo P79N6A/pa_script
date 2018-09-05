@@ -225,9 +225,8 @@ class Search(Column):
 
 class Genetate(object):
 
-    def __init__(self, cache_db, mount_dir):
+    def __init__(self, cache_db):
         self.cache_db = cache_db
-        self.mount_dir = mount_dir
 
     def get_models(self):
         models = []
@@ -493,5 +492,5 @@ class Genetate(object):
         return ts
              
     def _get_source_file(self, source_file):
-        return self.mount_dir + source_file.replace('/', '\\')
+        return  source_file.replace('/', '\\')
 

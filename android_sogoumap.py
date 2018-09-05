@@ -92,7 +92,7 @@ class SogouMap(object):
             self.parse_search()
             self.sogoudb.db_close()
         
-        generate = model_map.Genetate(db_path, r"C:\TestFs1")
+        generate = model_map.Genetate(db_path)
         tmpresult = generate.get_models()
         return tmpresult
         

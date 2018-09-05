@@ -35,6 +35,8 @@ def analyze_renren(root, extract_deleted, extract_source):
     mlm = ModelListMerger()
 
     pr.Models.AddRange(list(mlm.GetUnique(models)))
+    pr.Build('人人')
+    gc.collect()
     return pr
     
 def execute(node,extracteDeleted):
@@ -47,7 +49,6 @@ class RenRenParser(model_im.IM):
         self.extract_source = extract_source
         self.root = node 
         self.app_name = 'RenRen'
-        self.mount_dir = node.FileSystem.MountPoint
         self.cache_path = ds.OpenCachePath('RenRen')
         if not os.path.exists(self.cache_path):
             os.makedirs(self.cache_path)
@@ -64,7 +65,7 @@ class RenRenParser(model_im.IM):
                 self.user = None
                 self.contacts = None
             self.db_insert_table_version(model_im.VERSION_KEY_DB, model_im.VERSION_VALUE_DB)
-            self.db_insert_table_version(model_im.VERSION_KEY_APP, VERSION_APP_VALUE)
+            self.db_insert_table_version(model_im.VERSION_KEY_APP)
             self.db_commit()
             self.db_close()
         models  = self.get_models_from_cache_db()
