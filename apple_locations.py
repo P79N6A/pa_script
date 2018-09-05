@@ -1384,6 +1384,22 @@ def analyze_wifi_from_plist(f, extractDeleted, extractSource):
     pr.Models.AddRange(locs)
     return pr   
 
+def analyze_network(network,extractDeleted,extractSource):
+    res = WirelessNetwork()
+    if network.ContainsKey('BSSID'):           
+        res.BSSId.Init(LocationsParser.normalize_mac(network['BSSID'].Value),MemoryRange(network['BSSID'].Source) if extractSource else None)
+    if network.ContainsKey('SSID_STR'):           
+        res.SSId.Init(network['SSID_STR'].Value,MemoryRange(network['SSID_STR'].Source) if extractSource else None)
+    if network.ContainsKey('SecurityMode'):           
+        res.SecurityMode.Init(network['SecurityMode'].Value,MemoryRange(network['SecurityMode'].Source) if extractSource else None)
+    if network.ContainsKey('lastAutoJoined'):           
+        res.LastAutoConnection.Init(TimeStamp.FromFileTime(network['lastAutoJoined'].Value.ToUniversalTime().ToFileTimeUtc()),
+                       MemoryRange(network['lastAutoJoined'].Source) if extractSource else None)        
+    if network.ContainsKey('lastJoined'):           
+        res.LastConnection.Init(TimeStamp.FromFileTime(network['lastJoined'].Value.ToUniversalTime().ToFileTimeUtc()),
+                                MemoryRange(network['lastJoined'].Source) if extractSource else None)  
+    return res     
+
 def analyze_passbook(d, extractDeleted, extractSource):
     results = []
     last_location = d.GetByPath('LastLocation.archive')
