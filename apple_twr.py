@@ -263,7 +263,7 @@ def analyse_twitter(root, extract_deleted, extract_source):
     t = TIphone(node, extract_deleted, extract_source)
     t.parse_account()
     t.im.db_close()
-    models = model_im.GenerateModel(t.cache + "/C37R", root.PathWithMountPoint).get_models()
+    models = model_im.GenerateModel(t.cache + "/C37R").get_models()
     mlm = ModelListMerger()
     pr = ParserResults()
     pr.Categories = DescripCategories.QQ
