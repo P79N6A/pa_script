@@ -21,7 +21,7 @@ import sqlite3
 import json
 import uuid
 
-VERSION_VALUE_DB = 2
+VERSION_VALUE_DB = 3
 
 GENDER_MALE = 0
 GENDER_FEMALE = 1
@@ -302,6 +302,19 @@ SQL_INSERT_TABLE_DEAL = '''
                      receive_info, source, deleted, repeated) 
         values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
 
+SQL_CREATE_TABLE_SEARCH = '''
+    create table if not exists search(
+        account_id TEXT, 
+        key TEXT,
+        create_time INT,
+        source TEXT,
+        deleted INT DEFAULT 0, 
+        repeated INT DEFAULT 0)'''
+
+SQL_INSERT_TABLE_SEARCH = '''
+    insert into search(account_id, key, create_time, source, deleted, repeated) 
+        values(?, ?, ?, ?, ?, ?)'''
+
 SQL_CREATE_TABLE_VERSION = '''
     create table if not exists version(
         key TEXT primary key,
@@ -365,6 +378,8 @@ class IM(object):
             self.db_cmd.ExecuteNonQuery()
             self.db_cmd.CommandText = SQL_CREATE_TABLE_DEAL
             self.db_cmd.ExecuteNonQuery()
+            self.db_cmd.CommandText = SQL_CREATE_TABLE_SEARCH
+            self.db_cmd.ExecuteNonQuery()
             self.db_cmd.CommandText = SQL_CREATE_TABLE_VERSION
             self.db_cmd.ExecuteNonQuery()
 
@@ -407,6 +422,9 @@ class IM(object):
 
     def db_insert_table_deal(self, column):
         self.db_insert_table(SQL_INSERT_TABLE_DEAL, column.get_values())
+
+    def db_insert_table_search(self, column):
+        self.db_insert_table(SQL_INSERT_TABLE_SEARCH, column.get_values())
 
     def db_insert_table_version(self, key, version):
         self.db_insert_table(SQL_INSERT_TABLE_VERSION, (key, version))
@@ -653,6 +671,17 @@ class Deal(Column):
                 self.expire_time, self.receive_info) + super(Deal, self).get_values()
 
 
+class Search(Column):
+    def __init__(self):
+        super(Search, self).__init__()
+        self.account_id = None  # 账号ID[TEXT]
+        self.key = None  # 搜索关键字[TEXT]
+        self.create_time = None  # 搜索时间[INT]
+
+    def get_values(self):
+        return (self.account_id, self.key, self.create_time) + super(Search, self).get_values()
+
+
 class GenerateModel(object):
     def __init__(self, cache_db):
         self.cache_db = cache_db
@@ -670,6 +699,7 @@ class GenerateModel(object):
         models.extend(self._get_group_models())
         models.extend(self._get_chat_models())
         models.extend(self._get_feed_models())
+        models.extend(self._get_search_models())
 
         self.cursor.close()
         self.db.close()
@@ -1061,6 +1091,38 @@ class GenerateModel(object):
             if row[12]:
                 moment.Comments.AddRange(self._get_feed_comments(account_id, row[12]))
             models.append(moment)
+
+            row = self.cursor.fetchone()
+
+        return models 
+
+    def _get_search_models(self):
+        models = []
+
+        sql = '''select account_id, key, create_time, source, deleted, repeated
+                 from search'''
+        row = None
+        try:
+            self.cursor.execute(sql)
+            row = self.cursor.fetchone()
+        except Exception as e:
+            print(e)
+
+        while row is not None:
+            search = SearchedItem()
+            if row[3] not in [None, '']:
+                search.SourceFile.Value = row[3]
+            if row[4]:
+                search.Deleted = self._convert_deleted_status(row[4])
+            if row[0]:
+                search.OwnerUserID.Value = row[0]
+            if row[1]:
+                search.Value.Value = row[1]
+            if row[2]:
+                ts = self._get_timestamp(row[2])
+                if ts:
+                    search.TimeStamp.Value = ts
+            models.append(search)
 
             row = self.cursor.fetchone()
 
