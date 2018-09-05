@@ -4,6 +4,17 @@
 #
 
 import shutil
+import hashlib
+#
+# C# Unity
+#
+import clr
+clr.AddReference('System.Data.SQLite')
+del clr
+
+import System.Data.SQLite as sql
+
+#global on_c_sharp_platform  = True
 
 def format_mac_timestamp(mac_time, v = 10):
     """
@@ -49,3 +60,14 @@ def mapping_file_with_copy(src, dst):
 # not implemented right now...
 def mapping_file_with_safe_read(src, dst):
     pass
+
+def md5(string):
+    return hashlib.md5(string).hexdigest()
+
+def create_connection(src, read_only = True):
+    cmd = 'DataSource = {}; ReadOnly = True'.format(src) if read_only else 'DataSource = {}'.format(src)
+    conn = sql.SQLiteConnection(cmd)
+    conn.Open()
+    return conn
+
+#def create_command()
