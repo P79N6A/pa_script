@@ -21,6 +21,7 @@ import json
 import model_im
 import uuid
 import time
+import gc
 
 # app数据库版本
 VERSION_APP_VALUE = 1
