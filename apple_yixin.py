@@ -29,6 +29,8 @@ def analyze_yixin(root, extract_deleted, extract_source):
     mlm = ModelListMerger()
 
     pr.Models.AddRange(list(mlm.GetUnique(models)))
+    pr.Build('易信')
+    gc.collect()
     return pr
     
 def execute(node,extracteDeleted):
@@ -41,7 +43,6 @@ class YiXinParser(model_im.IM):
         self.extract_source = extract_source
         self.root = node
         self.app_name = 'YiXin'
-        self.mount_dir = node.FileSystem.MountPoint
         self.cache_path = ds.OpenCachePath('YiXin')
         if not os.path.exists(self.cache_path):
             os.makedirs(self.cache_path)
@@ -66,7 +67,7 @@ class YiXinParser(model_im.IM):
         return models
 
     def get_models_from_cache_db(self):
-        models = model_im.GenerateModel(self.cache_db, self.mount_dir).get_models()
+        models = model_im.GenerateModel(self.cache_db).get_models()
         return models
 
     def get_user_list(self):
