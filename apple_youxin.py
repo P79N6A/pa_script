@@ -33,7 +33,7 @@ def analyze_youxin(root, extract_deleted, extract_source):
     mlm = ModelListMerger()
 
     pr.Models.AddRange(list(mlm.GetUnique(models)))
-    pr.Build('微信')
+    pr.Build('有信')
     gc.collect()
     return pr
     

@@ -76,7 +76,7 @@ class QQParser(object):
             self.im.db_insert_table_version(VERSION_KEY_APP, self.VERSION_APP_VALUE)
             self.im.db_commit()
             self.im.db_close()
-        gen = GenerateModel(self.cachedb,self.root.FileSystem.MountPoint)
+        gen = GenerateModel(self.cachedb)
         return gen.get_models()
     def decode_fts_messages(self,acc_id):
         node = self.root.GetByPath('/Documents/contents/' + acc_id + '/FTSMsg.db')
