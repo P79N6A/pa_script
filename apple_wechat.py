@@ -135,7 +135,7 @@ class WeChatParser(model_im.IM):
 
         self.user_account.account_id = self._bpreader_node_get_string_value(root, 'UsrName')
         self.user_account.nickname = self._bpreader_node_get_string_value(root, 'NickName')
-        self.user_account.gender = self._bpreader_node_get_int_value(root, 'Sex')
+        self.user_account.gender = self._convert_gender_type(self._bpreader_node_get_int_value(root, 'Sex'))
         self.user_account.telephone = self._bpreader_node_get_string_value(root, 'Mobile')
         self.user_account.email = self._bpreader_node_get_string_value(root, 'Email')
         self.user_account.city = self._bpreader_node_get_string_value(root, 'City')
@@ -820,7 +820,6 @@ class WeChatParser(model_im.IM):
     def _process_parse_group_message(self, msg, msg_type, msg_local_id, is_sender, user_node, group_hash, model):
         sender_id = self.user_account.account_id
         content = msg
-        img_path = ''
 
         if not is_sender:
             index = msg.find(':\n')
@@ -1184,6 +1183,13 @@ class WeChatParser(model_im.IM):
             return model_im.MESSAGE_CONTENT_TYPE_SYSTEM
         else:
             return model_im.MESSAGE_CONTENT_TYPE_LINK
+
+    @staticmethod
+    def _convert_gender_type(gender_type):
+        if gender_type != 0:
+            return model_im.GENDER_FEMALE
+        else:
+            return model_im.GENDER_MALE
 
     @staticmethod
     def db_mapping(src_path, dst_path):
