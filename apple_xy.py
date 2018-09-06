@@ -219,8 +219,8 @@ class xianyu(object):
         conn.Close()
 
 def parse_xy(root, extract_deleted, extract_source):
-    # node = root
-    node = FileSystem.FromLocalDir(r'D:\ios_case\xianyu\C533806C-8FB4-459D-8127-B1BA7A345E28')
+    node = root
+    #node = FileSystem.FromLocalDir(r'D:\ios_case\xianyu\C533806C-8FB4-459D-8127-B1BA7A345E28')
     x = xianyu(node, extract_deleted, extract_deleted)
     x.search()
     x.parse()
