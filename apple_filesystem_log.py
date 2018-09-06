@@ -20,6 +20,8 @@ import gzip
 import string
 import sqlite3
 
+# EnterPoint: analyze_fsevents(root, extract_deleted, extract_source):
+# Patterns: '/\.fseventsd$'
 
 DB_VERSION = 10000
 

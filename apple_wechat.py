@@ -24,6 +24,9 @@ import sqlite3
 import shutil
 import datetime
 
+# EnterPoint: analyze_wechat(root, extract_deleted, extract_source):
+# Patterns: '/DB/MM\.sqlite$'
+
 # app数据库版本
 VERSION_APP_VALUE = 1
 
@@ -50,7 +53,6 @@ MOMENT_TYPE_MUSIC = 4  # 带音乐的（存的是封面）
 MOMENT_TYPE_EMOJI = 10  # 分享了表情包
 MOMENT_TYPE_VIDEO = 15  # 视频
 
-
 def analyze_wechat(root, extract_deleted, extract_source):
     pr = ParserResults()
     pr.Categories = DescripCategories.Wechat #声明这是微信应用解析的数据集
@@ -59,7 +61,6 @@ def analyze_wechat(root, extract_deleted, extract_source):
     
     pr.Models.AddRange(list(mlm.GetUnique(models)))
     pr.Build('微信')
-    gc.collect()
     return pr
 
 
@@ -103,6 +104,7 @@ class WeChatParser(model_im.IM):
             self.db_insert_table_version(model_im.VERSION_KEY_APP, VERSION_APP_VALUE)
             self.db_commit()
             self.db_close()
+            gc.collect()
 
         models = self.get_models_from_cache_db()
         return models
