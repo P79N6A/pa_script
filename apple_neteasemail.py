@@ -8,14 +8,15 @@ from model_mails import *
 
 
 # 邮件内容类型
-CONTENT_TYPE_HTML = 1 # HTML 格式
-CONTENT_TYPE_TEXT = 2 # 纯文本
+CONTENT_TYPE_HTML = 1  # HTML 格式
+CONTENT_TYPE_TEXT = 2  # 纯文本
 # 邮件类型
-MAIL_OUTBOX   = 3       # 已发送
-MAIL_DRAFTBOX = 2     # 草稿箱
+MAIL_OUTBOX   = '3'    # 已发送
+MAIL_DRAFTBOX = '2'    # 草稿箱
 
 def execute(node, extract_deleted):
-    """ main """
+    """ 
+    """
     return analyze_neteasemail(node, extract_deleted, extract_source=False)
 
 def analyze_neteasemail(node, extract_deleted, extract_source):
@@ -55,7 +56,6 @@ class NeteaseMailParser(object):
         generate = Generate(self.cachedb)
         return generate.get_models()
 
-
         
     def parse_email(self, node):
         """ 
@@ -69,9 +69,95 @@ class NeteaseMailParser(object):
         self.parse_email_account(imail_db)
         self.parse_email_mailbox(imail_db)
         self.parse_email_attachment(imail_db)
-        self.parse_email_abstract(imail_db)
-        self.parse_email_content(imail_db)
+        self.parse_email_abstract(node, imail_db)
         self.parse_email_password(imail_db)
+
+    def parse_email_abstract(self, node, imail_db):
+        """ imail - mailAttachment 邮件主要内容 """
+
+        mailsNode = self.root.GetByPath("Documents/imail.db")
+        if mailsNode is None:
+            return
+        mailsPath = mailsNode.PathWithMountPoint
+        self.db = sqlite3.connect(mailsPath)
+
+        SELECT_ATTACH_SQL = '''
+            select attachName, attachDir, downloadSize, downloadUtc from attach where mailId=?
+        '''
+        SELECT_mailAbstract_JOIN_mailContent = '''
+            select 
+                a.localId        as mailId, 
+                b.value          as content,
+                a.mailBoxId      as mailBoxId, 
+                a.subject        as subject, 
+                a.summary        as abstract, 
+                a.accountRawId   as accountId, 
+                a.mailFrom       as fromEmail, 
+                a.mailTos        as tos, 
+                a.ccs            as cc,
+                a.bccs           as bcc, 
+                a.size           as size,
+                a.forwarded      as isForward,
+                a.unread         as isRead,
+                a.deleted        as deleted,
+                a.hasAttachments as hasAttachments,
+                a.sentDate       as receiveUtc
+            from 
+                mailAbstract     as a
+            left join 
+                (select 
+                    mailId, 
+                    value 
+                from  mailContent 
+                where type=1)    as b
+            on 
+                a.localId = b.mailId
+        '''
+        cursor = self.db.cursor()
+        cursor.execute(SELECT_mailAbstract_JOIN_mailContent)
+
+        for row in cursor:
+            mail = Mails()
+            mail.mailId      = row[0]
+            if mail.mailId == 21:
+                pass
+            mail.content     = row[1]
+            mail.mail_folder = self.mail_folder.get(row[2], None) # row[2] => mailBoxId
+            mail.subject     = row[3]
+            mail.abstract    = row[4]
+            mail.accountId   = row[5]
+            mail.fromEmail   = self._convert_email_format(row[6])
+            mail.tos         = self._convert_email_format(row[7])
+            mail.cc          = self._convert_email_format(row[8])
+            mail.bcc         = self._convert_email_format(row[9])
+            mail.size        = row[10]
+            mail.isForward   = row[11]
+            mail.isRead      = row[12] ^ 1
+            if row[2] == MAIL_OUTBOX:     # 发件箱
+                mail.sendStatus = 1
+            elif row[2] == MAIL_DRAFTBOX: # 草稿箱
+                mail.sendStatus = 0
+            mail.receiveUtc   = row[15]
+
+            mail.deleted = row[13]
+            mail.source  = self.source_imail_db
+            if row[14] == 1: # hasAttachments
+                self.mm.cursor.execute(SELECT_ATTACH_SQL, (mail.mailId,))
+                rows = self.mm.cursor.fetchall() # list, None 以 '' 代替
+                if rows:
+                    mail.attachName   = ','.join(map(lambda x: x[0] if x[0] is not None else '', rows))
+                    mail.attachDir    = ','.join(map(lambda x: x[1] if x[1] is not None else '', rows))
+                    mail.downloadSize = ','.join(map(lambda x: x[2] if x[2] is not None else '', rows))
+                    mail.downloadUtc  = ','.join(map(lambda x: x[3] if x[3] is not None else '0', rows))
+            mail.account_email = self.accounts[mail.accountId]['email']
+            try:
+                self.mm.db_insert_table_mails(mail)
+            except:
+                exc()        
+        try:                
+            self.mm.db_commit()
+        except:
+            exc()
 
     def parse_email_account(self, imail_db):
         for rec in self.my_read_table(db=imail_db, table_name='account'):
@@ -100,9 +186,10 @@ class NeteaseMailParser(object):
         for rec in self.my_read_table(db=imail_db, table_name='mailBox'):
             folder = MailFolder()
             self.mail_folder[rec['mailBoxId'].Value] = rec['name'].Value
-            folder.folderName =  rec['name'].Value
-            folder.accountEmail =  self.accounts[rec['accountRawId'].Value]['email']
-            folder.source =  self.source_imail_db
+            folder.folderTtpe   = rec['mailBoxId'].Value
+            folder.folderName   = rec['name'].Value
+            folder.accountEmail = self.accounts[rec['accountRawId'].Value]['email']
+            folder.source       =  self.source_imail_db
             try:
                 self.mm.db_insert_table_mail_folder(folder)
             except:
@@ -112,7 +199,6 @@ class NeteaseMailParser(object):
     def parse_email_attachment(self, imail_db):
         """ imail - mailAttachment """
         for rec in self.my_read_table(db=imail_db, table_name='mailAttachment'):
-    
             if IsDBNull(rec['name'].Value) or IsDBNull(rec['mailId'].Value):
                 continue
             attach = Attach()
@@ -124,81 +210,11 @@ class NeteaseMailParser(object):
             attach.mailId       = rec['mailId'].Value
             attach.source       = self.source_imail_db
             # "/private/var/mobile/Containers/Data/Application/C14C9546-5284-487E-B5A7-93EA4620013F/Documents/imail.db"
-
             try:
                 self.mm.db_insert_table_attach(attach)
             except:
                 exc()
         try:
-            self.mm.db_commit()
-        except:
-            exc()
-
-    def parse_email_abstract(self, imail_db):
-        """ imail - mailAttachment 邮件主要内容 """
-        SELECT_ATTACH_SQL = '''
-            select attachName, attachDir, downloadSize from attach where mailId=?
-        '''
-        try:
-            for rec in self.my_read_table(db=imail_db, table_name='mailAbstract'):
-                mail = Mails()
-                if IsDBNull(rec['subject'].Value):
-                    continue
-                mail.mailId      = rec['localId'].Value
-                mail.mail_folder = self.mail_folder.get(rec['mailBoxId'].Value, None)
-                mail.subject     = rec['subject'].Value
-                mail.abstract    = rec['summary'].Value
-                mail.accountId   = rec['accountRawId'].Value
-                mail.fromEmail   = self._convert_email_format(rec['mailFrom'].Value)
-                mail.tos         = self._convert_email_format(rec['mailTos'].Value)
-                mail.cc          = self._convert_email_format(rec['ccs'].Value)
-                mail.bcc         = rec['bccs'].Value
-                mail.size        = rec['size'].Value
-                mail.isForward   = rec['forwarded'].Value
-                mail.isRead      = rec['unread'].Value ^ 1
-                mail.deleted     = rec['deleted'].Value
-                mail.source      = self.source_imail_db
-                if rec['mailBoxId'].Value == MAIL_OUTBOX:     # 发件箱
-                    mail.sendStatus = 1
-                elif rec['mailBoxId'].Value == MAIL_DRAFTBOX: # 草稿箱
-                    mail.sendStatus = 0
-                mail.receiveUtc   = rec['sentDate'].Value
-                mail.downloadSize = rec['size'].Value
-                mail.source       = self.source_imail_db
-
-                # 附件
-                if rec['hasAttachments'].Value == 1:
-                    self.mm.cursor.execute(SELECT_ATTACH_SQL, (mail.mailId,))
-                    rows = self.mm.cursor.fetchall() # list, None 以 '' 代替
-                    mail.attachName =  ','.join(map(lambda x: x[0] if x[0] is not None else '', rows)) 
-                    mail.attachDir =  ','.join(map(lambda x: x[1] if x[1] is not None else '', rows))
-                    mail.downloadSize =  ','.join(map(lambda x: x[2] if x[2] is not None else '', rows))
-                try:
-                    self.mm.db_insert_table_mails(mail)
-                except:
-                    exc()                
-            self.mm.db_commit()
-        except:
-            exc()
-
-    def parse_email_content(self, imail_db):
-        """ 
-            mail - content 
-        """
-        SQL_UPDATE_EMAIL_CONTENT = '''
-            update mails set content=? where mailId=?
-            '''
-        try:
-            for rec in self.my_read_table(db=imail_db, table_name='mailContent'):
-                if rec['type'].Value == CONTENT_TYPE_TEXT: # 只提取 HTML 格式, 跳过纯文本类型
-                    continue
-                elif rec['type'].Value == CONTENT_TYPE_HTML:
-                    mailId      = rec['mailId'].Value
-                    mailContent = rec['value'].Value
-                    try:
-                        self.mm.cursor.execute(SQL_UPDATE_EMAIL_CONTENT, (mailContent, mailId))
-                    except:
-                        exc()
             self.mm.db_commit()
         except:
             exc()
@@ -216,8 +232,6 @@ class NeteaseMailParser(object):
                 contact.contactName  = rec['name'].Value
                 contact.contactEmail = rec['email'].Value
                 contact.source       = node.AbsolutePath
-
-
                 try:
                     self.mm.db_insert_table_contact(contact)
                 except:
@@ -232,7 +246,7 @@ class NeteaseMailParser(object):
         """
         SQL_UPDATE_ACCOUNTS_password = '''
                update accounts set password=? where accountEmail=?
-               ''' 
+        ''' 
         password_accountEmail = []
         for accountId in self.accounts:
             table_name = 'accountConfig_{}'.format(accountId)
@@ -299,21 +313,21 @@ class NeteaseMailParser(object):
         from: [{"name":"pangu_x01","email":"pangu_x01@163.com"}]
         to:   pangu_x01@163.com pangu_x01
         """
-        if IsDBNull(name_email):
+        if not name_email:
             return None
-        res = ''
+        res = None
         try:
+            res = ''
             name_email = eval(name_email)
-            if type(name_email) == list:
+            if isinstance(name_email, list):
                 for i in name_email:
                     name   = i['name']
                     email  = i['email']
                     res   += ' ' + email.strip() + ' ' + name.strip()
-            elif type(name_email) == dict:
+            elif isinstance(name_email, dict):
                 name   = name_email['name']
                 email  = name_email['email']
                 res   += ' ' + email.strip() + ' ' + name.strip()
         except:
-            res = None
             exc()
         return res
