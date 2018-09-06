@@ -352,7 +352,7 @@ class gaodeMap(object):
             self.entrance()
             self.gaodemap.db_close()
         
-        generate = model_map.Genetate(db_path, r"C:\TestFs1")
+        generate = model_map.Genetate(db_path)
         tmpresult = generate.get_models()
         return tmpresult
       
