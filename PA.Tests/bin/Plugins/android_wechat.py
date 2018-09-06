@@ -23,6 +23,9 @@ import base64
 import sqlite3
 import model_im
 
+# EnterPoint: analyze_wechat(root, extract_deleted, extract_source):
+# Patterns: '/MicroMsg/.+/EnMicroMsg.db$'
+
 # app数据库版本
 VERSION_APP_VALUE = 1
 
@@ -48,6 +51,7 @@ MOMENT_TYPE_SHARED = 3  # 分享
 MOMENT_TYPE_MUSIC = 4  # 带音乐的（存的是封面）
 MOMENT_TYPE_EMOJI = 10  # 分享了表情包
 MOMENT_TYPE_VIDEO = 15  # 视频
+
 
 def analyze_wechat(root, extract_deleted, extract_source):
     pr = ParserResults()
@@ -77,14 +81,11 @@ class WeChatParser(model_im.IM):
             return []
         if not self._can_decrypt(self.uin, self.user_hash):
             return []
-        self.mount_dir = self.root.FileSystem.MountPoint
+
         self.cache_path = ds.OpenCachePath('wechat')
         if not os.path.exists(self.cache_path):
             os.makedirs(self.cache_path)
         self.cache_db = os.path.join(self.cache_path, self.user_hash + '.db')
-        self.like_id = 1
-        self.comment_id = 1
-        self.location_id = 1
 
         if self.need_parse(self.cache_db, VERSION_APP_VALUE):
             self.db_create(self.cache_db)
@@ -103,12 +104,11 @@ class WeChatParser(model_im.IM):
             self.db_commit()
             self.db_close()
 
-        #self.covert_silk_and_amr()
         models = self.get_models_from_cache_db()
         return models
 
     def get_models_from_cache_db(self):
-        models = model_im.GenerateModel(self.cache_db, self.mount_dir).get_models()
+        models = model_im.GenerateModel(self.cache_db).get_models()
         return models
 
     def _is_valid_user_dir(self):
@@ -191,18 +191,16 @@ class WeChatParser(model_im.IM):
 
     def _parse_mm_db(self, mm_db_path, source):
         db = sqlite3.connect(mm_db_path)
-        cursor = db.cursor()
-
-        self.user_account.source = source
-        self._parse_mm_db_user_info(cursor)
-        self._parse_mm_db_contact(cursor, source)
-        self._parse_mm_db_chatroom_member(cursor, source)
-        self._parse_mm_db_message(cursor, source)
-
-        cursor.close()
+        
+        self._parse_mm_db_user_info(db, source)
+        self._parse_mm_db_contact(db, source)
+        self._parse_mm_db_chatroom_member(db, source)
+        self._parse_mm_db_message(db, source)
         db.close()
 
-    def _parse_mm_db_user_info(self, cursor):
+    def _parse_mm_db_user_info(self, db):
+        cursor = db.cursor()
+        self.user_account.source = source
         self.user_account.account_id = self._parse_mm_db_get_user_info_from_userinfo(cursor, 2)
         self.user_account.nickname = self._parse_mm_db_get_user_info_from_userinfo(cursor, 4)
         self.user_account.email = self._parse_mm_db_get_user_info_from_userinfo(cursor, 5)
@@ -212,6 +210,7 @@ class WeChatParser(model_im.IM):
         self.user_account.photo = self._parse_mm_db_get_user_info_from_userinfo2(cursor, 'USERINFO_SELFINFO_SMALLIMGURL_STRING')
         self.db_insert_table_account(self.user_account)
         self.db_commit()
+        cursor.close()
 
     def _parse_mm_db_get_user_info_from_userinfo(self, cursor, id):
         sql = 'select value from userinfo where id = {}'.format(id)
@@ -222,7 +221,7 @@ class WeChatParser(model_im.IM):
         except Exception as e:
             print(e)
         if row is not None:
-            return row[0]
+            return self._db_column_get_string_value(row[0])
         return None
 
     def _parse_mm_db_get_user_info_from_userinfo2(self, cursor, sid):
@@ -234,29 +233,30 @@ class WeChatParser(model_im.IM):
         except Exception as e:
             print(e)
         if row is not None:
-            return row[0]
+            return self._db_column_get_string_value(row[0])
         return None
 
-    def _parse_mm_db_contact(self, cursor, source):
+    def _parse_mm_db_contact(self, db, source):
         sql = '''select rcontact.username,alias,nickname,conRemark,type,verifyFlag,reserved1,reserved2 
                  from rcontact 
                  left outer join img_flag 
                  on rcontact.username = img_flag.username'''
         row = None
+        cursor = db.cursor()
         try:
             cursor.execute(sql)
             row = cursor.fetchone()
         except Exception as e:
             print(e)
         while row is not None:
-            username = row[0]
-            alias = row[1]
-            nickname = row[2]
-            remark = row[3]
-            contact_type = row[4]
-            verify_flag = row[5]
-            portrait_hd = row[6]
-            portrait = row[7]
+            username = self._db_column_get_string_value(row[0])
+            alias = self._db_column_get_string_value(row[1])
+            nickname = self._db_column_get_string_value(row[2])
+            remark = self._db_column_get_string_value(row[3])
+            contact_type = self._db_column_get_int_value(row[4])
+            verify_flag = self._db_column_get_int_value(row[5])
+            portrait_hd = self._db_column_get_string_value(row[6])
+            portrait = self._db_column_get_string_value(row[7])
 
             if username in [None, '']:
                 continue
@@ -294,11 +294,13 @@ class WeChatParser(model_im.IM):
                 self.db_insert_table_friend(friend)
             row = cursor.fetchone()
         self.db_commit()
+        cursor.close()
 
-    def _parse_mm_db_chatroom_member(self, cursor, source):
+    def _parse_mm_db_chatroom_member(self, db, source):
         sql = '''select chatroomname,memberlist,displayname,selfDisplayName,roomowner
                  from chatroom'''
         row = None
+        cursor = db.cursor()
         try:
             cursor.execute(sql)
             row = cursor.fetchone()
@@ -306,10 +308,10 @@ class WeChatParser(model_im.IM):
             print(e)
         
         while row is not None:
-            chatroom_id = row[0]
-            member_list = row[1]
-            display_name_list = row[2]
-            room_owner = row[4]
+            chatroom_id = self._db_column_get_string_value(row[0])
+            member_list = self._db_column_get_string_value(row[1])
+            display_name_list = self._db_column_get_string_value(row[2])
+            room_owner = self._db_column_get_string_value(row[4])
 
             room_members = member_list.split(';')
             display_names = display_name_list.split('、')
@@ -325,10 +327,12 @@ class WeChatParser(model_im.IM):
                 self.db_insert_table_chatroom_member(cm)
             row = cursor.fetchone()
         self.db_commit()
+        cursor.close()
 
-    def _parse_mm_db_message(self, cursor, source):
+    def _parse_mm_db_message(self, db, source):
         sql = 'select talker,content,imgPath,isSend,status,type,createTime,msgId,lvbuffer,msgSvrId from message'
         row = None
+        cursor = db.cursor()
         try:
             cursor.execute(sql)
             row = cursor.fetchone()
@@ -336,16 +340,16 @@ class WeChatParser(model_im.IM):
             print(e)
         
         while row is not None:
-            talker = row[0]
-            msg = row[1]
-            img_path = row[2]
-            is_send = row[3]
-            status = row[4]
-            msg_type = row[5]
-            create_time = row[6] / 1000
-            msg_id = row[7]
-            lv_buffer = row[8]
-            msg_svr_id = row[9]
+            talker = self._db_column_get_string_value(row[0])
+            msg = self._db_column_get_string_value(row[1])
+            img_path = self._db_column_get_string_value(row[2])
+            is_send = self._db_column_get_int_value(row[3])
+            status = self._db_column_get_int_value(row[4])
+            msg_type = self._db_column_get_int_value(row[5])
+            create_time = self._db_column_get_int_value(row[6]) / 1000
+            msg_id = self._db_column_get_string_value(row[7])
+            lv_buffer = self._db_column_get_blob_value(row[8])
+            msg_svr_id = self._db_column_get_string_value(row[9])
 
             #if msg_type == MSG_TYPE_VOICE:
             #    img_path = self._process_db_tranlate_voice_path(img_path)
@@ -367,37 +371,340 @@ class WeChatParser(model_im.IM):
             message.send_time = create_time
             message.media_path = img_path
             if talker.endswith("@chatroom"):
-                content, sender_id = self._process_parse_group_message(msg, msg_type, is_send, message)
-                message.sender_id = sender_id
-                message.sender_name = self.contacts.get(sender_id, {}).get('nickname')
-                message.content = content
-                message.talker_type = model_im.USER_TYPE_CHATROOM
-            else:
-                content = self._process_parse_friend_message(msg, msg_type, message)
-                message.sender_id = self.user_account.account_id if is_send != 0 else talker
+                self._process_parse_group_message(msg, msg_type, is_send, 'hash', message)
                 message.sender_name = self.contacts.get(message.sender_id, {}).get('nickname')
-                message.content = content
-                message.talker_type = model_im.USER_TYPE_FRIEND
+                message.talker_type = model_im.CHAT_TYPE_GROUP
+            else:
+                message.sender_id = self.user_account.account_id if is_send != 0 else talker
+                self._process_parse_friend_message(msg, msg_type, 'hash', message)
+                message.sender_name = self.contacts.get(message.sender_id, {}).get('nickname')
+                message.talker_type = model_im.CHAT_TYPE_FRIEND
             self.db_insert_table_message(message)
             row = cursor.fetchone()
         self.db_commit()
+        cursor.close()
 
-    def _process_parse_group_message(self, msg, msg_type, is_sender, model):
+    def _process_parse_friend_message(self, msg, msg_type, friend_hash, model):
+        content = msg
+        img_path = ''
+
+        if msg_type == MSG_TYPE_LOCATION:
+            if model is not None:
+                location = model_im.Location()
+                location.deleted = model.deleted
+                location.source = model.source
+                self._process_parse_message_location(content, location)
+                model.extra_id = location.location_id
+                self.db_insert_table_location(location)
+        elif msg_type == MSG_TYPE_LINK:
+            content = self._process_parse_message_link(content, model)
+        elif msg_type == MSG_TYPE_VOIP:
+            content = self._process_parse_message_voip(content)
+        elif msg_type == MSG_TYPE_VOIP_GROUP:
+            content = self._process_parse_message_voip_group(content)
+        elif msg_type == MSG_TYPE_SYSTEM or msg_type == MSG_TYPE_SYSTEM_2:
+            pass
+        else:  # MSG_TYPE_TEXT
+            pass
+
+        model.content = content
+        model.media_path = img_path
+
+    def _process_parse_group_message(self, msg, msg_type, is_sender, group_hash, model):
         sender_id = self.user_account.account_id
         content = msg
 
-        if is_sender == 0:
+        if not is_sender:
             index = msg.find(':\n')
             if index != -1:
                 sender_id = msg[:index]
                 content = msg[index+2:]
 
-        content = self._process_parse_friend_message(content, msg_type, model)
-        return content, sender_id
+        model.sender_id = sender_id
+        self._process_parse_friend_message(content, msg_type, group_hash, model)
 
-    def _process_parse_friend_message(self, msg, msg_type, model):
-        content = msg
-        return content
+    def _process_parse_message_link(self, xml_str, model):
+        content = ''
+        xml = None
+        try:
+            xml = XElement.Parse(xml_str)
+        except Exception as e:
+            pass
+        if xml is not None:
+            if xml.Name.LocalName == 'msg':
+                appmsg = xml.Element('appmsg')
+                if appmsg is not None:
+                    try:
+                        msg_type = int(appmsg.Element('type').Value) if appmsg.Element('type') else 0
+                    except Exception as e:
+                        msg_type = 0
+                    if msg_type in [2000, 2001]:
+                        deal, sender_id = self._process_parse_message_deal(xml)
+                        deal.deleted = model.deleted
+                        deal.source = model.source
+                        if deal.type == model_im.DEAL_TYPE_RED_ENVELPOE:
+                            model.type = model_im.MESSAGE_CONTENT_TYPE_RED_ENVELPOE
+                            model.extra_id = deal.deal_id
+                            if model.sender_id in [None, ''] and sender_id not in [None, '']:
+                                model.sender_id = sender_id
+                            self.db_insert_table_deal(deal)
+                        elif deal.type == model_im.DEAL_TYPE_RECEIPT:
+                            model.type = model_im.MESSAGE_CONTENT_TYPE_RECEIPT
+                            model.extra_id = deal.deal_id
+                            if model.sender_id in [None, ''] and sender_id not in [None, '']:
+                                model.sender_id = sender_id
+                            self.db_insert_table_deal(deal)
+                        elif deal.type == model_im.DEAL_TYPE_AA_RECEIPT:
+                            model.type = model_im.MESSAGE_CONTENT_TYPE_AA_RECEIPT
+                            model.extra_id = deal.deal_id
+                            if model.sender_id in [None, ''] and sender_id not in [None, '']:
+                                model.sender_id = sender_id
+                            self.db_insert_table_deal(deal)
+                    else:
+                        msg_title = appmsg.Element('title').Value if appmsg.Element('title') else ''
+                        mmreader = appmsg.Element('mmreader')
+                        if mmreader:
+                            category = mmreader.Element('category')
+                            if category and category.Element('item'):
+                                item = category.Element('item')
+                                if item.Element('title'):
+                                    content += '[标题]' + item.Element('title').Value + '\n'
+                                if item.Element('digest'):
+                                    content += '[内容]' + item.Element('digest').Value + '\n'
+                                if item.Element('url'):
+                                    content += '[链接]' + item.Element('url').Value + '\n'
+                        else:
+                            if appmsg.Element('title'):
+                                content += '[标题]' + appmsg.Element('title').Value + '\n'
+                            if appmsg.Element('des'):
+                                content += '[内容]' + appmsg.Element('des').Value + '\n'
+                            if appmsg.Element('url'):
+                                content += '[链接]' + appmsg.Element('url').Value + '\n'
+                            appinfo = xml.Element('appinfo')
+                            if appinfo and appinfo.Element('appname'):
+                                content += '[来自]' + appinfo.Element('appname').Value
+                else:
+                    pass
+            elif xml.Name.LocalName == 'mmreader':
+                category = xml.Element('category')
+                if category and category.Element('item'):
+                    item = category.Element('item')
+                    if item.Element('title'):
+                        content += '[标题]' + item.Element('title').Value + '\n'
+                    if item.Element('digest'):
+                        content += '[内容]' + item.Element('digest').Value + '\n'
+                    if item.Element('url'):
+                        content += '[链接]' + item.Element('url').Value + '\n'
+            elif xml.Name.LocalName == 'appmsg':
+                if xml.Element('title'):
+                    content += '[标题]' + xml.Element('title').Value + '\n'
+                if xml.Element('des'):
+                    content += '[内容]' + xml.Element('des').Value + '\n'
+                if xml.Element('url'):
+                    content += '[链接]' + xml.Element('url').Value + '\n'
+                appinfo = xml.Element('appinfo')
+                if appinfo and appinfo.Element('appname'):
+                    content += '[来自]' + appinfo.Element('appname').Value
+            else:
+                pass
+        if len(content) > 0:
+            return content
+        else:
+            return xml_str
+
+    def _process_parse_message_deal(self, xml_element):
+        sender_id = None
+        deal = model_im.Deal()
+        if xml_element.Name.LocalName == 'msg':
+            appmsg = xml_element.Element('appmsg')
+            if appmsg is not None:
+                wcpayinfo = appmsg.Element('wcpayinfo')
+                if appmsg.Element('des') is not None:
+                    deal.description = appmsg.Element('des').Value
+                try:
+                    msg_type = int(appmsg.Element('type').Value) if appmsg.Element('type') else 0
+                except Exception as e:
+                    msg_type = 0
+                if msg_type == 2000:
+                    deal.type = model_im.DEAL_TYPE_RECEIPT
+                    if wcpayinfo is not None:
+                        if wcpayinfo.Element('feedesc') is not None:
+                            deal.money = wcpayinfo.Element('feedesc').Value
+                        if wcpayinfo.Element('invalidtime') is not None:
+                            try:
+                                deal.expire_time = int(wcpayinfo.Element('invalidtime').Value)
+                            except Exception as e:
+                                pass
+                        if wcpayinfo.Element('pay_memo') is not None:
+                            deal.remark = wcpayinfo.Element('pay_memo').Value
+                elif msg_type == 2001:
+                    if wcpayinfo is not None:
+                        newaa = wcpayinfo.Element('newaa')
+                        newaatype = 0
+                        if newaa and newaa.Element('newaatype'):
+                            try:
+                                newaatype = int(newaa.Element('newaatype').Value)
+                            except Exception as e:
+                                pass
+                        if newaatype != 0:
+                            deal.type = model_im.DEAL_TYPE_AA_RECEIPT
+                            if wcpayinfo.Element('receiverdes'):
+                                deal.description = wcpayinfo.Element('receiverdes').Value
+                            if wcpayinfo.Element('receivertitle'):
+                                deal.remark = wcpayinfo.Element('receivertitle').Value
+                        else:
+                            deal.type = model_im.DEAL_TYPE_RED_ENVELPOE
+                            if wcpayinfo.Element('receivertitle'):
+                                deal.remark = wcpayinfo.Element('receivertitle').Value
+
+            fromusername = xml_element.Element('fromusername')
+            if fromusername is not None:
+                sender_id = fromusername.Value
+        return deal, sender_id
+
+    def _process_parse_message_location(self, xml_str, model):
+        xml = None
+        try:
+            xml = XElement.Parse(xml_str)
+        except Exception as e:
+            pass
+        if xml is not None:
+            location = xml.Element('location')
+            if location.Attribute('x'):
+                try:
+                    model.latitude = float(location.Attribute('x').Value)
+                except Exception as e:
+                    pass
+            if location.Attribute('y'):
+                try:
+                    model.longitude = float(location.Attribute('y').Value)
+                except Exception as e:
+                    pass
+            if location.Attribute('poiname'):
+                model.address = location.Attribute('poiname').Value
+
+    def _process_parse_message_voip(self, xml_str):
+        content = ''
+        xml = None
+        try:
+            xml_str = '<root>' + xml_str + '</root>'
+            xml = XElement.Parse(xml_str)
+        except Exception as e:
+            pass
+        if xml is not None:
+            voipinvitemsg = xml.Element('voipinvitemsg')
+            if voipinvitemsg:
+                if voipinvitemsg.Element('invitetype'):
+                    try:
+                        invitetype = int(voipinvitemsg.Element('invitetype').Value)
+                    except Exception as e:
+                        invitetype = None
+                    if invitetype == 0:
+                        content += '[视频通话]'
+                    elif invitetype == 1:
+                        content += '[语音通话]'
+            voiplocalinfo = xml.Element('voiplocalinfo')
+            if voiplocalinfo:
+                duration = 0
+                if voiplocalinfo.Element('duration'):
+                    duration = voiplocalinfo.Element('duration').Value
+                if voiplocalinfo.Element('wordingtype'):
+                    try:
+                        wordingtype = int(voiplocalinfo.Element('wordingtype').Value)
+                    except Exception as e:
+                        wordingtype = None
+                    if wordingtype == 4:
+                        content += '通话时长{0}秒'.format(duration)
+                    elif wordingtype == 1:
+                        content += '已取消'
+                    elif wordingtype == 8:
+                        content += '已拒绝'
+        if content not in [None, '']:
+            return content
+        else:
+            return xml_str
+
+    def _process_parse_message_voip_group(self, msg):
+        content = ''
+        info = None
+        try:
+            info = json.loads(msg)
+        except Exception as e:
+            pass
+        if info is not None:
+            content = info.get('msgContent')
+
+        if content not in [None, '']:
+            return content
+        else:
+            return msg
+
+    @staticmethod
+    def _db_record_get_value(record, column, default_value=None):
+        if not record[column].IsDBNull:
+            return record[column].Value
+        return default_value
+
+    @staticmethod
+    def _db_record_get_string_value(record, column, default_value=''):
+        if not record[column].IsDBNull:
+            try:
+                value = str(record[column].Value)
+                if record.Deleted != DeletedState.Intact:
+                    value = filter(lambda x: x in string.printable, value)
+                return value
+            except Exception as e:
+                return default_value
+        return default_value
+
+    @staticmethod
+    def _db_record_get_int_value(record, column, default_value=0):
+        if not record[column].IsDBNull:
+            try:
+                return int(record[column].Value)
+            except Exception as e:
+                return default_value
+        return default_value
+
+    @staticmethod
+    def _db_record_get_blob_value(record, column, default_value=None):
+        if not record[column].IsDBNull:
+            try:
+                value = record[column].Value
+                return bytes(value)
+            except Exception as e:
+                return default_value
+        return default_value
+
+    @staticmethod
+    def _db_column_get_string_value(column, default_value=''):
+        if column is not None:
+            try:
+                return str(column)
+            except Exception as e:
+                return default_value
+        else:
+            return default_value
+
+    @staticmethod
+    def _db_column_get_int_value(column, default_value=0):
+        if column is not None:
+            try:
+                return int(column)
+            except Exception as e:
+                return default_value
+        else:
+            return default_value
+
+    @staticmethod
+    def _db_column_get_blob_value(column, default_value=None):
+        if column is not None:
+            try:
+                return bytes(column)
+            except Exception as e:
+                return default_value
+        else:
+            return default_value
 
     @staticmethod
     def _convert_msg_type(msg_type):
