@@ -29,7 +29,7 @@ class baiduMapParser(object):
             self.analyze_search_history()
             self.my_history_address()
 
-        result = model_map.Genetate(path, r"C:\TestFs")
+        result = model_map.Genetate(path)
         tmpresult = result.get_models()
 
         self.baidumap.db_close()
@@ -244,7 +244,8 @@ def analyze_baidumap(root, extract_deleted, extract_source):
     """
     baiduMap
     data source: ["Library/Preferences/com.baidu.map.plist", "Documents/his_record.sdb",  "Documents/routeHis_record.sdb"]
-    result: Account, SearchHistory, RouteRecord
+    search rules: ("com.baidu.map", analyze_baidumap, "BaiduMap", "百度地图", DescripCategories.BaiduMap)
+    return: Account, SearchHistory, RouteRecord
     """
     pr = ParserResults()
     prResult = baiduMapParser(root, extract_deleted, extract_source).parse()
