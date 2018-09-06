@@ -20,6 +20,7 @@ import model_im
 import uuid
 import re
 import hashlib
+import gc
 
 # app 数据库版本
 VERSION_APP_VALUE = 1

@@ -17,6 +17,7 @@ import os
 import sqlite3
 import json
 import model_im
+import gc
 
 # app数据库版本
 VERSION_APP_VALUE = 1

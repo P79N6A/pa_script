@@ -346,7 +346,7 @@ class gaodeMap(object):
         if self.check_to_update(db_path, APPVERSION):
             self.gaodemap.db_create(db_path)
             self.entrance()
-        generate = model_map.Genetate(db_path)
+        generate = model_map.Genetate(db_path, r"C:\TestFs")
         tmpresult = generate.get_models()
         return tmpresult
 
@@ -358,6 +358,7 @@ def analyze_gaodemap(node, extract_deleted, extract_source):
     if prResult:
         for i in prResult:
             pr.Models.Add(i)
+    pr.Build("高德地图")
     return pr
 
 def execute(node, extract_deleted):

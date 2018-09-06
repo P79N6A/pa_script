@@ -70,6 +70,7 @@ class BaiduMap(object):
             tbs = SQLiteParser.TableSignature("poi_his")
             if self.extract_Deleted:
                 SQLiteParser.Tools.AddSignatureToTable(tbs, "key", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
+                SQLiteParser.Tools.AddSignatureToTable(tbs, "value", SQLiteParser.FieldType.Blob, SQLiteParser.FieldConstraints.NotNull)
             for rec in db.ReadTableRecords(tbs,self.extract_Deleted, True):
                 search_history = model_map.Search()
                 search_history.source = "百度地图:"
@@ -77,7 +78,7 @@ class BaiduMap(object):
                 search_history.sourceFile = search_node.AbsolutePath
                 if rec.Deleted == DeletedState.Deleted:
                     search_history.deleted = 1
-                if "value" in rec:
+                if "value" in rec and (not rec["value"].IsDBNull):
                     tmp = rec["value"].Value
                     b = bytes(tmp)
                     json_data = json.loads(b.decode("utf-16"))
@@ -117,31 +118,32 @@ class BaiduMap(object):
                     addr.source = "百度地图:"
                     addr.sourceApp = "百度地图"
                     addr.sourceFile = route_node.AbsolutePath
-                    tmp = rec["value"].Value
-                    try:
-                        b = bytes(tmp)
-                        a =  b.decode("utf-8")
-                        data = json.loads(r'{0}'.format(a))
-                        strings = data.get("Fav_Content")
-                        content = json.loads(strings)
-                        if "Fav_Sync" in data:
-                            addr.create_time = int(data["addtimesec"])
-                        if "sfavnode" in content:
-                            if "name" in content["sfavnode"]:
-                                addr.from_name = content["sfavnode"]["name"]
-                            if "geoptx" in content["sfavnode"]:
-                                addr.from_posX = content["sfavnode"]["geoptx"]
-                            if "geopty" in content["sfavnode"]:
-                                addr.from_posY = content["sfavnode"]["geopty"]
-                        if "efavnode" in content:
-                            if "name" in content["efavnode"]:
-                                addr.from_name = content["efavnode"]["name"]
-                            if "geoptx" in content["efavnode"]:
-                                addr.from_posX = content["efavnode"]["geoptx"]
-                            if "geopty" in content["efavnode"]:
-                                addr.from_posY = content["efavnode"]["geopty"]                  
-                    except Exception as e:
-                        print(e)
+                    if "value" in rec and (not rec["value"].IsDBNull):
+                        tmp = rec["value"].Value
+                        try:
+                            b = bytes(tmp)
+                            a =  b.decode("utf-8")
+                            data = json.loads(r'{0}'.format(a))
+                            strings = data.get("Fav_Content")
+                            content = json.loads(strings)
+                            if "Fav_Sync" in data:
+                                addr.create_time = int(data["addtimesec"])
+                            if "sfavnode" in content:
+                                if "name" in content["sfavnode"]:
+                                    addr.from_name = content["sfavnode"]["name"]
+                                if "geoptx" in content["sfavnode"]:
+                                    addr.from_posX = content["sfavnode"]["geoptx"]
+                                if "geopty" in content["sfavnode"]:
+                                    addr.from_posY = content["sfavnode"]["geopty"]
+                            if "efavnode" in content:
+                                if "name" in content["efavnode"]:
+                                    addr.from_name = content["efavnode"]["name"]
+                                if "geoptx" in content["efavnode"]:
+                                    addr.from_posX = content["efavnode"]["geoptx"]
+                                if "geopty" in content["efavnode"]:
+                                    addr.from_posY = content["efavnode"]["geopty"]                  
+                        except Exception as e:
+                            print(e)
                     try:
                         self.baidudb.db_insert_table_address(addr)
                     except Exception as e:
@@ -167,7 +169,7 @@ class BaiduMap(object):
             self.parse_route()
             self.baidudb.db_close()
         
-        generate = model_map.Genetate(db_path)   
+        generate = model_map.Genetate(db_path, r"C:\TestFs1")   
         tmpresult = generate.get_models()
         return tmpresult 
 
@@ -177,6 +179,7 @@ def analyze_baidumap(node, extract_Deleted, extract_Source):
         if results:
             for i in results:
                 pr.Models.Add(i)
+        pr.Build("百度地图")
         return pr
 
 def execute(node, extract_deleted):

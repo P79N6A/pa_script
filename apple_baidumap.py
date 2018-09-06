@@ -29,7 +29,7 @@ class baiduMapParser(object):
             self.analyze_search_history()
             self.my_history_address()
 
-        result = model_map.Genetate(path)
+        result = model_map.Genetate(path, r"C:\TestFs")
         tmpresult = result.get_models()
 
         self.baidumap.db_close()
@@ -49,10 +49,8 @@ class baiduMapParser(object):
         """
         account = model_map.Account()
         account.source = "百度地图:"
-        account.sourceApp = "百度地图"
         accountNode = self.root.GetByPath("Library/Preferences/com.baidu.map.plist")
         if accountNode is None:
-            #TraceService.Trace(TraceLevel.Debug, "node is null")
             return 
         else:
             bplist = BPReader.GetTree(accountNode)
@@ -122,6 +120,7 @@ class baiduMapParser(object):
             tb = SQLiteParser.TableSignature('his_record')
             if self.extract_deleted:
                 SQLiteParser.Tools.AddSignatureToTable(tb, "key", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
+                SQLiteParser.Tools.AddSignatureToTable(tb, "value", SQLiteParser.FieldType.Blob, SQLiteParser.FieldConstraints.NotNull)
             for rec in db.ReadTableRecords(tb, self.extract_deleted, True):
                 search = model_map.Search()
                 if rec.Deleted == DeletedState.Intact:
@@ -129,24 +128,21 @@ class baiduMapParser(object):
                 elif rec.Deleted == DeletedState.Deleted:
                     search.deleted = 1
                 search.source = "百度地图:"
-                search.sourceApp = "百度地图"
                 search.sourceFile = historyNode.AbsolutePath
-                seach_history = rec["key"].Value
+                if "key" in rec:
+                    seach_history = rec["key"].Value
                 # blob数据类型
-                x = rec["value"].Value
-                b = bytes(x)
-                try:
-                    #b = bytes(x)
-                    jsonfile = b.decode("utf-16")
-                    dicts = json.loads(jsonfile)
-                    search_name = dicts.get("historyMainTitleKey") if dicts.get("historyMainTitleKey") else dicts.get("poiHisValue")
-                    search.keyword = search_name
-                    search.create_time = dicts.get("addtimesec")
-                except Exception as e:
-                    pass
-                # search_name = dicts.get("historyMainTitleKey") if dicts.get("historyMainTitleKey") else dicts.get("poiHisValue")
-                # search.keyword = search_name
-                # search.create_time = dicts.get("addtimesec")
+                if "value" in rec and (not rec["value"].IsDBNull):
+                    x = rec["value"].Value
+                    try:
+                        b = bytes(x)
+                        jsonfile = b.decode("utf-16")
+                        dicts = json.loads(jsonfile)
+                        search_name = dicts.get("historyMainTitleKey") if dicts.get("historyMainTitleKey") else dicts.get("poiHisValue")
+                        search.keyword = search_name
+                        search.create_time = dicts.get("addtimesec")
+                    except Exception as e:
+                        pass
                 try:
                     self.baidumap.db_insert_table_search(search)
                 except Exception as e:
@@ -157,37 +153,37 @@ class baiduMapParser(object):
         self.baidumap.db_commit()
 
 
-    def analyze_ususal_address(self):
-        """
-        分析常用地址和家,公司信息
-        """
-        ususalAddressNode = self.root.GetByPath("Documents/homeSchool_poi.sdb")
-        home_company_addressNode = self.root.GetByPath("Documents/aime/udc.db")
-        try:
-            db = SQLiteParser.Database.FromNode(ususalAddressNode)
-            if db is None:
-                return []
-            tb = SQLiteParser.TableSignature('homeSchool_poi')
-            if self.extract_deleted:
-                pass
-            for rec in db.ReadTableRecords(tb, self.extract_deleted, True):
-                seach_history = rec["key"].Value
-                seach_info = rec["value"].Value
-        except Exception as e:
-            pass
+    # def analyze_ususal_address(self):
+    #     """
+    #     分析常用地址和家,公司信息
+    #     """
+    #     ususalAddressNode = self.root.GetByPath("Documents/homeSchool_poi.sdb")
+    #     home_company_addressNode = self.root.GetByPath("Documents/aime/udc.db")
+    #     try:
+    #         db = SQLiteParser.Database.FromNode(ususalAddressNode)
+    #         if db is None:
+    #             return []
+    #         tb = SQLiteParser.TableSignature('homeSchool_poi')
+    #         if self.extract_deleted:
+    #             pass
+    #         for rec in db.ReadTableRecords(tb, self.extract_deleted, True):
+    #             seach_history = rec["key"].Value
+    #             seach_info = rec["value"].Value
+    #     except Exception as e:
+    #         pass
 
 
-        db2 = SQLiteParser.Database.FromNode(home_company_addressNode)
-        if db2 is None:
-            return []
-        tb2 = SQLiteParser.TableSignature("sync")
-        if self.extract_deleted:
-            pass
-        for rec2 in db2.ReadTableRecords(tb2, self.extract_deleted, True):
-            if rec2["key"].Value == "company":
-                company = rec2["content"]
-            if rec2["key"].Value == "home":
-                home = rec2["content"]  
+    #     db2 = SQLiteParser.Database.FromNode(home_company_addressNode)
+    #     if db2 is None:
+    #         return []
+    #     tb2 = SQLiteParser.TableSignature("sync")
+    #     if self.extract_deleted:
+    #         pass
+    #     for rec2 in db2.ReadTableRecords(tb2, self.extract_deleted, True):
+    #         if rec2["key"].Value == "company":
+    #             company = rec2["content"]
+    #         if rec2["key"].Value == "home":
+    #             home = rec2["content"]  
 
 
     def my_history_address(self):
@@ -201,56 +197,39 @@ class baiduMapParser(object):
                 return 
             tb = SQLiteParser.TableSignature('routeHis_record')
             if self.extract_deleted:
-                pass
+                SQLiteParser.Tools.AddSignatureToTable(tb, "value", SQLiteParser.FieldType.Blob, SQLiteParser.FieldConstraints.NotNull)
             
             for rec in db.ReadTableRecords(tb, self.extract_deleted, True):
                 routeaddr = model_map.Address() 
                 if rec.Deleted == DeletedState.Deleted:
                     routeaddr.deleted = 1
                 routeaddr.source = "百度地图:"
-                routeaddr.sourceApp = "百度地图"
                 routeaddr.sourceFile = hsAddressNode.AbsolutePath
                 seach_history = rec["key"].Value
-                seach_info = rec["value"].Value
-                b = bytes(seach_info)
-                try:
-                    #b = bytes(seach_info)
-                    jsonflie = b.decode('utf-16')
-                    dicts= json.loads(jsonflie)
-                    search_time = dicts.get("addtimesec")
-                    routeaddr.create_time = search_time
+                if "value" in rec and (not rec["value"].IsDBNull):
+                    seach_info = rec["value"].Value
+                    try:
+                        b = bytes(seach_info)
+                        jsonflie = b.decode('utf-16')
+                        dicts= json.loads(jsonflie)
+                        search_time = dicts.get("addtimesec")
+                        routeaddr.create_time = search_time
 
-                    from_name = dicts.get("sfavnode").get("name")
-                    from_geoptx = dicts.get("sfavnode").get("geoptx")
-                    from_geopty = dicts.get("sfavnode").get("geopty")
-                    routeaddr.from_name = from_name
-                    routeaddr.from_posX = from_geoptx
-                    routeaddr.from_posY = from_geopty
+                        from_name = dicts.get("sfavnode").get("name")
+                        from_geoptx = dicts.get("sfavnode").get("geoptx")
+                        from_geopty = dicts.get("sfavnode").get("geopty")
+                        routeaddr.from_name = from_name
+                        routeaddr.from_posX = from_geoptx
+                        routeaddr.from_posY = from_geopty
 
-                    to_name = dicts.get("efavnode").get("name")
-                    to_geoptx = dicts.get("efavnode").get("geoptx")
-                    to_geopty = dicts.get("efavnode").get("geopty")
-                    routeaddr.to_name = to_name
-                    routeaddr.to_posX = to_geoptx
-                    routeaddr.to_posY = to_geopty
-                except Exception as e:
-                    pass
-                # search_time = dicts.get("addtimesec")
-                # routeaddr.create_time = search_time
-
-                # from_name = dicts.get("sfavnode").get("name")
-                # from_geoptx = dicts.get("sfavnode").get("geoptx")
-                # from_geopty = dicts.get("sfavnode").get("geopty")
-                # routeaddr.from_name = from_name
-                # routeaddr.from_posX = from_geoptx
-                # routeaddr.from_posY = from_geopty
-
-                # to_name = dicts.get("efavnode").get("name")
-                # to_geoptx = dicts.get("efavnode").get("geoptx")
-                # to_geopty = dicts.get("efavnode").get("geopty")
-                # routeaddr.to_name = to_name
-                # routeaddr.to_posX = to_geoptx
-                # routeaddr.to_posY = to_geopty
+                        to_name = dicts.get("efavnode").get("name")
+                        to_geoptx = dicts.get("efavnode").get("geoptx")
+                        to_geopty = dicts.get("efavnode").get("geopty")
+                        routeaddr.to_name = to_name
+                        routeaddr.to_posX = to_geoptx
+                        routeaddr.to_posY = to_geopty
+                    except Exception as e:
+                        pass
                 try:
                     self.baidumap.db_insert_table_address(routeaddr)
                 except Exception as e:
@@ -272,6 +251,7 @@ def analyze_baidumap(root, extract_deleted, extract_source):
     if prResult:
         for i in prResult:
             pr.Models.Add(i)
+    pr.Build("百度地图")
     return pr
 
 def execute(node, extract_deleted):
