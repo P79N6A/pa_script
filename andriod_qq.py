@@ -292,6 +292,7 @@ class Andriod_QQParser(object):
 			senderuin = decode_text(self.imei,row[4])
 			msg.send_time = row[5]
 			msgtype = row[6]          
+			msg.talker_type = CHAT_TYPE_FRIEND
 			#defalut talker
 			msg.talker_id = hash
 			if msg.talker_id is None:
@@ -306,9 +307,9 @@ class Andriod_QQParser(object):
 							break
 	
 			if senderuin == acc_id:
-				msg.is_sender = 1
+				msg.is_sender = MESSAGE_TYPE_SEND
 			else:
-				msg.is_sender = 0
+				msg.is_sender = MESSAGE_TYPE_RECEIVE
 			content = collections.defaultdict(str)
 			msg.type = MESSAGE_CONTENT_TYPE_TEXT
 			msgcontent = ''
@@ -443,7 +444,8 @@ class Andriod_QQParser(object):
 			msgdata = decode_blob(self.imei,row[3])
 			senderuin = decode_text(self.imei,row[4])
 			msg.send_time = row[5]
-			msgtype = row[6]          
+			msgtype = row[6]        
+			msg.talker_type = CHAT_TYPE_GROUP  
 			#defalut talker
 			msg.talker_id = hash
 			if msg.talker_id is None:
@@ -461,9 +463,9 @@ class Andriod_QQParser(object):
 			#sender
 		 
 			if senderuin == acc_id:
-				msg.is_sender = 1
+				msg.is_sender = MESSAGE_TYPE_SEND
 			else:
-				msg.is_sender = 0
+				msg.is_sender = MESSAGE_TYPE_RECEIVE
 			content = collections.defaultdict(str)
 			msg.type = MESSAGE_CONTENT_TYPE_TEXT
 			msgcontent = ''
@@ -498,34 +500,40 @@ class Andriod_QQParser(object):
 					msg.media_path = msgcontent
 				elif msgtype == -2022:
 					offset = 0
-					while offset < len(msgdata):
-						tp = (msgdata[offset])
-						offset = offset +1
-						length = msgdata[offset]
-						offset = offset + 1
-						#skip 0x1
-						if msgdata[offset] == 1:
-							offset =offset + 1
-						data = msgdata[offset:offset+length]
-						offset = offset+length
-						content[tp] = data		
+					try:
+						while offset < len(msgdata):
+							tp = (msgdata[offset])
+							offset = offset +1
+							length = msgdata[offset]
+							offset = offset + 1
+							#skip 0x1
+							if msgdata[offset] == 1:
+								offset = offset + 1
+							data = msgdata[offset:offset+length]
+							offset = offset+length
+							content[tp] = data		
 						#print content
+					except:
+						pass
 					msgcontent = content[26]
 					msg.type = MESSAGE_CONTENT_TYPE_VIDEO
 					msg.media_path = msgcontent
 				elif msgtype == -2000:
 					offset = 0
-					while offset < len(msgdata):
-						tp = (msgdata[offset])
-						offset = offset +1
-						length = msgdata[offset]
-						offset = offset + 1
-						#skip 0x1
-						if msgdata[offset] == 1:
-							offset =offset + 1
-						data = msgdata[offset:offset+length]
-						offset = offset+length
-						content[tp] = data	                                                
+					try:
+						while offset < len(msgdata):
+							tp = (msgdata[offset])
+							offset = offset +1
+							length = msgdata[offset]
+							offset = offset + 1
+							#skip 0x1
+							if msgdata[offset] == 1:
+								offset =offset + 1
+							data = msgdata[offset:offset+length]
+							offset = offset+length
+							content[tp] = data	                                                
+					except:
+						pass
 					msgcontent = content[10]
 					msg.type = MESSAGE_CONTENT_TYPE_IMAGE
 					msg.media_path = msgcontent
@@ -538,19 +546,20 @@ class Andriod_QQParser(object):
 					length = struct.unpack('>H',msgdata[offset:offset+2])
 					offset = offset +2
 					data = str(msgdata[offset:offset+ length[0]])
-					j = json.loads(data)                    	
-					name = j['meta']['Location.Search']['name']
-					address = j['meta']['Location.Search']['address']                    
-					lat = j['meta']['Location.Search']['lat']
-					lng = j['meta']['Location.Search']['lng']                    
-					msg.extra_id  = uuid.uuid1()
-					msg.type = MESSAGE_CONTENT_TYPE_LOCATION
-					locat = Location()
-					locat.location_id = msg.extra_id 
-					locat.latitude = lat
-					locat.longitude = lng
-					locat.address = address
-					self.im.db_insert_table_location(locat)                                                     
+					j = json.loads(data)  
+					if j['app'] == 'com.tencent.map':                  	
+						name = j['meta']['Location.Search']['name']
+						address = j['meta']['Location.Search']['address']                    
+						lat = j['meta']['Location.Search']['lat']
+						lng = j['meta']['Location.Search']['lng']                    
+						msg.extra_id  = uuid.uuid1()
+						msg.type = MESSAGE_CONTENT_TYPE_LOCATION
+						locat = Location()
+						locat.location_id = msg.extra_id 
+						locat.latitude = lat
+						locat.longitude = lng
+						locat.address = address
+						self.im.db_insert_table_location(locat)                                                     
 				else:
 					msgcontent = str(msgdata)
 				self.im.db_insert_table_message(msg)
