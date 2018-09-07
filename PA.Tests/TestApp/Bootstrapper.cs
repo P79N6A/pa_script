@@ -42,44 +42,44 @@ namespace TestApp
             PA.InfraLib.Services.Registor.RegAllServices(Container);
             PA.Logic.Services.Registor.RegAllServices(Container);
 
-
-
             //这个路径改成你们电脑上的实际案例路径
-            string casePath = @"C:\Users\chen\Desktop\jianli\Manifest(2).plistcs";//@"I:\Android Physical\Manifest.pnfa"; 
+            string casePath = @"I:\androidcase\HUAWEI NXT-AL10__5LM0216630001436(6)\Manifest.pnfa";
             var pack = CasePackage.FromPath(casePath);
             if(pack!=null && pack.RpcClient.Connect())
             {
-                var ds = pack.DataStore; //案例的DataStore对象
-                var progress = pack.Progress; //案例所关联的进度指示上下文
-                var appService = ServiceGetter.Get<IApplicationService>();
+                var task = pack.LoadData();
+                task.Wait();
+                //var ds = pack.DataStore; //案例的DataStore对象
+                //var progress = pack.Progress; //案例所关联的进度指示上下文
+                //var appService = ServiceGetter.Get<IApplicationService>();
 
-                var tarFile = Path.Combine(pack.ProjectDir.FullName, pack.Info.ImageFile);
-                var mntService = ServiceGetter.Get<IMountService>();
-                //var fsMnt = mntService.MountTarFile(tarFile,@"C:\TestFs");
-                var fsMnt = mntService.MountExtFile(pack.RpcClient,tarFile, @"C:\TestFs1");
-                if (fsMnt != null)
-                {
-                    ds.FileSystems.Add(fsMnt);
+                //var tarFile = Path.Combine(pack.ProjectDir.FullName, pack.Info.ImageFile);
+                //var mntService = ServiceGetter.Get<IMountService>();
+                ////var fsMnt = mntService.MountTarFile(tarFile,@"C:\TestFs");
+                //var fsMnt = mntService.MountExtFile(pack.RpcClient,tarFile, @"C:\TestFs1");
+                //if (fsMnt != null)
+                //{
+                //    ds.FileSystems.Add(fsMnt);
 
-                    IProfilerStep profiler = new EmptyProfiler();
-                    var pythonWrappersCollection = new PythonWrappersCollection(ds, null, null);
-                    var databaseEngine = new SQLiteEngine(ds, true, false, false, null, profiler)
-                    {
-                        PythonWrappersCollection = pythonWrappersCollection,
-                    };
-                    databaseEngine.Initialize();
-           
-                    //ParserResults results = new ParserResults();
-                    //databaseEngine.ParseApplications(InstalAppNodes, progress, ref results);
-                    //databaseEngine.SetInstalledApps(results.Models, InstalAppNodes);
+                //    IProfilerStep profiler = new EmptyProfiler();
+                //    var pythonWrappersCollection = new PythonWrappersCollection(ds, null, null);
+                //    var databaseEngine = new SQLiteEngine(ds, true, false, false, null, profiler)
+                //    {
+                //        PythonWrappersCollection = pythonWrappersCollection,
+                //    };
+                //    databaseEngine.Initialize();
 
-                    //指定脚本所在的路径,apple_apps.py可以换成你需要测试的脚本
-                    var scriptPath = Path.Combine(appService.RunPath, "Plugins", "android_apps.py");
+                //    //ParserResults results = new ParserResults();
+                //    //databaseEngine.ParseApplications(InstalAppNodes, progress, ref results);
+                //    //databaseEngine.SetInstalledApps(results.Models, InstalAppNodes);
 
-                    PythonDataPlugin dataPlugin = new PythonDataPlugin(scriptPath, true, OnModuleImported);
-                    dataPlugin.Init(ds, progress, CancellationToken.None);
-                    dataPlugin.Run();
-                }
+                //    //指定脚本所在的路径,apple_apps.py可以换成你需要测试的脚本
+                //    var scriptPath = Path.Combine(appService.RunPath, "Plugins", "android_apps.py");
+
+                //    PythonDataPlugin dataPlugin = new PythonDataPlugin(scriptPath, true, OnModuleImported);
+                //    dataPlugin.Init(ds, progress, CancellationToken.None);
+                //    dataPlugin.Run();
+                //}
             }
         }
 
