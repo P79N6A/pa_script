@@ -78,40 +78,40 @@ class Andriod_QQParser(object):
 		self.VERSION_APP_VALUE = 10000
 		return
 	def parse(self):  
-			#self.root = r'D:\com.tencent.mobileqq'
-			self.getImei()
-			self.decode_accounts()
-			for acc_id in self.accounts:
-				self.friendsNickname.clear()
-				self.friendsGroups.clear()
-				self.groupContact.clear()
-				self.troops.clear()
-				self.nickname = ''
-				self.contacts = {}			
-				self.troopmsgtables =[]
-				self.c2cmsgtables =set()
-				self.troopmsgtables =set()
-			
-				self.decode_friends(acc_id)
-			
-				self.decode_group_info(acc_id)
-				self.decode_groupMember_info(acc_id)
-				self.decode_friend_messages(acc_id)            
-				self.decode_group_messages(acc_id)	                                     
-			'''
-				self.decode_recover_friends(acc_id)
-				self.decode_recover_group_info(acc_id)
-				self.decode_recover_groupMember_info(acc_id)
-				self.decode_recover_friend_messages(acc_id)
-				self.decode_recover_group_messages(acc_i
-			self.im.db_insert_table_version(VERSION_KEY_DB, VERSION_VALUE_DB)
-			self.im.db_insert_table_version(VERSION_KEY_APP, self.VERSION_APP_VALUE)
-			self.im.db_commit()
-			self.im.db_close()
-			
-		gen = GenerateModel(self.cachedb,self.root.FileSystem.MountPoint)        
+		#self.root = r'D:\com.tencent.mobileqq'
+		self.getImei()
+		self.decode_accounts()
+		for acc_id in self.accounts:
+			self.friendsNickname.clear()
+			self.friendsGroups.clear()
+			self.groupContact.clear()
+			self.troops.clear()
+			self.nickname = ''
+			self.contacts = {}			
+			self.troopmsgtables =[]
+			self.c2cmsgtables =set()
+			self.troopmsgtables =set()
+		
+			self.decode_friends(acc_id)
+		
+			self.decode_group_info(acc_id)
+			self.decode_groupMember_info(acc_id)
+			self.decode_friend_messages(acc_id)            
+			self.decode_group_messages(acc_id)	                                     
+		'''
+			self.decode_recover_friends(acc_id)
+			self.decode_recover_group_info(acc_id)
+			self.decode_recover_groupMember_info(acc_id)
+			self.decode_recover_friend_messages(acc_id)
+			self.decode_recover_group_messages(acc_i)
+		'''
+		self.im.db_insert_table_version(VERSION_KEY_DB, VERSION_VALUE_DB)
+		self.im.db_insert_table_version(VERSION_KEY_APP, self.VERSION_APP_VALUE)
+		self.im.db_commit()
+		self.im.db_close()			
+		gen = GenerateModel(self.cachedb)        
 		return gen.get_models()
-	'''
+	
 	def getImei(self):
 		path = self.root + '\\files\\imei'
 		try:
