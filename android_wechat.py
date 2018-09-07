@@ -95,7 +95,7 @@ class WeChatParser(model_im.IM):
 
             node = self.user_node.GetByPath('/EnMicroMsg.db')
             mm_db_path = os.path.join(self.cache_path, self.user_hash + '_mm.db')
-            if Decryptor.decrypt(node, self._get_db_key(self.imei, self.uin), mm_db_path):
+            if True: # Decryptor.decrypt(node, self._get_db_key(self.imei, self.uin), mm_db_path):
                 self._parse_mm_db(mm_db_path, node.AbsolutePath)
 
             # 数据库填充完毕，请将中间数据库版本和app数据库版本插入数据库，用来检测app是否需要重新解析
@@ -191,14 +191,13 @@ class WeChatParser(model_im.IM):
 
     def _parse_mm_db(self, mm_db_path, source):
         db = sqlite3.connect(mm_db_path)
-        
         self._parse_mm_db_user_info(db, source)
         self._parse_mm_db_contact(db, source)
         self._parse_mm_db_chatroom_member(db, source)
         self._parse_mm_db_message(db, source)
         db.close()
 
-    def _parse_mm_db_user_info(self, db):
+    def _parse_mm_db_user_info(self, db, source):
         cursor = db.cursor()
         self.user_account.source = source
         self.user_account.account_id = self._parse_mm_db_get_user_info_from_userinfo(cursor, 2)
@@ -351,15 +350,6 @@ class WeChatParser(model_im.IM):
             lv_buffer = self._db_column_get_blob_value(row[8])
             msg_svr_id = self._db_column_get_string_value(row[9])
 
-            #if msg_type == MSG_TYPE_VOICE:
-            #    img_path = self._process_db_tranlate_voice_path(img_path)
-            #elif msg_type == MSG_TYPE_VIDEO:
-            #    img_path = self._process_db_tranlate_video_path(img_path)
-            #elif msg_type == MSG_TYPE_VOIP:
-            #    img_path = self._process_db_tranlate_lv_buffer(lv_buffer)
-            #else:
-            #    img_path = self._process_db_tranlate_img_path(img_path)
-
             message = model_im.Message()
             message.source = source
             message.account_id = self.user_account.account_id
@@ -369,7 +359,7 @@ class WeChatParser(model_im.IM):
             message.msg_id = msg_svr_id
             message.type = self._convert_msg_type(msg_type)
             message.send_time = create_time
-            message.media_path = img_path
+            message.media_path = self._process_parse_message_img_path(msg_type, img_path)
             if talker.endswith("@chatroom"):
                 self._process_parse_group_message(msg, msg_type, is_send, 'hash', message)
                 message.sender_name = self.contacts.get(message.sender_id, {}).get('nickname')
@@ -386,7 +376,6 @@ class WeChatParser(model_im.IM):
 
     def _process_parse_friend_message(self, msg, msg_type, friend_hash, model):
         content = msg
-        img_path = ''
 
         if msg_type == MSG_TYPE_LOCATION:
             if model is not None:
@@ -408,20 +397,69 @@ class WeChatParser(model_im.IM):
             pass
 
         model.content = content
-        model.media_path = img_path
 
     def _process_parse_group_message(self, msg, msg_type, is_sender, group_hash, model):
-        sender_id = self.user_account.account_id
         content = msg
-
         if not is_sender:
-            index = msg.find(':\n')
+            sender_id = None
+            index = msg.find(':')
             if index != -1:
                 sender_id = msg[:index]
-                content = msg[index+2:]
-
-        model.sender_id = sender_id
+            if msg_type == MSG_TYPE_EMOJI:
+                index = content.find('*#*\n')
+                if index != -1:
+                    content = content[index+4:]
+            else:
+                index = content.find(':\n')
+                if index != -1:
+                    content = content[index+2:]
+            model.sender_id = sender_id
+        else:
+            model.sender_id = self.user_account.account_id
+        
         self._process_parse_friend_message(content, msg_type, group_hash, model)
+
+    def _process_parse_message_img_path(self, msg_type, img_path):
+        media_path = None
+        if msg_type == MSG_TYPE_IMAGE:
+            media_path = self._process_parse_message_tranlate_img_path(img_path)
+        elif msg_type == MSG_TYPE_VOICE:
+            media_path = self._process_parse_message_tranlate_voice_path(img_path)
+        elif msg_type == MSG_TYPE_VIDEO:
+            media_path = self._process_parse_message_tranlate_video_path(img_path)
+        return media_path
+
+    def _process_parse_message_tranlate_img_path(self, img_path):
+        if img_path in (None, ''):
+            return img_path
+        media_path = img_path
+        THUMBNAIL_DIRPATH = 'THUMBNAIL_DIRPATH://'
+        TH_PREFIX = 'th_'
+        if img_path.startswith(THUMBNAIL_DIRPATH):
+            img_name = img_path[len(THUMBNAIL_DIRPATH):]
+            m1 = ''
+            m2 = ''
+            if img_name.startswith(TH_PREFIX):
+                m1 = img_name[len(TH_PREFIX):len(TH_PREFIX)+2]
+                m2 = img_name[len(TH_PREFIX)+2:len(TH_PREFIX)+4]
+            else:
+                m1 = img_name[0:2]
+                m2 = img_name[2:4]
+            media_path = '/image2/{0}/{1}/{2}'.format(m1, m2, img_name)
+        return media_path
+
+    def _process_parse_message_tranlate_voice_path(self, voice_id):
+        m = hashlib.md5()
+        m.update(voice_id.encode('utf8'))
+        hash = m.hexdigest()
+        m1 = hash[0:2]
+        m2 = hash[2:4]
+        voice_relative_path = '/voice2/{0}/{1}/msg_{2}.amr'.format(m1, m2, voice_id)
+        return voice_relative_path
+
+    def _process_parse_message_tranlate_video_path(self, video_id):
+        voice_relative_path = '/video/{}.mp4'.format(video_id)
+        return voice_relative_path
 
     def _process_parse_message_link(self, xml_str, model):
         content = ''
@@ -777,6 +815,7 @@ class Decryptor:
             de.write(iv)
         de.close()
 
+        Decryptor.db_fix_header(dst_db_path)
         return True
 
     @staticmethod
@@ -809,3 +848,26 @@ class Decryptor:
             crypto_stream.Close()
 
         return result
+
+    @staticmethod
+    def db_fix_header(db_path):
+        if not os.path.exists(db_path):
+            return False
+        if os.path.getsize(db_path) < 20:
+            return False
+        if not os.access(db_path, os.W_OK):
+            return False
+
+        with open(db_path, 'r+b') as f:
+            content = f.read(16)
+            if content == 'SQLite format 3\0':
+                f.seek(18)
+                flag1 = ord(f.read(1))
+                flag2 = ord(f.read(1))
+                if flag1 != 1:
+                    f.seek(18)
+                    f.write('\x01')
+                if flag2 != 1:
+                    f.seek(19)
+                    f.write('\x01')
+        return True
