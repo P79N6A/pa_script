@@ -48,6 +48,7 @@ from PA.InfraLib.Services import IApplicationService,ServiceGetter
 from android_qqmail import analyze_qqmail_android
 from android_wechat import analyze_wechat
 from android_yixin import analyze_yixin
+from android_youxin import analyze_youxin
 
 """
 根据正则表达式匹配解析的应用请在此节点下配置
@@ -56,7 +57,8 @@ FIND_BY_RGX_NODES = [
     ('/MicroMsg/.+/EnMicroMsg.db$', analyze_wechat, "Wechat","微信",DescripCategories.Wechat),
     ('/data/com.tencent.mm$', analyze_wechat, "Wechat","微信",DescripCategories.Wechat),
     ("com.tencent.androidqqmail", analyze_qqmail_android, "qqMail", "QQ邮箱", DescripCategories.BaiduMap),
-    ('/data/im.yixin$', analyze_yixin, 'YiXin', "易信", DescripCategories.QQ)
+    ('/data/im.yixin$', analyze_yixin, 'YiXin', "易信", DescripCategories.YiXin),
+    ('/data/com.yx$', analyze_youxin, "YouXin", "有信", DescripCategories.YouXin)
 ]
 
 FIND_BY_APPS_NODES = [

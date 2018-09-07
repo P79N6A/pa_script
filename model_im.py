@@ -21,11 +21,11 @@ import sqlite3
 import json
 import uuid
 
-VERSION_VALUE_DB = 3
+VERSION_VALUE_DB = 4
 
-GENDER_MALE = 0
-GENDER_FEMALE = 1
-GENDER_OTHER = 2
+GENDER_NONE = 0
+GENDER_MALE = 1
+GENDER_FEMALE = 2
 
 FRIEND_TYPE_FRIEND = 1
 FRIEND_TYPE_GROUP_FRIEND = 2
@@ -98,7 +98,7 @@ SQL_CREATE_TABLE_ACCOUNT = '''
         photo TEXT, 
         telephone TEXT, 
         email TEXT, 
-        gender TEXT, 
+        gender INT, 
         age INT, 
         country TEXT,
         province TEXT,
@@ -125,7 +125,7 @@ SQL_CREATE_TABLE_FRIEND = '''
         type INT,
         telephone TEXT, 
         email TEXT, 
-        gender TEXT, 
+        gender INT, 
         age INT, 
         address TEXT, 
         birthday TEXT, 
@@ -172,7 +172,7 @@ SQL_CREATE_TABLE_CHATROOM_MEMBER = '''
         photo TEXT, 
         telephone TEXT, 
         email TEXT, 
-        gender TEXT, 
+        gender INT, 
         age INT, 
         address TEXT, 
         birthday TEXT, 
@@ -484,7 +484,7 @@ class Account(Column):
         self.photo = None  # 头像[TEXT]
         self.telephone = None  # 电话[TEXT]
         self.email = None  # 电子邮件[TEXT]
-        self.gender = None  # 性别[INT]
+        self.gender = GENDER_NONE  # 性别[INT]
         self.age = None  # 年龄[INT]
         self.country = None  # 国家[TEXT]
         self.province = None  # 省份[TEXT]
@@ -510,7 +510,7 @@ class Friend(Column):
         self.type = None  # 类型[INT]
         self.telephone = None  # 电话[TEXT]
         self.email = None  # 电子邮箱[TEXT]
-        self.gender = None  # 性别[INT]
+        self.gender = GENDER_NONE  # 性别[INT]
         self.age = None  # 年龄[INT]
         self.address = None  # 地址[TEXT]
         self.birthday = None  # 生日[TEXT]
@@ -552,7 +552,7 @@ class ChatroomMember(Column):
         self.photo = None  # 头像[TEXT]
         self.telephone = None  # 电话[TEXT]
         self.email = None  # 电子邮箱[TEXT]
-        self.gender = None  # 性别[TEXT]
+        self.gender = GENDER_NONE  # 性别[INT]
         self.age = None  # 年龄[INT]
         self.address = None  # 地址[TEXT]
         self.birthday = None  # 生日[TEXT]
@@ -745,7 +745,7 @@ class GenerateModel(object):
             if row[6]:
                 user.Email.Value = row[6]
             if row[7]:
-                user.Sex.Value = Common.SexType.Men if row[7] == 0 else Common.SexType.Women
+                user.Sex.Value = self._convert_sex_type(row[7])
             if row[8]:
                 user.Age.Value = row[8]
             if row[13]:
@@ -815,7 +815,7 @@ class GenerateModel(object):
             if row[7]:
                 friend.Email.Value= row[7]
             if row[8]:
-                friend.Sex.Value = Common.SexType.Men if row[8] == 0 else Common.SexType.Women
+                friend.Sex.Value = self._convert_sex_type(row[8])
             if row[9]:
                 friend.Age.Value = row[9]
             if row[12]:
@@ -1380,6 +1380,15 @@ class GenerateModel(object):
             return Common.FriendType.Stranger
         else:
             return Common.FriendType.None
+
+    @staticmethod
+    def _convert_sex_type(sex_type):
+        if sex_type == GENDER_MALE:
+            return Common.SexType.Men
+        elif sex_type == GENDER_FEMALE:
+            return Common.SexType.Women
+        else:
+            return Common.SexType.None
 
     @staticmethod
     def _convert_group_status(chatroom_type):

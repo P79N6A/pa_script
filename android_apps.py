@@ -25,7 +25,6 @@ from android_tencentmap import analyze_tencentmap
 from android_gaodemap import analyze_gaodemap
 from android_sogoumap import analyze_sogoumap
 from android_whatsapp import analyze_whatsapp
-from android_yixin import analyze_yixin
 
 APP_FILTERS =[]
 if 'TestNodes' in locals():
@@ -36,6 +35,7 @@ from PA_runtime import *
 from PA.InfraLib.Services import IApplicationService,ServiceGetter
 from android_wechat import analyze_wechat
 from android_yixin import analyze_yixin
+from android_youxin import analyze_youxin
 
 """
 根据正则表达式匹配解析的应用请在此节点下配置
@@ -48,7 +48,8 @@ FIND_BY_RGX_NODES = [
     ('/com.autonavi.minimap/files/girf_sync.db', analyze_gaodemap, "AMap", "高德地图", DescripCategories.AMap),
     ('/com.sogou.map.android.maps/databases/com.sogou.map.mobile.android.history_result.db$', analyze_sogoumap, "SogouMap", "搜狗地图", DescripCategories.SogouMap),
 	('/data/com.whatsapp$', analyze_whatsapp, "WhatsApp", "WhatsApp", DescripCategories.WhatsApp),
-	('/data/im.yixin$', analyze_yixin, "YiXin", "易信", DescripCategories.QQ)
+    ('/data/im.yixin$', analyze_yixin, 'YiXin', "易信", DescripCategories.YiXin),
+    ('/data/com.yx$', analyze_youxin, "YouXin", "有信", DescripCategories.YouXin)
 ]
 
 def decode_nodes(fs, extract_deleted, extract_source, installed_apps):

@@ -24,6 +24,9 @@ import sqlite3
 import shutil
 import datetime
 
+# EnterPoint: analyze_wechat(root, extract_deleted, extract_source):
+# Patterns: '/DB/MM\.sqlite$'
+
 # app数据库版本
 VERSION_APP_VALUE = 1
 
@@ -50,7 +53,6 @@ MOMENT_TYPE_MUSIC = 4  # 带音乐的（存的是封面）
 MOMENT_TYPE_EMOJI = 10  # 分享了表情包
 MOMENT_TYPE_VIDEO = 15  # 视频
 
-
 def analyze_wechat(root, extract_deleted, extract_source):
     pr = ParserResults()
     pr.Categories = DescripCategories.Wechat #声明这是微信应用解析的数据集
@@ -59,7 +61,6 @@ def analyze_wechat(root, extract_deleted, extract_source):
     
     pr.Models.AddRange(list(mlm.GetUnique(models)))
     pr.Build('微信')
-    gc.collect()
     return pr
 
 
@@ -103,6 +104,7 @@ class WeChatParser(model_im.IM):
             self.db_insert_table_version(model_im.VERSION_KEY_APP, VERSION_APP_VALUE)
             self.db_commit()
             self.db_close()
+            gc.collect()
 
         models = self.get_models_from_cache_db()
         return models
@@ -133,7 +135,7 @@ class WeChatParser(model_im.IM):
 
         self.user_account.account_id = self._bpreader_node_get_string_value(root, 'UsrName')
         self.user_account.nickname = self._bpreader_node_get_string_value(root, 'NickName')
-        self.user_account.gender = self._bpreader_node_get_int_value(root, 'Sex')
+        self.user_account.gender = self._convert_gender_type(self._bpreader_node_get_int_value(root, 'Sex'))
         self.user_account.telephone = self._bpreader_node_get_string_value(root, 'Mobile')
         self.user_account.email = self._bpreader_node_get_string_value(root, 'Email')
         self.user_account.city = self._bpreader_node_get_string_value(root, 'City')
@@ -776,15 +778,20 @@ class WeChatParser(model_im.IM):
             node = user_node.GetByPath('Img/{0}/{1}.pic'.format(friend_hash, msg_local_id))
             if node is not None:
                 img_path = node.AbsolutePath
+            else:
+                model.deleted = 1
         elif msg_type == MSG_TYPE_VOICE:
             node = user_node.GetByPath('Audio/{0}/{1}.aud'.format(friend_hash, msg_local_id))
             if node is not None:
                 img_path = node.AbsolutePath 
+            else:
+                model.deleted = 1
         #elif msg_type == MSG_TYPE_CONTACT_CARD:
         #    pass
         elif msg_type == MSG_TYPE_VIDEO or msg_type == MSG_TYPE_VIDEO_2:
             node = user_node.GetByPath('Video/{0}/{1}.mp4'.format(friend_hash, msg_local_id))
             if node is None:
+                model.deleted = 1
                 node = user_node.GetByPath('Video/{0}/{1}.video_thum'.format(friend_hash, msg_local_id))
             if node is not None:
                 img_path = node.AbsolutePath
@@ -818,7 +825,6 @@ class WeChatParser(model_im.IM):
     def _process_parse_group_message(self, msg, msg_type, msg_local_id, is_sender, user_node, group_hash, model):
         sender_id = self.user_account.account_id
         content = msg
-        img_path = ''
 
         if not is_sender:
             index = msg.find(':\n')
@@ -1182,6 +1188,13 @@ class WeChatParser(model_im.IM):
             return model_im.MESSAGE_CONTENT_TYPE_SYSTEM
         else:
             return model_im.MESSAGE_CONTENT_TYPE_LINK
+
+    @staticmethod
+    def _convert_gender_type(gender_type):
+        if gender_type != 0:
+            return model_im.GENDER_FEMALE
+        else:
+            return model_im.GENDER_MALE
 
     @staticmethod
     def db_mapping(src_path, dst_path):
