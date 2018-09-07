@@ -42,10 +42,10 @@ namespace TestApp
             PA.InfraLib.Services.Registor.RegAllServices(Container);
             PA.Logic.Services.Registor.RegAllServices(Container);
 
-            
+
 
             //这个路径改成你们电脑上的实际案例路径
-            string casePath = @"I:\Android Physical\Manifest.pnfa"; 
+            string casePath = @"C:\Users\chen\Desktop\jianli\Manifest(2).plistcs";//@"I:\Android Physical\Manifest.pnfa"; 
             var pack = CasePackage.FromPath(casePath);
             if(pack!=null && pack.RpcClient.Connect())
             {

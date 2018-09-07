@@ -126,7 +126,7 @@ class CookieParser(object):
         c.Domain.Value          = url[1]    
         cloudURLs =  ['.login.live.com', 'i.instagram.com', 'instagram.com']
         if c.Domain.Value in cloudURLs:
-            c.ModelLabels = Labels.CloudAccountPackage;
+            c.ModelLabels = Labels.CloudAcctData;
         c.Name.Value            = name[1]    
         c.Path.Value            = path[1]    
         c.Value.Value           = value[1]
