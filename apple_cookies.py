@@ -9,7 +9,7 @@ from PA_runtime import *
 def analyze_cookies(node, extractDeleted, extractSource):
     pr = ParserResults()
     pr.Models.AddRange(CookieParser(node, extractDeleted, extractSource).Parse())
-    pr.Build('Cookie痕迹')
+    pr.Build('全部')
     return pr
 
 class CookieParser(object):

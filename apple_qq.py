@@ -396,7 +396,7 @@ class QQParser(object):
                     elif(gender == 1):
                         chatmem.gender = GENDER_FEMALE
                     else:
-                        chatmem.gender = GENDER_OTHER
+                        chatmem.gender = GENDER_NONE
                     chatmem.JoinTime = JoinTime
                     chatmem.lastspeektime = LastSpeakTime
         for k in chatroommmebers:
