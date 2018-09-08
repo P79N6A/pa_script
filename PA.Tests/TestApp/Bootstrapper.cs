@@ -15,6 +15,7 @@ using PA.Common.Logger;
 using PA.Engine;
 using PA.Engine.Python;
 using PA.iPhoneApps.Parsers;
+using System.Collections.Generic;
 
 namespace TestApp
 {
@@ -43,43 +44,24 @@ namespace TestApp
             PA.Logic.Services.Registor.RegAllServices(Container);
 
             //这个路径改成你们电脑上的实际案例路径
+
+            //新的测试用法
+            //1.在Bin/Plugins目录下找到config.dat,修改里面的内容,把你的脚本的配置加进去(如果没有加的话)
+            //2.如果只需要跑你指定的脚本,将Bin/Plugins的其他脚本移走,只留下你要测试的脚本和其依赖脚本
+            //3.测试
+
+            //这个路径改成你们电脑上的实际案例路径,支持多镜像案例(比如安卓的全盘包括data.img和external_data.img)
             string casePath = @"I:\androidcase\HUAWEI NXT-AL10__5LM0216630001436(6)\Manifest.pnfa";
             var pack = CasePackage.FromPath(casePath);
             if(pack!=null && pack.RpcClient.Connect())
             {
                 var task = pack.LoadData();
                 task.Wait();
-                //var ds = pack.DataStore; //案例的DataStore对象
-                //var progress = pack.Progress; //案例所关联的进度指示上下文
-                //var appService = ServiceGetter.Get<IApplicationService>();
-
-                //var tarFile = Path.Combine(pack.ProjectDir.FullName, pack.Info.ImageFile);
-                //var mntService = ServiceGetter.Get<IMountService>();
-                ////var fsMnt = mntService.MountTarFile(tarFile,@"C:\TestFs");
-                //var fsMnt = mntService.MountExtFile(pack.RpcClient,tarFile, @"C:\TestFs1");
-                //if (fsMnt != null)
-                //{
-                //    ds.FileSystems.Add(fsMnt);
-
-                //    IProfilerStep profiler = new EmptyProfiler();
-                //    var pythonWrappersCollection = new PythonWrappersCollection(ds, null, null);
-                //    var databaseEngine = new SQLiteEngine(ds, true, false, false, null, profiler)
-                //    {
-                //        PythonWrappersCollection = pythonWrappersCollection,
-                //    };
-                //    databaseEngine.Initialize();
-
-                //    //ParserResults results = new ParserResults();
-                //    //databaseEngine.ParseApplications(InstalAppNodes, progress, ref results);
-                //    //databaseEngine.SetInstalledApps(results.Models, InstalAppNodes);
-
-                //    //指定脚本所在的路径,apple_apps.py可以换成你需要测试的脚本
-                //    var scriptPath = Path.Combine(appService.RunPath, "Plugins", "android_apps.py");
-
-                //    PythonDataPlugin dataPlugin = new PythonDataPlugin(scriptPath, true, OnModuleImported);
-                //    dataPlugin.Init(ds, progress, CancellationToken.None);
-                //    dataPlugin.Run();
-                //}
+                Console.WriteLine("程序走到这里,表明脚本跑完了,程序将会退出");
+            }
+            else
+            {
+                Console.WriteLine("案例配置不正确,换个案例");
             }
         }
 
