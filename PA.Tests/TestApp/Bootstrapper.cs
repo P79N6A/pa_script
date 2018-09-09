@@ -49,7 +49,7 @@ namespace TestApp
             //1.在Bin/Plugins目录下找到config.dat,修改里面的内容,把你的脚本的配置加进去(如果没有加的话)
             //2.如果只需要跑你指定的脚本,将Bin/Plugins的其他脚本移走,只留下你要测试的脚本和其依赖脚本
             //3.测试
-
+            //4.
             //这个路径改成你们电脑上的实际案例路径,支持多镜像案例(比如安卓的全盘包括data.img和external_data.img)
             string casePath = @"I:\androidcase\HUAWEI NXT-AL10__5LM0216630001436(6)\Manifest.pnfa";
             var pack = CasePackage.FromPath(casePath);
