@@ -15,6 +15,7 @@ from System.Xml.XPath import Extensions as XPathExtensions
 
 import os
 import sqlite3
+import logging
 
 SQL_CREATE_TABLE_MAILS = '''
     create table if not exists mails(
@@ -43,6 +44,8 @@ SQL_CREATE_TABLE_MAILS = '''
         exchangeField TEXT,
         attachDir TEXT,
         attach_object TEXT,
+        folderId INTEGER,
+        attachId INTEGER,
         source TEXT,
         deleted INT,
         repeated INT
@@ -50,13 +53,8 @@ SQL_CREATE_TABLE_MAILS = '''
 
 SQL_INSERT_TABLE_MAILS = '''
     insert into mails(mailId, accountId, subject, abstract, fromEmail, receiveUtc, size, tos, cc, bcc, ip, isForward, isRead, isRecalled, sendStatus, account_email, alias,
-    mail_folder, content, downloadUtc, downloadSize, attachName, exchangeField, attachDir, attach_object, source, deleted, repeated)
-        values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
-
-SQL_INSERT_TABLE_MAILS_ANDROID = '''
-    insert into mails(mailId, accountId, subject, abstract, fromEmail, receiveUtc, size, tos, isRead, account_email, alias, mail_folder,
-    content, downloadSize, attachName, attachDir, source, deleted, repeated) values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? )
-    '''
+    mail_folder, content, downloadUtc, downloadSize, attachName, exchangeField, attachDir, attach_object, folderId, attachId, source, deleted, repeated)
+        values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
 
 SQL_CREATE_TABLE_ACCOUNT = '''
     create table if not exists accounts(
@@ -76,9 +74,6 @@ SQL_INSERT_TABLE_ACCOUNT = '''
     insert into accounts(accountId, alias, accountEmail, loginDate, accountImage, accountSign, source, deleted, repeated)
         values(?, ?, ?, ?, ?, ?, ?, ?, ?)'''
 
-SQL_INSERT_TABLE_ACCOUNT_ANDROID = '''
-    insert into accounts(accountId, alias, accountEmail, source, deleted, repeated) values(?, ?, ?, ?, ?, ?)
-    '''
 
 SQL_CREATE_TABLE_CONTACT = '''
     create table if not exists contact(
@@ -94,6 +89,8 @@ SQL_CREATE_TABLE_CONTACT = '''
         groupName TEXT,
         alias TEXT,
         accountEmail TEXT,
+        accountId INTEGER,
+        contactId INTEGER,
         source TEXT,
         deleted INT,
         repeated INT
@@ -101,13 +98,8 @@ SQL_CREATE_TABLE_CONTACT = '''
 
 SQL_INSERT_TABLE_CONTACT = '''
     insert into contact(contactName, contactBirthday, contactDepartment, contactFamilyAddress, contactMark,
-    contactMobile, contactTelephone, contactEmail, contactNick, groupName, alias, accountEmail, source, deleted, repeated)
-        values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
-
-SQL_INSERT_TABLE_CONTACT_ANDROID = '''
-    insert into contact(contactName, contactEmail, contactNick, accountEmail, source, deleted, repeated)
-    values(?, ?, ?, ?, ?, ?, ?)
-    '''
+    contactMobile, contactTelephone, contactEmail, contactNick, groupName, alias, accountEmail, accountId, contactId, source, deleted, repeated)
+        values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
 
 SQL_CREATE_TABLE_MAIL_FOLDER = '''
     create table if not exists mail_folder(
@@ -124,11 +116,6 @@ SQL_INSERT_TABLE_MAIL_FOLDER = '''
     insert into mail_folder(folderType, folderName, accountNick, accountEmail, source, deleted, repeated)
         values(?, ?, ?, ?, ?, ?, ?)'''
 
-SQL_INSERT_TABLE_MAIL_FOLDER_ANDROID = '''
-    insert into mail_folder(folderName, accountNick, accountEmail, source, deleted, repeated)
-    values(?, ?, ?, ?, ?, ?)
-    '''
-
 SQL_CREATE_TABLE_ATTACH = '''
     create table if not exists attach(
         accountNick TEXT,
@@ -144,7 +131,6 @@ SQL_CREATE_TABLE_ATTACH = '''
         attachType TEXT,
         attachDir TEXT,
         emailFolder TEXT,
-        mailId INT,
         source TEXT,
         deleted INT,
         repeated INT
@@ -152,29 +138,24 @@ SQL_CREATE_TABLE_ATTACH = '''
 
 SQL_INSERT_TABLE_ATTACH = '''
     insert into attach(accountNick, accountEmail, subject, downloadUtc, downloadSize,
-    fromEmail, fromNick, mailUtc, attachName, exchangeField, attachType, attachDir, emailFolder, mailId, source, deleted, repeated)
-        values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
-
-SQL_INSERT_TABLE_ATTACH_ANDROID = '''
-    insert into attach(accountNick, accountEmail, subject, downloadUtc, downloadSize, 
-    fromEmail, fromNick, attachName, attachDir, emailFolder, source, deleted, repeated)
-    values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    '''
+    fromEmail, fromNick, mailUtc, attachName, exchangeField, attachType, attachDir, emailFolder, source, deleted, repeated)
+        values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
 
 SQL_CREATE_TABLE_TODO = '''
     create table if not exists todo(
         content TEXT,
         createdTime INTEGER,
         reminderTime INTEGER,
-        isdone INTEGER,
+        done INTEGER,
+        isdeleted INTEGER,
         source TEXT,
         deleted INT, 
         repeated INT
     )'''
 
 SQL_INSERT_TABLE_TODO = '''
-    insert into todo(content, createdTime, reminderTime, isdone, source, deleted, repeated)
-        values(?, ?, ?, ?, ?, ?, ?)'''
+    insert into todo(content, createdTime, reminderTime, done, deleted, source, deleted, repeated)
+        values(?, ?, ?, ?, ?, ?, ?, ?)'''
 
 
 SQL_CREATE_TABLE_SEARCH = ''''''
@@ -236,10 +217,6 @@ class MM(object):
         if self.cursor is not None:
             self.cursor.execute(SQL_INSERT_TABLE_ATTACH, Attach.get_values())
 
-    def db_insert_table_todo(self,Todo):
-        if self.cursor is not None:
-            self.cursor.execute(SQL_INSERT_TABLE_TODO, Todo.get_values())
-
     def db_insert_table_search(self,Search):
         pass
 
@@ -249,10 +226,6 @@ class Column(object):
         self.source = ''
         self.deleted = 0
         self.repeated = 0
-
-    def __setattr__(self, name, value):
-            if not IsDBNull(value):
-                self.__dict__[name] = value
 
     def get_values(self):
         return (self.source, self.deleted, self.repeated)
@@ -286,6 +259,8 @@ class Mails(Column):
         self.exchangeField = None
         self.attachDir = None
         self.attach_object = None
+        self.folderId = None
+        self.attachId = None
 
     def get_values(self):
         return (self.mailId, self.accountId, self.subject, self.abstract, 
@@ -293,7 +268,7 @@ class Mails(Column):
         self.tos, self.cc, self.bcc, self.ip,self.isForward,
         self.isRead,self.isRecalled,self.sendStatus,self.account_email,self.alias,
         self.mail_folder, self.content, self.downloadUtc, 
-        self.downloadSize, self.attachName, self.exchangeField, self.attachDir, self.attach_object) + super(Mails, self).get_values()
+        self.downloadSize, self.attachName, self.exchangeField, self.attachDir, self.attach_object, self.folderId, self.attachId) + super(Mails, self).get_values()
    
 
 class Accounts(Column):
@@ -311,6 +286,9 @@ class Accounts(Column):
         self.accountImage, self.accountSign) + super(Accounts,self).get_values()
 
 
+
+
+
 class Contact(Column):
     def __init__(self):
         super(Contact, self).__init__()
@@ -326,11 +304,13 @@ class Contact(Column):
         self.groupName = None
         self.alias = None
         self.accountEmail = None
+        self.accountId = None
+        self.contactId = None
 
     def get_values(self):
         return(self.contactName, self.contactBirthday, self.contactDepartment,
         self.contactFamilyAddress, self.contactMark, self.contactMobile, self.contactTelephone,
-        self.contactEmail,self.contactNick, self.groupName, self.alias, self.accountEmail) + super(Contact, self).get_values()
+        self.contactEmail,self.contactNick, self.groupName, self.alias, self.accountEmail, self.accountId, self.contactId) + super(Contact, self).get_values()
 
 
 
@@ -362,29 +342,11 @@ class Attach(Column):
         self.attachType = None
         self.attachDir = None
         self.emailFolder = None
-        self.mailId = None
-
 
     def get_values(self):
         return (self.accountNick, self.acocuntEmail, self.subject, self.downloadUtc,
         self.downloadSize, self.fromEmail, self.fromNick, self.mailUtc,
-        self.attachName, self.exchangeField, self.attachType, self.attachDir, self.emailFolder,
-        self.mailId) + super(Attach, self).get_values()
-
-
-class Todo(Column):
-    def __init__(self):
-        super(Todo, self).__init__()
-        self.content = None
-        self.createdTime = None
-        self.reminderTime = None
-        self.isdone = None
-
-    def get_values(self):
-        return (self.content,
-                self.createdTime,
-                self.reminderTime,
-                self.isdone) + super(Todo, self).get_values()
+        self.attachName, self.exchangeField, self.attachType, self.attachDir, self.emailFolder) + super(Attach, self).get_values()
 
 
 class Search(Column):
@@ -415,20 +377,16 @@ class Generate(object):
             select mailId,subject,abstract,fromEmail,receiveUtc,size,tos,cc,bcc,ip,isForward,
             isRead,isRecalled,sendStatus,account_email,alias,mail_folder,content,group_concat(downloadUtc) as downloadUtc,
             group_concat(downloadSize) as downloadSize,group_concat(attachName) as attachName,group_concat(attachDir) as attachDir,source,repeated,deleted,accountId
-            from mails group by mailId) as a 
-            left join accounts on a.accountId = accounts.accountId'''
+            from mails group by mailId) as a left join accounts on a.accountId = accounts.accountId'''
         row = None
         try:
             self.cursor.execute(sql)
             row = self.cursor.fetchone()
         except Exception as e:
+            logging.error(e)
             print(e)
         while row is not None:
             mailMessage = Generic.MailMessage()
-            if row[22] not in [None, '']:
-                        mailMessage.SourceFile.Value = self._get_source_file(row[22])
-            if row[24] is not None:
-                        mailMessage.Deleted = self._convert_deleted_status(row[24])
             if row[16] is not None:
                 mailMessage.Folder.Value = row[16]
                 if row[16] == '已发送':
@@ -443,14 +401,14 @@ class Generate(object):
             if row[17] is not None:
                 mailMessage.Body.Value = row[17]
             if row[4] is not None:
-                mailMessage.TimeStamp.Value = self._get_timestamp(row[4])
+                mailMessage.TimeStamp.Value = TimeStamp.FromUnixTime(row[4], False) if len(str(row[4])) == 10 else TimeStamp.FromUnixTime(int(str(row[4])[0:10:1]), False) if len(str(row[4]))>10 else TimeStamp.FromUnixTime(0, False)
             if row[3] is not None:
                 party = Generic.Party()
                 party.Identifier.Value = row[3]
             if row[9] is not None:
                 party.IPAddresses.Add(str(row[9]))
                 if row[4] is not None:                
-                    party.DatePlayed.Value = self._get_timestamp(row[4])
+                    party.DatePlayed.Value = TimeStamp.FromUnixTime(row[4], False) if len(str(row[4])) == 10 else TimeStamp.FromUnixTime(int(str(row[4])[0:10:1]), False) if len(str(row[4]))>10 else TimeStamp.FromUnixTime(0, False)
                 mailMessage.From.Value = party
             if row[6] is not None:
                 tos = row[6].split(' ')
@@ -460,7 +418,7 @@ class Generate(object):
                         party.Identifier.Value = tos[t]
                         party.Name.Value = tos[t+1]
                         if row[4] is not None:
-                            party.DatePlayed.Value = self._get_timestamp(row[4])
+                            party.DatePlayed.Value = TimeStamp.FromUnixTime(row[4], False) if len(str(row[4])) == 10 else TimeStamp.FromUnixTime(int(str(row[4])[0:10:1]), False) if len(str(row[4]))>10 else TimeStamp.FromUnixTime(0, False)
                         mailMessage.To.Add(party)
             if row[7] is not None:
                 cc = row[7].split(' ')
@@ -470,7 +428,7 @@ class Generate(object):
                         party.Identifier.Value = cc[c]
                         party.Name.Value = cc[c+1]
                         if row[4] is not None:
-                            party.DatePlayed.Value = self._get_timestamp(row[4])
+                            party.DatePlayed.Value = TimeStamp.FromUnixTime(row[4], False) if len(str(row[4])) == 10 else TimeStamp.FromUnixTime(int(str(row[4])[0:10:1]), False) if len(str(row[4]))>10 else TimeStamp.FromUnixTime(0, False)
                         mailMessage.Cc.Add(party)
             if row[8] is not None:
                 bcc = row[8].split(' ')
@@ -480,23 +438,23 @@ class Generate(object):
                         party.Identifier.Value = bcc[b]
                         party.Name.Value = tos[t+1]
                         if row[4] is not None:
-                            party.DatePlayed.Value = self._get_timestamp(row[4])
+                            party.DatePlayed.Value = TimeStamp.FromUnixTime(row[4], False) if len(str(row[4])) == 10 else TimeStamp.FromUnixTime(int(str(row[4])[0:10:1]), False) if len(str(row[4]))>10 else TimeStamp.FromUnixTime(0, False)
                         mailMessage.Bcc.Add(party)
             if row[18] is not None:
-                for a in range(len(row[18].split(','))):
-                    attachment = Generic.Attachment()
-                    if row[20] is not None:
-                        attachment.Filename.Value = row[20].split(',')[a]
-                    if row[21] is not None:
-                        attachment.URL.Value = row[21].split(',')[a]
-                    if row[18] is not None:
-                        attachment.DownloadTime.Value = self._get_timestamp(row[18].split(',')[a])
-                    if row[19] is not None:
-                        try:
+                try:
+                    for a in range(len(row[18].split(','))):
+                        attachment = Generic.Attachment()
+                        if row[20] is not None:
+                            attachment.Filename.Value = row[20].split(',')[a]
+                        if row[21] is not None:
+                            attachment.URL.Value = row[21].split(',')[a]
+                        if row[18] is not None:
+                            attachment.DownloadTime.Value = TimeStamp.FromUnixTime(int(float(row[18].split(',')[a])),False)
+                        if row[19] is not None:
                             attachment.Size.Value = int(row[19].split(',')[a])
-                        except:
-                            pass
-                    mailMessage.Attachments.Add(attachment)
+                        mailMessage.Attachments.Add(attachment)
+                except Exception as e:
+                    pass
             if row[2] is not None:
                 mailMessage.Abstract.Value = row[2]
             if row[5] is not None:
@@ -509,11 +467,13 @@ class Generate(object):
             if row[26] is not None:
                 user.Username.Value = row[26]
             if row[27] is not None:
-                user.LastLoginTime.Value = self._get_timestamp(row[27])
-            if row[15] is not None:
-                user.Email.Value = row[15]
-
-            #mailMessage.OwnerUser.Value = user
+                user.LastLoginTime.Value = TimeStamp.FromUnixTime(row[27], False) if len(str(row[27])) == 10 else TimeStamp.FromUnixTime(int(str(row[27])[0:10:1]), False) if len(str(row[27]))>10 else TimeStamp.FromUnixTime(0, False)
+            if row[14] is not None:
+                user.Email.Value = row[14]
+            if row[25] is not None:
+                user.ID.Value = str(row[25])
+            mailMessage.OwnerUser.Value = user
+            mailMessage.OwnerUserID.Value = user.ID.Value
             models.append(mailMessage)
             row = self.cursor.fetchone()
         return models
@@ -533,10 +493,6 @@ class Generate(object):
             print(e)
         while row is not None:
             friend = Common.Friend()
-            if row[12] not in [None, '']:
-                        friend.SourceFile.Value = self._get_source_file(row[12])
-            if row[13] is not None:
-                        friend.Deleted = self._convert_deleted_status(row[13])
             if row[11] is not None:
                 friend.OwnerUserID.Value = row[11]
             if row[0] is not None:
@@ -569,30 +525,3 @@ class Generate(object):
     def _get_search_models(self):
         models = []
         return models
-
-
-    @staticmethod
-    def _convert_deleted_status(deleted):
-        if deleted is None:
-            return DeletedState.Unknown
-        else:
-            return DeletedState.Intact if deleted == 0 else DeletedState.Deleted
-
-    def _get_source_file(self, source_file):
-        return source_file.replace('/', '\\')
-
-    def _get_timestamp(self, timestamp):
-        """  """
-        try:
-            if isinstance(timestamp, (long, float, str)) and len(str(timestamp)) > 10:
-                timestamp = int(str(timestamp)[:10])
-            if isinstance(timestamp, int) and len(str(timestamp)) == 10:
-                ts = TimeStamp.FromUnixTime(timestamp, False)
-                if not ts.IsValidForSmartphone():
-                    ts = None
-                return ts
-        except:
-            return None
-
-
-
