@@ -6,6 +6,7 @@ import time
 from PA_runtime import *
 import logging
 import sqlite3
+from System.Linq import Enumerable
 from model_mails import MM,Mails,Accounts,Contact,MailFolder,Attach,Generate
 
 SQL_ASSOCIATE_TABLE_MAILS = '''
@@ -46,6 +47,7 @@ SQL_ASSOCIATE_TABLE_ATTACH = '''select c.*, d.showName as emailFolder from (
         name as attachName, exchangeField, type as attachType from FM_Mail_Attach) 
         as a left join FM_Account as b on a.accountId = b.id) 
     as c left join FM_Folder as d on c.folderId = d.id'''
+
 
 
 class MailParser(object):
@@ -102,9 +104,85 @@ class MailParser(object):
                 mails.source = 'QQ邮箱'
                 self.mm.db_insert_table_mails(mails)
             self.mm.db_commit()
+            self.db.close()
         except Exception as e:
             logging.error(e)
         return mails
+
+    def decode_recover_mail_table(self):  #需要在model中用sql语句做合并
+        mailsNode = self.node.GetByPath("/Documents/FMailDB.db")
+        self.db = SQLiteParser.Database.FromNode(mailsNode)
+        if self.db is None:
+            return
+        ts = SQLiteParser.TableSignature('FM_MailInfo')
+        ts1 = SQLiteParser.TableSignature('FM_Account')
+        ts2 = SQLiteParser.TableSignature('FM_Folder')
+        ts3 = SQLiteParser.TableSignature('FM_Mail_Content')
+        ts4 = SQLiteParser.TableSignature('FM_Mail_Attach')
+        mails = Mails()
+        try:
+            for row in self.db.ReadTableDeletedRecords(ts, False):
+                mails.mailId = row['mailId'].Value if 'mailId' in row and not row['mailId'].IsDBNull else None
+                mails.accountId = row['accountId'].Value if 'accountId' in row and not row['accountId'].IsDBNull else None
+                mails.subject = repr(row['subject'].Value) if 'subject' in row and not row['subject'].IsDBNull else None
+                mails.abstract = repr(row['abstract'].Value) if 'abstract' in row and not row['abstract'].IsDBNull else None
+                mails.folderId = row['folderId'].Value if 'folderId' in row and not row['folderId'].IsDBNull else None
+                mails.fromEmail = repr(row['fromEmail'].Value) if 'fromEmail' in row and not row['fromEmail'].IsDBNull else None
+                mails.receiveUtc = row['receivedUtc'].Value if 'receivedUtc' in row and not row['receivedUtc'].IsDBNull else None
+                mails.size = row['size'].Value if 'size' in row and not row['size'].IsDBNull else None
+                mails.tos = repr(row['tos'].Value) if 'tos' in row and not row['tos'].IsDBNull else None
+                mails.cc = repr(row['ccs'].Value) if 'ccs' in row and not row['ccs'].IsDBNull else None
+                mails.bcc = repr(row['bcc'].Value) if 'bcc' in row and not row['bcc'].IsDBNull else None
+                mails.ip = repr(row['ip'].Value) if 'ip' in row and not row['ip'].IsDBNull else None
+                mails.isForward = row['isForward'].Value if 'isForward' in row and not row['isForward'].IsDBNull else None
+                mails.isRead = row['isRead'].Value if 'isRead' in row and not row['isRead'].IsDBNull else None
+                mails.isRecalled = row['isRecalled'].Value if 'isRecalled' in row and not row['isRecalled'].IsDBNull else None
+                mails.sendStatus = row['sendStatus'].Value if 'sendStatus' in row and not row['sendStatus'].IsDBNull else None
+                mails.source = 'QQ邮箱'
+                mails.deleted = 1
+                self.mm.db_insert_table_mails(mails)
+            self.mm.db_commit()
+            mails = Mails()
+            for row in self.db.ReadTableDeletedRecords(ts1, False):
+                mails.accountId = row['id'].Value if 'id' in row and not row['id'].IsDBNull else None
+                mails.account_email = row['name'].Value if 'name' in row and not row['name'].IsDBNull else None
+                mails.alias = row['alias'].Value if 'alias' in row and not row['alias'].IsDBNull else None
+                mails.source = 'QQ邮箱'
+                mails.deleted = 1
+                self.mm.db_insert_table_mails(mails)
+            self.mm.db_commit()
+            mails = Mails()
+            for row in self.db.ReadTableDeletedRecords(ts2, False):
+                mails.folderId = row['id'].Value if 'id' in row and not row['id'].IsDBNull else None
+                mails.mail_folder = row['showName'].Value if 'showName' in row and not row['showName'].IsDBNull else None
+                mails.source = 'QQ邮箱'
+                mails.deleted = 1
+                self.mm.db_insert_table_mails(mails)
+            self.mm.db_commit()
+            mails = Mails()
+            for row in self.db.ReadTableDeletedRecords(ts3, False):
+                mails.mailId = row['mailId'].Value if 'mailId' in row and not row['mailId'].IsDBNull else None
+                mails.content = repr(row['content'].Value) if 'content' in row and not row['content'].IsDBNull else None
+                mails.source = 'QQ邮箱'
+                mails.deleted = 1
+                self.mm.db_insert_table_mails(mails)
+            self.mm.db_commit()
+            mails = Mails()
+            for row in self.db.ReadTableDeletedRecords(ts4, False):
+                mails.mailId = row['mailId'].Value if 'mailId' in row and not row['mailId'].IsDBNull else None
+                mails.attachId = row['attachId'].Value if 'attachId' in row and not row['attachId'].IsDBNull else None
+                mails.downloadSize = row['downloadUtc'].Value if 'downloadUtc' in row and not row['downloadUtc'].IsDBNull else None
+                mails.downloadSize = row['downloadSize'].Value if 'downloadSize' in row and not row['downloadSize'].IsDBNull else None
+                mails.receiveUtc = row['mailUtc'].Value if 'mailUtc' in row and not row['mailUtc'].IsDBNull else None
+                mails.attachName = row['name'].Value if 'name' in row and not row['name'].IsDBNull else None
+                mails.exchangeField = row['exchangeField'].Value if 'exchangeField' in row and not row['exchangeField'].IsDBNull else None
+                mails.attach_object = row['object'].Value if 'object' in row and not row['object'].IsDBNull else None
+                mails.source = 'QQ邮箱'
+                mails.deleted = 1
+                self.mm.db_insert_table_mails(mails)
+            self.mm.db_commit()
+        except Exception as e:
+            logging.error(e)
 
     def analyze_mail_accounts(self):
         """
@@ -131,9 +209,29 @@ class MailParser(object):
                 accounts.source = 'QQ邮箱'
                 self.mm.db_insert_table_account(accounts)
             self.mm.db_commit()
+            self.db.close()
         except Exception as e:
             logging.error(e)
         return accounts
+
+    def decode_recover_table_accounts(self):
+        mailsNode = self.node.GetByPath("/Documents/FMailDB.db")
+        self.db = SQLiteParser.Database.FromNode(mailsNode)
+        if self.db is None:
+            return
+        ts = SQLiteParser.TableSignature('FM_Account')
+        accounts = Accounts()
+        try:
+            for row in self.db.ReadTableDeletedRecords(ts, False):
+                accounts.accountId = row['id'].Value if 'id' in row and not row['id'].IsDBNull else None
+                accounts.alias = repr(row['alias'].Value) if 'alias' in row and not row['alias'].IsDBNull else None
+                accounts.accountEmail = repr(row['name'].Value) if 'name' in row and not row['name'].IsDBNull else None
+                accounts.loginDate = row['syncUtc'].Value if 'syncUtc' in row and not row['syncUtc'].IsDBNull else None
+                accounts.deleted = 1
+                self.mm.db_insert_table_account(accounts)
+            self.mm.db_commit()
+        except Exception as e:
+            logging.error(e)
 
     def analyze_mail_contract(self):
         """
@@ -167,9 +265,61 @@ class MailParser(object):
                 contact.source = 'QQ邮箱'
                 self.mm.db_insert_table_contact(contact)
             self.mm.db_commit()
+            self.db.close()
         except Exception as e:
             logging.error(e)
         return contact
+
+    def decode_recover_table_contact(self):
+        contactNode = self.node.GetByPath("/Documents/FMContact.db")
+        mailsNode = self.node.GetByPath("/Documents/FMailDB.db")
+        self.db = SQLiteParser.Database.FromNode(contactNode)
+        if self.db is None:
+            return
+        ts = SQLiteParser.TableSignature('FMContact')
+        ts1 = SQLiteParser.TableSignature('FMContactItem')
+        contact = Contact()
+        try:
+            for row in self.db.ReadTableDeletedRecords(ts, False):
+                contact.contactId = row['contactid'].Value if 'contactid' in row and not row['contactid'].IsDBNull else None
+                contact.contactName = row['name'].Value if 'name' in row and not row['name'].IsDBNull else None
+                contact.contactBirthday = row['birthday'].Value if 'birthday' in row and not row['birthday'].IsDBNull else None
+                contact.contactDepartment = row['department'].Value if 'department' in row and not row['department'].IsDBNull else None
+                contact.contactFamilyAddress = row['familyAddress'].Value if 'familyAddress' in row and not row['familyAddress'].IsDBNull else None
+                contact.contactMark = row['mark'].Value if 'mark' in row and not row['mark'].IsDBNull else None
+                contact.contactMobile = row['mobile'].Value if 'mobile' in row and not row['mobile'].IsDBNull else None
+                contact.contactTelephone = row['telephone'].Value if 'telephone' in row and not row['telephone'].IsDBNull else None
+                contact.source = 'QQ邮箱'
+                contact.deleted = 1
+                self.mm.db_insert_table_contact(contact)
+            self.mm.db_commit()
+            contact = Contact()
+            for row in self.db.ReadTableDeletedRecords(ts1, False):
+                contact.contactId = row['contactid'].Value if 'contactid' in row and not row['contactid'].IsDBNull else None
+                contact.contactEmail = row['email'].Value if 'email' in row and not row['email'].IsDBNull else None
+                contact.contactNick = row['nick'].Value if 'nick' in row and not row['nick'].IsDBNull else None
+                contact.source = 'QQ邮箱'
+                contact.deleted = 1
+                self.mm.db_insert_table_contact(contact)
+            self.mm.db_commit()
+        except Exception as e:
+            logging.error(e)
+        self.db = SQLiteParser.Database.FromNode(mailsNode)
+        if self.db is None:
+            return
+        ts2 = SQLiteParser.TableSignature('FM_Account')
+        try:
+            contact = Contact()
+            for row in self.db.ReadTableDeletedRecords(ts2, False):
+                contact.accountId = row['id'].Value if 'id' in row and not row['id'].IsDBNull else None
+                contact.alias = row['alias'].Value if 'alias' in row and not row['alias'].IsDBNull else None
+                contact.accountEmail = row['name'].Value if 'name' in row and not row['name'].IsDBNull else None
+                contact.source = 'QQ邮箱'
+                contact.deleted = 1
+                self.mm.db_insert_table_contact(contact)
+            self.mm.db_commit()
+        except Exception as e:
+            logging.error(e)
 
     def analyze_mail_Folder(self):
         """
@@ -192,6 +342,7 @@ class MailParser(object):
                 mailFolder.source = 'QQ邮箱'
                 self.mm.db_insert_table_mail_folder(mailFolder)
             self.mm.db_commit()
+            self.db.close()
         except Exception as e:
             logging.error(e)
         return mailFolder
@@ -225,6 +376,7 @@ class MailParser(object):
                 attach.source = 'QQ邮箱'
                 self.mm.db_insert_table_attach(attach)
             self.mm.db_commit()
+            self.db.close()
         except Exception as e:
             logging.error(e)
         return attach
@@ -246,17 +398,17 @@ class MailParser(object):
         str = " ".join(lst)
         return str
 
-
     def parse(self):
         self.analyze_mails()
+        self.decode_recover_mail_table()
         self.analyze_mail_accounts()
+        self.decode_recover_table_accounts()
         self.analyze_mail_contract()
+        self.decode_recover_table_contact()
         self.analyze_mail_Folder()
         self.analyze_mail_attach()
         self.analyze_mail_search()
         self.mm.db_close()
-        self.db.commit()
-        self.db.close()
 
         generate = Generate(self.cachedb)
         models = generate.get_models()
