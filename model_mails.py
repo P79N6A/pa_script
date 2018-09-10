@@ -475,6 +475,7 @@ class Generate(object):
             mailMessage.OwnerUser.Value = user
             mailMessage.OwnerUserID.Value = user.ID.Value
             models.append(mailMessage)
+            models.append(set(user))
             row = self.cursor.fetchone()
         return models
 
@@ -512,6 +513,7 @@ class Generate(object):
             if row[8] is not None:
                 friend.Name.Value = row[8]
             row = self.cursor.fetchone()
+        models.append(friend)
         return models
 
     def _get_mail_folder_models(self):
