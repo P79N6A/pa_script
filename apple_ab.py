@@ -368,7 +368,5 @@ def analyze_addressbook(node, extractDeleted, extractSource):
         traceback.print_exc()
         message = ex.message
     prog.Report(100,message)
+    pr.Build('通讯录')
     return pr
-
-def execute(node,extracteDeleted):
-    return analyze_addressbook(node,extracteDeleted,False)

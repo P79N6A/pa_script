@@ -396,7 +396,7 @@ class QQParser(object):
                     elif(gender == 1):
                         chatmem.gender = GENDER_FEMALE
                     else:
-                        chatmem.gender = GENDER_OTHER
+                        chatmem.gender = GENDER_NONE
                     chatmem.JoinTime = JoinTime
                     chatmem.lastspeektime = LastSpeakTime
         for k in chatroommmebers:
@@ -545,7 +545,7 @@ class QQParser(object):
                     msg.repeated = 0
                     msg.msg_id = msgid
                     msg.send_time = sendtime
-                    if(flag):
+                    if(flag== 0):
                         msg.is_sender = MESSAGE_TYPE_SEND
                         msg.sender_id =  msg.account_id
                         msg.sender_name = self.nickname
@@ -781,7 +781,7 @@ class QQParser(object):
                     msg.deleted = 1					
                     msg.msg_id = msgid
                     msg.send_time = sendtime
-                    if(flag):
+                    if flag == 0:
                         msg.is_sender = MESSAGE_TYPE_SEND
                         msg.sender_id =  msg.account_id
                         msg.sender_name = self.nickname
@@ -949,7 +949,7 @@ class QQParser(object):
                     msg.talker_name = self.friendsNickname[uin][0]					
                 except:
                     msg.talker_name = ''
-                if(flag == 0):
+                if flag == 0:
                     msg.send_id = acc_id
                     msg.sender_name = self.nickname
                     msg.is_sender = MESSAGE_TYPE_SEND
