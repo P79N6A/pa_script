@@ -474,7 +474,7 @@ class Generate(object):
                 user.ID.Value = str(row[25])
             email.OwnerUser.Value = user
             if row[25] is not None:
-                email.Account = row[str(row[25])]
+                email.Account.Value = row[str(row[25])]
             email.append(email)
             row = self.cursor.fetchone()
         return models
