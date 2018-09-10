@@ -95,7 +95,7 @@ class WeChatParser(model_im.IM):
 
             node = self.user_node.GetByPath('/EnMicroMsg.db')
             mm_db_path = os.path.join(self.cache_path, self.user_hash + '_mm.db')
-            if Decryptor.decrypt(node, self._get_db_key(self.imei, self.uin), mm_db_path):
+            if True: # Decryptor.decrypt(node, self._get_db_key(self.imei, self.uin), mm_db_path):
                 self._parse_mm_db(mm_db_path, node.AbsolutePath)
 
             # 数据库填充完毕，请将中间数据库版本和app数据库版本插入数据库，用来检测app是否需要重新解析
@@ -260,40 +260,39 @@ class WeChatParser(model_im.IM):
             portrait_hd = self._db_column_get_string_value(row[6])
             portrait = self._db_column_get_string_value(row[7])
 
-            if username in [None, '']:
-                continue
+            if username not in [None, '']:
+                head = portrait
+                if portrait_hd and len(portrait_hd) > 0:
+                    head = portrait_hd
 
-            head = portrait
-            if portrait_hd and len(portrait_hd) > 0:
-                head = portrait_hd
+                contact = {}
+                if nickname:
+                    contact['nickname'] = nickname
+                if remark:
+                    contact['remark'] = remark
+                contact['verify_flag'] = verify_flag
+                if head:
+                    contact['photo'] = head
+                self.contacts[username] = contact
 
-            contact = {}
-            if nickname:
-                contact['nickname'] = nickname
-            if remark:
-                contact['remark'] = remark
-            if head:
-                contact['photo'] = head
-            self.contacts[username] = contact
-
-            if username.endswith('@chatroom'):
-                chatroom = model_im.Chatroom()
-                chatroom.source = source
-                chatroom.account_id = self.user_account.account_id
-                chatroom.chatroom_id = username
-                chatroom.name = nickname
-                chatroom.photo = head
-                self.db_insert_table_chatroom(chatroom)
-            else:
-                friend = model_im.Friend()
-                friend.source = source
-                friend.account_id = self.user_account.account_id
-                friend.friend_id = username
-                friend.type = model_im.FRIEND_TYPE_FRIEND if verify_flag == 0 else model_im.FRIEND_TYPE_FOLLOW
-                friend.nickname = nickname
-                friend.remark = remark
-                friend.photo = head
-                self.db_insert_table_friend(friend)
+                if username.endswith('@chatroom'):
+                    chatroom = model_im.Chatroom()
+                    chatroom.source = source
+                    chatroom.account_id = self.user_account.account_id
+                    chatroom.chatroom_id = username
+                    chatroom.name = nickname
+                    chatroom.photo = head
+                    self.db_insert_table_chatroom(chatroom)
+                else:
+                    friend = model_im.Friend()
+                    friend.source = source
+                    friend.account_id = self.user_account.account_id
+                    friend.friend_id = username
+                    friend.type = model_im.FRIEND_TYPE_FRIEND if verify_flag == 0 else model_im.FRIEND_TYPE_SUBSCRIBE
+                    friend.nickname = nickname
+                    friend.remark = remark
+                    friend.photo = head
+                    self.db_insert_table_friend(friend)
             row = cursor.fetchone()
         self.db_commit()
         cursor.close()
@@ -352,12 +351,13 @@ class WeChatParser(model_im.IM):
             msg_id = self._db_column_get_string_value(row[7])
             lv_buffer = self._db_column_get_blob_value(row[8])
             msg_svr_id = self._db_column_get_string_value(row[9])
+            contact = self.contacts.get(talker, {})
 
             message = model_im.Message()
             message.source = source
             message.account_id = self.user_account.account_id
             message.talker_id = talker
-            message.talker_name = self.contacts.get(talker, {}).get('nickname')
+            message.talker_name = contact.get('nickname')
             message.is_sender = is_send
             message.msg_id = msg_svr_id
             message.type = self._convert_msg_type(msg_type)
@@ -371,7 +371,7 @@ class WeChatParser(model_im.IM):
                 message.sender_id = self.user_account.account_id if is_send != 0 else talker
                 self._process_parse_friend_message(msg, msg_type, 'hash', message)
                 message.sender_name = self.contacts.get(message.sender_id, {}).get('nickname')
-                message.talker_type = model_im.CHAT_TYPE_FRIEND
+                message.talker_type = model_im.CHAT_TYPE_FRIEND if contact.get('verify_flag') == 0 else model_im.CHAT_TYPE_SUBSCRIBE
             self.db_insert_table_message(message)
             row = cursor.fetchone()
         self.db_commit()
