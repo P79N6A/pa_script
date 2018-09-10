@@ -233,8 +233,8 @@ class Column(object):
         self.repeated = 0
 
     def __setattr__(self, name, value):
-            if not IsDBNull(value):
-                self.__dict__[name] = value
+        if not IsDBNull(value):
+            self.__dict__[name] = value
 
     def get_values(self):
         return (self.source, self.deleted, self.repeated)
@@ -412,9 +412,9 @@ class Generate(object):
             email = Generic.Email()
             if row[16] is not None:
                 email.Folder.Value = row[16]
-                if row[16] == '�ѷ���':
+                if row[16] == '已发送':
                     email.Status.Value = MessageStatus.Sent
-                elif row[16] == '�ݸ���':
+                elif row[16] == '收件箱':
                     email.Status.Value = MessageStatus.Unsent
                 else:
                     if row[11] is not None:
@@ -495,6 +495,7 @@ class Generate(object):
                 user.Email.Value = row[14]
             if row[25] is not None:
                 user.ID.Value = str(row[25])
+                email.OwnerUserID.Value = str(row[25])
             email.OwnerUser.Value = user
             if row[25] is not None:
                 email.Account.Value = str(row[26])
@@ -518,9 +519,9 @@ class Generate(object):
         while row is not None:
             friend = Common.Friend()
             if row[12] not in [None, '']:
-                        friend.SourceFile.Value = self._get_source_file(row[12])
+                friend.SourceFile.Value = self._get_source_file(row[12])
             if row[13] is not None:
-                        friend.Deleted = self._convert_deleted_status(row[13])
+                friend.Deleted = self._convert_deleted_status(row[13])
             if row[11] is not None:
                 friend.OwnerUserID.Value = row[12]
             if row[0] is not None:
