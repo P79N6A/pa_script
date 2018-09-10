@@ -412,9 +412,9 @@ class Generate(object):
             email = Generic.Email()
             if row[16] is not None:
                 email.Folder.Value = row[16]
-                if row[16] == 'ÒÑ·¢ËÍ':
+                if row[16] == 'ï¿½Ñ·ï¿½ï¿½ï¿½':
                     email.Status.Value = MessageStatus.Sent
-                elif row[16] == '²Ý¸åÏä':
+                elif row[16] == 'ï¿½Ý¸ï¿½ï¿½ï¿½':
                     email.Status.Value = MessageStatus.Unsent
                 else:
                     if row[11] is not None:
@@ -522,7 +522,7 @@ class Generate(object):
             if row[13] is not None:
                         friend.Deleted = self._convert_deleted_status(row[13])
             if row[11] is not None:
-                friend.OwnerUserID.Value = row[11]
+                friend.OwnerUserID.Value = row[12]
             if row[0] is not None:
                 friend.FullName.Value = row[0]
             if row[2] is not None:
@@ -539,6 +539,7 @@ class Generate(object):
                 friend.Email.Value = row[7]
             if row[8] is not None:
                 friend.Name.Value = row[8]
+            models.append(friend)
             row = self.cursor.fetchone()
         models.append(friend)
         return models
