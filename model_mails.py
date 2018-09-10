@@ -412,9 +412,9 @@ class Generate(object):
             email = Generic.Email()
             if row[16] is not None:
                 email.Folder.Value = row[16]
-                if row[16] == '�ѷ���':
+                if row[16] == '已发送':
                     email.Status.Value = MessageStatus.Sent
-                elif row[16] == '�ݸ���':
+                elif row[16] == '收件箱':
                     email.Status.Value = MessageStatus.Unsent
                 else:
                     if row[11] is not None:
@@ -495,6 +495,7 @@ class Generate(object):
                 user.Email.Value = row[14]
             if row[25] is not None:
                 user.ID.Value = str(row[25])
+                email.OwnerUserID = str(row[25])
             email.OwnerUser.Value = user
             if row[25] is not None:
                 email.Account.Value = str(row[26])
