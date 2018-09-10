@@ -26,6 +26,7 @@ import datetime
 
 # EnterPoint: analyze_wechat(root, extract_deleted, extract_source):
 # Patterns: '/DB/MM\.sqlite$'
+# Models: Common.User, Common.Friend, Common.Group, Generic.Chat, Common.MomentContent
 
 # app数据库版本
 VERSION_APP_VALUE = 1

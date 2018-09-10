@@ -25,6 +25,7 @@ import model_im
 
 # EnterPoint: analyze_wechat(root, extract_deleted, extract_source):
 # Patterns: '/MicroMsg/.+/EnMicroMsg.db$'
+# Models: Common.User, Common.Friend, Common.Group, Generic.Chat, Common.MomentContent
 
 # app数据库版本
 VERSION_APP_VALUE = 1
@@ -69,7 +70,7 @@ class WeChatParser(model_im.IM):
         super(WeChatParser, self).__init__()
         self.root = node.Parent.Parent.Parent
         self.user_node = node.Parent
-        self.extract_deleted = False  # extract_deleted
+        self.extract_deleted = extract_deleted
         self.extract_source = extract_source
         self.is_valid_user_dir = self._is_valid_user_dir()
         self.uin = self._get_uin()
@@ -260,42 +261,50 @@ class WeChatParser(model_im.IM):
             portrait_hd = self._db_column_get_string_value(row[6])
             portrait = self._db_column_get_string_value(row[7])
 
-            if username not in [None, '']:
-                head = portrait
-                if portrait_hd and len(portrait_hd) > 0:
-                    head = portrait_hd
-
-                contact = {}
-                if nickname:
-                    contact['nickname'] = nickname
-                if remark:
-                    contact['remark'] = remark
-                contact['verify_flag'] = verify_flag
-                if head:
-                    contact['photo'] = head
-                self.contacts[username] = contact
-
-                if username.endswith('@chatroom'):
-                    chatroom = model_im.Chatroom()
-                    chatroom.source = source
-                    chatroom.account_id = self.user_account.account_id
-                    chatroom.chatroom_id = username
-                    chatroom.name = nickname
-                    chatroom.photo = head
-                    self.db_insert_table_chatroom(chatroom)
-                else:
-                    friend = model_im.Friend()
-                    friend.source = source
-                    friend.account_id = self.user_account.account_id
-                    friend.friend_id = username
-                    friend.type = model_im.FRIEND_TYPE_FRIEND if verify_flag == 0 else model_im.FRIEND_TYPE_SUBSCRIBE
-                    friend.nickname = nickname
-                    friend.remark = remark
-                    friend.photo = head
-                    self.db_insert_table_friend(friend)
+            self._parse_mm_db_contact_with_value(0, source, username, alias, nickname, remark, contact_type, verify_flag, portrait_hd, portrait)
             row = cursor.fetchone()
         self.db_commit()
         cursor.close()
+
+        if self.extract_deleted:
+            pass
+
+    def _parse_mm_db_contact_with_value(self, deleted, source, username, alias, nickname, remark, contact_type, verify_flag, portrait_hd, portrait):
+        if username not in [None, '']:
+            head = portrait
+            if portrait_hd and len(portrait_hd) > 0:
+                head = portrait_hd
+
+            contact = {}
+            if nickname:
+                contact['nickname'] = nickname
+            if remark:
+                contact['remark'] = remark
+            contact['verify_flag'] = verify_flag
+            if head:
+                contact['photo'] = head
+            self.contacts[username] = contact
+
+            if username.endswith('@chatroom'):
+                chatroom = model_im.Chatroom()
+                chatroom.deleted = deleted
+                chatroom.source = source
+                chatroom.account_id = self.user_account.account_id
+                chatroom.chatroom_id = username
+                chatroom.name = nickname
+                chatroom.photo = head
+                self.db_insert_table_chatroom(chatroom)
+            else:
+                friend = model_im.Friend()
+                friend.deleted = deleted
+                friend.source = source
+                friend.account_id = self.user_account.account_id
+                friend.friend_id = username
+                friend.type = model_im.FRIEND_TYPE_FRIEND if verify_flag == 0 else model_im.FRIEND_TYPE_SUBSCRIBE
+                friend.nickname = nickname
+                friend.remark = remark
+                friend.photo = head
+                self.db_insert_table_friend(friend)
 
     def _parse_mm_db_chatroom_member(self, db, source):
         sql = '''select chatroomname,memberlist,displayname,selfDisplayName,roomowner
@@ -314,21 +323,28 @@ class WeChatParser(model_im.IM):
             display_name_list = self._db_column_get_string_value(row[2])
             room_owner = self._db_column_get_string_value(row[4])
 
-            room_members = member_list.split(';')
-            display_names = display_name_list.split('、')
-            
-            cm = model_im.ChatroomMember()
-            cm.source = source
-            cm.account_id = self.user_account.account_id
-            cm.chatroom_id = chatroom_id
-            for i, room_member in enumerate(room_members):
-                cm.member_id = room_member
-                if i < len(display_names) and display_names[i] != room_member:
-                    cm.display_name = display_names[i]
-                self.db_insert_table_chatroom_member(cm)
+            self._parse_mm_db_chatroom_member_with_value(0, source, chatroom_id, member_list, display_name_list, room_owner)
             row = cursor.fetchone()
         self.db_commit()
         cursor.close()
+
+        if self.extract_deleted:
+            pass
+
+    def _parse_mm_db_chatroom_member_with_value(self, deleted, source, chatroom_id, member_list, display_name_list, room_owner):
+        room_members = member_list.split(';')
+        display_names = display_name_list.split('、')
+            
+        cm = model_im.ChatroomMember()
+        cm.deleted = deleted
+        cm.source = source
+        cm.account_id = self.user_account.account_id
+        cm.chatroom_id = chatroom_id
+        for i, room_member in enumerate(room_members):
+            cm.member_id = room_member
+            if i < len(display_names) and display_names[i] != room_member:
+                cm.display_name = display_names[i]
+            self.db_insert_table_chatroom_member(cm)
 
     def _parse_mm_db_message(self, db, source):
         sql = 'select talker,content,imgPath,isSend,status,type,createTime,msgId,lvbuffer,msgSvrId from message'
@@ -351,31 +367,36 @@ class WeChatParser(model_im.IM):
             msg_id = self._db_column_get_string_value(row[7])
             lv_buffer = self._db_column_get_blob_value(row[8])
             msg_svr_id = self._db_column_get_string_value(row[9])
-            contact = self.contacts.get(talker, {})
-
-            message = model_im.Message()
-            message.source = source
-            message.account_id = self.user_account.account_id
-            message.talker_id = talker
-            message.talker_name = contact.get('nickname')
-            message.is_sender = is_send
-            message.msg_id = msg_svr_id
-            message.type = self._convert_msg_type(msg_type)
-            message.send_time = create_time
-            message.media_path = self._process_parse_message_img_path(msg_type, img_path)
-            if talker.endswith("@chatroom"):
-                self._process_parse_group_message(msg, msg_type, is_send, 'hash', message)
-                message.sender_name = self.contacts.get(message.sender_id, {}).get('nickname')
-                message.talker_type = model_im.CHAT_TYPE_GROUP
-            else:
-                message.sender_id = self.user_account.account_id if is_send != 0 else talker
-                self._process_parse_friend_message(msg, msg_type, 'hash', message)
-                message.sender_name = self.contacts.get(message.sender_id, {}).get('nickname')
-                message.talker_type = model_im.CHAT_TYPE_FRIEND if contact.get('verify_flag') == 0 else model_im.CHAT_TYPE_SUBSCRIBE
-            self.db_insert_table_message(message)
+            
+            self._parse_mm_db_chatroom_member_with_value(0, source, talker, msg, img_path, is_send, status, msg_type, create_time, msg_id, lv_buffer, msg_svr_id)
             row = cursor.fetchone()
         self.db_commit()
         cursor.close()
+
+    def _parse_mm_db_chatroom_member_with_value(self, deleted, source, talker, msg, img_path, is_send, status, msg_type, create_time, msg_id, lv_buffer, msg_svr_id):
+        contact = self.contacts.get(talker, {})
+
+        message = model_im.Message()
+        message.deleted = deleted
+        message.source = source
+        message.account_id = self.user_account.account_id
+        message.talker_id = talker
+        message.talker_name = contact.get('nickname')
+        message.is_sender = is_send
+        message.msg_id = msg_svr_id
+        message.type = self._convert_msg_type(msg_type)
+        message.send_time = create_time
+        message.media_path = self._process_parse_message_img_path(msg_type, img_path)
+        if talker.endswith("@chatroom"):
+            self._process_parse_group_message(msg, msg_type, is_send != 0, 'hash', message)
+            message.sender_name = self.contacts.get(message.sender_id, {}).get('nickname')
+            message.talker_type = model_im.CHAT_TYPE_GROUP
+        else:
+            message.sender_id = self.user_account.account_id if is_send != 0 else talker
+            self._process_parse_friend_message(msg, msg_type, 'hash', message)
+            message.sender_name = self.contacts.get(message.sender_id, {}).get('nickname')
+            message.talker_type = model_im.CHAT_TYPE_FRIEND if contact.get('verify_flag') == 0 else model_im.CHAT_TYPE_SUBSCRIBE
+        self.db_insert_table_message(message)
 
     def _process_parse_friend_message(self, msg, msg_type, friend_hash, model):
         content = msg
