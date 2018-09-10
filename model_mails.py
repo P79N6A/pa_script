@@ -148,6 +148,7 @@ SQL_CREATE_TABLE_TODO = '''
         createdTime INTEGER,
         reminderTime INTEGER,
         isdone INTEGER,
+        isdeleted INTEGER,
         source TEXT,
         deleted INT, 
         repeated INT
@@ -350,7 +351,6 @@ class Attach(Column):
         self.emailFolder = None
         self.mailId = None
 
-
     def get_values(self):
         return (self.accountNick, self.acocuntEmail, self.subject, self.downloadUtc,
         self.downloadSize, self.fromEmail, self.fromNick, self.mailUtc,
@@ -412,9 +412,9 @@ class Generate(object):
             email = Generic.Email()
             if row[16] is not None:
                 email.Folder.Value = row[16]
-                if row[16] == 'å·²å‘é€':
+                if row[16] == 'ÒÑ·¢ËÍ':
                     email.Status.Value = MessageStatus.Sent
-                elif row[16] == 'è‰ç¨¿ç®±':
+                elif row[16] == '²Ý¸åÏä':
                     email.Status.Value = MessageStatus.Unsent
                 else:
                     if row[11] is not None:
@@ -424,14 +424,14 @@ class Generate(object):
             if row[17] is not None:
                 email.Body.Value = row[17]
             if row[4] is not None:
-                email.TimeStamp.Value = self._get_timestamp(row[4])
+                email.TimeStamp.Value = TimeStamp.FromUnixTime(row[4], False) if len(str(row[4])) == 10 else TimeStamp.FromUnixTime(int(str(row[4])[0:10:1]), False) if len(str(row[4]))>10 else TimeStamp.FromUnixTime(0, False)
             if row[3] is not None:
                 party = Generic.Party()
                 party.Identifier.Value = row[3]
             if row[9] is not None:
                 party.IPAddresses.Add(str(row[9]))
                 if row[4] is not None:                
-                    party.DatePlayed.Value = self._get_timestamp(row[4])
+                    party.DatePlayed.Value = TimeStamp.FromUnixTime(row[4], False) if len(str(row[4])) == 10 else TimeStamp.FromUnixTime(int(str(row[4])[0:10:1]), False) if len(str(row[4]))>10 else TimeStamp.FromUnixTime(0, False)
                 email.From.Value = party
             if row[6] is not None:
                 tos = row[6].split(' ')
@@ -441,7 +441,7 @@ class Generate(object):
                         party.Identifier.Value = tos[t]
                         party.Name.Value = tos[t+1]
                         if row[4] is not None:
-                            party.DatePlayed.Value = self._get_timestamp(row[4])
+                            party.DatePlayed.Value = TimeStamp.FromUnixTime(row[4], False) if len(str(row[4])) == 10 else TimeStamp.FromUnixTime(int(str(row[4])[0:10:1]), False) if len(str(row[4]))>10 else TimeStamp.FromUnixTime(0, False)
                         email.To.Add(party)
             if row[7] is not None:
                 cc = row[7].split(' ')
@@ -451,7 +451,7 @@ class Generate(object):
                         party.Identifier.Value = cc[c]
                         party.Name.Value = cc[c+1]
                         if row[4] is not None:
-                            party.DatePlayed.Value = self._get_timestamp(row[4])
+                            party.DatePlayed.Value = TimeStamp.FromUnixTime(row[4], False) if len(str(row[4])) == 10 else TimeStamp.FromUnixTime(int(str(row[4])[0:10:1]), False) if len(str(row[4]))>10 else TimeStamp.FromUnixTime(0, False)
                         email.Cc.Add(party)
             if row[8] is not None:
                 bcc = row[8].split(' ')
@@ -461,7 +461,7 @@ class Generate(object):
                         party.Identifier.Value = bcc[b]
                         party.Name.Value = tos[t+1]
                         if row[4] is not None:
-                            party.DatePlayed.Value = self._get_timestamp(row[4])
+                            party.DatePlayed.Value = TimeStamp.FromUnixTime(row[4], False) if len(str(row[4])) == 10 else TimeStamp.FromUnixTime(int(str(row[4])[0:10:1]), False) if len(str(row[4]))>10 else TimeStamp.FromUnixTime(0, False)
                         email.Bcc.Add(party)
             if row[18] is not None:
                 try:
@@ -472,7 +472,7 @@ class Generate(object):
                         if row[21] is not None:
                             attachment.URL.Value = row[21].split(',')[a]
                         if row[18] is not None:
-                            attachment.DownloadTime.Value = self._get_timestamp(row[18].split(',')[a])
+                            attachment.DownloadTime.Value = TimeStamp.FromUnixTime(int(float(row[18].split(',')[a])),False)
                         if row[19] is not None:
                             attachment.Size.Value = int(row[19].split(',')[a])
                         email.Attachments.Add(attachment)
@@ -490,14 +490,14 @@ class Generate(object):
             if row[26] is not None:
                 user.Username.Value = row[26]
             if row[27] is not None:
-                user.LastLoginTime.Value = self._get_timestamp(row[27])
+                user.LastLoginTime.Value = TimeStamp.FromUnixTime(row[27], False) if len(str(row[27])) == 10 else TimeStamp.FromUnixTime(int(str(row[27])[0:10:1]), False) if len(str(row[27]))>10 else TimeStamp.FromUnixTime(0, False)
             if row[14] is not None:
                 user.Email.Value = row[14]
             if row[25] is not None:
                 user.ID.Value = str(row[25])
             email.OwnerUser.Value = user
             if row[25] is not None:
-                email.Account.Value = str(row[25])
+                email.Account.Value = str(row[26])
             models.append(email)
             row = self.cursor.fetchone()
         return models
