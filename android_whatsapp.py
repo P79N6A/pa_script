@@ -15,6 +15,7 @@ from System.Xml.XPath import Extensions as XPathExtensions
 from collections import defaultdict
 from System.Data.SQLite import *
 import shutil
+import json
 
 
 def GetString(reader, idx):
@@ -32,15 +33,6 @@ def GetFloat(reader, idx):
 def moveFileto(sourceDir,  targetDir): 
     shutil.copy(sourceDir,  targetDir)
 
-def get_all_files(path, dicts):
-    if os.path.isdir(path):
-        results = os.listdir(path)
-        for i in results:
-            path_extend = path + '/' + i
-            if os.path.isdir(path_extend):
-                get_all_files(path_extend, dicts)
-            else:
-                dicts[i] = path+'/'+i
 
 class WhatsApp(object):
     def __init__(self, node, extractDeleted, extractSource):
@@ -53,10 +45,12 @@ class WhatsApp(object):
         self.cache = ds.OpenCachePath("whatsapp")
         self.contacts_dicts = {}
         self.groups_dicts = {}
-        
+        self.source_path = self.root.GetByPath("/databases/msgstore.db")
+        self.dest_path = self.cache + "/msgstore.db"
 
     def get_account(self):
         account = model_im.Account()
+        account.source = "WhatsApp"
         account_node =  self.root.GetByPath("/shared_prefs/com.whatsapp_preferences.xml")
         if account_node is None:
             return
@@ -88,23 +82,33 @@ class WhatsApp(object):
             self.whatsapp.db_insert_table_account(account)
         except Exception as e:
             pass
-        self.whatsapp.db_commit()
+        try:
+            self.whatsapp.db_commit()
+        except:
+            pass
+
+
+    def read_file_path(self):
+        node = self.root.GetByPath("/databases/msgstore.db")
+        wal_node = self.root.GetByPath("/databases/msgstore.db-wal")
+        if node is None:
+            return
+        if wal_node is None:
+            return True
+        else:
+            moveFileto(node.PathWithMountPoint, self.cache)
+            moveFileto(wal_node.PathWithMountPoint, self.cache)
+            return False
 
 
     def _get_friends_groups_id(self):
-        friends_path = self.root.GetByPath("/databases/msgstore.db")
-        wal_path = self.root.GetByPath("/databases/msgstore.db-wal")
+        if self.read_file_path():
+            connection = System.Data.SQLite.SQLiteConnection('Data Source = {0}; ReadOnly = True'.format(self.source_path.PathWithMountPoint))
+        else:
+            connection = System.Data.SQLite.SQLiteConnection('Data Source = {0}'.format(self.dest_path))
+
         friends = [] 
         groups = []
-        if friends_path is None:
-            return
-        if wal_path is None:
-            connection = System.Data.SQLite.SQLiteConnection('Data Source = {0}; ReadOnly = True'.format(friends_path))
-        if wal_path is not None:
-            moveFileto(friends_path.PathWithMountPoint, self.cache)
-            moveFileto(wal_path.PathWithMountPoint, self.cache)
-            tmp_path = self.cache+"/msgstore.db"
-            connection = System.Data.SQLite.SQLiteConnection('Data Source = {0}'.format(tmp_path))
         try:
             connection.Open()
             cmd = System.Data.SQLite.SQLiteCommand(connection)
@@ -185,17 +189,10 @@ class WhatsApp(object):
         self.whatsapp.db_commit()
 
     def get_groups(self):
-        chatroom_path = self.root.GetByPath("/databases/msgstore.db")
-        wal_path = self.root.GetByPath("/databases/msgstore.db-wal")
-        if chatroom_path is None:
-            return
-        if wal_path is None:
-            path_msg = self.root.GetByPath("/databases/msgstore.db").PathWithMountPoint
+        if self.read_file_path():
+            conn = System.Data.SQLite.SQLiteConnection("Data Source = {0}; ReadOnly = True".format(self.source_path.PathWithMountPoint))
         else:
-            path_msg = self.cache + "/msgstore.db"
-
-        friends, groups = self._get_friends_groups_id()
-        conn = System.Data.SQLite.SQLiteConnection("Data Source = {0}".format(path_msg))
+            conn = System.Data.SQLite.SQLiteConnection("Data Source = {0}".format(self.dest_path))
         try:
             conn.Open()
             cmd = System.Data.SQLite.SQLiteCommand(conn)
@@ -218,6 +215,7 @@ class WhatsApp(object):
             reader = cmd.ExecuteReader()
             while reader.Read():
                 chatroom = model_im.Chatroom()
+                chatroom.source = "WhatsApp"
                 chatroom.account_id = self.account_id
                 chatroom.chatroom_id = GetString(reader, 0)
                 chatroom.name = GetString(reader, 1)
@@ -244,6 +242,7 @@ class WhatsApp(object):
             reader_fail = cmd.ExecuteReader()
             while reader_fail.Read():
                 chatroom_fail = model_im.Chatroom()
+                chatroom_fail.source = "WhatsApp"
                 chatroom_fail.chatroom_id = GetString(reader_fail, 0)
                 chatroom_fail.account_id = self.account_id
                 chatroom_fail.create_time = int(str(GetInt64(reader_fail, 1))[:-3])
@@ -269,18 +268,12 @@ class WhatsApp(object):
         self.whatsapp.db_commit()
 
     def get_group_member(self):
-        # member = model_im.ChatroomMember()
-        gmember_path = self.root.GetByPath("/databases/msgstore.db")
-        #chatroom_path = self.cache + "/msgstore.db"
-        wal_path = self.root.GetByPath("/databases/msgstore.db-wal")
-        if gmember_path is None:
-            return
-        if wal_path is None:
-            path_msg = self.root.GetByPath("/databases/msgstore.db").PathWithMountPoint
+        if self.read_file_path():
+            conn = System.Data.SQLite.SQLiteConnection("Data Source = {0}; ReadOnly = True".format(self.source_path.PathWithMountPoint))
         else:
-            path_msg = self.cache + "/msgstore.db"
+            conn = System.Data.SQLite.SQLiteConnection("Data Source = {0}".format(self.dest_path))
+
         try:
-            conn = System.Data.SQLite.SQLiteConnection('Data Source = {0}'.format(path_msg))
             conn.Open()
             cmd = System.Data.SQLite.SQLiteCommand(conn)
             cmd.CommandText = '''
@@ -288,7 +281,10 @@ class WhatsApp(object):
             '''
             reader = cmd.ExecuteReader()
             while reader.Read():
+                if GetString(reader, 0).find("broadcast") != -1:
+                    continue
                 member = model_im.ChatroomMember()
+                member.source = "WhatsApp"
                 groups = GetString(reader, 0)
                 member_id = GetString(reader, 1)
                 if member_id == "":
@@ -312,18 +308,11 @@ class WhatsApp(object):
         self.whatsapp.db_commit()
 
     def get_friend_messages(self):
-        # message = model_im.Message()
-        message_path = self.cache + "/msgstore.db"
-        if message_path is None:
-            return
-        wal_path = self.root.GetByPath("/databases/msgstore.db-wal")
-        if wal_path is None:
-            path_msg = self.root.GetByPath("/databases/msgstore.db").PathWithMountPoint
+        if self.read_file_path():
+            conn = System.Data.SQLite.SQLiteConnection("Data Source = {0}; ReadOnly = True".format(self.source_path.PathWithMountPoint))
         else:
-            path_msg = self.cache + "/msgstore.db"
-
+            conn = System.Data.SQLite.SQLiteConnection("Data Source = {0}".format(self.dest_path))
         try:
-            conn = System.Data.SQLite.SQLiteConnection('Data Source = {0}'.format(path_msg))
             conn.Open()
             cmd = System.Data.SQLite.SQLiteCommand(conn)
             cmd.CommandText = """
@@ -331,8 +320,10 @@ class WhatsApp(object):
                  where key_remote_jid in (select key_remote_jid from chat_list where subject is null and last_read_message_table_id is not null)
             """
             reader= cmd.ExecuteReader()
+            fs = self.root.FileSystem
             while reader.Read():
                 message = model_im.Message()
+                message.source = "WhatsApp"
                 message.talker_type = 1 # 好友聊天
                 message.account_id = self.account_id
                 message.is_sender = GetInt64(reader, 2)
@@ -365,20 +356,29 @@ class WhatsApp(object):
                 elif media_type == '1':
                     message.type = 2
                     if GetString(reader, 9):
-                        message.media_path = "Root/storage/sdcard0/whatsapp/Media/WhatsApp Images/Sent/" + GetString(reader, 9)
+                        img_name = GetString(reader, 9)
+                        img_node = fs.Search(img_name) 
+                        for i in img_node:
+                            img_path = i.AbsolutePath
+                            message.media_path = img_path
 
                 elif media_type == '2':
                     message.type = 3
-                    audio_path = "Root/storage/sdcard0/whatsapp/Media/WhatsApp Voice Notes/Sent"
-                    dicts = {}
-                    get_all_files(audio_path, dicts)
-                    if GetString(reader, 9) in dicts:
-                        message.media_path = dicts.get(GetString(reader, 9))
+                    voice_name = GetString(reader, 9)
+                    if voice_name:
+                        voice_node = fs.Search(voice_name)
+                        for i in voice_node:
+                            voice_path = i.AbsolutePath
+                            message.media_path = voice_path
 
                 elif media_type == '3':
                     message.type = 4
-                    if GetString(reader, 9):
-                        message.media_path = "Root/storage/sdcard0/whatsapp/Media/WhatsApp Video/Sent/" + GetString(reader, 9)
+                    if GetString(reader, 0):
+                        video_name = GetString(reader, 9)
+                        video_node = fs.Search(video_name)
+                        for i in video_node:
+                            video_path = i.AbsolutePath
+                            message.media_path =  video_path
 
                 elif media_type == '5':
                     if GetFloat(reader, 9) > 0 and GetFloat(reader, 10) > 0:
@@ -391,7 +391,6 @@ class WhatsApp(object):
                             self.whatsapp.db_insert_table_location(location)
                         except Exception as e:
                             pass
-
 
                 message.content = content
                 message.send_time = send_time
@@ -406,16 +405,10 @@ class WhatsApp(object):
         self.whatsapp.db_commit()
 
     def get_group_messages(self):
-        message_path = self.cache + "/msgstore.db"
-        if message_path is None:
-            return
-        wal_path = self.root.GetByPath("/databases/msgstore.db-wal")
-        if wal_path is None:
-            path_msg = self.root.GetByPath("/databases/msgstore.db").PathWithMountPoint
+        if self.read_file_path():
+            conn = System.Data.SQLite.SQLiteConnection("Data Source = {0}; ReadOnly = True".format(self.source_path.PathWithMountPoint))
         else:
-            path_msg = self.cache + "/msgstore.db"
-        
-        conn = System.Data.SQLite.SQLiteConnection('Data Source = {0}'.format(path_msg))
+            conn = System.Data.SQLite.SQLiteConnection("Data Source = {0}".format(self.dest_path))
         try:
             conn.Open()
             cmd = System.Data.SQLite.SQLiteCommand(conn)
@@ -424,8 +417,12 @@ class WhatsApp(object):
                 key_remote_jid in (select distinct(gjid)  from group_participants a where  jid is not null)
             """
             reader= cmd.ExecuteReader()
+            fs = self.root.FileSystem
             while reader.Read():
+                if GetString(reader, 0).find("broadcast") != -1:
+                    continue
                 message = model_im.Message()
+                message.source = "WhatsApp"
                 message.talker_type = 2 # 群聊天
                 message.account_id = self.account_id
                 groups_id = GetString(reader, 0)
@@ -470,20 +467,29 @@ class WhatsApp(object):
                 elif media_type == '1':
                     message.type = 2
                     if GetString(reader, 8):
-                        message.media_path = "Root/storage/sdcard0/whatsapp/Media/WhatsApp Images/Sent/" + GetString(reader, 8)
+                        img_name = GetString(reader, 8)
+                        img_node = fs.Search(img_name) 
+                        for i in img_node:
+                            img_path = i.AbsolutePath
+                            message.media_path = img_path
 
                 elif media_type == '2':
                     message.type = 3
-                    audio_path = r"Root/storage/sdcard0/whatsapp/Media/WhatsApp Voice Notes/Sent"
-                    dicts = {}
-                    get_all_files(audio_path, dicts)
-                    if GetString(reader, 8) in dicts:
-                        message.media_path = dicts.get(GetString(reader, 8))
+                    if GetString(reader, 8):
+                        voice_name = GetString(reader, 8)
+                        voice_node = fs.Search(voice_name)
+                        for i in voice_node:
+                            voice_path = i.AbsolutePath
+                            message.media_path = voice_path
 
                 elif media_type == '3':
                     message.type = 4
                     if GetString(reader, 8):
-                        message.media_path = "Root/storage/sdcard0/whatsapp/Media/WhatsApp Video/Sent/" + GetString(reader, 8)
+                        video_name = GetString(reader, 8)
+                        video_node = fs.Search(video_name)
+                        for i in video_node:
+                            video_path = i.AbsolutePath
+                            message.media_path = video_path
                 
                 elif media_type == '5':
                     if GetFloat(reader, 9) > 0 and GetFloat(reader, 10) > 0:
@@ -497,7 +503,6 @@ class WhatsApp(object):
                         except Exception as e:
                             pass
                 
-
                 message.content = content
                 message.send_time = send_time
                 try:
@@ -508,6 +513,83 @@ class WhatsApp(object):
             print(e)
         if conn != None:
             conn.Close()
+        self.whatsapp.db_commit()
+
+
+    def get_feeds(self):
+        if self.read_file_path():
+            conn = System.Data.SQLite.SQLiteConnection("Data Source = {0}; ReadOnly = True".format(self.source_path.PathWithMountPoint))
+        else:
+            conn = System.Data.SQLite.SQLiteConnection("Data Source = {0}".format(self.dest_path))
+        try:
+            conn.Open()
+            cmd = System.Data.SQLite.SQLiteCommand(conn)
+            cmd.CommandText = """
+                select key_remote_jid as group_id, key_from_me, data, remote_resource, timestamp, media_url, media_caption, media_mime_type, media_wa_type, media_name  ,latitude ,longitude, status from messages 
+            """
+            reader= cmd.ExecuteReader()
+            fs = self.root.FileSystem
+            while reader.Read():
+                try:
+                    media_type = GetString(reader, 8)
+                    feed_id = GetString(reader, 0)
+                    # 好友状态
+                    if feed_id.find("broadcast") == -1:
+                        continue
+                    feed = model_im.Feed()
+                    feed.source = "WhatsApp"
+                    feed.account_id = self.account_id
+                    if GetInt64(reader, 1) == 1:
+                        feed.sender_id = self.account_id
+                    else:
+                        feed.sender_id = GetString(reader, 3)
+                    if GetString(reader, 2):
+                        feed.content = GetString(reader, 2)
+                    if GetString(reader, 5):
+                        feed.urls = json.dumps(GetString(reader, 5))
+                    if GetString(reader, 6):
+                        feed.content = GetString(reader, 6)
+                    
+                    if media_type == '0':
+                        feed.type = 1
+
+                    elif media_type == '1':
+                        feed.type = 2
+                        if GetString(reader, 9):
+                            img_name = GetString(reader, 9)
+                            img_node = fs.Search(img_name) 
+                            for i in img_node:
+                                img_path = i.AbsolutePath
+                                feed.media_path = img_path
+
+                    elif media_type == '2':
+                        feed.type = 3
+                        if GetString(reader, 9):
+                            voice_name = GetString(reader, 9)
+                            voice_node = fs.Search(voice_name)
+                            for i in voice_node:
+                                voice_path = i.AbsolutePath
+                                feed.media_path = voice_path
+
+                    elif media_type == '3':
+                        feed.type = 4
+                        if GetString(reader, 9):
+                            video_name = GetString(reader, 9)
+                            video_node = fs.Search(video_name)
+                            for i in video_node:
+                                video_path = i.AbsolutePath
+                                feed.media_path = video_path
+
+                    feed.send_time = int(str(GetInt64(reader, 4))[:-3])
+
+                except Exception as e:
+                    print(e)
+                try:
+                    self.whatsapp.db_insert_table_feed(feed)
+                except Exception as e:
+                    pass
+        except Exception as e:
+            peint(e)
         self.whatsapp.db_commit()
 
 
@@ -596,7 +678,8 @@ class WhatsApp(object):
             pass
 
     def parse(self):
-
+        if not os.path.exists(self.root.PathWithMountPoint + "/databases/msgstore.db"):
+            return
         db_path = self.cache + "/whatsapp_1.0.db"
         self.whatsapp.db_create(db_path)
         self.get_account()
@@ -604,21 +687,21 @@ class WhatsApp(object):
         self.get_groups()
         self.get_group_member()
         self.get_friend_messages()
-        self.get_group_messages()       
+        self.get_group_messages()
+        self.get_feeds()       
         self.whatsapp.db_close()
-        mount_dir = self.root.FileSystem.MountPoint
-        generate = model_im.GenerateModel(db_path, mount_dir)
+        generate = model_im.GenerateModel(db_path)
         results = generate.get_models()
 
         return results
 
 def analyze_whatsapp(node, extractDeleted, extractSource):
     
-    # nfs = FileSystem.FromLocalDir(r'E:\HUAWEI NXT-AL10_7.0_861918038118833_logic(1)\Apps\com.whatsapp')
     pr = ParserResults()
+    pr.Categories = DescripCategories.WhatsApp
     results = WhatsApp(node, extractDeleted, extractSource).parse()
     if results:
         pr.Models.AddRange(results)
-        pr.Build("WhatsApp")
+        pr.Build("WhatsApp")               
     return pr
 
