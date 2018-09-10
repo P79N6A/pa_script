@@ -95,7 +95,7 @@ class WeChatParser(model_im.IM):
 
             node = self.user_node.GetByPath('/EnMicroMsg.db')
             mm_db_path = os.path.join(self.cache_path, self.user_hash + '_mm.db')
-            if True: # Decryptor.decrypt(node, self._get_db_key(self.imei, self.uin), mm_db_path):
+            if Decryptor.decrypt(node, self._get_db_key(self.imei, self.uin), mm_db_path):
                 self._parse_mm_db(mm_db_path, node.AbsolutePath)
 
             # 数据库填充完毕，请将中间数据库版本和app数据库版本插入数据库，用来检测app是否需要重新解析
@@ -172,9 +172,9 @@ class WeChatParser(model_im.IM):
     def _get_imei(node):
         imei = None
         if node is not None:
-            node.Data.seek(0)
-            content = node.read()
             try:
+                node.Data.seek(0)
+                content = node.read()
                 pos = content.find(b'\x01\x02\x74\x00')
                 if pos != -1:
                     size = ord(content[pos+4:pos+5])
@@ -185,6 +185,9 @@ class WeChatParser(model_im.IM):
 
     @staticmethod
     def _get_db_key(imei, uin):
+        if imei is None or uin is None:
+            return None
+
         m = hashlib.md5()
         m.update((imei + uin).encode('utf8'))
         return m.hexdigest()[:7]

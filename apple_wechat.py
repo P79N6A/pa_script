@@ -694,7 +694,7 @@ class WeChatParser(model_im.IM):
         try:
             index = 0
             while index + 2 < len(blob):
-                flag = blob[index]
+                flag = ord(blob[index])
                 size = ord(blob[index + 1])
                 if index + 2 + size > len(blob):
                     break
