@@ -898,5 +898,25 @@
       </array>
     </dict>
     
+	<dict>
+      <key>Module</key>
+      <string>andriod_qq</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_andriod_qq</string>
+          <key>RunnerType</key>
+          <integer>2</integer>
+          <key>Patterns</key>
+          <array>
+            <string>com.tencent.mobileqq</string>
+          </array>
+          <key>Category</key>
+          <string>QQ</string>
+        </dict>
+      </array>
+    </dict>
+	
   </array>
 </plist>
