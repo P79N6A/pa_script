@@ -217,7 +217,7 @@ class WeChatParser(model_im.IM):
             return False
 
         cursor = db.cursor()
-        sql = 'select userName,content from SnsInfo'
+        sql = 'select userName,content,attrBuf from SnsInfo'
         row = None
         try:
             cursor.execute(sql)
@@ -228,7 +228,8 @@ class WeChatParser(model_im.IM):
         while row is not None:
             username = self._db_column_get_string_value(row[0])
             content = self._db_column_get_blob_value(row[1])
-            self._parse_wc_db_with_value(0, node.AbsolutePath, username, content)
+            attr = self._db_column_get_blob_value(row[2])
+            self._parse_wc_db_with_value(0, node.AbsolutePath, username, content, attr)
             row = cursor.fetchone()
         self.db_commit()
         cursor.close()
@@ -238,11 +239,12 @@ class WeChatParser(model_im.IM):
         if self.extract_deleted:
             pass
 
-    def _parse_wc_db_with_value(self, deleted, source, username, content_blob):
-        result = tencent_struct.tencent_struct().getSnsContent(content_blob)
-        if result is None:
+    def _parse_wc_db_with_value(self, deleted, source, username, content_blob, attr_blob):
+        content = tencent_struct.tencent_struct().getSnsContent(content_blob)
+        attr = tencent_struct.tencent_struct().getSnsAttrBuf(attr_blob)
+        if content is None:
             return
-        sns = SnsParser(result)
+        sns = SnsParser(content, attr)
         if username != sns.get_username():
             return
 
@@ -262,6 +264,24 @@ class WeChatParser(model_im.IM):
         photos = sns.get_content_photos()
         if photos is not None and len(photos) > 0:
             feed.urls = json.dumps(photos)
+        likes = sns.get_likes()
+        if likes is not None and len(likes) > 0:
+            ids = []
+            for like in likes:
+                ids.append(like.like_id)
+                like.deleted = feed.deleted
+                like.source = feed.source
+                self.db_insert_table_feed_like(like)
+            feed.likes = ','.join(str(item) for item in ids)
+        comments = sns.get_comments()
+        if comments is not None and len(comments) > 0:
+            ids = []
+            for comment in comments:
+                ids.append(comment.comment_id)
+                comment.deleted = feed.deleted
+                comment.source = feed.source
+                self.db_insert_table_feed_comment(comment)
+            feed.comments = ','.join(str(item) for item in ids)
         self.db_insert_table_feed(feed)
 
     def _parse_mm_db_user_info(self, db, source):
@@ -1023,17 +1043,20 @@ class Decryptor:
 
 
 class SnsParser:
-    def __init__(self, ts):
-        self.ts = ts
+    def __init__(self, content, attr):
+        self.content = content
+        self.attr = attr
+        if self._get_ts_value(self.content, 2) != self._get_ts_value(self.attr, 2):
+            self.attr = None
 
     def get_username(self):
-        return self._get_ts_value(self.ts, 2)
+        return self._get_ts_value(self.content, 2)
 
     def get_content_text(self):
-        return self._get_ts_value(self.ts, 5)
+        return self._get_ts_value(self.content, 5)
 
     def get_content_photos(self):
-        ret = self._get_ts_value(self.ts, 8)
+        ret = self._get_ts_value(self.content, 8)
         if type(ret) == list and len(ret) > 0:
             ret = ret[0]
             if type(ret) == tuple and len(ret) > 1:
@@ -1053,10 +1076,10 @@ class SnsParser:
         return None
 
     def get_timestamp(self):
-        return self._get_ts_value(self.ts, 4)
+        return self._get_ts_value(self.content, 4)
 
     def get_location(self):
-        ret = self._get_ts_value(self.ts, 6)
+        ret = self._get_ts_value(self.content, 6)
         if type(ret) == list and len(ret) > 0:
             ret = ret[0]
             if type(ret) == tuple and len(ret) > 1:
@@ -1066,18 +1089,50 @@ class SnsParser:
                     location.latitude = self._get_ts_value(ret, 2)
                     location.longitude = self._get_ts_value(ret, 1)
                     location.address = self._get_ts_value(ret, 4)
+                    if location.latitude == 0 and location.longitude == 0 and location.address in [None, '']:
+                        return None
                     return location
         return None
 
-    def get_comments(self):
+    def get_likes(self):
+        ret = self._get_ts_value(self.attr, 9)
+        if type(ret) == list and len(ret) > 0:
+            likes = []
+            for like in ret:
+                if type(like) == tuple and len(like) > 1:
+                    like = like[1]
+                    if type(like) == dict:
+                        fl = model_im.FeedLike()
+                        fl.sender_id = self._get_ts_value(like, 1)
+                        fl.sender_name = self._get_ts_value(like, 2)
+                        fl.create_time = self._get_ts_value(like, 6)
+                        likes.append(fl)
+            return likes
         return None
 
-    def get_feeds(self):
+    def get_comments(self):
+        ret = self._get_ts_value(self.attr, 12)
+        if type(ret) == list and len(ret) > 0:
+            comments = []
+            for comment in ret:
+                if type(comment) == tuple and len(comment) > 1:
+                    comment = comment[1]
+                    if type(comment) == dict:
+                        fm = model_im.FeedComment()
+                        fm.sender_id = self._get_ts_value(comment, 1)
+                        fm.sender_name = self._get_ts_value(comment, 2)
+                        fm.ref_user_id = self._get_ts_value(comment, 9)
+                        if fm.ref_user_id == '':
+                            fm.ref_user_id = None
+                        fm.content = self._get_ts_value(comment, 5)
+                        fm.create_time = self._get_ts_value(comment, 6)
+                        comments.append(fm)
+            return comments
         return None
 
     @staticmethod
     def _get_ts_value(ts, key):
-        if key in ts:
+        if ts is not None and key in ts:
             ret = ts[key]
             if type(ret) == tuple and len(ret) > 1:
                 return ret[1]
