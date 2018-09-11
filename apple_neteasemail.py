@@ -14,6 +14,8 @@ CONTENT_TYPE_TEXT = 2  # 纯文本
 MAIL_OUTBOX   = '3'    # 已发送
 MAIL_DRAFTBOX = '2'    # 草稿箱
 
+SOURCE_APP = '网易邮箱'
+
 def execute(node, extract_deleted):
     """ 
     """
@@ -150,6 +152,7 @@ class NeteaseMailParser(object):
                     mail.downloadSize = ','.join(map(lambda x: x[2] if x[2] is not None else '', rows))
                     mail.downloadUtc  = ','.join(map(lambda x: x[3] if x[3] is not None else '0', rows))
             mail.account_email = self.accounts[mail.accountId]['email']
+            mail.alias         = self.accounts[mail.accountId]['alias']
             try:
                 self.mm.db_insert_table_mails(mail)
             except:
@@ -160,6 +163,7 @@ class NeteaseMailParser(object):
             exc()
 
     def parse_email_account(self, imail_db):
+        accounts = {}
         for rec in self.my_read_table(db=imail_db, table_name='account'):
             if IsDBNull(rec['email'].Value) or len(rec['email'].Value.strip()) < 5 or (type(rec['type'].Value) != int):
                 continue
@@ -171,13 +175,19 @@ class NeteaseMailParser(object):
             account = Accounts()
             account.accountId    = rec['accountId'].Value
             account.accountEmail = rec['email'].Value
+            account.alias        = rec['email'].Value
+            account.deleted      = rec['deleted'].Value
             account.source       = self.source_imail_db
             if rec['type'].Value == 1 and rec['deleted'].Value == 0:
-                self.accounts[account.accountId] = {'email': account.accountEmail}
+                accounts[account.accountId] = {
+                    'email': account.accountEmail,
+                    'alias': account.alias,
+                }
             try:
                 self.mm.db_insert_table_account(account)
             except:
                 exc()
+        self.accounts = accounts
         self.mm.db_commit()        
 
 
@@ -209,7 +219,6 @@ class NeteaseMailParser(object):
             attach.downloadSize = rec['size'].Value
             attach.mailId       = rec['mailId'].Value
             attach.source       = self.source_imail_db
-            # "/private/var/mobile/Containers/Data/Application/C14C9546-5284-487E-B5A7-93EA4620013F/Documents/imail.db"
             try:
                 self.mm.db_insert_table_attach(attach)
             except:
@@ -230,6 +239,7 @@ class NeteaseMailParser(object):
             for rec in self.my_read_table(db=todo_db, table_name='recentcontact'):
                 contact = Contact()
                 contact.contactName  = rec['name'].Value
+                contact.accountId    = rec['aid'].Value
                 contact.contactEmail = rec['email'].Value
                 contact.source       = node.AbsolutePath
                 try:
@@ -330,4 +340,4 @@ class NeteaseMailParser(object):
                 res   += ' ' + email.strip() + ' ' + name.strip()
         except:
             exc()
-        return res
+        return res.lstrip()
