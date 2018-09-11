@@ -21,7 +21,9 @@ import hashlib
 import json
 import base64
 import sqlite3
+import shutil
 import model_im
+import tencent_struct
 
 # EnterPoint: analyze_wechat(root, extract_deleted, extract_source):
 # Patterns: '/MicroMsg/.+/EnMicroMsg.db$'
@@ -98,6 +100,7 @@ class WeChatParser(model_im.IM):
             mm_db_path = os.path.join(self.cache_path, self.user_hash + '_mm.db')
             if Decryptor.decrypt(node, self._get_db_key(self.imei, self.uin), mm_db_path):
                 self._parse_mm_db(mm_db_path, node.AbsolutePath)
+            self._parse_wc_db(self.user_node.GetByPath('/SnsMicroMsg.db'))
 
             # 数据库填充完毕，请将中间数据库版本和app数据库版本插入数据库，用来检测app是否需要重新解析
             self.db_insert_table_version(model_im.VERSION_KEY_DB, model_im.VERSION_VALUE_DB)
@@ -200,6 +203,66 @@ class WeChatParser(model_im.IM):
         self._parse_mm_db_chatroom_member(db, source)
         self._parse_mm_db_message(db, source)
         db.close()
+
+    def _parse_wc_db(self, node):
+        if node is None:
+            return False
+
+        db_path = os.path.join(self.cache_path, 'cache.db')
+        self.db_mapping(node.PathWithMountPoint, db_path)
+        if not os.path.exists(db_path):
+            return False
+        db = sqlite3.connect(db_path)
+        if db is None:
+            return False
+
+        cursor = db.cursor()
+        sql = 'select userName,content from SnsInfo'
+        row = None
+        try:
+            cursor.execute(sql)
+            row = cursor.fetchone()
+        except Exception as e:
+            print(e)
+
+        while row is not None:
+            username = self._db_column_get_string_value(row[0])
+            content = self._db_column_get_blob_value(row[1])
+            self._parse_wc_db_with_value(0, node.AbsolutePath, username, content)
+            row = cursor.fetchone()
+        self.db_commit()
+        cursor.close()
+        db.close()
+        self.db_remove_mapping(db_path)
+
+        if self.extract_deleted:
+            pass
+
+    def _parse_wc_db_with_value(self, deleted, source, username, content_blob):
+        result = tencent_struct.tencent_struct().getSnsContent(content_blob)
+        if result is None:
+            return
+        sns = SnsParser(result)
+        if username != sns.get_username():
+            return
+
+        feed = model_im.Feed()
+        feed.deleted = deleted
+        feed.source = source
+        feed.account_id = self.user_account.account_id
+        feed.sender_id = username
+        feed.content = sns.get_content_text()
+        feed.send_time = sns.get_timestamp()
+        location = sns.get_location()
+        if location is not None:
+            feed.location = location.location_id
+            location.delete = feed.deleted
+            location.source = feed.source
+            self.db_insert_table_location(location)
+        photos = sns.get_content_photos()
+        if photos is not None and len(photos) > 0:
+            feed.urls = json.dumps(photos)
+        self.db_insert_table_feed(feed)
 
     def _parse_mm_db_user_info(self, db, source):
         cursor = db.cursor()
@@ -789,6 +852,68 @@ class WeChatParser(model_im.IM):
         else:
             return model_im.MESSAGE_CONTENT_TYPE_LINK
 
+    @staticmethod
+    def _convert_gender_type(gender_type):
+        if gender_type != 0:
+            return model_im.GENDER_FEMALE
+        else:
+            return model_im.GENDER_MALE
+
+    @staticmethod
+    def db_mapping(src_path, dst_path):
+        try:
+            if os.path.exists(dst_path):
+                os.remove(dst_path)
+            shutil.copy(src_path, dst_path)
+        except Exception as e:
+            return False
+
+        try:
+            src_shm = src_path + '-shm'
+            if os.path.exists(src_shm): 
+                dst_shm = dst_path + '-shm'
+                if os.path.exists(dst_shm):
+                    os.remove(dst_shm)
+                shutil.copy(src_shm, dst_shm)
+        except Exception as e:
+            pass
+
+        try:
+            src_wal = src_path + '-wal'
+            if os.path.exists(src_wal): 
+                dst_wal = dst_path + '-wal'
+                if os.path.exists(dst_wal):
+                    os.remove(dst_wal)
+                shutil.copy(src_wal, dst_wal)
+        except Exception as e:
+            pass
+
+        Decryptor.db_fix_header(dst_path)
+        return True
+
+    @staticmethod
+    def db_remove_mapping(src_path):
+        try:
+            if os.path.exists(src_path):
+                os.remove(src_path)
+        except Exception as e:
+            pass
+
+        try:
+            src_shm = src_path + '-shm'
+            if os.path.exists(src_shm):
+                os.remove(src_shm)
+        except Exception as e:
+            pass
+
+        try:
+            src_wal = src_path + '-wal'
+            if os.path.exists(src_wal):
+                os.remove(src_wal)
+        except Exception as e:
+            pass
+
+
 class Decryptor:
     @staticmethod
     def decrypt(src_node, key, dst_db_path):
@@ -895,3 +1020,67 @@ class Decryptor:
                     f.seek(19)
                     f.write('\x01')
         return True
+
+
+class SnsParser:
+    def __init__(self, ts):
+        self.ts = ts
+
+    def get_username(self):
+        return self._get_ts_value(self.ts, 2)
+
+    def get_content_text(self):
+        return self._get_ts_value(self.ts, 5)
+
+    def get_content_photos(self):
+        ret = self._get_ts_value(self.ts, 8)
+        if type(ret) == list and len(ret) > 0:
+            ret = ret[0]
+            if type(ret) == tuple and len(ret) > 1:
+                ret = ret[1]
+                if type(ret) == dict:
+                    ret = self._get_ts_value(ret, 5)
+                    if type(ret) == list and len(ret) > 0:
+                        photos = []
+                        for photo in ret:
+                            if type(photo) == tuple and len(photo) > 1:
+                                photo = photo[1]
+                                if type(photo) == dict:
+                                    photo = self._get_ts_value(photo, 4)
+                                    if photo not in [None, '']:
+                                        photos.append(photo)
+                        return photos
+        return None
+
+    def get_timestamp(self):
+        return self._get_ts_value(self.ts, 4)
+
+    def get_location(self):
+        ret = self._get_ts_value(self.ts, 6)
+        if type(ret) == list and len(ret) > 0:
+            ret = ret[0]
+            if type(ret) == tuple and len(ret) > 1:
+                ret = ret[1]
+                if type(ret) == dict:
+                    location = model_im.Location()
+                    location.latitude = self._get_ts_value(ret, 2)
+                    location.longitude = self._get_ts_value(ret, 1)
+                    location.address = self._get_ts_value(ret, 4)
+                    return location
+        return None
+
+    def get_comments(self):
+        return None
+
+    def get_feeds(self):
+        return None
+
+    @staticmethod
+    def _get_ts_value(ts, key):
+        if key in ts:
+            ret = ts[key]
+            if type(ret) == tuple and len(ret) > 1:
+                return ret[1]
+            else:
+                return ret
+        return None
