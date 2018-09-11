@@ -332,7 +332,10 @@ class IM(object):
 
     def db_create(self, db_path):
         if os.path.exists(db_path):
-            os.remove(db_path)
+            try:
+                os.remove(db_path)
+            except Exception as e:
+                print('model_im db_create() remove %s error: %s' % (db_path, e))
 
         self.db = SQLite.SQLiteConnection('Data Source = {}'.format(db_path))
         self.db.Open()
@@ -595,8 +598,8 @@ class Feed(Column):
         self.type = None  # 动态类型[INT]
         self.content = None  # 动态内容[TEXT]
         self.media_path = None  # 媒体文件地址[TEXT]
-        self.urls = None  # 链接地址[TEXT] json string ['url1', 'url2'...]
-        self.preview_urls = None  # 预览地址[TEXT] json string ['url1', 'url2'...]
+        self.urls = None  # 链接地址[json TEXT] json string ['url1', 'url2'...]
+        self.preview_urls = None  # 预览地址[json TEXT] json string ['url1', 'url2'...]
         self.attachment_title = None  # 附件标题[TEXT]
         self.attachment_link = None  # 附件链接[TEXT]
         self.attachment_desc = None  # 附件描述[TEXT]

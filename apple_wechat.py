@@ -26,6 +26,7 @@ import datetime
 
 # EnterPoint: analyze_wechat(root, extract_deleted, extract_source):
 # Patterns: '/DB/MM\.sqlite$'
+# Models: Common.User, Common.Friend, Common.Group, Generic.Chat, Common.MomentContent
 
 # app数据库版本
 VERSION_APP_VALUE = 1
@@ -178,14 +179,13 @@ class WeChatParser(model_im.IM):
 
         while row is not None:
             username = self._db_column_get_string_value(row[0])
-            if username in [None, '']:
-                continue
-            contact_type = self._db_column_get_int_value(row[1])
-            certification_flag = self._db_column_get_int_value(row[2])
-            contact_remark = self._db_column_get_blob_value(row[3])
-            contact_head_image = self._db_column_get_blob_value(row[4])
-            contact_chatroom = self._db_column_get_blob_value(row[5])
-            self._parse_user_contact_db_with_value(0, node.AbsolutePath, username, contact_type, certification_flag, contact_remark, contact_head_image, contact_chatroom)
+            if username not in [None, '']:
+                contact_type = self._db_column_get_int_value(row[1])
+                certification_flag = self._db_column_get_int_value(row[2])
+                contact_remark = self._db_column_get_blob_value(row[3])
+                contact_head_image = self._db_column_get_blob_value(row[4])
+                contact_chatroom = self._db_column_get_blob_value(row[5])
+                self._parse_user_contact_db_with_value(0, node.AbsolutePath, username, contact_type, certification_flag, contact_remark, contact_head_image, contact_chatroom)
             row = cursor.fetchone()
         self.db_commit()
         cursor.close()
@@ -628,10 +628,9 @@ class WeChatParser(model_im.IM):
             while row is not None:
                 id = self._db_column_get_int_value(row[0])
                 content = self._db_column_get_string_value(row[1])
-                if id not in username_ids:
-                    continue
-                username = username_ids.get(id)
-                self._parse_user_fts_db_with_value(1, node.AbsolutePath, username, content)
+                if id in username_ids:
+                    username = username_ids.get(id)
+                    self._parse_user_fts_db_with_value(1, node.AbsolutePath, username, content)
                 row = cursor.fetchone()
             self.db_commit()
         cursor.close()
