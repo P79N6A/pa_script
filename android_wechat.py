@@ -431,12 +431,12 @@ class WeChatParser(model_im.IM):
             lv_buffer = self._db_column_get_blob_value(row[8])
             msg_svr_id = self._db_column_get_string_value(row[9])
             
-            self._parse_mm_db_chatroom_member_with_value(0, source, talker, msg, img_path, is_send, status, msg_type, create_time, msg_id, lv_buffer, msg_svr_id)
+            self._parse_mm_db_message_with_value(0, source, talker, msg, img_path, is_send, status, msg_type, create_time, msg_id, lv_buffer, msg_svr_id)
             row = cursor.fetchone()
         self.db_commit()
         cursor.close()
 
-    def _parse_mm_db_chatroom_member_with_value(self, deleted, source, talker, msg, img_path, is_send, status, msg_type, create_time, msg_id, lv_buffer, msg_svr_id):
+    def _parse_mm_db_message_with_value(self, deleted, source, talker, msg, img_path, is_send, status, msg_type, create_time, msg_id, lv_buffer, msg_svr_id):
         contact = self.contacts.get(talker, {})
 
         message = model_im.Message()
