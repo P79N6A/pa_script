@@ -397,7 +397,7 @@ class Generate(object):
 
     def _get_mails_models(self):
         models = []
-        sql = '''select a.*, accounts.accountEmail,accounts.loginDate from (
+        sql = '''select a.*, accounts.accountEmail, accounts.loginDate from (
             select mailId,subject,abstract,fromEmail,receiveUtc,size,tos,cc,bcc,ip,isForward,
             isRead,isRecalled,sendStatus,account_email,alias,mail_folder,content,group_concat(downloadUtc) as downloadUtc,
             group_concat(downloadSize) as downloadSize,group_concat(attachName) as attachName,group_concat(attachDir) as attachDir,source,repeated,deleted,accountId
@@ -410,6 +410,10 @@ class Generate(object):
             print(e)
         while row is not None:
             email = Generic.Email()
+            if row[22] not in [None, '']:
+                email.SourceFile.Value = self._get_source_file(row[22])
+            if row[23] is not None:
+                email.Deleted = self._convert_deleted_status(row[23])
             if row[16] is not None:
                 email.Folder.Value = row[16]
                 if row[16] == '已发送':
@@ -428,10 +432,10 @@ class Generate(object):
             if row[3] is not None:
                 party = Generic.Party()
                 party.Identifier.Value = row[3]
-            if row[9] is not None:
-                party.IPAddresses.Add(str(row[9]))
-                if row[4] is not None:                
-                    party.DatePlayed.Value = TimeStamp.FromUnixTime(row[4], False) if len(str(row[4])) == 10 else TimeStamp.FromUnixTime(int(str(row[4])[0:10:1]), False) if len(str(row[4]))>10 else TimeStamp.FromUnixTime(0, False)
+                if row[9] is not None:
+                    party.IPAddresses.Add(str(row[9]))
+                    if row[4] is not None:                
+                        party.DatePlayed.Value = TimeStamp.FromUnixTime(row[4], False) if len(str(row[4])) == 10 else TimeStamp.FromUnixTime(int(str(row[4])[0:10:1]), False) if len(str(row[4]))>10 else TimeStamp.FromUnixTime(0, False)
                 email.From.Value = party
             if row[6] is not None:
                 tos = row[6].split(' ')
@@ -505,11 +509,33 @@ class Generate(object):
 
     def _get_accounts_models(self):
         models = []
+        sql = '''
+            select * from accounts where deleted = 0
+        ''' 
+        try:
+            self.cursor.execute(sql)
+            row = self.cursor.fetchone()
+            while row is not None:
+                user = Common.User()
+                if row[1] is not None:
+                    user.Name.Value = row[1]
+                if row[2] is not None:
+                    user.Email.Value = row[2]
+                if row[3] is not None:
+                    user.LastLoginTime.Value = TimeStamp.FromUnixTime(row[3], False) if len(str(row[3])) == 10 else TimeStamp.FromUnixTime(int(str(row[3])[0:10:1]), False) if len(str(row[3]))>10 else TimeStamp.FromUnixTime(0, False)
+                if row[0] is not None:
+                    user.ID.Value = str(row[0])
+                if row[8] is not None:
+                    user.Deleted = DeletedState.Intact if row[8] == 0 else DeletedState.Deleted
+                models.append(user)
+                row = self.cursor.fetchone()
+        except:
+            pass
         return models
 
     def _get_contact_models(self):
         models = []
-        sql = '''select * from contact'''
+        sql = ''' select * from contact '''
         row = None
         try:
             self.cursor.execute(sql)
@@ -518,12 +544,12 @@ class Generate(object):
             print(e)
         while row is not None:
             friend = Common.Friend()
-            if row[12] not in [None, '']:
-                friend.SourceFile.Value = self._get_source_file(row[12])
-            if row[13] is not None:
-                friend.Deleted = self._convert_deleted_status(row[13])
-            if row[11] is not None:
-                friend.OwnerUserID.Value = row[12]
+            if row[-3] not in [None, '']:
+                friend.SourceFile.Value = self._get_source_file(row[-3])
+            if row[-2] is not None:
+                friend.Deleted = self._convert_deleted_status(row[-2])
+            if row[12] is not None:
+                friend.OwnerUserID.Value = str(row[12])
             if row[0] is not None:
                 friend.FullName.Value = row[0]
             if row[2] is not None:
@@ -542,7 +568,6 @@ class Generate(object):
                 friend.Name.Value = row[8]
             models.append(friend)
             row = self.cursor.fetchone()
-        models.append(friend)
         return models
 
     def _get_mail_folder_models(self):
@@ -557,7 +582,6 @@ class Generate(object):
         models = []
         return models
 
-
     @staticmethod
     def _convert_deleted_status(deleted):
         if deleted is None:
@@ -566,7 +590,9 @@ class Generate(object):
             return DeletedState.Intact if deleted == 0 else DeletedState.Deleted
 
     def _get_source_file(self, source_file):
-        return source_file.replace('/', '\\')
+        if isinstance(source_file, str):
+            return source_file.replace('/', '\\')
+        return source_file
 
     def _get_timestamp(self, timestamp):
         """  """

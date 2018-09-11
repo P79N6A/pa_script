@@ -145,8 +145,8 @@ class MailParser(object):
             mails = Mails()
             for row in self.db.ReadTableDeletedRecords(ts1, False):
                 mails.accountId = row['id'].Value if 'id' in row and not row['id'].IsDBNull else None
-                mails.account_email = row['name'].Value if 'name' in row and not row['name'].IsDBNull else None
-                mails.alias = row['alias'].Value if 'alias' in row and not row['alias'].IsDBNull else None
+                mails.account_email = repr(row['name'].Value) if 'name' in row and not row['name'].IsDBNull else None
+                mails.alias = repr(row['alias'].Value) if 'alias' in row and not row['alias'].IsDBNull else None
                 mails.source = 'QQ邮箱'
                 mails.deleted = 1
                 self.mm.db_insert_table_mails(mails)
@@ -154,7 +154,7 @@ class MailParser(object):
             mails = Mails()
             for row in self.db.ReadTableDeletedRecords(ts2, False):
                 mails.folderId = row['id'].Value if 'id' in row and not row['id'].IsDBNull else None
-                mails.mail_folder = row['showName'].Value if 'showName' in row and not row['showName'].IsDBNull else None
+                mails.mail_folder = repr(row['showName'].Value) if 'showName' in row and not row['showName'].IsDBNull else None
                 mails.source = 'QQ邮箱'
                 mails.deleted = 1
                 self.mm.db_insert_table_mails(mails)
@@ -174,9 +174,9 @@ class MailParser(object):
                 mails.downloadSize = row['downloadUtc'].Value if 'downloadUtc' in row and not row['downloadUtc'].IsDBNull else None
                 mails.downloadSize = row['downloadSize'].Value if 'downloadSize' in row and not row['downloadSize'].IsDBNull else None
                 mails.receiveUtc = row['mailUtc'].Value if 'mailUtc' in row and not row['mailUtc'].IsDBNull else None
-                mails.attachName = row['name'].Value if 'name' in row and not row['name'].IsDBNull else None
-                mails.exchangeField = row['exchangeField'].Value if 'exchangeField' in row and not row['exchangeField'].IsDBNull else None
-                mails.attach_object = row['object'].Value if 'object' in row and not row['object'].IsDBNull else None
+                mails.attachName = repr(row['name'].Value) if 'name' in row and not row['name'].IsDBNull else None
+                mails.exchangeField = repr(row['exchangeField'].Value) if 'exchangeField' in row and not row['exchangeField'].IsDBNull else None
+                mails.attach_object = repr(row['object'].Value) if 'object' in row and not row['object'].IsDBNull else None
                 mails.source = 'QQ邮箱'
                 mails.deleted = 1
                 self.mm.db_insert_table_mails(mails)
@@ -282,13 +282,13 @@ class MailParser(object):
         try:
             for row in self.db.ReadTableDeletedRecords(ts, False):
                 contact.contactId = row['contactid'].Value if 'contactid' in row and not row['contactid'].IsDBNull else None
-                contact.contactName = row['name'].Value if 'name' in row and not row['name'].IsDBNull else None
-                contact.contactBirthday = row['birthday'].Value if 'birthday' in row and not row['birthday'].IsDBNull else None
-                contact.contactDepartment = row['department'].Value if 'department' in row and not row['department'].IsDBNull else None
-                contact.contactFamilyAddress = row['familyAddress'].Value if 'familyAddress' in row and not row['familyAddress'].IsDBNull else None
-                contact.contactMark = row['mark'].Value if 'mark' in row and not row['mark'].IsDBNull else None
-                contact.contactMobile = row['mobile'].Value if 'mobile' in row and not row['mobile'].IsDBNull else None
-                contact.contactTelephone = row['telephone'].Value if 'telephone' in row and not row['telephone'].IsDBNull else None
+                contact.contactName = repr(row['name'].Value) if 'name' in row and not row['name'].IsDBNull else None
+                contact.contactBirthday = repr(row['birthday'].Value) if 'birthday' in row and not row['birthday'].IsDBNull else None
+                contact.contactDepartment = repr(row['department'].Value) if 'department' in row and not row['department'].IsDBNull else None
+                contact.contactFamilyAddress = repr(row['familyAddress'].Value) if 'familyAddress' in row and not row['familyAddress'].IsDBNull else None
+                contact.contactMark = repr(row['mark'].Value) if 'mark' in row and not row['mark'].IsDBNull else None
+                contact.contactMobile = repr(row['mobile'].Value) if 'mobile' in row and not row['mobile'].IsDBNull else None
+                contact.contactTelephone = repr(row['telephone'].Value) if 'telephone' in row and not row['telephone'].IsDBNull else None
                 contact.source = 'QQ邮箱'
                 contact.deleted = 1
                 self.mm.db_insert_table_contact(contact)
@@ -296,8 +296,8 @@ class MailParser(object):
             contact = Contact()
             for row in self.db.ReadTableDeletedRecords(ts1, False):
                 contact.contactId = row['contactid'].Value if 'contactid' in row and not row['contactid'].IsDBNull else None
-                contact.contactEmail = row['email'].Value if 'email' in row and not row['email'].IsDBNull else None
-                contact.contactNick = row['nick'].Value if 'nick' in row and not row['nick'].IsDBNull else None
+                contact.contactEmail = repr(row['email'].Value) if 'email' in row and not row['email'].IsDBNull else None
+                contact.contactNick = repr(row['nick'].Value) if 'nick' in row and not row['nick'].IsDBNull else None
                 contact.source = 'QQ邮箱'
                 contact.deleted = 1
                 self.mm.db_insert_table_contact(contact)
@@ -312,8 +312,8 @@ class MailParser(object):
             contact = Contact()
             for row in self.db.ReadTableDeletedRecords(ts2, False):
                 contact.accountId = row['id'].Value if 'id' in row and not row['id'].IsDBNull else None
-                contact.alias = row['alias'].Value if 'alias' in row and not row['alias'].IsDBNull else None
-                contact.accountEmail = row['name'].Value if 'name' in row and not row['name'].IsDBNull else None
+                contact.alias = repr(row['alias'].Value) if 'alias' in row and not row['alias'].IsDBNull else None
+                contact.accountEmail = repr(row['name'].Value) if 'name' in row and not row['name'].IsDBNull else None
                 contact.source = 'QQ邮箱'
                 contact.deleted = 1
                 self.mm.db_insert_table_contact(contact)
