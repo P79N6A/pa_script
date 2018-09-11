@@ -82,10 +82,9 @@ class WhatsApp(object):
             self.whatsapp.db_insert_table_account(account)
         except Exception as e:
             pass
-        try:
-            self.whatsapp.db_commit()
-        except:
-            pass
+        
+        self.whatsapp.db_commit()
+
 
 
     def read_file_path(self):
