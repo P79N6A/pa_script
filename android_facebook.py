@@ -132,6 +132,7 @@ class Facebook(object):
                 select messages.thread_key, text, sender, messages.timestamp_ms, messages.timestamp_sent_ms, shares, msg_type,pending_send_media_attachment from messages, folders where messages.thread_key = folders.thread_key and messages.thread_key like "ONE%"
             '''
             reader= cmd.ExecuteReader()
+            fs = self.root.FileSystem
             while reader.Read():
                 message = model_im.Message()
                 message.source = "Facebook"
@@ -174,7 +175,15 @@ class Facebook(object):
                             elif tmp_type == "VIDEO":
                                 message.type = 4
                             if "uri" in attachment_dict:
-                                message.media_path = attachment_dict["uri"]
+                                media_path = attachment_dict.get("uri")
+                                if media_path.startswith("file:"):
+                                    lists = re.split("/", media_path)
+                                    media_name = lists[-1]
+                                    media_path_list = fs.Search(media_name)
+                                    for i in media_path_list:
+                                        message.media_path = i.AbsolutePath
+                                elif media_path.startswith("http"):
+                                    message.media_path = media_path
                     
                     if GetString(reader, 5):
                         share_list = json.loads(GetString(reader, 5))
@@ -214,6 +223,7 @@ class Facebook(object):
                 select messages.thread_key, text, sender, messages.timestamp_ms, messages.timestamp_sent_ms, shares, msg_type,pending_send_media_attachment from messages, folders where messages.thread_key = folders.thread_key and messages.thread_key like "GROUP%"
             '''
             reader= cmd.ExecuteReader()
+            fs = self.root.FileSystem
             while reader.Read():
                 message = model_im.Message()
                 message.source = "Facebook"
@@ -252,7 +262,15 @@ class Facebook(object):
                             elif tmp_type == "VIDEO":
                                 message.type = 4
                             if "uri" in attachment_dict:
-                                message.media_path = attachment_dict["uri"]
+                                media_path = attachment_dict.get("uri")
+                                if media_path.startswith("file:"):
+                                    lists = re.split("/", media_path)
+                                    media_name = lists[-1]
+                                    media_path_list = fs.Search(media_name)
+                                    for i in media_path_list:
+                                        message.media_path = i.AbsolutePath
+                                elif media_path.startswith("http"):
+                                    message.media_path = media_path
                     
                     if GetString(reader, 5):
                         share_list = json.loads(GetString(reader, 5))
@@ -291,6 +309,7 @@ class Facebook(object):
         SQLiteParser.Tools.AddSignatureToTable(tbs, "thread_key", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
         SQLiteParser.Tools.AddSignatureToTable(tbs, "msg_type", SQLiteParser.FieldType.Int, SQLiteParser.FieldConstraints.NotNull)
         SQLiteParser.Tools.AddSignatureToTable(tbs, "msg_id", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
+        fs = self.root.FileSystem
         for rec in db.ReadTableDeletedRecords(tbs, False):
             send_info = rec["sender"].Value if "sender" in rec else None
             msg_type = rec["msg_type"].Value if "msg_type" in rec else None
@@ -337,7 +356,18 @@ class Facebook(object):
                             elif tmp_type == "VIDEO":
                                 message.type = 4
                             if "uri" in attachment_dict:
-                                message.media_path = attachment_dict["uri"]
+                                media_path = attachment_dict.get("uri")
+                                if media_path.startswith("file:"):
+                                    lists = re.split("/", media_path)
+                                    media_name = lists[-1]
+                                    media_path_list = fs.Search(media_name)
+                                    for i in media_path_list:
+                                        message.media_path = i.AbsolutePath
+                                elif media_path.startswith("http"):
+                                    message.media_path = media_path
+
+
+
                 if "shares" in rec and (not rec["shares"].IsDBNull):
                     share_list = json.loads(rec["shares"].Value)
                     share_dict = share_list[0]
@@ -371,6 +401,7 @@ class Facebook(object):
         SQLiteParser.Tools.AddSignatureToTable(tbs, "thread_key", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
         SQLiteParser.Tools.AddSignatureToTable(tbs, "msg_type", SQLiteParser.FieldType.Int, SQLiteParser.FieldConstraints.NotNull)
         SQLiteParser.Tools.AddSignatureToTable(tbs, "msg_id", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
+        fs = self.root.FileSystem
         for rec in db.ReadTableDeletedRecords(tbs, False):
             send_info = rec["sender"].Value if "sender" in rec else None
             msg_type = rec["msg_type"].Value if "msg_type" in rec else None
@@ -414,7 +445,15 @@ class Facebook(object):
                             elif tmp_type == "VIDEO":
                                 message.type = 4
                             if "uri" in attachment_dict:
-                                message.media_path = attachment_dict["uri"]
+                                media_path = attachment_dict.get("uri")
+                                if media_path.startswith("file:"):
+                                    lists = re.split("/", media_path)
+                                    media_name = lists[-1]
+                                    media_path_list = fs.Search(media_name)
+                                    for i in media_path_list:
+                                        message.media_path = i.AbsolutePath
+                                elif media_path.startswith("http"):
+                                    message.media_path = media_path
                 if "shares" in rec and (not rec["shares"].IsDBNull):
                     share_list = json.loads(rec["shares"].Value)
                     share_dict = share_list[0]
