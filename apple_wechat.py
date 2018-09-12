@@ -235,11 +235,14 @@ class WeChatParser(model_im.IM):
             contact['photo'] = head
         contact['certification_flag'] = certification_flag
 
+        repeated = 0
         if deleted == 0: 
             self.contacts[username] = contact
         else:
             if username not in self.contacts:
                 self.contacts[username] = contact
+            else:
+                repeated = 1
 
         if username.endswith("@chatroom"):
             chatroom = model_im.Chatroom()
@@ -266,7 +269,8 @@ class WeChatParser(model_im.IM):
                 chatroom.owner_id = members[0].get('username')
             chatroom.max_member_count = max_count
             chatroom.member_count = len(members)
-            self.db_insert_table_chatroom(chatroom)
+            if deleted == 0 or repeated == 0:
+                self.db_insert_table_chatroom(chatroom)
         else:
             ft = model_im.FRIEND_TYPE_STRANGER
             if certification_flag != 0:
@@ -1205,21 +1209,21 @@ class WeChatParser(model_im.IM):
             return False
 
         try:
-            if os.path.exists(dst_shm):
-                os.remove(dst_shm)
             src_shm = src_path + '-shm'
             if os.path.exists(src_shm): 
                 dst_shm = dst_path + '-shm'
+                if os.path.exists(dst_shm):
+                    os.remove(dst_shm)
                 shutil.copy(src_shm, dst_shm)
         except Exception as e:
             pass
 
         try:
-            if os.path.exists(dst_wal):
-                os.remove(dst_wal)
             src_wal = src_path + '-wal'
             if os.path.exists(src_wal): 
                 dst_wal = dst_path + '-wal'
+                if os.path.exists(dst_wal):
+                    os.remove(dst_wal)
                 shutil.copy(src_wal, dst_wal)
         except Exception as e:
             pass

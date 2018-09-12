@@ -95,6 +95,7 @@ class WeChatParser(model_im.IM):
 
             self.contacts = {}
             self.user_account = model_im.Account()
+            self.extend_nodes = self.root.FileSystem.Search('/Tencent/MicroMsg/{}$'.format(self.user_hash))
 
             node = self.user_node.GetByPath('/EnMicroMsg.db')
             mm_db_path = os.path.join(self.cache_path, self.user_hash + '_mm.db')
@@ -124,9 +125,7 @@ class WeChatParser(model_im.IM):
 
     @staticmethod
     def _can_decrypt(uin, user_hash):
-        m = hashlib.md5()
-        m.update(('mm' + uin).encode('utf8'))
-        return m.hexdigest() == user_hash
+        return WeChatParser._md5('mm' + uin) == user_hash
 
     def _get_uin(self):
         uin = self._get_uin_from_auth_info(self.root.GetByPath('/shared_prefs/auth_info_key_prefs.xml'))
@@ -191,10 +190,7 @@ class WeChatParser(model_im.IM):
     def _get_db_key(imei, uin):
         if imei is None or uin is None:
             return None
-
-        m = hashlib.md5()
-        m.update((imei + uin).encode('utf8'))
-        return m.hexdigest()[:7]
+        return self._md5(imei + uin)[:7]
 
     def _parse_mm_db(self, mm_db_path, source):
         db = sqlite3.connect(mm_db_path)
@@ -537,9 +533,9 @@ class WeChatParser(model_im.IM):
         return media_path
 
     def _process_parse_message_tranlate_img_path(self, img_path):
+        media_path = None
         if img_path in (None, ''):
-            return img_path
-        media_path = img_path
+            return media_path
         THUMBNAIL_DIRPATH = 'THUMBNAIL_DIRPATH://'
         TH_PREFIX = 'th_'
         if img_path.startswith(THUMBNAIL_DIRPATH):
@@ -552,21 +548,38 @@ class WeChatParser(model_im.IM):
             else:
                 m1 = img_name[0:2]
                 m2 = img_name[2:4]
-            media_path = '/image2/{0}/{1}/{2}'.format(m1, m2, img_name)
+            for extend_node in self.extend_nodes:
+                node = extend_node.GetByPath('/image2/{0}/{1}/{2}'.format(m1, m2, img_name))
+                if node is not None:
+                    media_path = node.AbsolutePath
+                    break
         return media_path
 
     def _process_parse_message_tranlate_voice_path(self, voice_id):
-        m = hashlib.md5()
-        m.update(voice_id.encode('utf8'))
-        hash = m.hexdigest()
+        media_path = None
+        hash = self._md5(voice_id)
         m1 = hash[0:2]
         m2 = hash[2:4]
-        voice_relative_path = '/voice2/{0}/{1}/msg_{2}.amr'.format(m1, m2, voice_id)
-        return voice_relative_path
+        for extend_node in self.extend_nodes:
+            node = extend_node.GetByPath('/voice2/{0}/{1}/msg_{2}.amr'.format(m1, m2, voice_id))
+            if node is not None:
+                media_path = node.AbsolutePath
+                break
+        return media_path
 
     def _process_parse_message_tranlate_video_path(self, video_id):
-        voice_relative_path = '/video/{}.mp4'.format(video_id)
-        return voice_relative_path
+        media_path = None
+        for extend_node in self.extend_nodes:
+            node = extend_node.GetByPath('/video/{}.mp4'.format(video_id))
+            if node is not None:
+                media_path = node.AbsolutePath
+                break
+
+            node = extend_node.GetByPath('/video/{}.jpg'.format(video_id))
+            if node is not None:
+                media_path = node.AbsolutePath
+                break
+        return media_path
 
     def _process_parse_message_link(self, xml_str, model):
         content = ''
@@ -878,6 +891,12 @@ class WeChatParser(model_im.IM):
             return model_im.GENDER_FEMALE
         else:
             return model_im.GENDER_MALE
+
+    @staticmethod
+    def _md5(src):
+        m = hashlib.md5()
+        m.update(src.encode('utf8'))
+        return m.hexdigest()
 
     @staticmethod
     def db_mapping(src_path, dst_path):
