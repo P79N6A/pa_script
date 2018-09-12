@@ -918,5 +918,25 @@
       </array>
     </dict>
 	
+	<dict>
+	  <key>Module</key>
+	  <string>android_facebook</string>
+	  <key>Runners</key>
+	  <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_facebook</string>
+          <key>RunnerType</key>
+          <integer>2</integer>
+          <key>Patterns</key>
+          <array>
+            <string>/data/com.facebook.orca/databases$</string>
+          </array>
+          <key>Category</key>
+          <string>Facebook</string>
+        </dict>
+      </array>
+	</dict>
+	
   </array>
 </plist>
