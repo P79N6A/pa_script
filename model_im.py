@@ -323,6 +323,14 @@ SQL_CREATE_TABLE_VERSION = '''
 SQL_INSERT_TABLE_VERSION = '''
     insert into version(key, version) values(?, ?)'''
 
+SQL_CREATE_TABLE_LOGS = '''
+    create table if not exists tb_logs(log_id int, log_description text, log_content text, log_result int, log_time int)
+'''
+
+SQL_ISNERT_TABLE_LOGS = '''
+    insert into tb_logs values(?,?,?,?,?)
+'''
+
 
 class IM(object):
     def __init__(self):
@@ -385,6 +393,8 @@ class IM(object):
             self.db_cmd.ExecuteNonQuery()
             self.db_cmd.CommandText = SQL_CREATE_TABLE_VERSION
             self.db_cmd.ExecuteNonQuery()
+            self.db_cmd.CommandText = SQL_CREATE_TABLE_LOGS
+            self.db_cmd.ExecuteNonQuery()
 
     def db_insert_table(self, sql, values):
         if self.db_cmd is not None:
@@ -432,6 +442,8 @@ class IM(object):
     def db_insert_table_version(self, key, version):
         self.db_insert_table(SQL_INSERT_TABLE_VERSION, (key, version))
 
+    def db_insert_table_log(self, column):
+        self.db_insert_table(SQL_ISNERT_TABLE_LOGS, column.get_values())
     '''
     版本检测分为两部分
     如果中间数据库结构改变，会修改db_version
@@ -673,6 +685,17 @@ class Deal(Column):
         return (self.deal_id, self.type, self.money, self.description, self.remark, self.status,
                 self.expire_time, self.receive_info) + super(Deal, self).get_values()
 
+class APPLog(Column):
+    def __init__(self):
+        super(APPLog, self).__init__()
+        self.log_id = str(uuid.uuid1())
+        self.log_description = ""
+        self.log_content = ""
+        self.log_result = -1
+        self.log_time = 0
+    
+    def get_values(self):
+        return (self.log_id, self.log_description, self.log_content, self.log_result, self.log_time)
 
 class Search(Column):
     def __init__(self):
