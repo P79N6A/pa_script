@@ -29,7 +29,7 @@ import datetime
 # Models: Common.User, Common.Friend, Common.Group, Generic.Chat, Common.MomentContent
 
 # app数据库版本
-VERSION_APP_VALUE = 1
+VERSION_APP_VALUE = 2
 
 # 消息类型
 MSG_TYPE_TEXT = 1
