@@ -5,6 +5,15 @@
 
 import shutil
 import hashlib
+import logging
+import re
+
+import sys
+reload(sys)
+
+
+sys.setdefaultencoding("utf8")
+
 #
 # C# Unity
 #
@@ -14,7 +23,7 @@ del clr
 
 import System.Data.SQLite as sql
 
-#global on_c_sharp_platform  = True
+on_c_sharp_platform  = True
 
 def format_mac_timestamp(mac_time, v = 10):
     """
@@ -47,6 +56,25 @@ def c_sharp_get_blob(reader, idx):
 def c_sharp_get_real(reader, idx):
     return reader.GetDouble(idx) if not reader.IsDBNull(idx) else 0.0
 
+def c_sharp_get_time(reader, idx):
+    return reader.GetInt32(idx) if not reader.IsDBNull(idx) else 0
+
+def c_sharp_try_get_time(reader, idx):
+    if reader.IsDBNull(idx):
+        return 0
+    try:
+        return reader.GetDouble(idx)
+    except:
+        pass
+    try:
+        return reader.GetInt32(idx)
+    except:
+        pass
+    try:
+        return reader.GetInt64(idx)
+    except:
+        return 0
+
 # using shutils to copy file
 def mapping_file_with_copy(src, dst):
     if src is None or src is "":
@@ -70,4 +98,51 @@ def create_connection(src, read_only = True):
     conn.Open()
     return conn
 
-#def create_command()
+def create_logger(path, en_cmd, identifier = 'general'):
+    logger = logging.getLogger(identifier)
+    logger.setLevel(logging.DEBUG)
+    fh = logging.FileHandler(path)
+    fh.setLevel(logging.DEBUG)
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    fh.setFormatter(formatter)
+    logger.addHandler(fh)
+    if en_cmd:
+        ch = logging.StreamHandler()
+        ch.setLevel(logging.ERROR)
+        ch.setFormatter(formatter)
+        logger.addHandler(ch)
+    return logger
+
+class SimpleLogger(object):
+    def __init__(self, path, en_cmd, id):
+        self.logger = create_logger(path, en_cmd, id)
+        self.level = 0
+
+    def set_level(self, val):
+        self.level = val
+
+    def m_print(self, msg):
+        if self.level == 1:
+            print(msg)
+        self.logger.info(msg)
+    
+    def m_err(self, msg):
+        if self.level == 1:
+            print(msg)
+        self.logger.error(msg)
+
+# only for small filesystem...
+# for escape certain fs_name_check...(like xxxx/twitter.db xxxx/message.db)
+def search_for_certain(fs, regx):
+    global on_c_sharp_platform
+    if not on_c_sharp_platform:
+        return list()
+    nodes = fs.Search(regx)
+    ns = Enumerable.ToList[Node](nodes)
+    res = list()
+    abs_path = fs.PathWithMountPoint
+    res = list()
+    for n in ns:
+        r = re.search('{}/(.*)'.format(abs_path), fs, re.I | re.M).group(1) # 返回fs的节点，注意node是否实现Search
+        res.append(list)
+    return res
