@@ -373,12 +373,18 @@ class Taobao(object):
         self.im.db_commit()
 
 def parse_tb(root, extract_deleted, extract_source):
-    root = FileSystem.FromLocalDir(r"D:\ios_case\taobao\C0B97359-E334-4838-93F1-A40BC2A5DF0B")
+    #root = FileSystem.FromLocalDir(r"D:\ios_case\taobao\C0B97359-E334-4838-93F1-A40BC2A5DF0B")
     t = Taobao(root, extract_source, extract_deleted)
     t.search()
     for a in t.account:
         t.parse(a)
         t.parse_search(a)
+    models = model_im.GenerateModel(t.cache + '/C37R').get_models()
+    mlm = ModelListMerger()
     pr = ParserResults()
+    pr.Categories = DescripCategories.QQ
+    pr.Models.AddRange(list(mlm.GetUnique(models)))
+    pr.Build("taobao")
     return pr
-        
+
+
