@@ -7,7 +7,9 @@ import hashlib
 clr.AddReference('System.Web')
 clr.AddReference('System.Core')
 clr.AddReference('System.Xml.Linq')
+clr.AddReference('System.Data.SQLite')
 del clr
+from System.Data.SQLite import *
 import System
 from System.IO import MemoryStream
 from System.Text import Encoding
@@ -15,7 +17,6 @@ from System.Xml.Linq import *
 from System.Linq import Enumerable
 from System.Xml.XPath import Extensions as XPathExtensions
 from PA_runtime import *
-from QQFriendNickName import *
 from PA.InfraLib.Utils import PList
 from PA.InfraLib.Extensions import PlistHelper
 #from System.Collections.Generic import *
@@ -23,17 +24,43 @@ from collections import defaultdict
 import logging
 from  model_im import *
 import uuid 
+from QQ_struct import tencent_struct
 #just msgdata
+import json
+
+def SafeGetString(reader,i):
+	if not reader.IsDBNull(i):
+		return reader.GetString(i)
+	else:
+		return ""
+
+def SafeGetInt64(reader,i):
+	if not reader.IsDBNull(i):
+		return reader.GetInt64(i)
+	else:
+		return 0
+
+def SafeGetBlob(reader,i):
+	if not reader.IsDBNull(i):
+		obj = reader.GetValue(i)
+		return obj #byte[]
+	else:
+		return None
+
+def SafeGetValue(reader,i):
+	if not reader.IsDBNull(i):
+		obj = reader.GetValue(i)
+		return obj 
+	else:
+		return None
+
 def decode_blob(imei_bytes, buffers):
-	ret = bytearray()      
-	for i in range(len(buffers)):
-		#a = struct.unpack('<B',buffers[i])
-		#b = struct.unpack('<B',imei_bytes[i % len(imei_bytes)])
-		#c = a[0] ^ b[0]
-		c = chr(ord(buffers[i])^ord(imei_bytes[i % len(imei_bytes)]))
+	ret = bytearray()   
+	for i in range(len(buffers)):	
+		c = ((buffers[i])^ord(imei_bytes[i % len(imei_bytes)]))
 		ret.append(c)
 	try:     
-		return ret.decode('utf-8','ignore')
+		return ret
 	except:
 		return None        
 def decode_text(imei_bytes, text):
@@ -43,8 +70,24 @@ def decode_text(imei_bytes, text):
 	for i in range(len(text)):
 		c = bytearray(text[i].encode('utf8'))
 		c[len(c)-1] = (c[len(c)-1]) ^ ord(imei_bytes[i % len(imei_bytes)])
-		ret += c.decode()
+		ret += c.decode('utf-8',"ignore")
 	return ret
+def readVarInt(data):
+		i = 0
+		j = 0
+		l = 0
+		k = 0
+		while True:
+			assert(i < 64)
+			try:              
+				j, = struct.unpack('B',data[k])
+				k = k+1
+			except:
+				raise
+			l = l | (j & 0x7f) << i
+			if((j & 0x80) == 0):
+				return l
+			i = i + 7
 def analyze_andriod_qq(root, extract_deleted, extract_source):	
 	pr = ParserResults()
 	pr.Models.AddRange(Andriod_QQParser(root, extract_deleted, extract_source).parse())
@@ -76,35 +119,41 @@ class Andriod_QQParser(object):
 		self.imei = ''
 		self.imeilen = 15
 		self.VERSION_APP_VALUE = 10000
-		return
+		
 	def parse(self):  
 		#self.root = r'D:\com.tencent.mobileqq'
+	
 		self.getImei()
 		self.decode_accounts()
-		for acc_id in self.accounts:
-			self.friendsNickname.clear()
-			self.friendsGroups.clear()
-			self.groupContact.clear()
-			self.troops.clear()
-			self.nickname = ''
-			self.contacts = {}			
-			self.troopmsgtables =[]
-			self.c2cmsgtables =set()
-			self.troopmsgtables =set()
+		try:
+			for acc_id in self.accounts:
+				if acc_id != '848565664':
+					continue
+				self.friendsNickname.clear()
+				self.friendsGroups.clear()
+				self.groupContact.clear()
+				self.troops.clear()
+				self.nickname = ''
+				self.contacts = {}
+				self.friendhash.clear()
+				self.friendmsgtables =set()
+				self.troopmsgtables =set()
+				
+				self.decode_friends(acc_id)
 		
-			self.decode_friends(acc_id)
-		
-			self.decode_group_info(acc_id)
-			self.decode_groupMember_info(acc_id)
-			self.decode_friend_messages(acc_id)            
-			self.decode_group_messages(acc_id)	                                     
-		'''
-			self.decode_recover_friends(acc_id)
-			self.decode_recover_group_info(acc_id)
-			self.decode_recover_groupMember_info(acc_id)
-			self.decode_recover_friend_messages(acc_id)
-			self.decode_recover_group_messages(acc_i)
-		'''
+				self.decode_group_info(acc_id)
+				self.decode_groupMember_info(acc_id)
+				self.decode_friend_messages(acc_id)            
+				self.decode_group_messages(acc_id)	                                     
+			'''
+				self.decode_recover_friends(acc_id)
+				self.decode_recover_group_info(acc_id)
+				self.decode_recover_groupMember_info(acc_id)
+				self.decode_recover_friend_messages(acc_id)
+				self.decode_recover_group_messages(acc_i)
+			'''
+		except Exception as e:
+			print e
 		self.im.db_insert_table_version(VERSION_KEY_DB, VERSION_VALUE_DB)
 		self.im.db_insert_table_version(VERSION_KEY_APP, self.VERSION_APP_VALUE)
 		self.im.db_commit()
@@ -112,23 +161,30 @@ class Andriod_QQParser(object):
 		gen = GenerateModel(self.cachedb)        
 		return gen.get_models()
 	
-	def getImei(self):
-		path = self.root + '\\files\\imei'
+	def getImei(self):		
+		path = self.root.GetByPath('/files/imei')
+		if path is None:
+			return 
 		try:
-			f = open(path)               
+			d = path.PathWithMountPoint
+			f = open(d,"rb")               
 			l = f.readlines()
 			for x in l:
 				pos = x.find('imei')
 				if(pos != -1):
 					self.imei = x[-16:-1]
 					self.imeilen = 15
-		except:            
+		except: 
+			#log("imie cant get decode will be failded")           
 			pass                
 	def decode_accounts(self):
 		dblist = []
 		pattern = r"^([0-9]+).db$" 
-		path =  self.root + '/databases/'
-		for root, dirs, files in os.walk(path):  
+		path =  self.root.GetByPath('/databases/')
+		if path is None:
+			return
+		d =  path.PathWithMountPoint
+		for root, dirs, files in os.walk(d):  
 			for f in files:
 				if(re.match(pattern,f)):
 					dblist.append(f)
@@ -137,8 +193,9 @@ class Andriod_QQParser(object):
 			acc_id = db[0:db.find('.db')]
 			self.accounts.append(acc_id)   
 		#nick
-		nickfile = self.root + '/files/Properties'
-		f = open(nickfile,'rb')
+		nickfile =  self.root.GetByPath('/files/Properties')
+		nickfilepath = nickfile.PathWithMountPoint
+		f = open(nickfilepath,'rb')
 		nickdata = f.readlines()
 		f.close()
 		nickdata = sorted(nickdata)
@@ -156,20 +213,18 @@ class Andriod_QQParser(object):
 					self.accinfo[acc_id].append(time)
 		for acc in self.accinfo:
 			ac = Account()
-			ac.source = self.app_name
 			ac.ServiceType = self.app_name
 			#account.deleted = DeletedState.Intact
-			ac.nickname = acc[acc][1]
+			ac.nickname = self.accinfo[acc][1]
 			ac.account_id = acc
-			ac.source = nickfile            
+			ac.source = nickfile.AbsolutePath           
 			self.nickname = ac.nickname
 			self.im.db_insert_table_account(ac)
-			self.im.db_commit()
+		self.im.db_commit()
 		return
 	def decode_friends(self,acc_id):
 		
-		dbpath = self.root + '/databases/'+ acc_id + '.db'
-		node = self.root.GetByPath(dbpath)
+		node = self.root.GetByPath('/databases/'+ acc_id + '.db')		
 		if node is None:
 			return
 		d = node.PathWithMountPoint
@@ -177,7 +232,7 @@ class Andriod_QQParser(object):
 		db = SQLiteParser.Database.FromNode(node)
 		if db is None:
 			return		
-		sql = 'select uin ,remark,name,datatime,age,gender from friends'
+		sql = 'select uin ,remark,name,datetime,age,gender from friends'
 		cursor = conn.execute(sql)
 		for row in cursor:        
 			try:
@@ -187,7 +242,7 @@ class Andriod_QQParser(object):
 				friend.remark = decode_text(self.imei,row[1])
 				friend.nickname = decode_text(self.imei,row[2])
 				friend.source  = node.AbsolutePath
-				friend.age = row[4]
+				friend.age = row[4]                
 				m = hashlib.md5()
 				m.update(friend.friend_id)
 				self.friendhash[friend.friend_id] = m.hexdigest().upper()
@@ -196,20 +251,17 @@ class Andriod_QQParser(object):
 				pass
 		self.im.db_commit()
 	def decode_group_info(self,acc_id):
-		dbpath = self.root + '/databases/'+ acc_id + '.db'
-		node = self.root.GetByPath(dbpath)
+		node = self.root.GetByPath('/databases/'+ acc_id + '.db')		
 		if node is None:
 			return
 		d = node.PathWithMountPoint
-		conn = connect(d)
 		db = SQLiteParser.Database.FromNode(node)
-		if db is None:
-			return	
+		conn = connect(d)		
 		sql = ""
 		if 'TroopInfo' in db.Tables:
 			sql = 'select troopuin,troopcode,troopowneruin,troopname,fingertroopmemo, oldtroopname from TroopInfo'
 		else:
-			sql = 'select troopuin,troopcode,troopowneruin,troopname,fingertroopmemo, troopCreattime,wmemberNum,administrator,dwcmduinjointime,oldtroopname from TroopInfoV2'            
+			sql = 'select troopuin,troopcode,troopowneruin,troopname,fingertroopmemo, troopCreatetime,wmemberNum,administrator,dwcmduinjointime,oldtroopname from TroopInfoV2'            
 		cursor = conn.execute(sql)        
 		for row in cursor:         
 			try:
@@ -222,23 +274,20 @@ class Andriod_QQParser(object):
 				g.create_time = row[5]/1000
 				g.member_count  = row[6]
 				g.source = node.AbsolutePath
+				self.troops[g.chatroom_id] = g
 				self.im.db_insert_table_chatroom(g)
 			except:
 				pass
 		self.im.db_commit()
 	
 	def decode_groupMember_info(self,acc_id):
-		dbpath = self.root + '/databases/'+ acc_id + '.db'
-		node = self.root.GetByPath(dbpath)
+		node = self.root.GetByPath('/databases/'+ acc_id + '.db')		
 		if node is None:
 			return
 		d = node.PathWithMountPoint
 		conn = connect(d)
-		db = SQLiteParser.Database.FromNode(node)
-		if db is None:
-			return	
 		sql ='''
-		   	select troopuin, memberuin,friendnick
+			   select troopuin, memberuin,friendnick
 			,autoremark,age,join_time,last_active_time
 			from TroopMemberInfo order by troopuin
 			'''         
@@ -272,146 +321,199 @@ class Andriod_QQParser(object):
 		for table in self.friendmsgtables:
 			self.decode_msg_from_friendtbale(acc_id ,table)
 		
-	def decode_msg_from_friendtbale(self,acc_id,table):         
+	def processmedia(self,msg):
+		sdcard = '/storage/emulated/0/'
+		searchkey = ''
+		nodes = None
+		print msg.content
+		if msg.content.find(sdcard) != -1 :
+			searchkey = msg.content[msg.content.find(sdcard) +len(sdcard):]						 					
+			nodes = self.root.FileSystem.Search(searchkey+'$')
+		if(nodes is not  None):
+			for node in nodes:
+				msg.media_path = node.AbsolutePath
+				if msg.media_path.endswith('.mp3') :
+					msg.type = MESSAGE_CONTENT_TYPE_VOICE                    
+				elif msg.media_path.endswith('.amr'):
+					msg.type = MESSAGE_CONTENT_TYPE_VOICE     
+				elif msg.media_path.endswith('.slk') :
+					msg.type = MESSAGE_CONTENT_TYPE_VOICE                    
+				elif msg.media_path.endswith('.mp4'):
+					msg.type = MESSAGE_CONTENT_TYPE_VIDEO
+				elif msg.media_path.endswith('.jpg'):
+					msg.type = MESSAGE_CONTENT_TYPE_IMAGE
+				elif msg.media_path.endswith('.png'):
+					msg.type = MESSAGE_CONTENT_TYPE_IMAGE
+				else:
+					msg.type = MESSAGE_CONTENT_TYPE_ATTACHMENT				
+				return True
+		return False
+	def decode_msg_from_friendtbale(self,acc_id,table): 
+		#f table != 'mr_friend_373B750958FA49CDF32A08407A21CEDC_New':
+			#return 
+		return
 		node =  self.root.GetByPath('/databases/'+ acc_id + '.db')
 		if node is None:
 			return
-		d = node.PathWithMountPoint
-		conn = sqlite3.connect(d)
-		hash = table[10:42]   
-		m = hashlib.md5()     
-		sql = 'select msgseq,extstr,frienduin,msgdata,senderuin,time,msgtype from ' + table + ' order by _id'
-		cursor = conn.execute(sql)
-		for row in cursor:
-			msg = Message()
-			msg.msg_id = row[0]
-			msg.account_id = acc_id                        
-			extstr = decode_text(self.imei,row[1])
-			frienduin = decode_text(self.imei,row[2]) 
-			msgdata = decode_blob(self.imei,row[3])
-			senderuin = decode_text(self.imei,row[4])
-			msg.send_time = row[5]
-			msgtype = row[6]          
-			msg.talker_type = CHAT_TYPE_FRIEND
-			#defalut talker
-			msg.talker_id = hash
-			if msg.talker_id is None:
-				m.update(frienduin)
-				digest = m.hexdigest().upper()
-				if digest == hash:
-					msg.talker_id =  frienduin
-				else:
-					for friend in self.friendhash:
-						if(hash == self.friendhash[friend]):
-							msg.talker_id = friend
-							break
-	
-			if senderuin == acc_id:
-				msg.is_sender = MESSAGE_TYPE_SEND
-			else:
-				msg.is_sender = MESSAGE_TYPE_RECEIVE
-			content = collections.defaultdict(str)
-			msg.type = MESSAGE_CONTENT_TYPE_TEXT
-			msgcontent = ''
+		d = node.PathWithMountPoint	
+		datasource = "Data Source =  " + d +";ReadOnly=True"
+		conn = SQLiteConnection(datasource)
+		conn.Open()
+		command = SQLiteCommand(conn)
+		command.CommandText = 'select msgseq,extstr,frienduin,msgdata,senderuin,time,msgtype ,_id from ' + table + ' order by time'
+		reader = command.ExecuteReader()
+		hash = table[10:42]
+		m = hashlib.md5()				
+		while reader.Read():
 			try:
-				if msgtype == -1000:
-					data = str(msgdata)	
-					msgcontent = data
-				if msgtype == -1043:
-					data = str(msgdata)	
-					msgcontent = data			
-				elif msgtype == -2009 or msgtype == -2005:
-					tp = (msgdata[0])
-					pos = msgdata.find('\x7c')
-					data = msgdata[1:pos]
-					content[tp] = data	
-					msgcontent = content[22]     
-				elif msgtype == -2002 or msgtype == -2005:
-					tp =  (msgdata[0])
-					length = msgdata[1]
-					content[tp] = msgdata[2:2+length]
-					msgcontent = content[10]
-					if msgcontent.endswith('.mp3') :
-						msg.type = MESSAGE_CONTENT_TYPE_VOICE                    
-					elif msgcontent.endswith('.amr'):
-						msg.type = MESSAGE_CONTENT_TYPE_VOICE     
-					elif msgcontent.endswith('.slk') :
-						msg.type = MESSAGE_CONTENT_TYPE_VOICE                    
-					elif msgcontent.endswith('.mp4'):
-						msg.type = MESSAGE_CONTENT_TYPE_VIDEO
+				i = 0 
+				msg = Message()
+				msg.msg_id = SafeGetInt64(reader,i)
+				msg.account_id = acc_id             
+				#i =i +1           
+				#extstr = decode_text(self.imei, SafeGetString(reader,i))
+				i =i +2           
+				frienduin = decode_text(self.imei, SafeGetString(reader,i)) 
+				i =i +1           
+				msgdata = decode_blob(self.imei, SafeGetBlob(reader,i))
+				i =i +1           
+				senderuin = decode_text(self.imei, SafeGetString(reader,i))
+				i =i +1           
+				msg.send_time = SafeGetInt64(reader,i)
+				i =i +1           
+				msgtype = SafeGetInt64(reader,i)          
+				msg.talker_type = CHAT_TYPE_FRIEND			
+				if msg.talker_id is None:
+					m.update(frienduin)
+					digest = m.hexdigest().upper()
+					if digest == hash:
+						msg.talker_id =  frienduin
 					else:
-						msg.type = MESSAGE_CONTENT_TYPE_ATTACHMENT
-					msg.media_path = msgcontent
-				elif msgtype == -2022:
-					offset = 0
+						for friend in self.friendhash:
+							if(hash == self.friendhash[friend]):
+								msg.talker_id = friend
+								break
+				if msg.talker_id is None:
+					msg.talker_id = hash
+				if senderuin == acc_id:
+					msg.is_sender = MESSAGE_TYPE_SEND
+					msg.sender_id = acc_id
+				else:
+					msg.is_sender = MESSAGE_TYPE_RECEIVE
+					msg.sender_id = msg.talker_id			
+				msg.type = MESSAGE_CONTENT_TYPE_TEXT
+				msgcontent = ''
+				qqmsgstruct = tencent_struct()									
+				msgstruct = qqmsgstruct.getQQMessage(msgtype,bytes(msgdata))					
+				if(msgtype == -2018 or msgtype == -2050):
+					msg.content = json.dumps(msgstruct[50])					
+					pass
+				elif(msgtype == -2011 or msgtype == -2054 or msgtype == -2059):
+					msg.content = msgstruct['mMsgBrief'].decode('utf-8')							
+					msgItems = msgstruct['mStructMsgItemLists']					
+					for l in msgItems:
+						try:
+							print l['b']
+							link  = l['b']
+							if link == '':
+								continue
+							msg.content = str(link)
+							msg.type = MESSAGE_CONTENT_TYPE_LINK
+							self.im.db_insert_table_message(msg)	
+						except:
+							pass			
+				elif(msgtype == -5003):
+					pass
+				elif(msgtype == -1000):
+					msg.content =msgstruct.decode("utf8","ignore")  
+					
+				elif(msgtype == -3006):
+					pass
+				elif(msgtype == -5040 or msgtype == -5020 or msgtype == -5021 or msgtype == -5022 or msgtype == -5023):
+					content =msgstruct[5][1]
+					msg.content = content  
+					pass
+				elif(msgtype == -1034):
+					pass
+				elif(msgtype == -1035):
+					pass
+				elif(msgtype == -5008 or msgtype == -2007):
 					try:
-						while offset < len(msgdata):
-							tp = (msgdata[offset])
-							offset = offset +1
-							length = msgdata[offset]
-							offset = offset + 1
-							#skip 0x1
-							if msgdata[offset] == 1:
-								offset =offset + 1
-							data = msgdata[offset:offset+length]
-							offset = offset+length
-							content[tp] = data		
-							#print content
+						if msgstruct['app'] == 'com.tencent.map':																				
+							self.decode_tencentmap(msg,msgstruct)				
+						else:
+							msg.content  = str(msgstruct['meta']).encode('utf-8',"ignore")							
 					except:
 						pass
-					msgcontent = content[26]
-					msg.type = MESSAGE_CONTENT_TYPE_VIDEO
-					msg.media_path = msgcontent
-					
-				elif msgtype == -2000:
-					offset = 0
 					try:
-						while offset < len(msgdata):
-							tp = (msgdata[offset])
-							offset = offset +1
-							length = msgdata[offset]
-							offset = offset + 1
-							#skip 0x1
-							if msgdata[offset] == 1:
-								offset =offset + 1
-							data = msgdata[offset:offset+length]
-							offset = offset+length
-							content[tp] = data	
+						sig ='\xac\xed\x00\05'
+						type = 0x74
+						s = msgdata[0:4]
+						d = msgdata[4]
+						if(sig == s and type == d):
+							lens, = struct.unpack('>H',msgdata[5:7])
+							msgstruct =json.loads(str(msgdata[7:7+lens]))
+							if msgstruct['app'] == 'com.tencent.map':																					
+								self.decode_tencentmap(msg,msgstruct)
+							else:    						
+								msg.content  = str(msgstruct['meta']).encode('utf-8',"ignore")								
 					except:
-						pass                                                
-					msgcontent = content[10]					
-					msg.type = MESSAGE_CONTENT_TYPE_IMAGE
-					msg.media_path = msgcontent
-					
-				elif msgtype == -5008:
-					sig = msgdata[0:4]
-					offset = 4
-					tp = msgdata[offset]
-					offset = offset+1
-					#2 bytes  size
-					length = struct.unpack('>H',msgdata[offset:offset+2])
-					offset = offset +2
-					data = str(msgdata[offset:offset+ length[0]])
-					j = json.loads(data)   
-					if j['app'] == 'com.tencent.map':                 	
-						#name = j['meta']['Location.Search']['name']
-						address = j['meta']['Location.Search']['address']                    
-						lat = j['meta']['Location.Search']['lat']
-						lng = j['meta']['Location.Search']['lng']                    
-						msg.extra_id  = uuid.uuid1()
-						msg.type = MESSAGE_CONTENT_TYPE_LOCATION
-						locat = Location()
-						locat.location_id = msg.extra_id 
-						locat.latitude = lat
-						locat.longitude = lng
-						locat.address = address
-					self.im.db_insert_table_location(locat)                                                     
-				else:
-					msgcontent = str(msgdata)
-				self.im.db_insert_table_message(msg)
-			except:
-				pass
+						pass								
+				elif(msgtype == -2000):
+					url = str(msgstruct['rawMsgUrl'])					
+					content= str(msgstruct['localPath'])		
+					thumb = str(msgstruct['thumbMsgUrl'])
+					msg.content = str(content)
+					if(self.processmedia(msg) == False):
+						msg.content = thumb
+						self.processmedia(msg)			
+				elif(msgtype == -2006):
+					msg.content	= msgstruct.decode("utf8","ignore") 					
+					pass
+				elif(msgtype == -2022):
+					#mp4
+					filename = msgstruct[3][1]
+					msg.content = str(filename)
+					self.processmedia(msg)					
+				elif(msgtype == -2053):
+					pass
+				elif(msgtype == -1049):
+					pass
+				elif(msgtype == -2025):
+					pass
+				elif(msgtype == -5012):		
+					if(msgstruct is None):
+						msgstruct=json.loads(str(msgdata))
+						msg.content = msgstruct["msg"].decode('utf-8',"ignore")
+					pass
+				elif(msgtype == -2038):    					
+					pass
+				elif(msgtype == -5040):    					
+					msg.content = str(msgstruct["content"].decode('utf-8',"ignore"))
+					pass
+				elif(msgtype == -2002):
+					if msgstruct is None:
+						sdcarad = '/storage/emulated/0/'
+						pos = msgdata.find(sdcarad)
+						if( pos != -1):                            
+							strlens = msgdata[pos -2]
+							lenpos = pos -2
+							if(strlens & 0x80 == 0):
+								strlens = msgdata[pos -1]
+								lenpos = pos -1
+							lens = readVarInt(str(msgdata[lenpos:]))
+							msg.content = str(msgdata[pos:pos+ lens])							
+							self.processmedia(msg)
+				else:    				
+					msg.content = msgdata.decode('utf-8',"ignore") 	
+					print msg.content						
+					self.im.db_insert_table_message(msg)			
+			except Exception as e:		
+				print (e)
+		command.Dispose()		
+		conn.Close()
 		self.im.db_commit()
+		
 	def decode_group_messages(self,acc_id):
 		node =  self.root.GetByPath('/databases/'+ acc_id + '.db')
 		if node is None:
@@ -423,172 +525,180 @@ class Andriod_QQParser(object):
 		for row in cursor:
 			self.troopmsgtables.add(row[0])
 		for table in self.troopmsgtables:
-			self.decode_msg_from_trooptbale(acc_id ,table)         
-		
-	def decode_msg_from_trooptbale(self,acc_id ,table):
+			self.decode_msg_from_trooptbale(acc_id ,table) 
+					
+	def decode_tencentmap(self,msg,msgstruct):
+		address = msgstruct['meta']['Location.Search']['address'].decode("utf8","ignore")                     
+		lat = msgstruct['meta']['Location.Search']['lat']
+		lng = msgstruct['meta']['Location.Search']['lng']                    
+		msg.extra_id  =  str(uuid.uuid1())
+		msg.type = MESSAGE_CONTENT_TYPE_LOCATION
+		locat = Location()
+		locat.location_id = msg.extra_id 
+		locat.latitude = lat
+		locat.longitude = lng
+		locat.address = address	
+		self.im.db_insert_table_location(locat)			
+		pass
+	def decode_msg_from_trooptbale(self,acc_id ,table):          
 		node =  self.root.GetByPath('/databases/'+ acc_id + '.db')
 		if node is None:
 			return
 		d = node.PathWithMountPoint
-		conn = sqlite3.connect(d)
-		hash = table[10:42]   
-		m = hashlib.md5()     
-		sql = 'select msgseq,extstr,frienduin,msgdata,senderuin,time,msgtype from ' + table + ' order by _id'
-		cursor = conn.execute(sql)
-		for row in cursor:
-			msg = Message()
-			msg.msg_id = row[0]
-			msg.account_id = acc_id                        
-			extstr = decode_text(self.imei,row[1])
-			frienduin = decode_text(self.imei,row[2]) 
-			msgdata = decode_blob(self.imei,row[3])
-			senderuin = decode_text(self.imei,row[4])
-			msg.send_time = row[5]
-			msgtype = row[6]        
-			msg.talker_type = CHAT_TYPE_GROUP  
-			#defalut talker
-			msg.talker_id = hash
-			if msg.talker_id is None:
-				m.update(frienduin)
-				digest = m.hexdigest().upper()
-				if digest == hash:
-					msg.talker_id =  frienduin
-				else:
-					for troopuin in self.troops:
-						m.update(troopuin)
-						digest = m.hexdigest().upper()
-						if(hash == digest):
-							msg.talker_id = troopuin
-							break
-			#sender
-		 
-			if senderuin == acc_id:
-				msg.is_sender = MESSAGE_TYPE_SEND
-			else:
-				msg.is_sender = MESSAGE_TYPE_RECEIVE
-			content = collections.defaultdict(str)
-			msg.type = MESSAGE_CONTENT_TYPE_TEXT
-			msgcontent = ''
+		datasource = "Data Source =  " + d +";ReadOnly=True"
+		conn = SQLiteConnection(datasource)
+		conn.Open()
+		command = SQLiteCommand(conn)
+		command.CommandText = 'select msgseq,extstr,frienduin,msgdata,senderuin,time,msgtype from ' + table + ' order by time'
+		reader = command.ExecuteReader()	
+		hash = table[9:41]   
+		m = hashlib.md5()     		
+		while reader.Read():
 			try:
-				if msgtype == -1000:
-					data = str(msgdata)	
-					msgcontent = data
-				if msgtype == -1043:
-					data = str(msgdata)	
-					msgcontent = data			
-				elif msgtype == -2009 or msgtype == -2005:
-					tp = (msgdata[0])
-					pos = msgdata.find('\x7c')
-					data = msgdata[1:pos]
-					content[tp] = data	
-					msgcontent = content[22]     
-				elif msgtype == -2002 or msgtype == -2005:
-					tp =  (msgdata[0])
-					length = msgdata[1]
-					content[tp] = msgdata[2:2+length]
-					msgcontent = content[10]
-					if msgcontent.endswith('.mp3') :
-						msg.type = MESSAGE_CONTENT_TYPE_VOICE                    
-					elif msgcontent.endswith('.amr'):
-						msg.type = MESSAGE_CONTENT_TYPE_VOICE     
-					elif msgcontent.endswith('.slk') :
-						msg.type = MESSAGE_CONTENT_TYPE_VOICE                    
-					elif msgcontent.endswith('.mp4'):
-						msg.type = MESSAGE_CONTENT_TYPE_VIDEO
+				i = 0 
+				msg = Message()
+				msg.msg_id = SafeGetInt64(reader,i)
+				msg.account_id = acc_id             
+				#i =i +1 
+				#strextstr = SafeGetBlob(reader,i)
+				#extstr = decode_text(self.imei, bytes(strextstr))
+				i =i +2          
+				frienduin = decode_text(self.imei, SafeGetString(reader,i)) 
+				i =i +1           
+				msgdata = decode_blob(self.imei, SafeGetBlob(reader,i))
+				i =i +1           
+				senderuin = decode_text(self.imei, SafeGetString(reader,i))
+				i =i +1           
+				msg.send_time = SafeGetInt64(reader,i)
+				i =i +1           
+				msgtype = SafeGetInt64(reader,i)          
+				msg.talker_type = CHAT_TYPE_GROUP			
+				if msg.talker_id is None:
+					m.update(frienduin)
+					digest = m.hexdigest().upper()
+					if digest == hash:
+						msg.talker_id =  frienduin
 					else:
-						msg.type = MESSAGE_CONTENT_TYPE_ATTACHMENT
-					msg.media_path = msgcontent
-				elif msgtype == -2022:
-					offset = 0
-					try:
-						while offset < len(msgdata):
-							tp = (msgdata[offset])
-							offset = offset +1
-							length = msgdata[offset]
-							offset = offset + 1
-							#skip 0x1
-							if msgdata[offset] == 1:
-								offset = offset + 1
-							data = msgdata[offset:offset+length]
-							offset = offset+length
-							content[tp] = data		
-						#print content
-					except:
-						pass
-					msgcontent = content[26]
-					msg.type = MESSAGE_CONTENT_TYPE_VIDEO
-					msg.media_path = msgcontent
-				elif msgtype == -2000:
-					offset = 0
-					try:
-						while offset < len(msgdata):
-							tp = (msgdata[offset])
-							offset = offset +1
-							length = msgdata[offset]
-							offset = offset + 1
-							#skip 0x1
-							if msgdata[offset] == 1:
-								offset =offset + 1
-							data = msgdata[offset:offset+length]
-							offset = offset+length
-							content[tp] = data	                                                
-					except:
-						pass
-					msgcontent = content[10]
-					msg.type = MESSAGE_CONTENT_TYPE_IMAGE
-					msg.media_path = msgcontent
-				elif msgtype == -5008:
-					sig = msgdata[0:4]
-					offset = 4
-					tp = msgdata[offset]
-					offset = offset+1
-					#2 bytes  size
-					length = struct.unpack('>H',msgdata[offset:offset+2])
-					offset = offset +2
-					data = str(msgdata[offset:offset+ length[0]])
-					j = json.loads(data)  
-					if j['app'] == 'com.tencent.map':                  	
-						name = j['meta']['Location.Search']['name']
-						address = j['meta']['Location.Search']['address']                    
-						lat = j['meta']['Location.Search']['lat']
-						lng = j['meta']['Location.Search']['lng']                    
-						msg.extra_id  = uuid.uuid1()
-						msg.type = MESSAGE_CONTENT_TYPE_LOCATION
-						locat = Location()
-						locat.location_id = msg.extra_id 
-						locat.latitude = lat
-						locat.longitude = lng
-						locat.address = address
-						self.im.db_insert_table_location(locat)                                                     
+						for troopuin in self.troops:
+							m.update(troopuin)
+							digest = m.hexdigest().upper()
+							if(hash == digest):
+								msg.talker_id = troopuin
+								break
+				if msg.talker_id is None:
+					msg.talker_id = hash
+				if senderuin == acc_id:
+					msg.is_sender = MESSAGE_TYPE_SEND
+					msg.sender_id = acc_id
 				else:
-					msgcontent = str(msgdata)
-				self.im.db_insert_table_message(msg)
-			except:
-				pass
-		self.im.db_commit()
-			
-			
-				
-
-				
-			
-
-
-
-
-		
-				
-			
-			
-			
-
-
-
-			
-			
-
-
-			 
-		
-  
-
+					msg.is_sender = MESSAGE_TYPE_RECEIVE
+					msg.sender_id = senderuin	
+				msg.type = MESSAGE_CONTENT_TYPE_TEXT
+				msgcontent = ''
+				qqmsgstruct = tencent_struct()								
+				msgstruct = qqmsgstruct.getQQMessage(msgtype,bytes(msgdata))		
+				if(msgtype == -2018 or msgtype == -2050):
+					msg.content = json.dumps(msgstruct[50])					
+					pass
+				elif(msgtype == -2011 or msgtype == -2054 or msgtype == -2059):
+					msg.content = msgstruct['mMsgBrief'].decode('utf-8',"ignore")							
+					msgItems = msgstruct['mStructMsgItemLists']					
+					for l in msgItems:
+						try:
+							print l['b']
+							link  = l['b']
+							if link == '':
+								continue
+							msg.content = str(link)
+							msg.type = MESSAGE_CONTENT_TYPE_LINK
+							self.im.db_insert_table_message(msg)	
+						except:
+							pass			
+				elif(msgtype == -5003):
+					pass
+				elif(msgtype == -1000):
+					msg.content =msgstruct.decode("utf8","ignore")  
+					
+				elif(msgtype == -3006):
+					pass
+				elif(msgtype == -5040 or msgtype == -5020 or msgtype == -5021 or msgtype == -5022 or msgtype == -5023):
+					content =msgstruct[5][1]
+					msg.content = content  
+					pass
+				elif(msgtype == -1034):
+					pass
+				elif(msgtype == -1035):
+					pass
+				elif(msgtype == -5008 or msgtype == -2007):
+					try:
+						if msgstruct['app'] == 'com.tencent.map':																				
+							self.decode_tencentmap(msg,msgstruct)	
+						else:
+							msg.content  = str(msgstruct['meta']).encode('utf-8',"ignore")							
+					except:
+						pass
+					try:			
+						if(msgdata[0:4] == '\xac\xed\x00\05' and msgdata[4] == d):
+							lens, = struct.unpack('>H',msgdata[5:7])
+							msgstruct =json.loads(str(msgdata[7:7+lens]))
+							if msgstruct['app'] == 'com.tencent.map':																					
+								self.decode_tencentmap(msg,msgstruct)
+							else:    						
+								msg.content  = str(msgstruct['meta']).encode('utf-8',"ignore")								
+					except:
+						msg.content  = str(msgstruct['meta']).encode('utf-8',"ignore")	
+						pass								
+				elif(msgtype == -2000):
+					url = str(msgstruct['rawMsgUrl'])					
+					content= str(msgstruct['localPath'])		
+					thumb = str(msgstruct['thumbMsgUrl'])
+					msg.content = str(content)
+					if(self.processmedia(msg) == False):
+						msg.content = thumb
+						self.processmedia(msg)			
+				elif(msgtype == -2006):
+					msg.content	= msgstruct.decode("utf8","ignore") 					
+					pass
+				elif(msgtype == -2022):
+					#mp4
+					filename = msgstruct[3][1]
+					msg.content = str(filename)
+					self.processmedia(msg)					
+				elif(msgtype == -2053):
+					pass
+				elif(msgtype == -1049):
+					pass
+				elif(msgtype == -2025):
+					pass
+				elif(msgtype == -5012):		
+					if(msgstruct is None):
+						msgstruct=json.loads(str(msgdata))
+						msg.content = msgstruct["msg"].decode('utf-8',"ignore")
+					pass
+				elif(msgtype == -2038):    					
+					pass
+				elif(msgtype == -5040):    					
+					msg.content = str(msgstruct["content"].decode('utf-8',"ignore"))
+					pass
+				elif(msgtype == -2002):
+					if msgstruct is None:
+						sdcarad = '/storage/emulated/0/'
+						pos = msgdata.find(sdcarad)
+						if( pos != -1):                            
+							strlens = msgdata[pos -2]
+							lenpos = pos -2
+							if(strlens & 0x80 == 0):
+								strlens = msgdata[pos -1]
+								lenpos = pos -1
+							lens = readVarInt(str(msgdata[lenpos:]))
+							msg.content = str(msgdata[pos:pos+ lens])							
+							self.processmedia(msg)
+				else:
+					msg.content = msgdata.decode('utf-8',"ignore")	
+				print msg.content
+				self.im.db_insert_table_message(msg)				
+			except Exception as e:		
+				print e				
+		command.Dispose()		
+		conn.Close()		
+		self.im.db_commit()		
