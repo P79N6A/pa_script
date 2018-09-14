@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-__author__ = "sumeng"
 
 from PA_runtime import *
 import clr
@@ -16,7 +15,6 @@ from PA.InfraLib.Utils import *
 
 import os
 import sqlite3
-import json
 import traceback
 
 
