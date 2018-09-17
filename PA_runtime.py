@@ -12,6 +12,12 @@ clr.AddReference('SQLiteSpy')
 clr.AddReference('System.Core')
 del clr
 
+def SafeLoadAssembly(asm):
+    try:
+        clr.AddReference(asm)
+    except:
+        pass
+
 import re
 import sys,traceback
 import time

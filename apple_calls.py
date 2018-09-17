@@ -69,5 +69,5 @@ def analyze_call_history(node, extractDeleted, extractSource):
         traceback.print_exc()
         TraceService.Trace(TraceLevel.Error, "解析出错: {0}".format('通话记录'))
         message = '解析通话记录出错'
-    pr.Build('通话记录')
+    pr.Build('本机通话')
     return pr
