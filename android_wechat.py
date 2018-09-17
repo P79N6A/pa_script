@@ -1,5 +1,5 @@
 #coding=utf-8
-import PA_runtime
+from PA_runtime import *
 import clr
 clr.AddReference('System.Core')
 clr.AddReference('System.Xml.Linq')
@@ -17,7 +17,6 @@ from System.Security.Cryptography import *
 from System.Text import *
 from System.IO import *
 from System import Convert
-from PA_runtime import *
 
 import os
 import hashlib

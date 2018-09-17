@@ -8,6 +8,7 @@ import math
 from PA_runtime import *
 import model_map
 import pickle
+SafeLoadAssembly("model_map")
 
 APPVERSION = "2.0"
 

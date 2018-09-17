@@ -4,7 +4,7 @@ import PA_runtime
 from PA_runtime import *
 import model_map
 import json
-
+SafeLoadAssembly("model_map")
 
 APPVERSION = "1.0"
 

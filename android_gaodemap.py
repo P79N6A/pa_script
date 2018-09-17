@@ -9,6 +9,7 @@ from sqlite3 import *
 import json
 import model_map
 import os
+SafeLoadAssembly("model_map")
 
 
 POI_SNAPSHOT = 12
