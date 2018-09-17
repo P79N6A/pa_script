@@ -3,7 +3,8 @@ import PA_runtime
 import clr
 import json
 from sqlite3 import *
-
+import threading
+import sys
 clr.AddReference('System.Web')
 clr.AddReference('System.Core')
 clr.AddReference('System.Xml.Linq')
@@ -29,6 +30,11 @@ import logging
 from  model_im import *
 import uuid 
 
+def cancel():
+    while True:  
+        if canceller.IsCancellationRequested:
+            sys.exit()
+            sleep(1)
 class QQParser(object):
     def __init__(self, app_root_dir, extract_deleted, extract_source):
         self.root = app_root_dir
@@ -51,6 +57,8 @@ class QQParser(object):
         #self.im.db_create(self.cachedb)
         self.VERSION_APP_VALUE = 10000
     def parse(self):        
+        th = threading.Thread(target=cancel,args=())
+        th.start()
         if self.im.need_parse(self.cachedb, self.VERSION_APP_VALUE):
             self.im.db_create(self.cachedb)
             self.decode_accounts()
@@ -114,6 +122,8 @@ class QQParser(object):
             cursor = conn.execute(sql)
             for row in cursor:
                 try:
+                    if canceller.IsCancellationRequested:
+                        return
                     msg = Message()
                     uin = str(row[0])
                     sendtime = row[1]
@@ -157,6 +167,8 @@ class QQParser(object):
             cursor = conn.execute(sql)
             for row in cursor:
                 try:
+                    if canceller.IsCancellationRequested:
+                        return
                     msg = Message()
                     uin = str(row[0])
                     sendtime = row[1]
@@ -312,6 +324,8 @@ class QQParser(object):
             if(groups is not None):                
                 for data in groups:
                     try:
+                        if canceller.IsCancellationRequested:
+                            return
                         g = Chatroom()
                         v = data.Value
                         g.chatroom_id = data.Key
@@ -359,6 +373,8 @@ class QQParser(object):
             sql = 'select strNick,groupCode,MemberUin,strRemark,PhoneNumber  from tb_troopRemarkNew'
             cursor = conn.execute(sql)
             for row in cursor:
+                if canceller.IsCancellationRequested:
+                        return
                 chatroommem = ChatroomMember()
                 strNick = row[0]
                 groupCode = str(row[1])
@@ -380,6 +396,8 @@ class QQParser(object):
             sql = 'select nick,GroupCode,MemUin,Age,JoinTime,LastSpeakTime,gender from tb_TroopMem'
             cursor = conn.execute(sql)
             for row in cursor:
+                    if canceller.IsCancellationRequested:
+                        return
                     nick = row[0]
                     groupCode = str(row[1])
                     MemberUin = str(row[2])
@@ -448,6 +466,8 @@ class QQParser(object):
             cursor = conn.execute(sql)
             for row in cursor:
                 try:
+                    if canceller.IsCancellationRequested:
+                        return
                     uin = str(row[0])
                     sendtime = row[1]
                     msgtype = row[2]
@@ -525,6 +545,8 @@ class QQParser(object):
             cursor = conn.execute(sql)
             for row in cursor:
                 try:
+                    if canceller.IsCancellationRequested:
+                        return
                     uin = str(row[0])
                     sendtime = row[1]
                     msgtype = row[2]
@@ -727,6 +749,8 @@ class QQParser(object):
         SQLiteParser.Tools.AddSignatureToTable(ts, 'groupcode', 4,5,6)
         SQLiteParser.Tools.AddSignatureToTable(ts, 'GroupName', 13)
         for rec in db.ReadTableDeletedRecords(ts, False):
+            if canceller.IsCancellationRequested:
+                return
             group = Chatroom()
             groupCode = str(rec['groupcode'].Value)
             groupName = str(rec['GroupName'].Value)						
@@ -762,6 +786,8 @@ class QQParser(object):
             SQLiteParser.Tools.AddSignatureToTable(ts, 'picUrl', 13)
             for rec in db.ReadTableDeletedRecords(ts, False):
                 try:
+                    if canceller.IsCancellationRequested:
+                        return
                     uin = str(rec['uin'].Value)
                     sendtime = rec['time'].Value
                     msgtype = rec['type'].Value
@@ -851,6 +877,8 @@ class QQParser(object):
             SQLiteParser.Tools.AddSignatureToTable(ts, 'picUrl', 13)
             for row in  db.ReadTableDeletedRecords(ts, False):
                 try:
+                    if canceller.IsCancellationRequested:
+                        return
                     uin = str(row['SendUin'].Value)
                     sendtime = row['MsgTime'].Value
                     msgtype = row['sMsgType'].Value
@@ -939,6 +967,8 @@ class QQParser(object):
         SQLiteParser.Tools.AddSignatureToTable(ts, 'c8conversationUin', 1,2,3,4,5,6)
         for row in  db.ReadTableDeletedRecords(ts, False):
             try:
+                if canceller.IsCancellationRequested:
+                    return
                 msg = Message()
                 msg.id = str(row['c0msgId'].Value)
                 uin = str(row['c1uin'].Value)
@@ -991,6 +1021,8 @@ class QQParser(object):
         SQLiteParser.Tools.AddSignatureToTable(ts, 'c8conversationUin', 1,2,3,4,5,6)
         for row in db.ReadTableDeletedRecords(ts, False):
             try:
+                if canceller.IsCancellationRequested:
+                    return
                 msg = Message()
                 
                 uin = str(row['c1uin'].Value)
@@ -1046,6 +1078,8 @@ class QQParser(object):
         SQLiteParser.Tools.AddSignatureToTable(ts, 'c8conversationUin', 1,2,3,4,5,6)
         for row in db.ReadTableRecords(ts, True):
             try:
+                if canceller.IsCancellationRequested:
+                    return
                 msg = Message()				
                 uin = str(row['c1uin'].Value)
                 sendtime = row['c2time'].Value
