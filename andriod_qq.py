@@ -131,9 +131,7 @@ class Andriod_QQParser(object):
 		self.getImei()
 		self.decode_accounts()
 		try:
-			for acc_id in self.accounts:
-				if acc_id != '848565664':
-					continue
+			for acc_id in self.accounts:		
 				self.friendsNickname.clear()
 				self.friendsGroups.clear()
 				self.groupContact.clear()
