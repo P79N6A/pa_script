@@ -9,10 +9,10 @@ clr.AddReference('System.Core')
 clr.AddReference('System.Xml.Linq')
 clr.AddReference('System.Data.SQLite')
 try:
-    clr.AddReference('model_im')
-    clr.AddReference('QQ_struct')
+	clr.AddReference('model_im')
+	clr.AddReference('QQ_struct')
 except:
-    pass
+	pass
 del clr
 from System.Data.SQLite import *
 import System
@@ -239,6 +239,8 @@ class Andriod_QQParser(object):
 		cursor = conn.execute(sql)
 		for row in cursor:        
 			try:
+				if canceller.IsCancellationRequested:
+					return
 				friend = Friend()
 				friend.account_id = acc_id
 				friend.friend_id = decode_text(self.imei,row[0])
@@ -268,6 +270,8 @@ class Andriod_QQParser(object):
 		cursor = conn.execute(sql)        
 		for row in cursor:         
 			try:
+				if canceller.IsCancellationRequested:
+					return
 				g = Chatroom()
 				g.account_id = acc_id
 				g.chatroom_id = decode_text(self.imei,row[1])            
@@ -297,6 +301,8 @@ class Andriod_QQParser(object):
 		cursor = conn.execute(sql)  
 		for row in cursor:
 			try:
+				if canceller.IsCancellationRequested:
+					return
 				mem = ChatroomMember()
 				mem.account_id = acc_id
 				mem.chatroom_id = decode_text(self.imei,row[0])
@@ -369,6 +375,8 @@ class Andriod_QQParser(object):
 		m = hashlib.md5()				
 		while reader.Read():
 			try:
+				if canceller.IsCancellationRequested:
+					return
 				i = 0 
 				msg = Message()
 				msg.msg_id = SafeGetInt64(reader,i)
@@ -509,8 +517,8 @@ class Andriod_QQParser(object):
 							self.processmedia(msg)
 				else:    				
 					msg.content = msgdata.decode('utf-8',"ignore") 	
-					print msg.content						
-					self.im.db_insert_table_message(msg)			
+				print msg.content						
+				self.im.db_insert_table_message(msg)			
 			except Exception as e:		
 				print (e)
 		command.Dispose()		
@@ -558,6 +566,8 @@ class Andriod_QQParser(object):
 		m = hashlib.md5()     		
 		while reader.Read():
 			try:
+				if canceller.IsCancellationRequested:
+					return
 				i = 0 
 				msg = Message()
 				msg.msg_id = SafeGetInt64(reader,i)
