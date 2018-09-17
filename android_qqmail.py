@@ -4,7 +4,6 @@ import PA_runtime
 import datetime
 import time
 from PA_runtime import *
-import logging
 import sqlite3
 from System.Linq import Enumerable
 import re
@@ -76,7 +75,7 @@ class QQMailParser(object):
             self.mm.db_commit()
             self.db.close()
         except Exception as e:
-            logging.error(e)
+            print(e)
 
     def decode_recover_mail_table(self):
         mailsNode = self.node
@@ -134,7 +133,7 @@ class QQMailParser(object):
                 self.mm.db_insert_table_mails(mails)
             self.mm.db_commit()
         except Exception as e:
-            logging.error(e)
+            print(e)
         accountNode = self.node.Parent.GetByPath('/AccountInfo')
         self.db = SQLiteParser.Database.FromNode(accountNode)
         if self.db is None:
@@ -150,7 +149,7 @@ class QQMailParser(object):
                 self.mm.db_insert_table_mails(mails)
             self.mm.db_commit()
         except Exception as e:
-            logging.error(e)
+            print(e)
 
     def analyze_accounts(self):
         mailNode = self.node.Parent.GetByPath('/AccountInfo').AbsolutePath
@@ -169,7 +168,7 @@ class QQMailParser(object):
             self.mm.db_commit()
             self.db.close()
         except Exception as e:
-            logging.error(e)
+            print(e)
 
     def analyze_contact(self):
         mailNode = self.node.AbsolutePath
@@ -190,7 +189,7 @@ class QQMailParser(object):
             self.mm.db_commit()
             self.db.close()
         except Exception as e:
-            logging.error(e)
+            print(e)
 
     def decode_recover_mail_contact(self):
         mailsNode = self.node
@@ -209,7 +208,7 @@ class QQMailParser(object):
                 self.mm.db_insert_table_contact(contact)
             self.mm.db_commit()
         except Exception as e:
-            logging.error(e)
+            print(e)
         accountNode = self.node.Parent.GetByPath('/AccountInfo')
         self.db = SQLiteParser.Database.FromNode(accountNode)
         if self.db is None:
@@ -223,7 +222,7 @@ class QQMailParser(object):
                 contact.deleted = 1
                 self.mm.db_insert_table_contact(contact)
         except Exception as e:
-            logging.error(e)
+            print(e)
 
     def analyze_email_folder(self):
         mailNode = self.node.AbsolutePath
@@ -243,7 +242,7 @@ class QQMailParser(object):
             self.mm.db_commit()
             self.db.close()
         except Exception as e:
-            logging.error(e)
+            print(e)
 
     def analyze_attach(self):
         mailNode = self.node.AbsolutePath
@@ -269,7 +268,7 @@ class QQMailParser(object):
             self.mm.db_commit()
             self.db.close()
         except Exception as e:
-            logging.error(e)
+            print(e)
 
     def parse(self):
         self.analyze_mails()
