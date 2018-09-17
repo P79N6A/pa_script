@@ -1,5 +1,5 @@
 #coding=utf-8
-import PA_runtime
+from PA_runtime import *
 import clr
 clr.AddReference('System.Core')
 clr.AddReference('System.Xml.Linq')
@@ -13,7 +13,6 @@ from System.Text import Encoding
 from System.Xml.Linq import *
 from System.Linq import Enumerable
 from System.Xml.XPath import Extensions as XPathExtensions
-from PA_runtime import *
 import System.Data.SQLite as SQLite
 
 import os
