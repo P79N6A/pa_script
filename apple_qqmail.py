@@ -4,7 +4,6 @@ import PA_runtime
 import datetime
 import time
 from PA_runtime import *
-import logging
 import sqlite3
 SafeLoadAssembly('model_mails')
 from System.Linq import Enumerable
@@ -107,7 +106,7 @@ class MailParser(object):
             self.mm.db_commit()
             self.db.close()
         except Exception as e:
-            logging.error(e)
+            print(e)
         return mails
 
     def decode_recover_mail_table(self):  #需要在model中用sql语句做合并
@@ -183,7 +182,7 @@ class MailParser(object):
                 self.mm.db_insert_table_mails(mails)
             self.mm.db_commit()
         except Exception as e:
-            logging.error(e)
+            print(e)
 
     def analyze_mail_accounts(self):
         """
@@ -212,7 +211,7 @@ class MailParser(object):
             self.mm.db_commit()
             self.db.close()
         except Exception as e:
-            logging.error(e)
+            print(e)
         return accounts
 
     def decode_recover_table_accounts(self):
@@ -232,7 +231,7 @@ class MailParser(object):
                 self.mm.db_insert_table_account(accounts)
             self.mm.db_commit()
         except Exception as e:
-            logging.error(e)
+            print(e)
 
     def analyze_mail_contract(self):
         """
@@ -268,7 +267,7 @@ class MailParser(object):
             self.mm.db_commit()
             self.db.close()
         except Exception as e:
-            logging.error(e)
+            print(e)
         return contact
 
     def decode_recover_table_contact(self):
@@ -304,7 +303,7 @@ class MailParser(object):
                 self.mm.db_insert_table_contact(contact)
             self.mm.db_commit()
         except Exception as e:
-            logging.error(e)
+            print(e)
         self.db = SQLiteParser.Database.FromNode(mailsNode)
         if self.db is None:
             return
@@ -320,7 +319,7 @@ class MailParser(object):
                 self.mm.db_insert_table_contact(contact)
             self.mm.db_commit()
         except Exception as e:
-            logging.error(e)
+            print(e)
 
     def analyze_mail_Folder(self):
         """
@@ -345,7 +344,7 @@ class MailParser(object):
             self.mm.db_commit()
             self.db.close()
         except Exception as e:
-            logging.error(e)
+            print(e)
         return mailFolder
 
     def analyze_mail_attach(self):
@@ -379,7 +378,7 @@ class MailParser(object):
             self.mm.db_commit()
             self.db.close()
         except Exception as e:
-            logging.error(e)
+            print(e)
         return attach
 
     def analyze_mail_search(self):
