@@ -295,6 +295,7 @@ class WeChatParser(model_im.IM):
         if likes is not None and len(likes) > 0:
             ids = []
             for like in likes:
+                canceller.ThrowIfCancellationRequested()
                 ids.append(like.like_id)
                 like.deleted = feed.deleted
                 like.source = feed.source
@@ -304,6 +305,7 @@ class WeChatParser(model_im.IM):
         if comments is not None and len(comments) > 0:
             ids = []
             for comment in comments:
+                canceller.ThrowIfCancellationRequested()
                 ids.append(comment.comment_id)
                 comment.deleted = feed.deleted
                 comment.source = feed.source
@@ -479,6 +481,7 @@ class WeChatParser(model_im.IM):
         cm.account_id = self.user_account.account_id
         cm.chatroom_id = chatroom_id
         for i, room_member in enumerate(room_members):
+            canceller.ThrowIfCancellationRequested()
             cm.member_id = room_member
             if i < len(display_names) and display_names[i] != room_member:
                 cm.display_name = display_names[i]
@@ -631,6 +634,7 @@ class WeChatParser(model_im.IM):
                 m1 = img_name[0:2]
                 m2 = img_name[2:4]
             for extend_node in self.extend_nodes:
+                canceller.ThrowIfCancellationRequested()
                 node = extend_node.GetByPath('/image2/{0}/{1}/{2}'.format(m1, m2, img_name))
                 if node is not None:
                     media_path = node.AbsolutePath
@@ -643,6 +647,7 @@ class WeChatParser(model_im.IM):
         m1 = hash[0:2]
         m2 = hash[2:4]
         for extend_node in self.extend_nodes:
+            canceller.ThrowIfCancellationRequested()
             node = extend_node.GetByPath('/voice2/{0}/{1}/msg_{2}.amr'.format(m1, m2, voice_id))
             if node is not None:
                 media_path = node.AbsolutePath
@@ -652,6 +657,7 @@ class WeChatParser(model_im.IM):
     def _process_parse_message_tranlate_video_path(self, video_id):
         media_path = None
         for extend_node in self.extend_nodes:
+            canceller.ThrowIfCancellationRequested()
             node = extend_node.GetByPath('/video/{}.mp4'.format(video_id))
             if node is not None:
                 media_path = node.AbsolutePath
@@ -1090,6 +1096,7 @@ class Decryptor:
         de.write(iv)
 
         for _ in range(1, size // 1024):
+            canceller.ThrowIfCancellationRequested()
             content = src_node.read(1024)
             iv = content[1008: 1024]
             de.write(Decryptor.aes_decrypt(final_key,
@@ -1213,6 +1220,7 @@ class SnsParser:
         if type(ret) == list and len(ret) > 0:
             likes = []
             for like in ret:
+                canceller.ThrowIfCancellationRequested()
                 if type(like) == tuple and len(like) > 1:
                     like = like[1]
                     if type(like) == dict:
@@ -1229,6 +1237,7 @@ class SnsParser:
         if type(ret) == list and len(ret) > 0:
             comments = []
             for comment in ret:
+                canceller.ThrowIfCancellationRequested()
                 if type(comment) == tuple and len(comment) > 1:
                     comment = comment[1]
                     if type(comment) == dict:
