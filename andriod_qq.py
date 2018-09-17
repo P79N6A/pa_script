@@ -8,6 +8,8 @@ clr.AddReference('System.Web')
 clr.AddReference('System.Core')
 clr.AddReference('System.Xml.Linq')
 clr.AddReference('System.Data.SQLite')
+SafeLoadAssembly('model_im')
+SafeLoadAssembly('QQ_struct')
 del clr
 from System.Data.SQLite import *
 import System
