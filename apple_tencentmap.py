@@ -2,8 +2,14 @@
 import os
 import PA_runtime
 from PA_runtime import *
-import model_map
 import json
+import clr
+try:
+    clr.AddReference('model_map')
+except:
+    pass
+del clr
+import model_map
 
 # 想重新分析并生成数据库 在这里修改一下版本号
 APPVERSION = "1.0"
@@ -55,6 +61,8 @@ class TencentMap(object):
             return
         bplist = BPReader(search_node.Data).top
         for uid in bplist['$objects'][1]['NS.objects']:
+            if canceller.IsCancellationRequested:
+                return
             if uid is None:
                 break
             self.decode_search_data(bplist["$objects"], uid.Value, search_node)
@@ -139,6 +147,8 @@ class TencentMap(object):
             return
         bp = BPReader(home_company_node.Data).top
         for uid in bp['$objects'][1]['NS.objects']:
+            if canceller.IsCancellationRequested:
+                return
             if uid is None:       
                 break
             self.decode_home_company(bp["$objects"], uid.Value, home_company_node)
@@ -185,6 +195,8 @@ class TencentMap(object):
             return 
         bplist = BPReader(route_node.Data).top
         for uid in bplist['$objects'][1]['NS.objects']:
+            if canceller.IsCancellationRequested:
+                return
             if uid is None:
                 break
             self.decode_route(bplist["$objects"], uid.Value, route_node)
@@ -251,6 +263,8 @@ class TencentMap(object):
             return 
         bplist = BPReader(route_node.Data).top
         for uid in bplist['$objects'][1]['NS.objects']:
+            if canceller.IsCancellationRequested:
+                return
             if uid is None:
                 break
             self.decode_route(bplist["$objects"], uid.Value, route_node)  
@@ -262,6 +276,8 @@ class TencentMap(object):
             return 
         bplist = BPReader(route_node.Data).top
         for uid in bplist['$objects'][1]['NS.objects']:
+            if canceller.IsCancellationRequested:
+                return
             if uid is None:
                 break
             self.decode_route(bplist["$objects"], uid.Value)

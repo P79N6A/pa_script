@@ -43,6 +43,26 @@
       </array>
     </dict>
 
+	<dict>
+      <key>Module</key>
+      <string>apple_wifi_log</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_wifilog</string>
+          <key>RunnerType</key>
+          <integer>0</integer>
+          <key>Patterns</key>
+          <array>
+            <string>/CrashReporter/WiFi/WiFiManager$</string>
+          </array>
+          <key>Category</key>
+          <string>wifilog</string>
+        </dict>
+      </array>
+    </dict>
+	
     <dict>
       <key>Module</key>
       <string>apple_twr</string>
@@ -937,6 +957,67 @@
         </dict>
       </array>
 	</dict>
+
+    <dict>
+      <key>Module</key>
+      <string>android_neteasemail</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_neteasemail</string>
+          <key>RunnerType</key>
+          <integer>2</integer>
+          <key>Patterns</key>
+          <array>
+            <string>data/com.netease.mail/databases$</string>
+          </array>
+          <key>Category</key>
+          <string>NeteaseMail</string>
+        </dict>
+      </array>
+    </dict>
+
+    <dict>
+      <key>Module</key>
+      <string>android_email</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_email</string>
+          <key>RunnerType</key>
+          <integer>2</integer>
+          <key>Patterns</key>
+          <array>
+            <string>data/com.android.email/databases$</string>
+          </array>
+          <key>Category</key>
+          <string>Mails</string>
+        </dict>
+      </array>
+    </dict>     
 	
+    <dict>
+      <key>Module</key>
+      <string>android_sms</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_sms</string>
+          <key>RunnerType</key>
+          <integer>2</integer>
+          <key>Patterns</key>
+          <array>
+            <string>user_de/0/com.android.providers.telephony/databases$</string>
+          </array>
+          <key>Category</key>
+          <string>Messages</string>
+        </dict>
+      </array>
+    </dict>    
+
+
   </array>
 </plist>

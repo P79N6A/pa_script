@@ -7,9 +7,14 @@ from System.IO import File
 from System import *
 from sqlite3 import *
 import json
-import model_map
 import os
-
+import clr
+try:
+    clr.AddReference('model_map')
+except:
+    pass
+del clr
+from model_map import * 
 
 POI_SNAPSHOT = 12
 APPVERSION = "1.0"
@@ -72,6 +77,8 @@ class gaodeMap(object):
             cursor.execute(find_user_sql)
             result = cursor.fetchall() 
             for res in result:
+                if canceller.IsCancellationRequested:
+                    return
                 table_name = res[0]
                 if len(table_name) == POI_SNAPSHOT:
                     # 没有登录账户

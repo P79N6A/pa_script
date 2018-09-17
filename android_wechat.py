@@ -1,8 +1,14 @@
 #coding=utf-8
-import PA_runtime
+from PA_runtime import *
 import clr
 clr.AddReference('System.Core')
 clr.AddReference('System.Xml.Linq')
+try:
+    clr.AddReference('model_im')
+    clr.AddReference('bcp_im')
+    clr.AddReference('tencent_struct')
+except:
+    pass
 del clr
 
 from System.IO import MemoryStream
@@ -14,7 +20,6 @@ from System.Security.Cryptography import *
 from System.Text import *
 from System.IO import *
 from System import Convert
-from PA_runtime import *
 
 import os
 import hashlib
@@ -23,6 +28,7 @@ import base64
 import sqlite3
 import shutil
 import model_im
+import bcp_im
 import tencent_struct
 
 # EnterPoint: analyze_wechat(root, extract_deleted, extract_source):
@@ -109,6 +115,8 @@ class WeChatParser(model_im.IM):
             self.db_commit()
             self.db_close()
 
+        #bcp_db = os.path.join(self.cache_path, self.user_hash + '_bcp.db')
+        #bcp_im.GenerateBcp(self.cache_db, bcp_db, 'target_id', bcp_im.CONTACT_ACCOUNT_TYPE_IM_WECHAT).generate()
         models = self.get_models_from_cache_db()
         return models
 
@@ -190,14 +198,16 @@ class WeChatParser(model_im.IM):
     def _get_db_key(imei, uin):
         if imei is None or uin is None:
             return None
-        return self._md5(imei + uin)[:7]
+        return WeChatParser._md5(imei + uin)[:7]
 
     def _parse_mm_db(self, mm_db_path, source):
         db = sqlite3.connect(mm_db_path)
-        self._parse_mm_db_user_info(db, source)
-        self._parse_mm_db_contact(db, source)
-        self._parse_mm_db_chatroom_member(db, source)
-        self._parse_mm_db_message(db, source)
+        node = self.create_memory_node(self.user_node, mm_db_path, os.path.basename(mm_db_path))
+        node_db = SQLiteParser.Database.FromNode(node)
+        self._parse_mm_db_user_info(db, source, node_db)
+        self._parse_mm_db_contact(db, source, node_db)
+        self._parse_mm_db_chatroom_member(db, source, node_db)
+        self._parse_mm_db_message(db, source, node_db)
         db.close()
 
     def _parse_wc_db(self, node):
@@ -222,6 +232,7 @@ class WeChatParser(model_im.IM):
             print(e)
 
         while row is not None:
+            canceller.ThrowIfCancellationRequested()
             username = self._db_column_get_string_value(row[0])
             content = self._db_column_get_blob_value(row[1])
             attr = self._db_column_get_blob_value(row[2])
@@ -233,11 +244,31 @@ class WeChatParser(model_im.IM):
         self.db_remove_mapping(db_path)
 
         if self.extract_deleted:
-            pass
+            db = SQLiteParser.Database.FromNode(node)
+            if not db:
+                return False
+
+            if 'SnsInfo' in db.Tables:
+                ts = SQLiteParser.TableSignature('SnsInfo')
+                SQLiteParser.Tools.AddSignatureToTable(ts, "userName", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
+                SQLiteParser.Tools.AddSignatureToTable(ts, "content", SQLiteParser.FieldType.Blob, SQLiteParser.FieldConstraints.NotNull)
+                for rec in db.ReadTableDeletedRecords(ts, False):
+                    canceller.ThrowIfCancellationRequested()
+                    username = self._db_record_get_string_value(rec, 'userName')
+                    content = self._db_record_get_blob_value(rec, 'content')
+                    attr = self._db_record_get_blob_value(rec, 'attrBuf')
+                    deleted = 0 if rec.Deleted == DeletedState.Intact else 1
+                    self._parse_wc_db_with_value(deleted, node.AbsolutePath, username, content, attr)
+                self.db_commit()
 
     def _parse_wc_db_with_value(self, deleted, source, username, content_blob, attr_blob):
-        content = tencent_struct.tencent_struct().getSnsContent(content_blob)
-        attr = tencent_struct.tencent_struct().getSnsAttrBuf(attr_blob)
+        content = None
+        attr = None
+        try:
+            content = tencent_struct.tencent_struct().getSnsContent(content_blob)
+            attr = tencent_struct.tencent_struct().getSnsAttrBuf(attr_blob)
+        except Exception as e:
+            return
         if content is None:
             return
         sns = SnsParser(content, attr)
@@ -264,6 +295,7 @@ class WeChatParser(model_im.IM):
         if likes is not None and len(likes) > 0:
             ids = []
             for like in likes:
+                canceller.ThrowIfCancellationRequested()
                 ids.append(like.like_id)
                 like.deleted = feed.deleted
                 like.source = feed.source
@@ -273,6 +305,7 @@ class WeChatParser(model_im.IM):
         if comments is not None and len(comments) > 0:
             ids = []
             for comment in comments:
+                canceller.ThrowIfCancellationRequested()
                 ids.append(comment.comment_id)
                 comment.deleted = feed.deleted
                 comment.source = feed.source
@@ -280,7 +313,7 @@ class WeChatParser(model_im.IM):
             feed.comments = ','.join(str(item) for item in ids)
         self.db_insert_table_feed(feed)
 
-    def _parse_mm_db_user_info(self, db, source):
+    def _parse_mm_db_user_info(self, db, source, node_db):
         cursor = db.cursor()
         self.user_account.source = source
         self.user_account.account_id = self._parse_mm_db_get_user_info_from_userinfo(cursor, 2)
@@ -318,7 +351,7 @@ class WeChatParser(model_im.IM):
             return self._db_column_get_string_value(row[0])
         return None
 
-    def _parse_mm_db_contact(self, db, source):
+    def _parse_mm_db_contact(self, db, source, node_db):
         sql = '''select rcontact.username,alias,nickname,conRemark,type,verifyFlag,reserved1,reserved2 
                  from rcontact 
                  left outer join img_flag 
@@ -331,6 +364,7 @@ class WeChatParser(model_im.IM):
         except Exception as e:
             print(e)
         while row is not None:
+            canceller.ThrowIfCancellationRequested()
             username = self._db_column_get_string_value(row[0])
             alias = self._db_column_get_string_value(row[1])
             nickname = self._db_column_get_string_value(row[2])
@@ -345,8 +379,22 @@ class WeChatParser(model_im.IM):
         self.db_commit()
         cursor.close()
 
-        if self.extract_deleted:
-            pass
+        if self.extract_deleted and node_db is not None and 'rcontact' in node_db.Tables:
+            ts = SQLiteParser.TableSignature('rcontact')
+            SQLiteParser.Tools.AddSignatureToTable(ts, "username", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
+            for rec in node_db.ReadTableDeletedRecords(ts, False):
+                canceller.ThrowIfCancellationRequested()
+                username = self._db_record_get_string_value(rec, 'username')
+                if username in [None, '']:
+                    continue
+                alias = self._db_record_get_string_value(rec, 'alias')
+                nickname = self._db_record_get_string_value(rec, 'nickname')
+                remark = self._db_record_get_string_value(rec, 'conRemark')
+                contact_type = self._db_record_get_int_value(rec, 'type')
+                verify_flag = self._db_record_get_string_value(rec, 'verifyFlag')
+                deleted = 0 if rec.Deleted == DeletedState.Intact else 1
+                self._parse_mm_db_contact_with_value(deleted, source, username, alias, nickname, remark, contact_type, verify_flag, None, None)
+            self.db_commit()
 
     def _parse_mm_db_contact_with_value(self, deleted, source, username, alias, nickname, remark, contact_type, verify_flag, portrait_hd, portrait):
         if username not in [None, '']:
@@ -385,7 +433,7 @@ class WeChatParser(model_im.IM):
                 friend.photo = head
                 self.db_insert_table_friend(friend)
 
-    def _parse_mm_db_chatroom_member(self, db, source):
+    def _parse_mm_db_chatroom_member(self, db, source, node_db):
         sql = '''select chatroomname,memberlist,displayname,selfDisplayName,roomowner
                  from chatroom'''
         row = None
@@ -397,6 +445,7 @@ class WeChatParser(model_im.IM):
             print(e)
         
         while row is not None:
+            canceller.ThrowIfCancellationRequested()
             chatroom_id = self._db_column_get_string_value(row[0])
             member_list = self._db_column_get_string_value(row[1])
             display_name_list = self._db_column_get_string_value(row[2])
@@ -407,8 +456,20 @@ class WeChatParser(model_im.IM):
         self.db_commit()
         cursor.close()
 
-        if self.extract_deleted:
-            pass
+        if self.extract_deleted and node_db is not None and 'chatroom' in node_db.Tables:
+            ts = SQLiteParser.TableSignature('chatroom')
+            SQLiteParser.Tools.AddSignatureToTable(ts, "chatroomname", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
+            for rec in node_db.ReadTableDeletedRecords(ts, False):
+                canceller.ThrowIfCancellationRequested()
+                chatroom_id = self._db_record_get_string_value(rec, 'chatroomname')
+                if chatroom_id in [None, '']:
+                    continue
+                member_list = self._db_record_get_string_value(rec, 'memberlist')
+                display_name_list = self._db_record_get_string_value(rec, 'displayname')
+                room_owner = self._db_record_get_string_value(rec, 'roomowner')
+                deleted = 0 if rec.Deleted == DeletedState.Intact else 1
+                self._parse_mm_db_chatroom_member_with_value(deleted, source, chatroom_id, member_list, display_name_list, room_owner)
+            self.db_commit()
 
     def _parse_mm_db_chatroom_member_with_value(self, deleted, source, chatroom_id, member_list, display_name_list, room_owner):
         room_members = member_list.split(';')
@@ -420,12 +481,13 @@ class WeChatParser(model_im.IM):
         cm.account_id = self.user_account.account_id
         cm.chatroom_id = chatroom_id
         for i, room_member in enumerate(room_members):
+            canceller.ThrowIfCancellationRequested()
             cm.member_id = room_member
             if i < len(display_names) and display_names[i] != room_member:
                 cm.display_name = display_names[i]
             self.db_insert_table_chatroom_member(cm)
 
-    def _parse_mm_db_message(self, db, source):
+    def _parse_mm_db_message(self, db, source, node_db):
         sql = 'select talker,content,imgPath,isSend,status,type,createTime,msgId,lvbuffer,msgSvrId from message'
         row = None
         cursor = db.cursor()
@@ -436,6 +498,7 @@ class WeChatParser(model_im.IM):
             print(e)
         
         while row is not None:
+            canceller.ThrowIfCancellationRequested()
             talker = self._db_column_get_string_value(row[0])
             msg = self._db_column_get_string_value(row[1])
             img_path = self._db_column_get_string_value(row[2])
@@ -451,6 +514,28 @@ class WeChatParser(model_im.IM):
             row = cursor.fetchone()
         self.db_commit()
         cursor.close()
+
+        if self.extract_deleted and node_db is not None and 'message' in node_db.Tables:
+            ts = SQLiteParser.TableSignature('message')
+            SQLiteParser.Tools.AddSignatureToTable(ts, "talker", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
+            SQLiteParser.Tools.AddSignatureToTable(ts, "content", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
+            for rec in node_db.ReadTableDeletedRecords(ts, False):
+                canceller.ThrowIfCancellationRequested()
+                talker = self._db_record_get_string_value(rec, 'talker')
+                if talker in [None, '']:
+                    continue
+                msg = self._db_record_get_string_value(rec, 'content')
+                img_path = self._db_record_get_string_value(rec, 'imgPath')
+                is_send = self._db_record_get_int_value(rec, 'isSend')
+                status = self._db_record_get_int_value(rec, 'status')
+                msg_type = self._db_record_get_int_value(rec, 'type')
+                create_time = self._db_record_get_int_value(rec, 'createTime') / 1000
+                msg_id = self._db_record_get_string_value(rec, 'msgId')
+                lv_buffer = self._db_record_get_blob_value(rec, 'lvbuffer')
+                msg_svr_id = self._db_record_get_string_value(rec, 'msgSvrId')
+                deleted = 0 if rec.Deleted == DeletedState.Intact else 1
+                self._parse_mm_db_message_with_value(deleted, source, talker, msg, img_path, is_send, status, msg_type, create_time, msg_id, lv_buffer, msg_svr_id)
+            self.db_commit()
 
     def _parse_mm_db_message_with_value(self, deleted, source, talker, msg, img_path, is_send, status, msg_type, create_time, msg_id, lv_buffer, msg_svr_id):
         contact = self.contacts.get(talker, {})
@@ -549,6 +634,7 @@ class WeChatParser(model_im.IM):
                 m1 = img_name[0:2]
                 m2 = img_name[2:4]
             for extend_node in self.extend_nodes:
+                canceller.ThrowIfCancellationRequested()
                 node = extend_node.GetByPath('/image2/{0}/{1}/{2}'.format(m1, m2, img_name))
                 if node is not None:
                     media_path = node.AbsolutePath
@@ -561,6 +647,7 @@ class WeChatParser(model_im.IM):
         m1 = hash[0:2]
         m2 = hash[2:4]
         for extend_node in self.extend_nodes:
+            canceller.ThrowIfCancellationRequested()
             node = extend_node.GetByPath('/voice2/{0}/{1}/msg_{2}.amr'.format(m1, m2, voice_id))
             if node is not None:
                 media_path = node.AbsolutePath
@@ -570,6 +657,7 @@ class WeChatParser(model_im.IM):
     def _process_parse_message_tranlate_video_path(self, video_id):
         media_path = None
         for extend_node in self.extend_nodes:
+            canceller.ThrowIfCancellationRequested()
             node = extend_node.GetByPath('/video/{}.mp4'.format(video_id))
             if node is not None:
                 media_path = node.AbsolutePath
@@ -952,6 +1040,19 @@ class WeChatParser(model_im.IM):
         except Exception as e:
             pass
 
+    @staticmethod
+    def create_memory_node(parent, rfs_path, vfs_name):
+        """
+            rfs_path:REAL FILE SYSTEM FILE PATH(ABSOLUTE)
+            vfs_name:file_name in virtual file system
+            ret:node which compact with vfs
+        """
+        mem_range = MemoryRange.CreateFromFile(rfs_path)
+        r_node = Node(vfs_name, Files.NodeType.Embedded)
+        r_node.Data = mem_range
+        parent.Children.Add(r_node) # ^_^ must add this to virtual file system
+        return r_node
+
 
 class Decryptor:
     @staticmethod
@@ -995,6 +1096,7 @@ class Decryptor:
         de.write(iv)
 
         for _ in range(1, size // 1024):
+            canceller.ThrowIfCancellationRequested()
             content = src_node.read(1024)
             iv = content[1008: 1024]
             de.write(Decryptor.aes_decrypt(final_key,
@@ -1118,6 +1220,7 @@ class SnsParser:
         if type(ret) == list and len(ret) > 0:
             likes = []
             for like in ret:
+                canceller.ThrowIfCancellationRequested()
                 if type(like) == tuple and len(like) > 1:
                     like = like[1]
                     if type(like) == dict:
@@ -1134,6 +1237,7 @@ class SnsParser:
         if type(ret) == list and len(ret) > 0:
             comments = []
             for comment in ret:
+                canceller.ThrowIfCancellationRequested()
                 if type(comment) == tuple and len(comment) > 1:
                     comment = comment[1]
                     if type(comment) == dict:

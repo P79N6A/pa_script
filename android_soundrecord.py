@@ -4,6 +4,14 @@ import PA_runtime
 import sqlite3
 from PA_runtime import *
 import logging 
+import clr
+
+try:
+    clr.AddReference('model_soundrecord')
+except:
+    pass
+del clr
+
 from model_soundrecord import *
 
 

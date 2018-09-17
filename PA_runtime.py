@@ -10,7 +10,6 @@ clr.AddReference('PA.Formats.Exts')
 clr.AddReference('PA.Engine')
 clr.AddReference('SQLiteSpy')
 clr.AddReference('System.Core')
-del clr
 
 import re
 import sys,traceback

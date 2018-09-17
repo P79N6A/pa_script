@@ -46,7 +46,7 @@ def exc():
     # traceback.print_exc()
 
 SQL_CREATE_TABLE_SIM_CARDS = '''
-    create table if not exists account(
+    create table if not exists sim_cards(
         sim_id        INTEGER DEFAULT 0,
         number        TEXT,
         sync_enabled  INTEGER DEFAULT 1,
@@ -56,7 +56,7 @@ SQL_CREATE_TABLE_SIM_CARDS = '''
     '''
 
 SQL_INSERT_TABLE_SIM_CARDS = '''
-    insert into account(
+    insert into sim_cards(
         sim_id,
         number,
         sync_enabled,
@@ -252,12 +252,16 @@ class GenerateModel(object):
         self.cursor = self.db.cursor()
 
         # 跨库连表
-        db_path_calls = 'CALLS/calls.db'
-        BASE_DIR      = os.path.dirname(os.path.dirname(self.cache_db))
-        calls_path    = os.path.join(BASE_DIR, db_path_calls)
-        self.db.execute("ATTACH DATABASE '{}' AS calls".format(calls_path))
+        try:
+            db_path_calls = 'CALLS/calls.db'
+            BASE_DIR      = os.path.dirname(os.path.dirname(self.cache_db))
+            calls_path    = os.path.join(BASE_DIR, db_path_calls)
+            self.db.execute("ATTACH DATABASE '{}' AS calls".format(calls_path))
 
-        models.extend(self._get_sms_models())
+            models.extend(self._get_sms_models())
+        except:
+            exc()
+            models.extend(self._get_sms_models_no_join())
 
         self.cursor.close()
         self.db.close()
@@ -338,6 +342,7 @@ class GenerateModel(object):
             row = self.cursor.fetchone()
         except:
             exc()
+            return []
         while row is not None:
             sms = Generic.SMS()
             if row[0] is not None:
@@ -359,6 +364,73 @@ class GenerateModel(object):
             row = self.cursor.fetchone()
         return models        
 
+
+    def _get_sms_models_no_join(self):
+        models = []
+        sql = '''
+            select 
+                *
+            from 
+                sms
+        '''
+        '''     sms.Body
+                sms.Folder
+                sms.Delivered
+                sms.Read
+                sms.TimeStamp
+                sms.SourceFile
+        
+        table - sms
+            msg_id            
+            sim_id            
+            sender_phonenumber
+            sms_or_mms        
+            type              
+            suject            
+            body              
+            send_time       
+            deliverd  
+            is_sender         
+            source            
+            deleted           
+            repeated               
+            
+            SMS_TYPE_ALL    = 0
+            SMS_TYPE_INBOX  = 1
+            SMS_TYPE_SENT   = 2
+            SMS_TYPE_DRAFT  = 3
+            SMS_TYPE_OUTBOX = 4
+            SMS_TYPE_FAILED = 5
+            SMS_TYPE_QUEUED = 6 
+            '''
+        try:
+            self.cursor.execute(sql)
+            row = self.cursor.fetchone()
+        except:
+            exc()
+            return 
+        while row is not None:
+            sms = Generic.SMS()
+            if row[0] is not None:
+                sms.Body.Value = row[0]
+            if row[1] in range(7):
+                sms.Folder.Value = SMS_TYPE_TO_FOLDER[row[1]]
+            if row[2] is not None:
+                sms.Delivered.Value = self._get_timestamp(row[2])
+            if row[3] is not None:
+                sms.TimeStamp.Value = self._get_timestamp(row[3])
+                # sms.Read.Value = row[3]
+            # if row[4] is not None:
+            #     sms.PhoneNumber.Value = row[4]
+            if row[-2] is not None:
+                sms.SourceFile.Value = self._get_source_file(row[-2])
+            if row[-1] is not None:
+                sms.Deleted = self._convert_deleted_status(row[-1])
+            models.append(sms)
+            row = self.cursor.fetchone()
+        return models        
+
+
     def _get_timestamp(self, timestamp):
         try:
             if isinstance(timestamp, (long, float, str)) and len(str(timestamp)) > 10:
@@ -366,10 +438,10 @@ class GenerateModel(object):
             if isinstance(timestamp, int) and len(str(timestamp)) == 10:
                 ts = TimeStamp.FromUnixTime(timestamp, False)
                 if not ts.IsValidForSmartphone():
-                    ts = None
+                    ts = TimeStamp.FromUnixTime(0, False)
                 return ts
         except:
-            return None
+            return TimeStamp.FromUnixTime(0, False)
 
 
     @staticmethod
@@ -380,4 +452,6 @@ class GenerateModel(object):
             return DeletedState.Intact if deleted == 0 else DeletedState.Deleted
 
     def _get_source_file(self, source_file):
-        return source_file.replace('/', '\\')
+        if isinstance(source_file, str):
+            return source_file.replace('/', '\\')
+        return ''    

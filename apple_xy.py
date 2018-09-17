@@ -6,6 +6,11 @@
 import clr
 clr.AddReference('System.Data.SQLite')
 clr.AddReference('Base3264-UrlEncoder')
+try:
+    clr.AddReference('model_im')
+    clr.AddReference('unity_c37r')
+except:
+    pass
 del clr
 
 import System.Data.SQLite as sql

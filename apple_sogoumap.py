@@ -2,10 +2,14 @@
 import os
 import PA_runtime
 from PA_runtime import *
-import model_map
 import json
-
-
+import clr
+try:
+    clr.AddReference('model_map')
+except:
+    pass
+del clr
+import model_map
 APPVERSION = "1.0"
 
 class SogouMap(object):
@@ -32,6 +36,8 @@ class SogouMap(object):
                 SQLiteParser.Tools.AddSignatureToTable(tb, "ZCAPTION", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
             
             for rec in mapdb.ReadTableRecords(tb, self.extract_deleted, self.extract_source):
+                if canceller.IsCancellationRequested:
+                    return
                 search = model_map.Search()
                 search.source = "搜狗地图:"
                 search.sourceApp = "搜狗地图"
@@ -72,6 +78,8 @@ class SogouMap(object):
             if self.extract_deleted:
                 pass
             for rec in mapdb.ReadTableRecords(tb, self.extract_deleted, self.extract_source):
+                if canceller.IsCancellationRequested:
+                    return
                 user = model_map.Account()
                 user.sourceApp = "搜狗地图"
                 user.sourceFile = user_node.AbsolutePath
@@ -107,6 +115,8 @@ class SogouMap(object):
             if self.extract_deleted:
                 SQLiteParser.Tools.AddSignatureToTable(tbs, "ZCAPTION", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
             for rec in mapdb.ReadTableRecords(tbs, self.extract_deleted, self.extract_source):
+                if canceller.IsCancellationRequested:
+                    return
                 search = model_map.Search()
                 search.sourceApp = "搜狗地图"
                 search.sourceFile = addr_node.AbsolutePath

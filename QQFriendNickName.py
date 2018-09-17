@@ -1,6 +1,12 @@
 # coding:utf-8
 import os
 import sys
+import clr
+try:
+    clr.AddReference('friendlist_pb2')
+except:
+    pass
+del clr
 from friendlist_pb2 import QQDicGroupModel
 from friendlist_pb2 import QQGroupModel
 import collections

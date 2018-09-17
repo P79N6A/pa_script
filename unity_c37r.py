@@ -146,3 +146,21 @@ def search_for_certain(fs, regx):
         r = re.search('{}/(.*)'.format(abs_path), fs, re.I | re.M).group(1) # 返回fs的节点，注意node是否实现Search
         res.append(list)
     return res
+
+# correct illegal strings in file names under Windows
+def correct_isvilid_path(src_node):
+    if src_node is None:
+        return
+    file_path, file_name = os.path.split(src_node.PathWithMountPoint)
+    isvalid_string = ["\/", "\\", ":", "*", "?", "<", ">", "|"]
+    if [s for s in isvalid_string if s in file_name]:
+        cache = ds.OpenCachePath("Logs")
+        des_file = os.path.join(cache, file_name.replace(":","_"))
+        f = open(des_file, 'wb+')
+        data = src_node.Data
+        sz = src_node.Size
+        f.write(bytes(data.read(sz)))
+        f.close()
+        return des_file
+    else:
+        return src_node.PathWithMountPoint
