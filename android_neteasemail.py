@@ -5,6 +5,7 @@ import re
 
 import PA_runtime
 from PA_runtime import *
+SafeLoadAssembly('model_mails')
 from model_mails import *
 
 # 邮件内容类型

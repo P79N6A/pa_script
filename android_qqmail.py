@@ -8,6 +8,12 @@ import logging
 import sqlite3
 from System.Linq import Enumerable
 import re
+import clr
+try:
+    clr.AddReference('model_mails')
+except:
+    pass
+del clr
 from model_mails import MM, Mails, Accounts, Contact, MailFolder, Attach, Generate
 
 SQL_ATTACH_TABLE_ACCOUNT1 = """attach database '"""

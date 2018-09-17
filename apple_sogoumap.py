@@ -4,7 +4,12 @@ import PA_runtime
 from PA_runtime import *
 import model_map
 import json
-
+import clr
+try:
+    clr.AddReference('model_map')
+except:
+    pass
+del clr
 
 APPVERSION = "1.0"
 

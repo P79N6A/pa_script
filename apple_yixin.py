@@ -4,6 +4,10 @@ import PA_runtime
 import clr
 clr.AddReference('System.Core')
 clr.AddReference('System.Xml.Linq')
+try:
+    clr.AddReference('model_im')
+except:
+    pass
 del clr
 
 from System.IO import MemoryStream

@@ -1,8 +1,16 @@
 #coding=utf-8
-import PA_runtime
+from PA_runtime import *
 import clr
 clr.AddReference('System.Core')
 clr.AddReference('System.Xml.Linq')
+
+try:
+    clr.AddReference('model_im')
+    clr.AddReference('bcp_im')
+    clr.AddReference('tencent_struct')
+except:
+    pass
+
 del clr
 
 from System.IO import MemoryStream
@@ -14,7 +22,6 @@ from System.Security.Cryptography import *
 from System.Text import *
 from System.IO import *
 from System import Convert
-from PA_runtime import *
 
 import os
 import hashlib
@@ -23,7 +30,7 @@ import base64
 import sqlite3
 import shutil
 import model_im
-#import bcp_im
+import bcp_im
 import tencent_struct
 
 # EnterPoint: analyze_wechat(root, extract_deleted, extract_source):

@@ -8,8 +8,11 @@ clr.AddReference('System.Web')
 clr.AddReference('System.Core')
 clr.AddReference('System.Xml.Linq')
 clr.AddReference('System.Data.SQLite')
-SafeLoadAssembly('model_im')
-SafeLoadAssembly('QQ_struct')
+try:
+    clr.AddReference('model_im')
+    clr.AddReference('QQ_struct')
+except:
+    pass
 del clr
 from System.Data.SQLite import *
 import System
@@ -128,9 +131,7 @@ class Andriod_QQParser(object):
 		self.getImei()
 		self.decode_accounts()
 		try:
-			for acc_id in self.accounts:
-				if acc_id != '848565664':
-					continue
+			for acc_id in self.accounts:		
 				self.friendsNickname.clear()
 				self.friendsGroups.clear()
 				self.groupContact.clear()

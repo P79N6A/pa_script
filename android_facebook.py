@@ -12,6 +12,12 @@ import System
 from System.Xml.Linq import *
 import json
 from System.Xml.XPath import Extensions as XPathExtensions
+import clr
+try:
+    clr.AddReference('model_im')
+except:
+    pass
+del clr
 
 def GetString(reader, idx):
     return reader.GetString(idx) if not reader.IsDBNull(idx) else ""

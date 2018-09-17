@@ -6,8 +6,14 @@ import time
 import json
 import math
 from PA_runtime import *
-import model_map
 import pickle
+import clr
+try:
+    clr.AddReference('model_map')
+except:
+    pass
+del clr
+from model_map import *
 
 APPVERSION = "2.0"
 

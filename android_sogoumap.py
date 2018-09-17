@@ -6,6 +6,12 @@ import model_map
 import os
 import re
 import time
+import clr
+try:
+    clr.AddReference('model_map')
+except:
+    pass
+del clr
 
 APPVERSION = "1.0"
 

@@ -6,6 +6,12 @@ import time
 from PA_runtime import *
 import logging
 import sqlite3
+import clr
+try:
+    clr.AddReference('model_mails')
+except:
+    pass
+del clr
 from System.Linq import Enumerable
 from model_mails import MM,Mails,Accounts,Contact,MailFolder,Attach,Generate
 

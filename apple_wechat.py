@@ -1,9 +1,14 @@
 #coding=utf-8
-import PA_runtime
+from PA_runtime import *
 import clr
 clr.AddReference('System.Core')
 clr.AddReference('System.Xml.Linq')
 clr.AddReference('System.Data.SQLite')
+try:
+    clr.AddReference('model_im')
+    clr.AddReference('bcp_im')
+except:
+    pass
 del clr
 
 from System.IO import MemoryStream
@@ -11,18 +16,18 @@ from System.Text import Encoding
 from System.Xml.Linq import *
 from System.Linq import Enumerable
 from System.Xml.XPath import Extensions as XPathExtensions
-from PA_runtime import *
 import System.Data.SQLite as SQLite
 
 import os
 import hashlib
 import json
-import model_im
 import gc
 import string
 import sqlite3
 import shutil
 import datetime
+from model_im import *
+from bcp_im import *
 
 # EnterPoint: analyze_wechat(root, extract_deleted, extract_source):
 # Patterns: '/DB/MM\.sqlite$'

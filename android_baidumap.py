@@ -5,6 +5,12 @@ from PA_runtime import *
 import model_map
 import re
 import os
+import clr
+try:
+    clr.AddReference('model_map')
+except:
+    pass
+del clr
 
 APPVERSION = "1.0"
 
