@@ -4,6 +4,7 @@ import PA_runtime
 import sqlite3
 from PA_runtime import *
 import logging 
+SafeLoadAssembly('model_meida')
 from model_media import *
 
 

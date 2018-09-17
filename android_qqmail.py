@@ -8,6 +8,7 @@ import logging
 import sqlite3
 from System.Linq import Enumerable
 import re
+SafeLoadAssembly('model_mails')
 from model_mails import MM, Mails, Accounts, Contact, MailFolder, Attach, Generate
 
 SQL_ATTACH_TABLE_ACCOUNT1 = """attach database '"""
