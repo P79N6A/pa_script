@@ -5,6 +5,7 @@ from PA_runtime import *
 import model_map
 import re
 import os
+SafeLoadAssembly("model_map")
 
 APPVERSION = "1.0"
 

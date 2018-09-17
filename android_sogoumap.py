@@ -6,6 +6,7 @@ import model_map
 import os
 import re
 import time
+SafeLoadAssembly("model_map")
 
 APPVERSION = "1.0"
 

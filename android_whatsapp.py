@@ -6,6 +6,7 @@ import clr
 clr.AddReference('System.Core')
 clr.AddReference('System.Xml.Linq')
 clr.AddReference('System.Data.SQLite')
+
 del clr
 
 import os
@@ -16,6 +17,8 @@ from collections import defaultdict
 from System.Data.SQLite import *
 import shutil
 import json
+SafeLoadAssembly("model_im")
+
 
 
 def GetString(reader, idx):
