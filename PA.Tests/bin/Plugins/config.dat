@@ -978,5 +978,26 @@
       </array>
     </dict>     
 	
+    <dict>
+      <key>Module</key>
+      <string>android_sms</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_sms</string>
+          <key>RunnerType</key>
+          <integer>2</integer>
+          <key>Patterns</key>
+          <array>
+            <string>user_de/0/com.android.providers.telephony/databases$</string>
+          </array>
+          <key>Category</key>
+          <string>Messages</string>
+        </dict>
+      </array>
+    </dict>    
+
+
   </array>
 </plist>
