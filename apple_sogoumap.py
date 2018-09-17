@@ -2,7 +2,6 @@
 import os
 import PA_runtime
 from PA_runtime import *
-import model_map
 import json
 import clr
 try:
@@ -10,7 +9,7 @@ try:
 except:
     pass
 del clr
-
+import model_map
 APPVERSION = "1.0"
 
 class SogouMap(object):

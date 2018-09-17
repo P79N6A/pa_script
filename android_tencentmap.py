@@ -2,7 +2,6 @@
 import PA_runtime
 import json
 from PA_runtime import *
-import model_map
 import os
 import clr
 try:
@@ -10,6 +9,7 @@ try:
 except:
     pass
 del clr
+import model_map
 
 APPVERSION = "1.0"
 

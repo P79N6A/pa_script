@@ -2,7 +2,6 @@
 import os
 import PA_runtime
 from PA_runtime import *
-import model_map
 import json
 import clr
 try:
@@ -10,6 +9,7 @@ try:
 except:
     pass
 del clr
+import model_map
 
 # 想重新分析并生成数据库 在这里修改一下版本号
 APPVERSION = "1.0"

@@ -7,7 +7,6 @@ from System.IO import File
 from System import *
 from sqlite3 import *
 import json
-import model_map
 import os
 import clr
 try:
@@ -15,6 +14,8 @@ try:
 except:
     pass
 del clr
+
+import model_map
 
 POI_SNAPSHOT = 12
 APPVERSION = "1.0"

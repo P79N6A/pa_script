@@ -4,7 +4,6 @@
 
 import PA_runtime
 from PA_runtime import *
-import model_im
 import os
 from System.Data.SQLite import *
 import shutil
@@ -18,6 +17,7 @@ try:
 except:
     pass
 del clr
+import model_im
 
 def GetString(reader, idx):
     return reader.GetString(idx) if not reader.IsDBNull(idx) else ""

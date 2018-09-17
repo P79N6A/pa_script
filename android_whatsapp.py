@@ -1,7 +1,6 @@
 #coding=utf-8
 from PA_runtime import *
 import PA_runtime
-import model_im
 import clr
 clr.AddReference('System.Core')
 clr.AddReference('System.Xml.Linq')
@@ -20,6 +19,7 @@ from collections import defaultdict
 from System.Data.SQLite import *
 import shutil
 import json
+import model_im
 
 
 def GetString(reader, idx):
