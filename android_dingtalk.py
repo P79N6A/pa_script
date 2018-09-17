@@ -4,6 +4,10 @@ clr.AddReference('System.Core')
 clr.AddReference('System.Xml.Linq')
 clr.AddReference('System.Data.SQLite')
 clr.AddReference('Base3264-UrlEncoder')
+try:
+    clr.AddReference('model_im')
+except:
+    pass
 del clr
 import System.Data.SQLite as sql
 from PA_runtime import *

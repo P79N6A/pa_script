@@ -1,6 +1,10 @@
 #coding:utf-8
 import clr
 clr.AddReference('System.Data.SQLite')
+try:
+    clr.AddReference('model_im')
+except:
+    pass
 del clr
 
 import System.Data.SQLite as sql
