@@ -66,6 +66,8 @@ class WhatsApp(object):
         except Exception as e:
             print e
         for rec in es:
+            if canceller.IsCancellationRequested:
+                return
             if rec.Attribute('name') and rec.Attribute('name').Value == 'push_name':
                 name = rec.FirstNode.Value
                 account.nickname = name.decode('utf-8')
@@ -163,6 +165,8 @@ class WhatsApp(object):
             reader = cmd.ExecuteReader()
             if reader:
                 while reader.Read():
+                    if canceller.IsCancellationRequested:
+                        return
                     friend_id = GetString(reader, 1)
                     if friend_id.find("net") != -1 and friend_id in friends:
                         friend = model_im.Friend()
@@ -217,6 +221,8 @@ class WhatsApp(object):
             """
             reader = cmd.ExecuteReader()
             while reader.Read():
+                if canceller.IsCancellationRequested:
+                    return
                 chatroom = model_im.Chatroom()
                 chatroom.source = "WhatsApp"
                 chatroom.account_id = self.account_id
@@ -325,6 +331,8 @@ class WhatsApp(object):
             reader= cmd.ExecuteReader()
             fs = self.root.FileSystem
             while reader.Read():
+                if canceller.IsCancellationRequested:
+                    return
                 message = model_im.Message()
                 message.source = "WhatsApp"
                 message.talker_type = 1 # 好友聊天
@@ -422,6 +430,8 @@ class WhatsApp(object):
             reader= cmd.ExecuteReader()
             fs = self.root.FileSystem
             while reader.Read():
+                if canceller.IsCancellationRequested:
+                    return
                 if GetString(reader, 0).find("broadcast") != -1:
                     continue
                 message = model_im.Message()
@@ -533,6 +543,8 @@ class WhatsApp(object):
             reader= cmd.ExecuteReader()
             fs = self.root.FileSystem
             while reader.Read():
+                if canceller.IsCancellationRequested:
+                    return
                 try:
                     media_type = GetString(reader, 8)
                     feed_id = GetString(reader, 0)

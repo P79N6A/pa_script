@@ -77,6 +77,8 @@ class Facebook(object):
                 SQLiteParser.Tools.AddSignatureToTable(tbs, "commerce_page_type", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)     
                 SQLiteParser.Tools.AddSignatureToTable(tbs, "is_commerce", SQLiteParser.FieldType.Int, SQLiteParser.FieldConstraints.NotNull)
             for rec in db.ReadTableRecords(tbs, self.extractDeleted, True):
+                if canceller.IsCancellationRequested:
+                    return
                 if "profile_type" in rec and rec["profile_type"].Value == "user":
                     rec_id = rec["user_key"].Value
                     if rec_id == self.account_id:
@@ -140,6 +142,8 @@ class Facebook(object):
             reader= cmd.ExecuteReader()
             fs = self.root.FileSystem
             while reader.Read():
+                if canceller.IsCancellationRequested:
+                    return
                 message = model_im.Message()
                 message.source = "Facebook"
                 message.account_id = self.account_id
@@ -231,6 +235,8 @@ class Facebook(object):
             reader= cmd.ExecuteReader()
             fs = self.root.FileSystem
             while reader.Read():
+                if canceller.IsCancellationRequested:
+                    return
                 message = model_im.Message()
                 message.source = "Facebook"
                 message.account_id = self.account_id
@@ -317,6 +323,8 @@ class Facebook(object):
         SQLiteParser.Tools.AddSignatureToTable(tbs, "msg_id", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
         fs = self.root.FileSystem
         for rec in db.ReadTableDeletedRecords(tbs, False):
+            if canceller.IsCancellationRequested:
+                return
             send_info = rec["sender"].Value if "sender" in rec else None
             msg_type = rec["msg_type"].Value if "msg_type" in rec else None
             if  "thread_key" in rec and rec["thread_key"].Value.find("ONE_TO_ONE") != -1 and send_info:     # 好友聊天
@@ -409,6 +417,8 @@ class Facebook(object):
         SQLiteParser.Tools.AddSignatureToTable(tbs, "msg_id", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
         fs = self.root.FileSystem
         for rec in db.ReadTableDeletedRecords(tbs, False):
+            if canceller.IsCancellationRequested:
+                return
             send_info = rec["sender"].Value if "sender" in rec else None
             msg_type = rec["msg_type"].Value if "msg_type" in rec else None
             if  "thread_key" in rec and rec["thread_key"].Value.find("GROUP") != -1 and send_info:     # 群聊天

@@ -128,6 +128,8 @@ class baiduMapParser(object):
                 SQLiteParser.Tools.AddSignatureToTable(tb, "key", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
                 SQLiteParser.Tools.AddSignatureToTable(tb, "value", SQLiteParser.FieldType.Blob, SQLiteParser.FieldConstraints.NotNull)
             for rec in db.ReadTableRecords(tb, self.extract_deleted, True):
+                if canceller.IsCancellationRequested:
+                    return
                 search = model_map.Search()
                 if rec.Deleted == DeletedState.Intact:
                     search.deleted = 0
@@ -206,6 +208,8 @@ class baiduMapParser(object):
                 SQLiteParser.Tools.AddSignatureToTable(tb, "value", SQLiteParser.FieldType.Blob, SQLiteParser.FieldConstraints.NotNull)
             
             for rec in db.ReadTableRecords(tb, self.extract_deleted, True):
+                if canceller.IsCancellationRequested:
+                    return
                 routeaddr = model_map.Address() 
                 if rec.Deleted == DeletedState.Deleted:
                     routeaddr.deleted = 1
