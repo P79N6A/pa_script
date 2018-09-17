@@ -366,10 +366,10 @@ class GenerateModel(object):
             if isinstance(timestamp, int) and len(str(timestamp)) == 10:
                 ts = TimeStamp.FromUnixTime(timestamp, False)
                 if not ts.IsValidForSmartphone():
-                    ts = None
+                    ts = TimeStamp.FromUnixTime(0, False)
                 return ts
         except:
-            return None
+            return TimeStamp.FromUnixTime(0, False)
 
 
     @staticmethod
@@ -380,4 +380,6 @@ class GenerateModel(object):
             return DeletedState.Intact if deleted == 0 else DeletedState.Deleted
 
     def _get_source_file(self, source_file):
-        return source_file.replace('/', '\\')
+        if isinstance(source_file, str):
+            return source_file.replace('/', '\\')
+        return ''    
