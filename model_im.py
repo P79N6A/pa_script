@@ -12,7 +12,6 @@ from System.IO import MemoryStream
 from System.Text import Encoding
 from System.Xml.Linq import *
 from System.Linq import Enumerable
-from System.Xml.XPath import Extensions as XPathExtensions
 from PA.InfraLib.Utils import *
 import System.Data.SQLite as SQLite
 
@@ -722,6 +721,7 @@ class GenerateModel(object):
             print(e)
 
         while row is not None:
+            canceller.ThrowIfCancellationRequested()
             user = Common.User()
             account_id = None
             contact = {}
@@ -788,6 +788,7 @@ class GenerateModel(object):
             print(e)
 
         while row is not None:
+            canceller.ThrowIfCancellationRequested()
             friend = Common.Friend()
             account_id = None
             user_id = None
@@ -850,6 +851,7 @@ class GenerateModel(object):
             print(e)
 
         while row is not None:
+            canceller.ThrowIfCancellationRequested()
             group = Common.Group()
             account_id = None
             user_id = None
@@ -911,6 +913,7 @@ class GenerateModel(object):
             print(e)
 
         while row is not None:
+            canceller.ThrowIfCancellationRequested()
             message = Common.Message()
             message.Content.Value = Common.MessageContent()
             account_id = None
@@ -1033,6 +1036,7 @@ class GenerateModel(object):
             print(e)
 
         while row is not None:
+            canceller.ThrowIfCancellationRequested()
             if row[2]:
                 model = self._get_user_intro(account_id, row[2])
                 if row[3]:
@@ -1062,6 +1066,7 @@ class GenerateModel(object):
             print(e)
 
         while row is not None:
+            canceller.ThrowIfCancellationRequested()
             moment = Common.Moment()
             moment.Content.Value = Common.MomentContent()
             account_id = None
@@ -1115,6 +1120,7 @@ class GenerateModel(object):
             print(e)
 
         while row is not None:
+            canceller.ThrowIfCancellationRequested()
             search = SearchedItem()
             if row[3] not in [None, '']:
                 search.SourceFile.Value = row[3]
@@ -1194,6 +1200,7 @@ class GenerateModel(object):
                 print(e)
 
             while row is not None:
+                canceller.ThrowIfCancellationRequested()
                 like = Common.MomentLike()
                 if row[0]:
                     like.User.Value = self._get_user_intro(account_id, row[0], row[1])
@@ -1233,6 +1240,7 @@ class GenerateModel(object):
                 print(e)
 
             while row is not None:
+                canceller.ThrowIfCancellationRequested()
                 comment = Common.MomentComment()
                 if row[0]:
                     comment.Sender.Value = self._get_user_intro(account_id, row[0], row[1])

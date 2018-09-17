@@ -3,14 +3,12 @@ from PA_runtime import *
 import clr
 clr.AddReference('System.Core')
 clr.AddReference('System.Xml.Linq')
-
 try:
     clr.AddReference('model_im')
     clr.AddReference('bcp_im')
     clr.AddReference('tencent_struct')
 except:
     pass
-
 del clr
 
 from System.IO import MemoryStream
@@ -234,6 +232,7 @@ class WeChatParser(model_im.IM):
             print(e)
 
         while row is not None:
+            canceller.ThrowIfCancellationRequested()
             username = self._db_column_get_string_value(row[0])
             content = self._db_column_get_blob_value(row[1])
             attr = self._db_column_get_blob_value(row[2])
@@ -254,6 +253,7 @@ class WeChatParser(model_im.IM):
                 SQLiteParser.Tools.AddSignatureToTable(ts, "userName", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
                 SQLiteParser.Tools.AddSignatureToTable(ts, "content", SQLiteParser.FieldType.Blob, SQLiteParser.FieldConstraints.NotNull)
                 for rec in db.ReadTableDeletedRecords(ts, False):
+                    canceller.ThrowIfCancellationRequested()
                     username = self._db_record_get_string_value(rec, 'userName')
                     content = self._db_record_get_blob_value(rec, 'content')
                     attr = self._db_record_get_blob_value(rec, 'attrBuf')
@@ -362,6 +362,7 @@ class WeChatParser(model_im.IM):
         except Exception as e:
             print(e)
         while row is not None:
+            canceller.ThrowIfCancellationRequested()
             username = self._db_column_get_string_value(row[0])
             alias = self._db_column_get_string_value(row[1])
             nickname = self._db_column_get_string_value(row[2])
@@ -380,6 +381,7 @@ class WeChatParser(model_im.IM):
             ts = SQLiteParser.TableSignature('rcontact')
             SQLiteParser.Tools.AddSignatureToTable(ts, "username", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
             for rec in node_db.ReadTableDeletedRecords(ts, False):
+                canceller.ThrowIfCancellationRequested()
                 username = self._db_record_get_string_value(rec, 'username')
                 if username in [None, '']:
                     continue
@@ -441,6 +443,7 @@ class WeChatParser(model_im.IM):
             print(e)
         
         while row is not None:
+            canceller.ThrowIfCancellationRequested()
             chatroom_id = self._db_column_get_string_value(row[0])
             member_list = self._db_column_get_string_value(row[1])
             display_name_list = self._db_column_get_string_value(row[2])
@@ -455,6 +458,7 @@ class WeChatParser(model_im.IM):
             ts = SQLiteParser.TableSignature('chatroom')
             SQLiteParser.Tools.AddSignatureToTable(ts, "chatroomname", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
             for rec in node_db.ReadTableDeletedRecords(ts, False):
+                canceller.ThrowIfCancellationRequested()
                 chatroom_id = self._db_record_get_string_value(rec, 'chatroomname')
                 if chatroom_id in [None, '']:
                     continue
@@ -491,6 +495,7 @@ class WeChatParser(model_im.IM):
             print(e)
         
         while row is not None:
+            canceller.ThrowIfCancellationRequested()
             talker = self._db_column_get_string_value(row[0])
             msg = self._db_column_get_string_value(row[1])
             img_path = self._db_column_get_string_value(row[2])
@@ -512,6 +517,7 @@ class WeChatParser(model_im.IM):
             SQLiteParser.Tools.AddSignatureToTable(ts, "talker", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
             SQLiteParser.Tools.AddSignatureToTable(ts, "content", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
             for rec in node_db.ReadTableDeletedRecords(ts, False):
+                canceller.ThrowIfCancellationRequested()
                 talker = self._db_record_get_string_value(rec, 'talker')
                 if talker in [None, '']:
                     continue

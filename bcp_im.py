@@ -995,6 +995,7 @@ class GenerateBcp(object):
             print(e)
 
         while row is not None:
+            canceller.ThrowIfCancellationRequested()
             account = Account(self.collect_target_id, self.contact_account_type, row[0], row[2])
             account.delete_status = self._convert_delete_status(row[16])
             account.regis_nickname = row[1]
@@ -1027,6 +1028,7 @@ class GenerateBcp(object):
             print(e)
 
         while row is not None:
+            canceller.ThrowIfCancellationRequested()
             friend = Friend(self.collect_target_id, self.contact_account_type, row[0], None)
             friend.delete_status = self._convert_delete_status(row[14])
             friend.friend_id = row[1]
@@ -1058,6 +1060,7 @@ class GenerateBcp(object):
             print(e)
 
         while row is not None:
+            canceller.ThrowIfCancellationRequested()
             group = Group(self.collect_target_id, self.contact_account_type, row[0], None)
             group.delete_status = self._convert_delete_status(row[14])
             group.group_num = row[1]
@@ -1090,6 +1093,7 @@ class GenerateBcp(object):
             print(e)
 
         while row is not None:
+            canceller.ThrowIfCancellationRequested()
             gm = GroupMember(self.collect_target_id, self.contact_account_type, row[0], None)
             gm.delete_status = self._convert_delete_status(row[13])
             gm.group_num = row[1]
@@ -1123,6 +1127,7 @@ class GenerateBcp(object):
             print(e)
 
         while row is not None:
+            canceller.ThrowIfCancellationRequested()
             talker_type = row[13]
             if talker_type == model_im.CHAT_TYPE_GROUP:
                 message = GroupMessage(self.collect_target_id, self.contact_account_type, row[0], None)
@@ -1181,6 +1186,7 @@ class GenerateBcp(object):
             print(e)
 
         while row is not None:
+            canceller.ThrowIfCancellationRequested()
             like_count = None
             if row[11] is not None:
                 try:
@@ -1226,6 +1232,7 @@ class GenerateBcp(object):
             print(e)
 
         while row is not None:
+            canceller.ThrowIfCancellationRequested()
             search = Search(self.collect_target_id, self.contact_account_type, row[0], None)
             search.delete_status = self._convert_delete_status(row[4])
             search.create_time = row[2]
