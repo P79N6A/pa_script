@@ -56,6 +56,8 @@ class TencentMap(object):
             return
         bplist = BPReader(search_node.Data).top
         for uid in bplist['$objects'][1]['NS.objects']:
+            if canceller.IsCancellationRequested:
+                return
             if uid is None:
                 break
             self.decode_search_data(bplist["$objects"], uid.Value, search_node)
@@ -140,6 +142,8 @@ class TencentMap(object):
             return
         bp = BPReader(home_company_node.Data).top
         for uid in bp['$objects'][1]['NS.objects']:
+            if canceller.IsCancellationRequested:
+                return
             if uid is None:       
                 break
             self.decode_home_company(bp["$objects"], uid.Value, home_company_node)
@@ -186,6 +190,8 @@ class TencentMap(object):
             return 
         bplist = BPReader(route_node.Data).top
         for uid in bplist['$objects'][1]['NS.objects']:
+            if canceller.IsCancellationRequested:
+                return
             if uid is None:
                 break
             self.decode_route(bplist["$objects"], uid.Value, route_node)
@@ -252,6 +258,8 @@ class TencentMap(object):
             return 
         bplist = BPReader(route_node.Data).top
         for uid in bplist['$objects'][1]['NS.objects']:
+            if canceller.IsCancellationRequested:
+                return
             if uid is None:
                 break
             self.decode_route(bplist["$objects"], uid.Value, route_node)  
@@ -263,6 +271,8 @@ class TencentMap(object):
             return 
         bplist = BPReader(route_node.Data).top
         for uid in bplist['$objects'][1]['NS.objects']:
+            if canceller.IsCancellationRequested:
+                return
             if uid is None:
                 break
             self.decode_route(bplist["$objects"], uid.Value)

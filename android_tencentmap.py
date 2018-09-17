@@ -31,6 +31,8 @@ class TencentMap(object):
                 SQLiteParser.Tools.AddSignatureToTable(tbs, "from_data", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
                 SQLiteParser.Tools.AddSignatureToTable(tbs, "end_data", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
             for rec in db.ReadTableRecords(tbs, self.extract_Deleted, True):
+                if canceller.IsCancellationRequested:
+                    return
                 route_addr = model_map.Address()
                 route_addr.source = "腾讯地图:"
                 route_addr.sourceApp = "腾讯地图"
@@ -87,6 +89,8 @@ class TencentMap(object):
             if self.extract_Deleted:
                 SQLiteParser.Tools.AddSignatureToTable(tbs, "_keyword", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
             for rec in db.ReadTableRecords(tbs, self.extract_Deleted, True):
+                if canceller.IsCancellationRequested:
+                    return
                 search = model_map.Search()
                 search.source = "腾讯地图:"
                 search.sourceApp = "腾讯地图"
@@ -130,6 +134,8 @@ class TencentMap(object):
             if self.extract_Deleted:
                 SQLiteParser.Tools.AddSignatureToTable(tbs, "name", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
             for rec in db.ReadTableRecords(tbs, self.extract_Deleted, self.extract_Source):
+                if canceller.IsCancellationRequested:
+                    return
                 fav_addr = model_map.Search()
                 fav_addr.source = "腾讯地图:"
                 fav_addr.sourceApp = "腾讯地图"

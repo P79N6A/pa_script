@@ -28,6 +28,8 @@ class SogouMap(object):
             if self.extractDeleted:
                 SQLiteParser.Tools.AddSignatureToTable(tbs, "logicId", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
             for rec in db.ReadTableRecords(tbs, self.extractDeleted, True):
+                if canceller.IsCancellationRequested:
+                    return
                 search = model_map.Search()
                 search.source = "搜狗地图:"
                 search.sourceApp = "搜狗地图"

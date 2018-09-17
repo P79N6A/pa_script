@@ -72,6 +72,8 @@ class gaodeMap(object):
         cursor.execute(find_user_sql)
         result = cursor.fetchall() 
         for res in result:
+            if canceller.IsCancellationRequested:
+                return
             table_name = res[0]
             if len(table_name) == POI_SNAPSHOT:
                 # 没有登录账户
