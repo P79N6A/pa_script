@@ -113,6 +113,9 @@ class YiXinParser(model_im.IM):
             ts = SQLiteParser.TableSignature('msglog')
             SQLiteParser.Tools.AddSignatureToTable(ts, "id", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
             for rec in db.ReadTableRecords(ts, self.extract_deleted):
+                if canceller.IsCancellationRequested:
+                    self.db_close()
+                    return
                 contact = {'deleted' : rec.Deleted, 'repeated' : 0}
                 contactid = rec['id'].Value
                 type = rec['msg_type'].Value
@@ -169,6 +172,9 @@ class YiXinParser(model_im.IM):
                 ts = SQLiteParser.TableSignature('msglog')
                 SQLiteParser.Tools.AddSignatureToTable(ts, "id", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
                 for rec in db.ReadTableRecords(ts, self.extract_deleted):
+                    if canceller.IsCancellationRequested:
+                        self.db_close()
+                        return
                     if contact_id != rec['id'].Value:
                         continue
                     contact = self.contacts.get(contact_id)
