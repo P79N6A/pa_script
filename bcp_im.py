@@ -6,7 +6,10 @@ import clr
 clr.AddReference('System.Core')
 clr.AddReference('System.Xml.Linq')
 clr.AddReference('System.Data.SQLite')
-SafeLoadAssembly('model_im')
+try:
+    clr.AddReference('model_im')
+except:
+    pass
 del clr
 
 from System.IO import MemoryStream

@@ -4,8 +4,11 @@ import clr
 clr.AddReference('System.Core')
 clr.AddReference('System.Xml.Linq')
 clr.AddReference('System.Data.SQLite')
-SafeLoadAssembly('model_im')
-SafeLoadAssembly('bcp_im')
+try:
+    clr.AddReference('model_im')
+    clr.AddReference('bcp_im')
+except:
+    pass
 del clr
 
 from System.IO import MemoryStream
@@ -23,8 +26,8 @@ import string
 import sqlite3
 import shutil
 import datetime
-import model_im
-import bcp_im
+from model_im import *
+from bcp_im import *
 
 # EnterPoint: analyze_wechat(root, extract_deleted, extract_source):
 # Patterns: '/DB/MM\.sqlite$'

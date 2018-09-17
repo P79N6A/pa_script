@@ -7,6 +7,11 @@ from sqlite3 import *
 clr.AddReference('System.Web')
 clr.AddReference('System.Core')
 clr.AddReference('System.Xml.Linq')
+try:
+    clr.AddReference('model_im')
+    clr.AddReference('QQFriendNickName')
+except:
+    passqq
 del clr
 import System
 from System.IO import MemoryStream

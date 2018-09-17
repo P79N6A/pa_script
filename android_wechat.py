@@ -3,9 +3,14 @@ from PA_runtime import *
 import clr
 clr.AddReference('System.Core')
 clr.AddReference('System.Xml.Linq')
-SafeLoadAssembly('model_im')
-SafeLoadAssembly('bcp_im')
-SafeLoadAssembly('tencent_struct')
+
+try:
+    clr.AddReference('model_im')
+    clr.AddReference('bcp_im')
+    clr.AddReference('tencent_struct')
+except:
+    pass
+
 del clr
 
 from System.IO import MemoryStream

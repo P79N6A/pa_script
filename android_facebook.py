@@ -4,7 +4,6 @@
 
 import PA_runtime
 from PA_runtime import *
-import model_im
 import os
 from System.Data.SQLite import *
 import shutil
@@ -12,7 +11,13 @@ import System
 from System.Xml.Linq import *
 import json
 from System.Xml.XPath import Extensions as XPathExtensions
-SafeLoadAssembly("model_im")
+import clr
+try:
+    clr.AddReference('model_im')
+except:
+    pass
+del clr
+import model_im
 
 def GetString(reader, idx):
     return reader.GetString(idx) if not reader.IsDBNull(idx) else ""
@@ -72,6 +77,8 @@ class Facebook(object):
                 SQLiteParser.Tools.AddSignatureToTable(tbs, "commerce_page_type", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)     
                 SQLiteParser.Tools.AddSignatureToTable(tbs, "is_commerce", SQLiteParser.FieldType.Int, SQLiteParser.FieldConstraints.NotNull)
             for rec in db.ReadTableRecords(tbs, self.extractDeleted, True):
+                if canceller.IsCancellationRequested:
+                    return
                 if "profile_type" in rec and rec["profile_type"].Value == "user":
                     rec_id = rec["user_key"].Value
                     if rec_id == self.account_id:
@@ -135,6 +142,8 @@ class Facebook(object):
             reader= cmd.ExecuteReader()
             fs = self.root.FileSystem
             while reader.Read():
+                if canceller.IsCancellationRequested:
+                    return
                 message = model_im.Message()
                 message.source = "Facebook"
                 message.account_id = self.account_id
@@ -226,6 +235,8 @@ class Facebook(object):
             reader= cmd.ExecuteReader()
             fs = self.root.FileSystem
             while reader.Read():
+                if canceller.IsCancellationRequested:
+                    return
                 message = model_im.Message()
                 message.source = "Facebook"
                 message.account_id = self.account_id
@@ -312,6 +323,8 @@ class Facebook(object):
         SQLiteParser.Tools.AddSignatureToTable(tbs, "msg_id", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
         fs = self.root.FileSystem
         for rec in db.ReadTableDeletedRecords(tbs, False):
+            if canceller.IsCancellationRequested:
+                return
             send_info = rec["sender"].Value if "sender" in rec else None
             msg_type = rec["msg_type"].Value if "msg_type" in rec else None
             if  "thread_key" in rec and rec["thread_key"].Value.find("ONE_TO_ONE") != -1 and send_info:     # 好友聊天
@@ -404,6 +417,8 @@ class Facebook(object):
         SQLiteParser.Tools.AddSignatureToTable(tbs, "msg_id", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
         fs = self.root.FileSystem
         for rec in db.ReadTableDeletedRecords(tbs, False):
+            if canceller.IsCancellationRequested:
+                return
             send_info = rec["sender"].Value if "sender" in rec else None
             msg_type = rec["msg_type"].Value if "msg_type" in rec else None
             if  "thread_key" in rec and rec["thread_key"].Value.find("GROUP") != -1 and send_info:     # 群聊天

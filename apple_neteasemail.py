@@ -5,7 +5,10 @@ import traceback
 import PA_runtime
 from PA_runtime import * 
 import clr
-SafeLoadAssembly('model_mails')
+try:
+    clr.AddReference('model_mails')
+except:
+    pass
 del clr
 from model_mails import *
 
