@@ -9,8 +9,9 @@ clr.AddReference('System.Core')
 clr.AddReference('System.Xml.Linq')
 try:
     clr.AddReference('model_im')
+    clr.AddReference('QQFriendNickName')
 except:
-    pass
+    passqq
 del clr
 import System
 from System.IO import MemoryStream
