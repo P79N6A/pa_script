@@ -940,6 +940,7 @@ class GenerateModel(object):
                 ts = self._get_timestamp(row[10])
                 if ts:
                     message.TimeStamp.Value = ts
+                    message.SendTime.Value = ts
 
             msg_type = row[7]
             content = row[8]

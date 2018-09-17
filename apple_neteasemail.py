@@ -4,6 +4,9 @@ import traceback
 
 import PA_runtime
 from PA_runtime import * 
+import clr
+SafeLoadAssembly('model_mails')
+del clr
 from model_mails import *
 
 

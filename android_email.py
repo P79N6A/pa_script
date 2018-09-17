@@ -5,6 +5,7 @@ import re
 
 import PA_runtime
 from PA_runtime import *
+SafeLoadAssembly('model_mails')
 from model_mails import *
 
 MESSAGE_STATUS_DEFAULT = 0

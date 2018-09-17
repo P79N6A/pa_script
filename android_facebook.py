@@ -12,6 +12,7 @@ import System
 from System.Xml.Linq import *
 import json
 from System.Xml.XPath import Extensions as XPathExtensions
+SafeLoadAssembly("model_im")
 
 def GetString(reader, idx):
     return reader.GetString(idx) if not reader.IsDBNull(idx) else ""

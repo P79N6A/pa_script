@@ -1,5 +1,13 @@
 import clr
+import os
+
 DIR = "Builds/"
+
+for (root,dirs,files) in os.walk('.'):
+    for filename in files:
+        splits = os.path.splitext(filename)
+        if splits[1] == ".py":
+            clr.CompileModules(DIR+splits[0], filename)
 
 clr.CompileModules(DIR+"PA_runtime.dll", "PA_runtime.py")
 clr.CompileModules(DIR+"apple_apps.dll", "apple_apps.py")

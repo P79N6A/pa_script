@@ -4,6 +4,7 @@ import re
 
 import PA_runtime
 from PA_runtime import *
+SafeLoadAssembly('model_sms')
 from model_sms import *
 
 SMS_TYPE_ALL    = 0
