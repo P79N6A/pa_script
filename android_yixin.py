@@ -129,6 +129,9 @@ class YiXinParser(model_im.IM):
             ts = SQLiteParser.TableSignature('yixin_contact')
             SQLiteParser.Tools.AddSignatureToTable(ts, "uid", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
             for rec in db.ReadTableRecords(ts, self.extract_deleted):
+                if canceller.IsCancellationRequested:
+                    self.db_close()
+                    return
                 id = rec['uid'].Value
                 if id in self.friends:
                     continue
@@ -181,6 +184,9 @@ class YiXinParser(model_im.IM):
                     ts = SQLiteParser.TableSignature('tuser')
                     SQLiteParser.Tools.AddSignatureToTable(ts, "tid", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
                     for rec in db.ReadTableRecords(ts, self.extract_deleted):
+                        if canceller.IsCancellationRequested:
+                            self.db_close()
+                            return
                         room_id = rec['tid'].Value
                         if chatroom.chatroom_id != room_id:
                             continue
@@ -206,6 +212,9 @@ class YiXinParser(model_im.IM):
             ts = SQLiteParser.TableSignature('painfo')
             SQLiteParser.Tools.AddSignatureToTable(ts, "uid", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
             for rec in db.ReadTableRecords(ts, self.extract_deleted):
+                if canceller.IsCancellationRequested:
+                    self.db_close()
+                    return
                 id = rec['uid'].Value
                 if id in self.friends:
                     continue
@@ -238,6 +247,9 @@ class YiXinParser(model_im.IM):
                 ts = SQLiteParser.TableSignature('msghistory')
                 SQLiteParser.Tools.AddSignatureToTable(ts, "tid", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
                 for rec in db.ReadTableRecords(ts, self.extract_deleted):
+                    if canceller.IsCancellationRequested:
+                        self.db_close()
+                        return
                     if id != rec['id'].Value:
                         continue
 

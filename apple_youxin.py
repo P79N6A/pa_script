@@ -139,6 +139,9 @@ class YouXinParser(model_im.IM):
             ts = SQLiteParser.TableSignature('t_uxin_user')
             SQLiteParser.Tools.AddSignatureToTable(ts, "[uid]", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
             for rec in db.ReadTableRecords(ts, self.extract_deleted):
+                if canceller.IsCancellationRequested:
+                    self.db_close()
+                    return
                 friend = model_im.Friend()
                 friend.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
                 friend.source = self.app_name
@@ -162,6 +165,9 @@ class YouXinParser(model_im.IM):
             ts = SQLiteParser.TableSignature('tatnlinelistusers')
             SQLiteParser.Tools.AddSignatureToTable(ts, "[uid]", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
             for rec in db.ReadTableRecords(ts, self.extract_deleted):
+                if canceller.IsCancellationRequested:
+                    self.db_close()
+                    return
                 id = rec['[uid]'].Value
                 if id in self.contacts.keys():
                     continue
@@ -197,6 +203,9 @@ class YouXinParser(model_im.IM):
                 ts = SQLiteParser.TableSignature('NewIMMessageInfo')
                 SQLiteParser.Tools.AddSignatureToTable(ts, "[uid]", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
                 for rec in db.ReadTableRecords(ts, self.extract_deleted):
+                    if canceller.IsCancellationRequested:
+                        self.db_close()
+                        return
                     if str(contact_id) != rec['[uid]'].Value:
                         continue
                     contact = self.contacts.get(contact_id)
@@ -229,6 +238,9 @@ class YouXinParser(model_im.IM):
                 ts = SQLiteParser.TableSignature('call')
                 SQLiteParser.Tools.AddSignatureToTable(ts, "[uid]", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
                 for rec in db.ReadTableRecords(ts, self.extract_deleted):
+                    if canceller.IsCancellationRequested:
+                        self.db_close()
+                        return
                     if contact_id != rec['[uid]'].Value:
                         continue
                     contact = self.contacts.get(contact_id)
