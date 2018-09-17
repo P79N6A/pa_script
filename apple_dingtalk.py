@@ -2,10 +2,6 @@
 import clr
 clr.AddReference('System.Data.SQLite')
 clr.AddReference('Base3264-UrlEncoder')
-try:
-    clr.AddReference('model_im')
-except:
-    pass
 del clr
 
 import System.Data.SQLite as sql
@@ -128,6 +124,10 @@ class Ding(object):
             rm.Padding = PaddingMode.None
             tr = rm.CreateDecryptor()
             while idx < sz:
+                if canceller.IsCancellationRequested:
+                    f_dest.close()
+                    os.remove(dest_sql)
+                    raise IOError('fucked')
                 bts = data.read(16)
                 bts = Convert.FromBase64String(base64.b64encode(bts))
                 t_r = tr.TransformFinalBlock(bts, 0, 16)
@@ -142,6 +142,10 @@ class Ding(object):
             data = source_node_fts.Data
             idx = 0
             while idx < sz:
+                if canceller.IsCancellationRequested:
+                    f_dest_fts.close()
+                    os.remove(dest_sql_fts)
+                    raise IOError('fucked')
                 bts = data.read(16)
                 bts = Convert.FromBase64String(base64.b64encode(bts))
                 t_r = tr.TransformFinalBlock(bts, 0, 16)
@@ -276,6 +280,9 @@ class Ding(object):
             idx = 0
             f_dict = dict()
             while reader.Read():
+                if canceller.IsCancellationRequested:
+                    self.im.db_close()
+                    raise IOError("fucked")
                 if idx == 0:
                     a = model_im.Account()
                     a.account_id = GetInt64(reader, 0)
@@ -332,6 +339,9 @@ class Ding(object):
             reader = cmd.ExecuteReader()
             groups = list()
             while reader.Read():
+                if canceller.IsCancellationRequested:
+                    self.im.db_close()
+                    raise IOError('fucked')
                 g = model_im.Chatroom()
                 g.account_id = current_id
                 g.chatroom_id = GetString(reader, 0)
@@ -362,6 +372,9 @@ class Ding(object):
                 '''.format(r)
                 reader = cmd.ExecuteReader()
                 while reader.Read():
+                    if canceller.IsCancellationRequested:
+                        self.im.db_close()
+                        raise IOError('fucked')
                     msg = model_im.Message()
                     msg.deleted = 0
                     msg.account_id = current_id
@@ -469,6 +482,9 @@ class Ding(object):
                     '''.format(t, g)
                     reader = cmd.ExecuteReader()
                     while reader.Read():
+                        if canceller.IsCancellationRequested:
+                            self.im.db_close()
+                            raise IOError('fucked')
                         m_id = GetInt64(reader, 0)
                         if members.__contains__(m_id) or m_id == current_id:
                             continue
@@ -480,6 +496,9 @@ class Ding(object):
                     cm.member_id = m
                     if f_dict.__contains__(m):
                         #f = model_im.Friend()
+                        if canceller.IsCancellationRequested:
+                            self.im.db_close()
+                            raise IOError('fucked')
                         f = f_dict[m]
                         cm.address = f.address
                         cm.display_name = f.nickname
@@ -501,6 +520,9 @@ class Ding(object):
             reader = cmd.ExecuteReader()
             feed_dict = dict()
             while reader.Read():
+                if canceller.IsCancellationRequested:
+                    self.im.db_close()
+                    raise IOError('fucked')
                 s_id = GetInt64(reader, 1)
                 d_id = GetInt64(reader, 0)
                 s_time = GetInt64(reader, 2) / 1000
@@ -523,6 +545,9 @@ class Ding(object):
             except:
                 reader = None
             while reader is not None and reader.Read():
+                if canceller.IsCancellationRequested:
+                    self.im.db_close()
+                    raise IOError('fucked')
                 fcm = model_im.FeedComment()
                 d_id = GetInt64(reader, 0)
                 if not feed_dict.__contains__(d_id):
@@ -576,16 +601,17 @@ class Ding(object):
             connection.Close()
             
 def parse_ding(root, extract_deleted, extract_source):
-    #n_node = FileSystem.FromLocalDir(r'D:\ios_case\ding\5D59B4C6-C37F-43A3-86AF-312C5C3D427C')
-    d = Ding(root, extract_deleted, extract_source)
-    d.search_account()
-    d.parse()
-    models = model_im.GenerateModel(d.cache_res).get_models()
-    mlm = ModelListMerger()
-    pr = ParserResults()
-    pr.Categories = DescripCategories.QQ
-
-    pr.Models.AddRange(list(mlm.GetUnique(models)))
-    pr.Build('钉钉')
+    try:
+        d = Ding(root, extract_deleted, extract_source)
+        d.search_account()
+        d.parse()
+        models = model_im.GenerateModel(d.cache_res, root.PathWithMountPoint).get_models()
+        mlm = ModelListMerger()
+        pr = ParserResults()
+        pr.Categories = DescripCategories.QQ
+        pr.Models.AddRange(list(mlm.GetUnique(models)))
+        pr.Build('钉钉')
+    except Exception:
+        pr = ParserResults()
     return pr
     
