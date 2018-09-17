@@ -3,9 +3,12 @@ from PA_runtime import *
 import clr
 clr.AddReference('System.Core')
 clr.AddReference('System.Xml.Linq')
-SafeLoadAssembly('model_im')
-SafeLoadAssembly('bcp_im')
-SafeLoadAssembly('tencent_struct')
+try:
+    clr.AddReference('model_im')
+    clr.AddReference('bcp_im')
+    clr.AddReference('tencent_struct')
+except:
+    pass
 del clr
 
 from System.IO import MemoryStream
@@ -229,6 +232,7 @@ class WeChatParser(model_im.IM):
             print(e)
 
         while row is not None:
+            canceller.ThrowIfCancellationRequested()
             username = self._db_column_get_string_value(row[0])
             content = self._db_column_get_blob_value(row[1])
             attr = self._db_column_get_blob_value(row[2])
@@ -249,6 +253,7 @@ class WeChatParser(model_im.IM):
                 SQLiteParser.Tools.AddSignatureToTable(ts, "userName", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
                 SQLiteParser.Tools.AddSignatureToTable(ts, "content", SQLiteParser.FieldType.Blob, SQLiteParser.FieldConstraints.NotNull)
                 for rec in db.ReadTableDeletedRecords(ts, False):
+                    canceller.ThrowIfCancellationRequested()
                     username = self._db_record_get_string_value(rec, 'userName')
                     content = self._db_record_get_blob_value(rec, 'content')
                     attr = self._db_record_get_blob_value(rec, 'attrBuf')
@@ -290,6 +295,7 @@ class WeChatParser(model_im.IM):
         if likes is not None and len(likes) > 0:
             ids = []
             for like in likes:
+                canceller.ThrowIfCancellationRequested()
                 ids.append(like.like_id)
                 like.deleted = feed.deleted
                 like.source = feed.source
@@ -299,6 +305,7 @@ class WeChatParser(model_im.IM):
         if comments is not None and len(comments) > 0:
             ids = []
             for comment in comments:
+                canceller.ThrowIfCancellationRequested()
                 ids.append(comment.comment_id)
                 comment.deleted = feed.deleted
                 comment.source = feed.source
@@ -357,6 +364,7 @@ class WeChatParser(model_im.IM):
         except Exception as e:
             print(e)
         while row is not None:
+            canceller.ThrowIfCancellationRequested()
             username = self._db_column_get_string_value(row[0])
             alias = self._db_column_get_string_value(row[1])
             nickname = self._db_column_get_string_value(row[2])
@@ -375,6 +383,7 @@ class WeChatParser(model_im.IM):
             ts = SQLiteParser.TableSignature('rcontact')
             SQLiteParser.Tools.AddSignatureToTable(ts, "username", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
             for rec in node_db.ReadTableDeletedRecords(ts, False):
+                canceller.ThrowIfCancellationRequested()
                 username = self._db_record_get_string_value(rec, 'username')
                 if username in [None, '']:
                     continue
@@ -436,6 +445,7 @@ class WeChatParser(model_im.IM):
             print(e)
         
         while row is not None:
+            canceller.ThrowIfCancellationRequested()
             chatroom_id = self._db_column_get_string_value(row[0])
             member_list = self._db_column_get_string_value(row[1])
             display_name_list = self._db_column_get_string_value(row[2])
@@ -450,6 +460,7 @@ class WeChatParser(model_im.IM):
             ts = SQLiteParser.TableSignature('chatroom')
             SQLiteParser.Tools.AddSignatureToTable(ts, "chatroomname", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
             for rec in node_db.ReadTableDeletedRecords(ts, False):
+                canceller.ThrowIfCancellationRequested()
                 chatroom_id = self._db_record_get_string_value(rec, 'chatroomname')
                 if chatroom_id in [None, '']:
                     continue
@@ -470,6 +481,7 @@ class WeChatParser(model_im.IM):
         cm.account_id = self.user_account.account_id
         cm.chatroom_id = chatroom_id
         for i, room_member in enumerate(room_members):
+            canceller.ThrowIfCancellationRequested()
             cm.member_id = room_member
             if i < len(display_names) and display_names[i] != room_member:
                 cm.display_name = display_names[i]
@@ -486,6 +498,7 @@ class WeChatParser(model_im.IM):
             print(e)
         
         while row is not None:
+            canceller.ThrowIfCancellationRequested()
             talker = self._db_column_get_string_value(row[0])
             msg = self._db_column_get_string_value(row[1])
             img_path = self._db_column_get_string_value(row[2])
@@ -507,6 +520,7 @@ class WeChatParser(model_im.IM):
             SQLiteParser.Tools.AddSignatureToTable(ts, "talker", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
             SQLiteParser.Tools.AddSignatureToTable(ts, "content", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
             for rec in node_db.ReadTableDeletedRecords(ts, False):
+                canceller.ThrowIfCancellationRequested()
                 talker = self._db_record_get_string_value(rec, 'talker')
                 if talker in [None, '']:
                     continue
@@ -620,6 +634,7 @@ class WeChatParser(model_im.IM):
                 m1 = img_name[0:2]
                 m2 = img_name[2:4]
             for extend_node in self.extend_nodes:
+                canceller.ThrowIfCancellationRequested()
                 node = extend_node.GetByPath('/image2/{0}/{1}/{2}'.format(m1, m2, img_name))
                 if node is not None:
                     media_path = node.AbsolutePath
@@ -632,6 +647,7 @@ class WeChatParser(model_im.IM):
         m1 = hash[0:2]
         m2 = hash[2:4]
         for extend_node in self.extend_nodes:
+            canceller.ThrowIfCancellationRequested()
             node = extend_node.GetByPath('/voice2/{0}/{1}/msg_{2}.amr'.format(m1, m2, voice_id))
             if node is not None:
                 media_path = node.AbsolutePath
@@ -641,6 +657,7 @@ class WeChatParser(model_im.IM):
     def _process_parse_message_tranlate_video_path(self, video_id):
         media_path = None
         for extend_node in self.extend_nodes:
+            canceller.ThrowIfCancellationRequested()
             node = extend_node.GetByPath('/video/{}.mp4'.format(video_id))
             if node is not None:
                 media_path = node.AbsolutePath
@@ -1079,6 +1096,7 @@ class Decryptor:
         de.write(iv)
 
         for _ in range(1, size // 1024):
+            canceller.ThrowIfCancellationRequested()
             content = src_node.read(1024)
             iv = content[1008: 1024]
             de.write(Decryptor.aes_decrypt(final_key,
@@ -1202,6 +1220,7 @@ class SnsParser:
         if type(ret) == list and len(ret) > 0:
             likes = []
             for like in ret:
+                canceller.ThrowIfCancellationRequested()
                 if type(like) == tuple and len(like) > 1:
                     like = like[1]
                     if type(like) == dict:
@@ -1218,6 +1237,7 @@ class SnsParser:
         if type(ret) == list and len(ret) > 0:
             comments = []
             for comment in ret:
+                canceller.ThrowIfCancellationRequested()
                 if type(comment) == tuple and len(comment) > 1:
                     comment = comment[1]
                     if type(comment) == dict:

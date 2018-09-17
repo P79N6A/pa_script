@@ -2,10 +2,15 @@
 import PA_runtime
 import json
 from PA_runtime import *
-import model_map
 import re
 import os
-SafeLoadAssembly("model_map")
+import clr
+try:
+    clr.AddReference('model_map')
+except:
+    pass
+del clr
+import model_map
 
 APPVERSION = "1.0"
 
@@ -32,6 +37,8 @@ class BaiduMap(object):
                 SQLiteParser.Tools.AddSignatureToTable(tbs, "ext_name", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
                 SQLiteParser.Tools.AddSignatureToTable(tbs, "uid", SQLiteParser.FieldType.Int, SQLiteParser.FieldConstraints.NotNull)
             for rec in db.ReadTableRecords(tbs, self.extract_Deleted, True):
+                if canceller.IsCancellationRequested:
+                    return
                 fav_poi = model_map.Search()
                 fav_poi.source = "百度地图:"
                 fav_poi.sourceApp = "百度地图"
@@ -73,6 +80,8 @@ class BaiduMap(object):
                 SQLiteParser.Tools.AddSignatureToTable(tbs, "key", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
                 SQLiteParser.Tools.AddSignatureToTable(tbs, "value", SQLiteParser.FieldType.Blob, SQLiteParser.FieldConstraints.NotNull)
             for rec in db.ReadTableRecords(tbs,self.extract_Deleted, True):
+                if canceller.IsCancellationRequested:
+                    return
                 search_history = model_map.Search()
                 search_history.source = "百度地图:"
                 search_history.sourceApp = "百度地图"
@@ -112,6 +121,8 @@ class BaiduMap(object):
                 SQLiteParser.Tools.AddSignatureToTable(tbs, "key", SQLiteParser.FieldType.NotNull, SQLiteParser.FieldConstraints.NotNull)
                 SQLiteParser.Tools.AddSignatureToTable(tbs, "value", SQLiteParser.FieldType.Blob, SQLiteParser.FieldConstraints.NotNull)
             for rec in db.ReadTableRecords(tbs, self.extract_Deleted, True):
+                if canceller.IsCancellationRequested:
+                    return
                 if "value" in rec and (rec["value"] is not None):
                     addr =  model_map.Address()
                     if rec.Deleted == DeletedState.Deleted:

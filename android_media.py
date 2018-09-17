@@ -4,7 +4,12 @@ import PA_runtime
 import sqlite3
 from PA_runtime import *
 import logging 
-SafeLoadAssembly('model_meida')
+import clr
+try:
+    clr.AddReference('model_meida')
+except:
+    pass
+del clr
 from model_media import *
 
 
