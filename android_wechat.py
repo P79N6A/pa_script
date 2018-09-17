@@ -3,6 +3,9 @@ import PA_runtime
 import clr
 clr.AddReference('System.Core')
 clr.AddReference('System.Xml.Linq')
+SafeLoadAssembly('model_im')
+SafeLoadAssembly('bcp_im')
+SafeLoadAssembly('tencent_struct')
 del clr
 
 from System.IO import MemoryStream
@@ -23,7 +26,7 @@ import base64
 import sqlite3
 import shutil
 import model_im
-#import bcp_im
+import bcp_im
 import tencent_struct
 
 # EnterPoint: analyze_wechat(root, extract_deleted, extract_source):
