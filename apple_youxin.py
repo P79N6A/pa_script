@@ -34,10 +34,12 @@ def analyze_youxin(root, extract_deleted, extract_source):
     mlm = ModelListMerger()
 
     pr.Models.AddRange(list(mlm.GetUnique(models)))
+
     pr.Build('有信')
+
     gc.collect()
     return pr
-    
+
 def execute(node,extracteDeleted):
     return analyze_renren(node, extracteDeleted, False)
 
@@ -92,28 +94,33 @@ class YouXinParser(model_im.IM):
         if self.user is None:
             return False
 
-        dbPath = self.root.GetByPath('/Documents/' + self.user + '/uxin_users.cache')
+        account = model_im.Account()
+        account.source = self.app_name
+        account.account_id = self.user
+         
+        dbPath = self.root.GetByPath('/Documents/' + self.user + '/StrangePersonInfo.Sqlite3')
         db = SQLiteParser.Database.FromNode(dbPath)
         if db is None:
             return False
 
-        if 't_uxin_user' in db.Tables:
-            ts = SQLiteParser.TableSignature('t_uxin_user')
+        if 'StrangePhonePersonInfo' in db.Tables:
+            ts = SQLiteParser.TableSignature('tatnlinelistusers')
             SQLiteParser.Tools.AddSignatureToTable(ts, "[uid]", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
             for rec in db.ReadTableRecords(ts, self.extract_deleted):
-                account = model_im.Account()
-                account.source = self.app_name
-                account.account_id = self.user
                 if rec['[uid]'].Value != self.user:
                     continue
-                account.username = rec['[name]'].Value
-                account.photo = rec['[small_head_image_url]'].Value
-                account.signature = rec['[signature]'].Value
-                account.gender = 1 if rec['[sex]'].Value == '男' else 2
-                account.birthday = rec['[birthday]'].Value
-            self.db_insert_table_account(account)
-            self.db_commit()
-            return True
+
+                obj = json.loads(rec['[info]'].Value)
+                account.username = obj['name']
+                account.photo = obj['picture']
+                account.signature = obj['signature']
+                account.gender = model_im.GENDER_MALE if obj['sex'] == '男' else model_im.GENDER_FEMALE
+                account.birthday = obj['birthday']
+                break
+
+        self.db_insert_table_account(account)
+        self.db_commit()
+        return True
 
     def get_contacts(self):
         if self.user is None:
@@ -128,29 +135,49 @@ class YouXinParser(model_im.IM):
             ts = SQLiteParser.TableSignature('t_uxin_user')
             SQLiteParser.Tools.AddSignatureToTable(ts, "[uid]", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
             for rec in db.ReadTableRecords(ts, self.extract_deleted):
-                contact = {'deleted' : rec.Deleted, 'repeated' : 0}
-                contactid = rec['[uid]'].Value
-                if contactid in self.contacts:
-                    continue
-                else:
-                    self.contacts[contactid] = contact
-
                 friend = model_im.Friend()
                 friend.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
-                friend.repeated = contact.get('repeated', 0)
                 friend.source = self.app_name
                 friend.account_id = self.user
-                friend.friend_id = contactid
+                friend.friend_id = rec['[uid]'].Value
                 friend.type = model_im.FRIEND_TYPE_FRIEND
                 friend.nickname = rec['[name]'].Value
-                self.contacts[contactid]['name'] = friend.nickname
                 friend.photo = rec['[small_head_image_url]'].Value
                 friend.signature = rec['[signature]'].Value
-                friend.gender = 1 if rec['[sex]'].Value == '男' else 2
+                friend.gender = model_im.GENDER_MALE if rec['[sex]'].Value == '男' else model_im.GENDER_FEMALE
                 friend.birthday = rec['[birthday]'].Value
+                self.contacts[friend.friend_id] = friend
                 self.db_insert_table_friend(friend)
-            self.db_commit()
-            return True
+
+        dbPath = self.root.GetByPath('/Documents/' + self.user + '/StrangePersonInfo.Sqlite3')
+        db = SQLiteParser.Database.FromNode(dbPath)
+        if db is None:
+            return False
+
+        if 'StrangePhonePersonInfo' in db.Tables:
+            ts = SQLiteParser.TableSignature('tatnlinelistusers')
+            SQLiteParser.Tools.AddSignatureToTable(ts, "[uid]", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
+            for rec in db.ReadTableRecords(ts, self.extract_deleted):
+                id = rec['[uid]'].Value
+                if id in self.contacts.keys():
+                    continue
+                obj = json.loads(rec['[info]'].Value)
+                friend = model_im.Friend()
+                friend.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
+                friend.source = self.app_name
+                friend.account_id = self.user
+                friend.friend_id = id
+                friend.username = obj['name']
+                if rec['[type]'].Value == '2':
+                    friend.photo = obj['picture']
+                    friend.signature = obj['signature']
+                friend.gender = model_im.GENDER_MALE if obj['sex'] == '男' else model_im.GENDER_FEMALE
+                friend.birthday = obj['birthday']
+                friend.type = model_im.FRIEND_TYPE_STRANGER
+                self.contacts[friend.friend_id] = friend
+                self.db_insert_table_friend(friend)
+        self.db_commit()
+        return True
 
     def get_chats(self):
         if self.user is None:
@@ -171,23 +198,58 @@ class YouXinParser(model_im.IM):
                     contact = self.contacts.get(contact_id)
                     message = model_im.Message()
                     message.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
-                    message.repeated = contact.get('repeated', 0)
                     message.source = self.app_name
-
                     message.account_id = self.user
                     message.msg_id = str(uuid.uuid1()).replace('-', '')
                     message.talker_id = contact_id
-                    message.talker_name = contact.get('name', 0)
+                    message.talker_name = contact.nickname
                     message.talker_type = model_im.CHAT_TYPE_FRIEND
                     message.is_sender = model_im.MESSAGE_TYPE_SEND if rec['[msgtype]'].Value else model_im.MESSAGE_TYPE_RECEIVE
                     message.sender_id = contact_id
-                    message.sender_name = contact.get('name', 0)
+                    message.sender_name = contact.nickname
                     message.type = self.parse_message_type(rec['[msgcontype]'].Value)
                     message.content = self.decode_url_message(rec['[msgcontent]'].Value)
                     message.send_time = int(time.mktime(time.strptime(rec['[msgtime]'].Value, '%Y-%m-%d %H:%M:%S')))
                     message.media_path = self.get_media_path(message.type, message.content, contact_id)
                     if message.type == model_im.MESSAGE_CONTENT_TYPE_LOCATION:
-                        message.location = self.get_location(message.content, message.send_time, message.deleted, message.repeated)
+                        message.extra_id = self.get_location(message.content, message.send_time, message.deleted, message.repeated)
+                    self.db_insert_table_message(message)
+
+        dbPath = self.root.GetByPath('/Documents/' + self.user + '/callHistoryRecord.Sqlite3')
+        db = SQLiteParser.Database.FromNode(dbPath)
+        if db is None:
+            return False
+
+        if 'call' in db.Tables:
+            for contact_id in self.contacts.keys():
+                ts = SQLiteParser.TableSignature('call')
+                SQLiteParser.Tools.AddSignatureToTable(ts, "[uid]", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
+                for rec in db.ReadTableRecords(ts, self.extract_deleted):
+                    if contact_id != rec['[uid]'].Value:
+                        continue
+                    contact = self.contacts.get(contact_id)
+                    message = model_im.Message()
+                    message.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
+                    message.source = self.app_name
+                    message.account_id = self.user
+                    message.msg_id = str(uuid.uuid1()).replace('-', '')
+                    message.talker_id = contact_id
+                    message.talker_name = contact.nickname
+                    message.talker_type = model_im.CHAT_TYPE_FRIEND
+                    message.is_sender = model_im.MESSAGE_TYPE_SEND if rec['[calltype]'].Value == 0 else model_im.MESSAGE_TYPE_RECEIVE
+                    message.sender_id = contact_id
+                    message.sender_name = contact.nickname
+                    message.type = model_im.MESSAGE_CONTENT_TYPE_VOIP
+                    if IsDBNull(rec['[telephone]'].Value):
+                        if(rec['[calltime]'].Value == '00:00'):
+                            message.content = "[视频]已取消"
+                        else:
+                            message.content = "[视频]通话时长" + rec['[calltime]'].Value
+                    else:
+                        if(rec['[calltime]'].Value == '00:00'):
+                            message.content = "[语音]已取消"
+                        else:
+                            message.content = "[语音]通话时长" + rec['[calltime]'].Value
                     self.db_insert_table_message(message)
         self.db_commit()
         return True
@@ -198,13 +260,14 @@ class YouXinParser(model_im.IM):
         location.source = self.app_name
         location.deleted = deleted
         location.repeated = repeated
+        location.location_id = str(uuid.uuid1()).replace('-', '')
         location.address = obj['location']['description']
         location.latitude = obj['location']['latitude']
         location.longitude = obj['location']['longitude']
         location.timestamp = time
         self.db_insert_table_location(location)
         self.db_commit()
-        return location.address
+        return location.location_id
 
     def get_media_path(self, type, content, contact_id):
         media_path = ''
@@ -237,4 +300,4 @@ class YouXinParser(model_im.IM):
         except Exception as e:
             traceback.print_exc()
         return json_string
- 
+    
