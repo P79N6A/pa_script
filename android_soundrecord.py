@@ -3,15 +3,7 @@ import os
 import PA_runtime
 import sqlite3
 from PA_runtime import *
-import logging 
-import clr
-
-try:
-    clr.AddReference('model_soundrecord')
-except:
-    pass
-del clr
-
+#SafeLoadAssembly('model_soundrecord')
 from model_soundrecord import *
 
 
@@ -27,13 +19,15 @@ class SoundrecordParse(object):
         self.ms.db_create(self.cachedb)
 
     def analyze_soundrecord_huawei(self):
-        records = Records()
         try:
+            records = Records()
             self.db = SQLiteParser.Database.FromNode(self.node)
+
             if self.db is None:
                 return 
             ts = SQLiteParser.TableSignature('normal_record_table')
             for rec in self.db.ReadTableRecords(ts, self.extractDeleted, True):
+                canceller.ThrowIfCancellationRequested()
                 records.record_id = rec['_id'].Value if '_id' in rec else None
                 records.record_name = rec['title'].Value if 'title' in rec else None
                 records.record_create = rec['date_added'].Value if 'date_added' in rec else None
@@ -41,10 +35,25 @@ class SoundrecordParse(object):
                     records.record_duration = int((rec['duration'].Value)/1000) if rec['duration'].Value is not None else None
                 records.record_size = rec['file_size'].Value if 'file_size' in rec else None
                 records.record_url = rec['_data'].Value if '_data' in rec else None
+                records.source = self.node.AbsolutePath
+                self.ms.db_insert_table_records(records)
+            self.ms.db_commit()
+            records = Records()
+            for rec in self.db.ReadTableDeletedRecords(ts, False):
+                canceller.ThrowIfCancellationRequested()
+                records.record_id = rec['_id'].Value if '_id' in rec else None
+                records.record_name = rec['title'].Value if 'title' in rec else None
+                records.record_create = rec['date_added'].Value if 'date_added' in rec else None
+                if 'duration' in rec:
+                    records.record_duration = int((rec['duration'].Value)/1000) if rec['duration'].Value is not None else None
+                records.record_size = rec['file_size'].Value if 'file_size' in rec else None
+                records.record_url = rec['_data'].Value if '_data' in rec else None
+                records.source = self.node.AbsolutePath
+                records.deleted = 1
                 self.ms.db_insert_table_records(records)
             self.ms.db_commit()
         except Exception as e:
-            logging.error(e)
+            pass
 
     def analyze_soundrecord_xiaomi(self):
         records = Records()
@@ -54,17 +63,18 @@ class SoundrecordParse(object):
                 return 
             ts = SQLiteParser.TableSignature('records')
             for rec in self.db.ReadTableRecords(ts, self.extractDeleted, True):
+                canceller.ThrowIfCancellationRequested()
                 records.record_id = rec['_id'].Value if '_id' in rec else None
                 records.record_name = rec['file_name'].Value if 'file_name' in rec else None
                 records.record_create = rec['create_time'].Value if 'create_time' in rec else None
                 records.record_duration = rec['duration'].Value if 'duration' in rec else None
                 records.record_size = rec['file_size'].Value if 'file_size' in rec else None
                 records.record_url = rec['file_path'].Value if 'file_path' in rec else None
-                records.source = 'Android 语音备忘录'
+                records.source = self.node.AbsolutePath
                 self.ms.db_insert_table_records(records)
             self.ms.db_commit()
         except Exception as e:
-            logging.error(e)
+            pass
 
     def parse(self):
         self.analyze_soundrecord_huawei()
@@ -77,6 +87,7 @@ class SoundrecordParse(object):
 def analyze_android_soundrecord(node, extractDeleted, extractSource):
     pr = ParserResults()
     pr.Models.AddRange(SoundrecordParse(node, extractDeleted, extractSource).parse())
+    pr.Build('语音备忘录')
     return pr
 
 def execute(node, extractDeleted):

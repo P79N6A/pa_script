@@ -15,7 +15,6 @@ from System.Xml.XPath import Extensions as XPathExtensions
 import os
 import System
 import sqlite3
-import logging
 
 SQL_CREATE_TABLE_RECORDS = '''
     CREATE TABLE IF NOT EXISTS records(
@@ -107,6 +106,7 @@ class Generate(object):
         self.cursor = self.db.cursor()
         self.cursor.execute('select distinct * from records')
         for row in self.cursor:
+            canceller.ThrowIfCancellationRequested()
             r = Generic.Recording()
             if row[1] is not None:
                 r.URL.Value = row[1]
