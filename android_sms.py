@@ -32,6 +32,7 @@ def analyze_sms(node, extract_deleted, extract_source):
     pr = ParserResults()
     res = SMSParser(node, extract_deleted, extract_source).parse()
     pr.Models.AddRange(res)
+    pr.Build('短信')
     return pr
 
 

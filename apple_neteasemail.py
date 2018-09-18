@@ -20,7 +20,6 @@ CONTENT_TYPE_TEXT = 2  # 纯文本
 MAIL_OUTBOX   = '3'    # 已发送
 MAIL_DRAFTBOX = '2'    # 草稿箱
 
-SOURCE_APP = '网易邮箱'
 
 def execute(node, extract_deleted):
     """ 
@@ -34,6 +33,7 @@ def analyze_neteasemail(node, extract_deleted, extract_source):
     pr = ParserResults()
     res = NeteaseMailParser(node, extract_deleted, extract_source).parse()
     pr.Models.AddRange(res)
+    pr.Build('网易邮箱')
     return pr
 
 def exc():
