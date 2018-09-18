@@ -20,7 +20,7 @@ import sqlite3
 import json
 import uuid
 
-VERSION_VALUE_DB = 4
+VERSION_VALUE_DB = 5
 
 GENDER_NONE = 0
 GENDER_MALE = 1
@@ -290,6 +290,7 @@ SQL_CREATE_TABLE_DEAL = '''
         description TEXT,
         remark TEXT,
         status INT,
+        create_time INT,
         expire_time INT,
         receive_info TEXT,
         source TEXT,
@@ -297,9 +298,9 @@ SQL_CREATE_TABLE_DEAL = '''
         repeated INT DEFAULT 0)'''
 
 SQL_INSERT_TABLE_DEAL = '''
-    insert into deal(deal_id, type, money, description, remark, status, expire_time, 
+    insert into deal(deal_id, type, money, description, remark, status, create_time, expire_time, 
                      receive_info, source, deleted, repeated) 
-        values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
+        values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
 
 SQL_CREATE_TABLE_SEARCH = '''
     create table if not exists search(
@@ -665,12 +666,13 @@ class Deal(Column):
         self.description = None  # 描述[TEXT]
         self.remark = None  # 备注[TEXT]
         self.status = None  # 状态[INT]
+        self.create_time = None  # 转账时间[INT]
         self.expire_time = None  # 失效时间[INT]
         self.receive_info = None  # 收款信息[TEXT]
 
     def get_values(self):
         return (self.deal_id, self.type, self.money, self.description, self.remark, self.status,
-                self.expire_time, self.receive_info) + super(Deal, self).get_values()
+                self.create_time, self.expire_time, self.receive_info) + super(Deal, self).get_values()
 
 
 class Search(Column):
@@ -1303,7 +1305,7 @@ class GenerateModel(object):
     def _get_receipt(self, deal_id):
         receipt = Common.Receipt()
         if deal_id is not None:
-            sql = '''select type, money, description, remark, status, expire_time, 
+            sql = '''select type, money, description, remark, status, create_time, expire_time, 
                             receive_info, source, deleted, repeated
                      from deal where deal_id='{0}' '''.format(deal_id)
             cursor = self.db.cursor()
@@ -1326,11 +1328,15 @@ class GenerateModel(object):
                 if row[5]:
                     ts = self._get_timestamp(row[5])
                     if ts:
+                        receipt.Timestamp.Value = ts
+                if row[6]:
+                    ts = self._get_timestamp(row[6])
+                    if ts:
                         receipt.ExpireTime.Value = ts
-                if row[7] not in [None, '']:
-                    receipt.SourceFile.Value = row[7]
-                if row[8]:
-                    receipt.Deleted = self._convert_deleted_status(row[8])
+                if row[8] not in [None, '']:
+                    receipt.SourceFile.Value = row[8]
+                if row[9]:
+                    receipt.Deleted = self._convert_deleted_status(row[9])
 
             if cursor is not None:
                 cursor.close()
@@ -1339,7 +1345,7 @@ class GenerateModel(object):
     def _get_aareceipts(self, deal_id):
         receipt = Common.AAReceipts()
         if deal_id is not None:
-            sql = '''select type, money, description, remark, status, expire_time, 
+            sql = '''select type, money, description, remark, status, create_time, expire_time, 
                             receive_info, source, deleted, repeated
                      from deal where deal_id='{0}' '''.format(deal_id)
             cursor = self.db.cursor()
@@ -1362,11 +1368,15 @@ class GenerateModel(object):
                 if row[5]:
                     ts = self._get_timestamp(row[5])
                     if ts:
+                        receipt.Timestamp.Value = ts
+                if row[6]:
+                    ts = self._get_timestamp(row[6])
+                    if ts:
                         receipt.ExpireTime.Value = ts
-                if row[7] not in [None, '']:
-                    receipt.SourceFile.Value = row[7]
-                if row[8]:
-                    receipt.Deleted = self._convert_deleted_status(row[8])
+                if row[8] not in [None, '']:
+                    receipt.SourceFile.Value = row[8]
+                if row[9]:
+                    receipt.Deleted = self._convert_deleted_status(row[9])
 
             if cursor is not None:
                 cursor.close()

@@ -810,20 +810,20 @@ class WeChatParser(model_im.IM):
             node = user_node.GetByPath('Img/{0}/{1}.pic'.format(friend_hash, msg_local_id))
             if node is not None:
                 img_path = node.AbsolutePath
-            else:
-                model.deleted = 1
+            #else:
+            #    model.deleted = 1
         elif msg_type == MSG_TYPE_VOICE:
             node = user_node.GetByPath('Audio/{0}/{1}.aud'.format(friend_hash, msg_local_id))
             if node is not None:
                 img_path = node.AbsolutePath 
-            else:
-                model.deleted = 1
+            #else:
+            #    model.deleted = 1
         #elif msg_type == MSG_TYPE_CONTACT_CARD:
         #    pass
         elif msg_type == MSG_TYPE_VIDEO or msg_type == MSG_TYPE_VIDEO_2:
             node = user_node.GetByPath('Video/{0}/{1}.mp4'.format(friend_hash, msg_local_id))
             if node is None:
-                model.deleted = 1
+                #model.deleted = 1
                 node = user_node.GetByPath('Video/{0}/{1}.video_thum'.format(friend_hash, msg_local_id))
             if node is not None:
                 img_path = node.AbsolutePath
@@ -886,6 +886,7 @@ class WeChatParser(model_im.IM):
                         deal, sender_id = self._process_parse_message_deal(xml)
                         deal.deleted = model.deleted
                         deal.source = model.source
+                        deal.create_time = model.send_time
                         if deal.type == model_im.DEAL_TYPE_RED_ENVELPOE:
                             model.type = model_im.MESSAGE_CONTENT_TYPE_RED_ENVELPOE
                             model.extra_id = deal.deal_id
@@ -983,6 +984,11 @@ class WeChatParser(model_im.IM):
                             deal.remark = wcpayinfo.Element('pay_memo').Value
                 elif msg_type == 2001:
                     if wcpayinfo is not None:
+                        if wcpayinfo.Element('invalidtime') is not None:
+                            try:
+                                deal.expire_time = int(wcpayinfo.Element('invalidtime').Value)
+                            except Exception as e:
+                                pass
                         newaa = wcpayinfo.Element('newaa')
                         newaatype = 0
                         if newaa and newaa.Element('newaatype'):
