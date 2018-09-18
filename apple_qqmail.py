@@ -81,6 +81,7 @@ class MailParser(object):
             cursor = self.db.cursor()
             cursor.execute(SQL_ASSOCIATE_TABLE_MAILS)
             for row in cursor:
+                canceller.ThrowIfCancellationRequested()
                 mails.mailId = row[0]
                 mails.accountId = row[1]
                 mails.subject = row[2]  #邮件标题
@@ -127,6 +128,7 @@ class MailParser(object):
         mails = Mails()
         try:
             for row in self.db.ReadTableDeletedRecords(ts, False):
+                canceller.ThrowIfCancellationRequested()
                 mails.mailId = row['mailId'].Value if 'mailId' in row and not row['mailId'].IsDBNull else None
                 mails.accountId = row['accountId'].Value if 'accountId' in row and not row['accountId'].IsDBNull else None
                 mails.subject = repr(row['subject'].Value) if 'subject' in row and not row['subject'].IsDBNull else None
@@ -149,6 +151,7 @@ class MailParser(object):
             self.mm.db_commit()
             mails = Mails()
             for row in self.db.ReadTableDeletedRecords(ts1, False):
+                canceller.ThrowIfCancellationRequested()
                 mails.accountId = row['id'].Value if 'id' in row and not row['id'].IsDBNull else None
                 mails.account_email = repr(row['name'].Value) if 'name' in row and not row['name'].IsDBNull else None
                 mails.alias = repr(row['alias'].Value) if 'alias' in row and not row['alias'].IsDBNull else None
@@ -158,6 +161,7 @@ class MailParser(object):
             self.mm.db_commit()
             mails = Mails()
             for row in self.db.ReadTableDeletedRecords(ts2, False):
+                canceller.ThrowIfCancellationRequested()
                 mails.folderId = row['id'].Value if 'id' in row and not row['id'].IsDBNull else None
                 mails.mail_folder = repr(row['showName'].Value) if 'showName' in row and not row['showName'].IsDBNull else None
                 mails.source = 'QQ邮箱'
@@ -166,6 +170,7 @@ class MailParser(object):
             self.mm.db_commit()
             mails = Mails()
             for row in self.db.ReadTableDeletedRecords(ts3, False):
+                canceller.ThrowIfCancellationRequested()
                 mails.mailId = row['mailId'].Value if 'mailId' in row and not row['mailId'].IsDBNull else None
                 mails.content = repr(row['content'].Value) if 'content' in row and not row['content'].IsDBNull else None
                 mails.source = 'QQ邮箱'
@@ -174,6 +179,7 @@ class MailParser(object):
             self.mm.db_commit()
             mails = Mails()
             for row in self.db.ReadTableDeletedRecords(ts4, False):
+                canceller.ThrowIfCancellationRequested()
                 mails.mailId = row['mailId'].Value if 'mailId' in row and not row['mailId'].IsDBNull else None
                 mails.attachId = row['attachId'].Value if 'attachId' in row and not row['attachId'].IsDBNull else None
                 mails.downloadSize = row['downloadUtc'].Value if 'downloadUtc' in row and not row['downloadUtc'].IsDBNull else None
@@ -205,6 +211,7 @@ class MailParser(object):
             cursor = self.db.cursor()
             cursor.execute(SQL_ASSOCIATE_TABLE_ACCOUNTS)
             for row in cursor:
+                canceller.ThrowIfCancellationRequested()
                 accounts.accountId = row[0]
                 accounts.alias = row[1]  #账户昵称
                 accounts.accountEmail = row[2]  #账户邮箱
@@ -228,6 +235,7 @@ class MailParser(object):
         accounts = Accounts()
         try:
             for row in self.db.ReadTableDeletedRecords(ts, False):
+                canceller.ThrowIfCancellationRequested()
                 accounts.accountId = row['id'].Value if 'id' in row and not row['id'].IsDBNull else None
                 accounts.alias = repr(row['alias'].Value) if 'alias' in row and not row['alias'].IsDBNull else None
                 accounts.accountEmail = repr(row['name'].Value) if 'name' in row and not row['name'].IsDBNull else None
@@ -256,6 +264,7 @@ class MailParser(object):
             cursor.execute(SQL_ASSOCIATE_TABLE_CONTACT)
             cursor.execute(SQL_ASSOCIATE_TABLE_CONTACT3)
             for row in cursor:
+                canceller.ThrowIfCancellationRequested()
                 contact.contactName = row[1]
                 contact.contactBirthday = row[2]
                 contact.contactDepartment = row[3]
@@ -286,6 +295,7 @@ class MailParser(object):
         contact = Contact()
         try:
             for row in self.db.ReadTableDeletedRecords(ts, False):
+                canceller.ThrowIfCancellationRequested()
                 contact.contactId = row['contactid'].Value if 'contactid' in row and not row['contactid'].IsDBNull else None
                 contact.contactName = repr(row['name'].Value) if 'name' in row and not row['name'].IsDBNull else None
                 contact.contactBirthday = repr(row['birthday'].Value) if 'birthday' in row and not row['birthday'].IsDBNull else None
@@ -300,6 +310,7 @@ class MailParser(object):
             self.mm.db_commit()
             contact = Contact()
             for row in self.db.ReadTableDeletedRecords(ts1, False):
+                canceller.ThrowIfCancellationRequested()
                 contact.contactId = row['contactid'].Value if 'contactid' in row and not row['contactid'].IsDBNull else None
                 contact.contactEmail = repr(row['email'].Value) if 'email' in row and not row['email'].IsDBNull else None
                 contact.contactNick = repr(row['nick'].Value) if 'nick' in row and not row['nick'].IsDBNull else None
@@ -316,6 +327,7 @@ class MailParser(object):
         try:
             contact = Contact()
             for row in self.db.ReadTableDeletedRecords(ts2, False):
+                canceller.ThrowIfCancellationRequested()
                 contact.accountId = row['id'].Value if 'id' in row and not row['id'].IsDBNull else None
                 contact.alias = repr(row['alias'].Value) if 'alias' in row and not row['alias'].IsDBNull else None
                 contact.accountEmail = repr(row['name'].Value) if 'name' in row and not row['name'].IsDBNull else None
@@ -340,6 +352,7 @@ class MailParser(object):
             cursor = self.db.cursor()
             cursor.execute(SQL_ASSOCIATE_TABLE_MAIL_FOLDER)
             for row in cursor:
+                canceller.ThrowIfCancellationRequested()
                 mailFolder.folderTytpe = row[1]  #邮箱类型
                 mailFolder.folderName = row[2]  #邮箱分类名
                 mailFolder.accountNick = row[3]  #邮箱分类所属账户昵称
@@ -366,6 +379,7 @@ class MailParser(object):
             cursor = self.db.cursor()
             cursor.execute(SQL_ASSOCIATE_TABLE_ATTACH)
             for row in cursor:
+                canceller.ThrowIfCancellationRequested()
                 attach.accountNick = row[0]  #账户昵称
                 attach.acocuntEmail = row[1] #账户邮箱
                 attach.subject = row[3]  #邮件标题

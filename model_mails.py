@@ -409,6 +409,7 @@ class Generate(object):
         except Exception as e:
             print(e)
         while row is not None:
+            canceller.ThrowIfCancellationRequested()
             email = Generic.Email()
             if row[22] not in [None, '']:
                 email.SourceFile.Value = self._get_source_file(row[22])
@@ -516,6 +517,7 @@ class Generate(object):
             self.cursor.execute(sql)
             row = self.cursor.fetchone()
             while row is not None:
+                canceller.ThrowIfCancellationRequested()
                 user = Common.User()
                 if row[1] is not None:
                     user.Name.Value = row[1]
@@ -543,6 +545,7 @@ class Generate(object):
         except Exception as e:
             print(e)
         while row is not None:
+            canceller.ThrowIfCancellationRequested()
             friend = Common.Friend()
             if row[-3] not in [None, '']:
                 friend.SourceFile.Value = self._get_source_file(row[-3])
