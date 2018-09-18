@@ -437,6 +437,7 @@ class MailParser(object):
 def analyze_qqmail(node, extractDeleted, extractSource):
     pr = ParserResults()
     pr.Models.AddRange(MailParser(node, extractDeleted, extractSource).parse())
+    pr.Build('QQ邮箱')
     return pr
 
 def execute(node, extractDeleted):
