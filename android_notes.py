@@ -73,6 +73,7 @@ class NoteParse(object):
 def analyze_android_notes(node, extractDeleted, extractSource):
     pr = ParserResults()
     pr.Models.AddRange(NoteParse(node, extractDeleted, extractSource).parse())
+    pr.Build('备忘录')
     return pr
 
 def execute(node, extractDeleted):
