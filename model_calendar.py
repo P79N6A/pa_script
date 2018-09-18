@@ -15,7 +15,6 @@ from System.Xml.XPath import Extensions as XPathExtensions
 import os
 import System
 import sqlite3
-import logging
 
 SQL_CREATE_TABLE_CALENDAR = '''
     CREATE TABLE IF NOT EXISTS calendar(
@@ -110,6 +109,7 @@ class Generate(object):
         self.cursor = self.db.cursor()
         self.cursor.execute('select * from calendar')
         for row in self.cursor:
+            canceller.ThrowIfCancellationRequested()
             cal = Generic.CalendarEntry()
             if row[0] is not None:
                 cal.Category.Value = str(row[0])

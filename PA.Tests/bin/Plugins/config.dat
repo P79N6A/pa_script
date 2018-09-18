@@ -718,6 +718,26 @@
 
     <dict>
       <key>Module</key>
+      <string>apple_alipay</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_alipay</string>
+          <key>RunnerType</key>
+          <integer>1</integer>
+          <key>Patterns</key>
+          <array>
+            <string>com.alipay.iphoneclient</string>
+          </array>
+          <key>Category</key>
+          <string>Alipay</string>
+        </dict>
+      </array>
+    </dict>
+
+    <dict>
+      <key>Module</key>
       <string>apple_dingtalk</string>
       <key>Runners</key>
       <array>
@@ -1017,6 +1037,66 @@
         </dict>
       </array>
     </dict>    
+    
+    <dict>
+      <key>Module</key>
+      <string>android_qqmail</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_android_qqmail</string>
+          <key>RunnerType</key>
+          <integer>2</integer>
+          <key>Patterns</key>
+          <array>
+            <string>/com.tencent.androidqqmail/databases/QMMailDB$</string>
+          </array>
+          <key>Category</key>
+          <string>QQMail</string>
+        </dict>
+      </array>
+    </dict>
+    
+    <dict>
+      <key>Module</key>
+      <string>android_qqbrowser</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_android_qqbrowser</string>
+          <key>RunnerType</key>
+          <integer>2</integer>
+          <key>Patterns</key>
+          <array>
+            <string>/com.tencent.mtt/databases/default_user.db$</string>
+          </array>
+          <key>Category</key>
+          <string>QQBrowser</string>
+        </dict>
+      </array>
+    </dict>
+    
+    <dict>
+      <key>Module</key>
+      <string>android_calendar</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_android_calendar</string>
+          <key>RunnerType</key>
+          <integer>2</integer>
+          <key>Patterns</key>
+          <array>
+            <string>/com.android.providers.calendar/databases/calendar.db$</string>
+          </array>
+          <key>Category</key>
+          <string>Calendars</string>
+        </dict>
+      </array>
+    </dict>
 
 
   </array>

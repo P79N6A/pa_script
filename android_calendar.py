@@ -3,13 +3,8 @@ import os
 import PA_runtime
 import sqlite3
 from PA_runtime import *
-import logging 
-import clr
-try:
-    clr.AddReference('model_calendar')
-except:
-    pass
-del clr
+SafeLoadAssembly('model_calendar')
+import shutil
 from model_calendar import *
 
 SQL_JOIN_TABLE_CALENDAR = '''select Events.calendar_id, Events._id, Events.title, Events.eventLocation, Events.description, Events.dtstart, 
@@ -23,19 +18,20 @@ class CalendarParser(object):
         self.db = None
         self.mc = MC()
         self.db_cache = ds.OpenCachePath("CALENDAR") + '\\calendar.db'
+        self.sourceDB = ds.OpenCachePath("CALENDAR") + '\\CalendarSourceDB'
         self.mc.db_create(self.db_cache)
 
     def analyze_calendar(self):
         calendar = Calendar()
         try:
-            if self.node is not None:
-                db_source = self.node.AbsolutePath
+            db_source = self.sourceDB + '\\calendar.db'
             self.db = sqlite3.connect(db_source)
             if self.db is None:
                 return
             cursor = self.db.cursor()
             cursor.execute(SQL_JOIN_TABLE_CALENDAR)
             for row in cursor:
+                canceller.ThrowIfCancellationRequested()
                 calendar.calendar_id = row[0]
                 calendar.title = row[2]
                 calendar.description = row[4]
@@ -49,7 +45,7 @@ class CalendarParser(object):
             self.mc.db_commit()
             self.db.close()
         except Exception as e:
-            logging.error(e)
+            print(e)
 
     def decode_recover_calendar_table(self):
         self.db = SQLiteParser.Database.FromNode(self.node)
@@ -59,6 +55,7 @@ class CalendarParser(object):
         try:
             calendar = Calendar()
             for row in self.db.ReadTableDeletedRecords(ts, False):
+                canceller.ThrowIfCancellationRequested()
                 calendar.calendar_id = row['calendar_id'].Value if 'calendar_id' in row and not row['calendar_id'].IsDBNull else None
                 calendar.title = repr(row['title'].Value) if 'title' in row and not row['title'].IsDBNull else None
                 calendar.eventLocation = repr(row['eventLocation'].Value) if 'eventLocation' in row and not row['eventLocation'].IsDBNull else None
@@ -71,9 +68,8 @@ class CalendarParser(object):
                 calendar.deleted = 1
                 self.mc.db_insert_calendar(calendar)
             self.mc.db_commit()
-            self.db.close()
         except Exception as e:
-            logging.error(e)
+            print(e)
 
     def _extractData(self,s,subs):
         if s is not None:
@@ -84,6 +80,7 @@ class CalendarParser(object):
         return None
 
     def parse(self):
+        self._copytocache()
         self.analyze_calendar()
         self.decode_recover_calendar_table()
         self.mc.db_close()
@@ -91,7 +88,19 @@ class CalendarParser(object):
         models = generate.get_models()
         return models
 
+    def _copytocache(self):
+        sourceDir = self.node.Parent.PathWithMountPoint
+        targetDir = self.sourceDB
+        try:
+            if not os.path.exists(targetDir):
+                shutil.copytree(sourceDir, targetDir)
+        except Exception as e:
+            print(e)
+
 def analyze_android_calendar(node, extractDeleted, extractSource):
     pr = ParserResults()
     pr.Models.AddRange(CalendarParser(node, extractDeleted, extractSource).parse())
     return pr
+
+def execute(node, extractDeleted):
+    return analyze_android_calendar(node, extractDeleted, False)

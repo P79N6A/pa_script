@@ -14,7 +14,7 @@ try:
 except:
     pass
 del clr
-from model_map import * 
+import model_map
 
 POI_SNAPSHOT = 12
 APPVERSION = "1.0"
