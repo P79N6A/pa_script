@@ -100,6 +100,8 @@ class TIphone(object):
             message_list = list()
             message_dict = dict()
             while idx < sz:
+                if canceller.IsCancellationRequested:
+                    raise IOError('e')
                 v = bp_arr[idx]
                 if type(v) is PA.Formats.Apple.BPListTypes.BPDict:
                     siter = v['local_last_read_event_id'].Value if v['local_last_read_event_id'] is not None else None
@@ -154,6 +156,8 @@ class TIphone(object):
                     message_dict[ck] = message_list
             # to messages...
             for k in message_dict:
+                if cancller.IsCancellationRequested:
+                    raise IOError('e')
                 l = message_dict[k]
                 uids = k.split('-')
                 objid = uids[0] if uids[0] != aid else uids[1]
@@ -216,6 +220,8 @@ class TIphone(object):
             '''.format(aid)
             reader = cmd.ExecuteReader()
             while reader.Read():
+                    if canceller.IsCancellationRequested:
+                        raise IOError('E')
                     f = model_im.Friend()
                     f.account_id = current_id
                     f.friend_id = GetInt64(reader, 0)
@@ -231,6 +237,8 @@ class TIphone(object):
             '''
             reader = cmd.ExecuteReader()
             while reader.Read():
+                if canceller.IsCancellationRequested:
+                    raise IOError('e')
                 blog = model_im.Feed()
                 blog.account_id = current_id
                 blog.content = GetString(reader, 1)
@@ -260,14 +268,17 @@ class TIphone(object):
 def analyse_twitter(root, extract_deleted, extract_source):
     #node = FileSystem.FromLocalDir(r'D:\ios_case\tweet\tw')
     node = root
-    t = TIphone(node, extract_deleted, extract_source)
-    t.parse_account()
-    t.im.db_close()
-    models = model_im.GenerateModel(t.cache + "/C37R").get_models()
-    mlm = ModelListMerger()
-    pr = ParserResults()
-    pr.Categories = DescripCategories.QQ
-    pr.Models.AddRange(list(mlm.GetUnique(models)))
-    pr.Build('Twitter')
+    try:
+        t = TIphone(node, extract_deleted, extract_source)
+        t.parse_account()
+        t.im.db_close()
+        models = model_im.GenerateModel(t.cache + "/C37R").get_models()
+        mlm = ModelListMerger()
+        pr = ParserResults()
+        pr.Categories = DescripCategories.QQ
+        pr.Models.AddRange(list(mlm.GetUnique(models)))
+        pr.Build('Twitter')
+    except:
+        pr = ParserResults()
     return pr
     
