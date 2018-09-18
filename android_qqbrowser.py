@@ -3,18 +3,16 @@ import os
 import PA_runtime
 import sqlite3
 from PA_runtime import *
-import logging 
 import re
+SafeLoadAssembly('model_browser')
 from model_browser import *
 
 
 class QQBrowserParse(object):
-    '''通过遍历数据库文件获取用户名可能导致数据重复 需在model中做去重操作'''
     def __init__(self, node, extractDeleted, extractSource):
         self.node = node
         self.extractDeleted = False
         self.extractSource = extractSource
-        self.user = re.findall(r'^.*/(.+).db', node.AbsolutePath)
         self.db = None
         self.mb = MB()
         self.cache_path = ds.OpenCachePath("QQBrowser")
@@ -23,32 +21,43 @@ class QQBrowserParse(object):
 
     def analyze_bookmarks(self):
         bookmark = Bookmark()
+        fs = self.node.FileSystem
+        ns = fs.Search(r'/data/com.tencent.mtt/databases/\d+.db$')
+        nodes = []
+        for n in ns:
+            nodes.append(n)
+        nodes.append(self.node)
         try:
-            self.db = SQLiteParser.Database.FromNode(self.node)
-            if self.db is None:
-                return 
-            ts = SQLiteParser.TableSignature('mtt_bookmarks')
-            for rec in self.db.ReadTableRecords(ts, self.extractDeleted, True):
-                bookmark.id = rec['_id'].Value if '_id' in rec else None
-                bookmark.time = self._timeHandler(rec['created'].Value) if 'created' in rec else None
-                bookmark.title = rec['title'].Value if 'title' in rec and rec['title'].Value is not '' else None
-                bookmark.url = rec['url'].Value if 'url' in rec and rec['url'].Value is not '' else None
-                bookmark.owneruser = self.user[0]
-                bookmark.source = self.node.AbsolutePath
-                self.mb.db_insert_table_bookmarks(bookmark)
-            self.mb.db_commit()
-            for row in self.db.ReadTableDeletedRecords(ts, False):
-                bookmark.id = row['_id'].Value if '_id' in row else None
-                bookmark.time = self._timeHandler(row['created'].Value) if 'created' in row else None
-                bookmark.title = repr(row['title'].Value) if 'title' in row and row['title'].Value is not '' else None
-                bookmark.url = repr(row['url'].Value) if 'url' in row and row['url'].Value is not '' else None
-                bookmark.owneruser = self.user[0]
-                bookmark.source = self.node.AbsolutePath
-                bookmark.deleted = 1
-                self.mb.db_insert_table_bookmarks(bookmark)
-            self.mb.db_commit()
+            for node in nodes:
+                self.db = SQLiteParser.Database.FromNode(self.node)
+                if self.db is None:
+                    return 
+                ts = SQLiteParser.TableSignature('mtt_bookmarks')
+                for rec in self.db.ReadTableRecords(ts, self.extractDeleted, True):
+                    canceller.ThrowIfCancellationRequested()
+                    bookmark.id = rec['_id'].Value if '_id' in rec else None
+                    bookmark.time = self._timeHandler(rec['created'].Value) if 'created' in rec else None
+                    bookmark.title = rec['title'].Value if 'title' in rec and rec['title'].Value is not '' else None
+                    bookmark.url = rec['url'].Value if 'url' in rec and rec['url'].Value is not '' else None
+                    users = re.findall(r'^.*/(.+).db', node.AbsolutePath)
+                    bookmark.owneruser = users[0]
+                    bookmark.source = self.node.AbsolutePath
+                    self.mb.db_insert_table_bookmarks(bookmark)
+                self.mb.db_commit()
+                for row in self.db.ReadTableDeletedRecords(ts, False):
+                    canceller.ThrowIfCancellationRequested()
+                    bookmark.id = row['_id'].Value if '_id' in row else None
+                    bookmark.time = self._timeHandler(row['created'].Value) if 'created' in row else None
+                    bookmark.title = repr(row['title'].Value) if 'title' in row and row['title'].Value is not '' else None
+                    bookmark.url = repr(row['url'].Value) if 'url' in row and row['url'].Value is not '' else None
+                    users = re.findall(r'^.*/(.+).db', node.AbsolutePath)
+                    bookmark.owneruser = users[0]
+                    bookmark.source = self.node.AbsolutePath
+                    bookmark.deleted = 1
+                    self.mb.db_insert_table_bookmarks(bookmark)
+                self.mb.db_commit()
         except Exception as e:
-            logging.error(e)
+            print(e)
 
     def analyze_browserecords(self):
         record = Browserecord()
@@ -59,6 +68,7 @@ class QQBrowserParse(object):
                 return 
             ts = SQLiteParser.TableSignature('history')
             for rec in self.db.ReadTableRecords(ts, self.extractDeleted, True):
+                canceller.ThrowIfCancellationRequested()
                 record.id = rec['ID'].Value if 'ID' in rec else None
                 record.name = rec['NAME'].Value if 'NAME' in rec and rec['NAME'].Value is not '' else None
                 record.url = rec['URL'].Value if 'URL' in rec and rec['URL'].Value is not '' else None
@@ -66,6 +76,7 @@ class QQBrowserParse(object):
                 self.source = node.AbsolutePath
             self.mb.db_commit()
             for row in self.db.ReadTableDeletedRecords(ts, False):
+                canceller.ThrowIfCancellationRequested()
                 record.id = row['ID'].Value if 'ID' in row else None
                 record.name = repr(row['NAME'].Value) if 'NAME' in row and row['NAME'].Value is not '' else None
                 record.url = repr(row['URL'].Value) if 'URL' in row and row['URL'].Value is not '' else None
@@ -75,7 +86,7 @@ class QQBrowserParse(object):
                 self.mb.db_insert_table_browserecords(record)
             self.mb.db_commit()
         except Exception as e:
-            logging.error(e)
+            print(e)
 
     def analyze_downloadfiles(self):
         downloadfile = DownloadFile()
@@ -86,6 +97,7 @@ class QQBrowserParse(object):
                 return
             ts = SQLiteParser.TableSignature('download')
             for rec in self.db.ReadTableRecords(ts, self.extractDeleted, True):
+                canceller.ThrowIfCancellationRequested()
                 downloadfile.id = rec['id'].Value if 'id' in rec else None
                 downloadfile.url = rec['url'].Value if 'url' in rec and rec['url'].Value is not '' else None
                 downloadfile.filename = rec['filename'].Value if 'filename' in rec and rec['filename'].Value is not '' else None
@@ -98,6 +110,7 @@ class QQBrowserParse(object):
                 self.mb.db_insert_table_downloadfiles(downloadfile)
             self.mb.db_commit()
             for row in self.db.ReadTableDeletedRecords(ts, False):
+                canceller.ThrowIfCancellationRequested()
                 downloadfile.id = row['id'].Value if 'id' in row else None
                 downloadfile.url = repr(row['url'].Value) if 'url' in row and row['url'].Value is not '' else None
                 downloadfile.filename = repr(row['filename'].Value) if 'filename' in row and row['filename'].Value is not '' else None
@@ -111,7 +124,7 @@ class QQBrowserParse(object):
                 self.mb.db_insert_table_downloadfiles(downloadfile)
             self.mb.db_commit()
         except Exception as e:
-            logging.error(e)
+            print(e)
 
     def analyze_fileinfo(self):
         fileinfo = FileInfo()
@@ -125,6 +138,7 @@ class QQBrowserParse(object):
                     return
                 ts = SQLiteParser.TableSignature('file_information')
                 for rec in self.db.ReadTableRecords(ts, self.extractDeleted, True):
+                    canceller.ThrowIfCancellationRequested()
                     fileinfo.id = rec['FILE_ID'].Value if 'FILE_ID' in rec else None
                     fileinfo.filepath = self._transToAbsolutePath(rec['FILE_PATH'].Value) if 'FILE_PATH' in rec and rec['FILE_PATH'].Value is not '' else None
                     fileinfo.filename = rec['FILE_NAME'].Value if 'FILE_NAME' in rec and rec['FILE_NAME'].Value is not '' else None
@@ -134,58 +148,67 @@ class QQBrowserParse(object):
                     fileinfo.source = node.AbsolutePath
                     self.mb.db_insert_table_fileinfos(fileinfo)
                 self.mb.db_commit()
-                for row in self.db.ReadTableDeletedRecords(ts, False):
-                    fileinfo.id = row['FILE_ID'].Value if 'FILE_ID' in row else None
-                    fileinfo.filepath = self._transToAbsolutePath(repr(row['FILE_PATH'].Value)) if 'FILE_PATH' in row and row['FILE_PATH'].Value is not '' else None
-                    fileinfo.filename = repr(row['FILE_NAME'].Value) if 'FILE_NAME' in row and row['FILE_NAME'].Value is not '' else None
-                    fileinfo.size = row['SIZE'].Value if 'SIZE' in row else None
-                    fileinfo.modified = self._timeHandler(row['MODIFIED_DATE'].Value) if 'MODIFIED_DATE' in row else None
-                    fileinfo.title = repr(row['TITLE'].Value) if 'TITLE' in row and row['TITLE'].Value is not '' else None
-                    fileinfo.source = node.AbsolutePath
-                    fileinfo.deleted = 1
-                    self.mb.db_insert_table_fileinfos(fileinfo)
-                self.mb.db_commit()
         except Exception as e:
-            logging.error(e)
+            print(e)
 
     def analyze_search_history(self):
         searchHistory = SearchHistory()
+        fs = self.node.FileSystem
+        ns = fs.Search(r'/data/com.tencent.mtt/databases/\d+.db$')
+        nodes = []
+        for n in ns:
+            nodes.append(n)
+        nodes.append(self.node)
         try:
-            self.db = SQLiteParser.Database.FromNode(self.node)
-            if self.db is None:
-                return
-            ts = SQLiteParser.TableSignature('search_history')
-            for rec in self.db.ReadTableRecords(ts, self.extractDeleted, True):
-                searchHistory.id = rec['ID'].Value if 'ID' in rec else None
-                searchHistory.name = rec['NAME'].Value if 'NAME' in rec and rec['NAME'].Value is not '' else None
-                searchHistory.url = rec['URL'].Value if 'URL' in rec and rec['URL'].Value is not '' else None
-                searchHistory.datetime = self._timeHandler(rec['DATETIME'].Value) if 'DATETIME' in rec else None
-                bookmark.owneruser = self.user[0]
-                searchHistory.source = node.AbsolutePath
-                self.mb.db_insert_table_searchhistory(searchHistory)
-            self.mb.db_commit()
-            for row in self.db.ReadTableDeletedRecords(ts, False):
-                searchHistory.id = row['ID'].Value if 'ID' in row else None
-                searchHistory.name = repr(row['NAME'].Value) if 'NAME' in row and row['NAME'].Value is not '' else None
-                searchHistory.url = repr(row['URL'].Value) if 'URL' in row and row['URL'].Value is not '' else None
-                searchHistory.datetime = self._timeHandler(row['DATETIME'].Value) if 'DATETIME' in row else None
-                bookmark.owneruser = self.user[0]
-                searchHistory.source = node.AbsolutePath
-                searchHistory.deleted = 1
-                self.mb.db_insert_table_searchhistory(searchHistory)
-            self.mb.db_commit()
+            for node in nodes:
+                self.db = SQLiteParser.Database.FromNode(self.node)
+                if self.db is None:
+                    return
+                ts = SQLiteParser.TableSignature('search_history')
+                for rec in self.db.ReadTableRecords(ts, self.extractDeleted, True):
+                    canceller.ThrowIfCancellationRequested()
+                    searchHistory.id = rec['ID'].Value if 'ID' in rec else None
+                    searchHistory.name = rec['NAME'].Value if 'NAME' in rec and rec['NAME'].Value is not '' else None
+                    searchHistory.url = rec['URL'].Value if 'URL' in rec and rec['URL'].Value is not '' else None
+                    searchHistory.datetime = self._timeHandler(rec['DATETIME'].Value) if 'DATETIME' in rec else None
+                    users = re.findall(r'^.*/(.+).db', node.AbsolutePath)
+                    searchHistory.owneruser = users[0]
+                    searchHistory.source = node.AbsolutePath
+                    self.mb.db_insert_table_searchhistory(searchHistory)
+                self.mb.db_commit()
+                for row in self.db.ReadTableDeletedRecords(ts, False):
+                    canceller.ThrowIfCancellationRequested()
+                    searchHistory.id = row['ID'].Value if 'ID' in row else None
+                    searchHistory.name = repr(row['NAME'].Value) if 'NAME' in row and row['NAME'].Value is not '' else None
+                    searchHistory.url = repr(row['URL'].Value) if 'URL' in row and row['URL'].Value is not '' else None
+                    searchHistory.datetime = self._timeHandler(row['DATETIME'].Value) if 'DATETIME' in row else None
+                    users = re.findall(r'^.*/(.+).db', node.AbsolutePath)
+                    searchHistory.owneruser = users[0]
+                    searchHistory.source = node.AbsolutePath
+                    searchHistory.deleted = 1
+                    self.mb.db_insert_table_searchhistory(searchHistory)
+                self.mb.db_commit()
         except Exception as e:
-            logging.error(e)
+            print(e)
 
     def analyze_accounts(self):
         account = Account()
+        fs = self.node.FileSystem
+        ns = fs.Search(r'/data/com.tencent.mtt/databases/\d+.db$')
+        nodes = []
+        for n in ns:
+            nodes.append(n)
+        nodes.append(self.node)
         try:
-            account.name = self.user[0]
-            account.source = self.node.Parent.AbsolutePath
-            self.mb.db_insert_table_accounts(account)
-            self.mb.db_commit()
+            for node in nodes:
+                canceller.ThrowIfCancellationRequested()
+                users = re.findall(r'^.*/(.+).db', node.AbsolutePath)
+                account.name = users[0]
+                account.source = self.node.Parent.AbsolutePath
+                self.mb.db_insert_table_accounts(account)
+                self.mb.db_commit()
         except Exception as e:
-            logging.error(e)
+            print(e)
 
     def analyze_plugin(self):
         plugin = Plugin()
@@ -196,6 +219,7 @@ class QQBrowserParse(object):
                 return
             ts = SQLiteParser.TableSignature('plugins')
             for rec in self.db.ReadTableRecords(ts, self.extractDeleted, True):
+                canceller.ThrowIfCancellationRequested()
                 plugin.id = rec['ID'].Value if 'ID' in rec else None
                 plugin.title = rec['title'].Value if 'title' in rec and rec['title'].Value is not '' else None
                 plugin.url = rec['url'].Value if 'url' in rec and rec['url'].Value is not '' else None
@@ -206,7 +230,7 @@ class QQBrowserParse(object):
                 self.mb.db_insert_table_plugin(plugin)
             self.mb.db_commit()
         except Exception as e:
-            logging.error(e)
+            print(e)
 
     def analyze_cookies(self):
         cookie = Cookie()
@@ -217,6 +241,7 @@ class QQBrowserParse(object):
                 return
             ts = SQLiteParser.TableSignature('cookies')
             for rec in self.db.ReadTableRecords(ts, self.extractDeleted, True):
+                canceller.ThrowIfCancellationRequested()
                 cookie.host_key = rec['host_key'].Value if 'host_key' in rec and rec['host_key'].Value is not '' else None
                 cookie.name  = rec['name'].Value if 'name' in rec and rec['name'].Value is not '' else None
                 cookie.value = rec['value'].Value if 'value' in rec and rec['value'].Value is not '' else None
@@ -228,7 +253,7 @@ class QQBrowserParse(object):
                 self.mb.db_insert_table_cookies(cookie)
             self.mb.db_commit()
         except Exception as e:
-            logging.error(e)
+            print(e)
 
     def _timeHandler(self, time):
         if len(str(time)) > 10:
@@ -240,24 +265,31 @@ class QQBrowserParse(object):
         
     def _transToAbsolutePath(self, dir):
         fs = self.node.FileSystem
-        if re.match(r'^/storage/emulated/0', dir) is not None:
-            subdir = dir.replace('/storage/emulated/0', '/media/0')
-            fileNode = fs.Search(subdir + '$')
-            for node in fileNode:
-                return node.AbsolutePath
-        elif  re.match(r'^/data/user/0', dir) is not None:
-            subdir = dir.replace('/data/user/0', '/data')
-            fileNode = fs.Search(subdir + '$')
-            for node in fileNode:
-                return node.AbsolutePath
-        elif re.match(r'^/storage/0000-0000', dir) is not None:
-            return dir
-        elif re.match(r'^/$', dir) is not None:
-            return fs.AbsolutePath
-        else:
-            fileNode = fs.Search(dir+ '$')
-            for node in fileNode:
-                return node.AbsolutePath
+        try:
+            if re.match(r'^/storage/emulated/0', dir) is not None:
+                subdir = dir.replace('/storage/emulated/0', '')
+                fileNode = fs.Search(subdir + '$')
+                for node in fileNode:
+                    return node.AbsolutePath
+            elif  re.match(r'^/data/user/0', dir) is not None:
+                subdir = dir.replace('/data/user/0', '')
+                fileNode = fs.Search(subdir + '$')
+                for node in fileNode:
+                    return node.AbsolutePath
+            elif re.match(r'^/storage/0000-0000', dir) is not None:
+                fileNode = fs.Search(subdir + '$')
+                for node in fileNode:
+                    return node.AbsolutePath
+            elif re.match(r'^/$', dir) is not None:
+                return fs.AbsolutePath
+            elif '*' not in dir:
+                fileNode = fs.Search(dir+ '$')
+                for node in fileNode:
+                    return node.AbsolutePath
+            else:
+                return None
+        except:
+            pass
 
     def parse(self):
         self.analyze_accounts()
