@@ -110,6 +110,7 @@ class Generate(object):
         self.cursor = self.db.cursor()
         self.cursor.execute('select * from calendar')
         for row in self.cursor:
+            canceller.ThrowIfCancellationRequested()
             cal = Generic.CalendarEntry()
             if row[0] is not None:
                 cal.Category.Value = str(row[0])

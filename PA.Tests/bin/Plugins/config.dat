@@ -1057,6 +1057,26 @@
         </dict>
       </array>
     </dict>
+    
+    <dict>
+      <key>Module</key>
+      <string>android_calendar</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_android_calendar</string>
+          <key>RunnerType</key>
+          <integer>2</integer>
+          <key>Patterns</key>
+          <array>
+            <string>/com.android.providers.calendar/databases/calendar.db$</string>
+          </array>
+          <key>Category</key>
+          <string>Calendars</string>
+        </dict>
+      </array>
+    </dict>
 
 
   </array>
