@@ -3,7 +3,6 @@ import os
 import PA_runtime
 import sqlite3
 from PA_runtime import *
-import logging 
 SafeLoadAssembly('model_calendar')
 import shutil
 from model_calendar import *
@@ -46,7 +45,7 @@ class CalendarParser(object):
             self.mc.db_commit()
             self.db.close()
         except Exception as e:
-            logging.error(e)
+            print(e)
 
     def decode_recover_calendar_table(self):
         self.db = SQLiteParser.Database.FromNode(self.node)
@@ -70,7 +69,7 @@ class CalendarParser(object):
                 self.mc.db_insert_calendar(calendar)
             self.mc.db_commit()
         except Exception as e:
-            logging.error(e)
+            print(e)
 
     def _extractData(self,s,subs):
         if s is not None:

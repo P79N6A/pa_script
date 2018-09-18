@@ -15,7 +15,6 @@ from System.Xml.XPath import Extensions as XPathExtensions
 import os
 import System
 import sqlite3
-import logging
 
 SQL_CREATE_TABLE_CALENDAR = '''
     CREATE TABLE IF NOT EXISTS calendar(
