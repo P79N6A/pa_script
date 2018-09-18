@@ -170,7 +170,7 @@ class Model_SMS(object):
         try:
             cursor.execute(sql)
             row = cursor.fetchone()
-        except Exception as e:
+        except:
             pass
 
         while row is not None:
@@ -344,6 +344,8 @@ class GenerateModel(object):
             exc()
             return []
         while row is not None:
+            if canceller.IsCancellationRequested:
+                return
             sms = Generic.SMS()
             if row[0] is not None:
                 sms.Body.Value = row[0]
@@ -410,6 +412,8 @@ class GenerateModel(object):
             exc()
             return 
         while row is not None:
+            if canceller.IsCancellationRequested:
+                return
             sms = Generic.SMS()
             if row[0] is not None:
                 sms.Body.Value = row[0]
