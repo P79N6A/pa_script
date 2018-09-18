@@ -82,6 +82,11 @@ class xianyu(object):
         '''.format(self.account)
         reader = cmd.ExecuteReader()
         while reader.Read():
+            if canceller.IsCancellationRequested:
+                cmd.Dispose()
+                conn.Close()
+                self.im.db_close()
+                raise IOError('e')
             f = model_im.Friend()
             f.account_id = self.account
             f.friend_id = unity_c37r.c_sharp_get_long(reader, 0)
@@ -94,6 +99,11 @@ class xianyu(object):
         '''
         reader = cmd.ExecuteReader()
         while reader.Read():
+            if canceller.IsCancellationRequested:
+                cmd.Dispose()
+                conn.Close()
+                self.im.db_close()
+                raise IOError('e')
             g = model_im.Chatroom()
             g.account_id = self.account
             g.chatroom_id = unity_c37r.c_sharp_get_long(reader, 0)
@@ -107,6 +117,11 @@ class xianyu(object):
         '''
         reader = cmd.ExecuteReader()
         while reader.Read():
+            if canceller.IsCancellationRequested:
+                cmd.Dispose()
+                conn.Close()
+                self.im.db_close()
+                raise IOError('e')
             feed = model_im.Feed()
             feed.account_id = self.account
             feed.attachment_link = unity_c37r.c_sharp_get_string(reader, 1)
@@ -130,6 +145,11 @@ class xianyu(object):
         '''
         reader = cmd.ExecuteReader()
         while reader.Read():
+            if canceller.IsCancellationRequested:
+                cmd.Dispose()
+                conn.Close()
+                self.im.db_close()
+                raise IOError('e')
             m = model_im.Message()
             m.account_id = self.account
             m.sender_id = unity_c37r.c_sharp_get_long(reader, 1)
@@ -212,6 +232,11 @@ class xianyu(object):
         '''
         reader = cmd.ExecuteReader()
         while reader.Read():
+            if canceller.IsCancellationRequested:
+                cmd.Dispose()
+                conn.Close()
+                self.im.db_close()
+                raise IOError('e')
             m = model_im.Message()
             m.type = model_im.MESSAGE_CONTENT_TYPE_TEXT
             m.content = unity_c37r.c_sharp_get_string(reader, 0)
@@ -226,13 +251,16 @@ class xianyu(object):
 def parse_xy(root, extract_deleted, extract_source):
     node = root
     #node = FileSystem.FromLocalDir(r'D:\ios_case\xianyu\C533806C-8FB4-459D-8127-B1BA7A345E28')
-    x = xianyu(node, extract_deleted, extract_deleted)
-    x.search()
-    x.parse()
-    models = model_im.GenerateModel(x.cache + '/C37R').get_models()
-    mlm = ModelListMerger()
-    pr = ParserResults()
-    pr.Categories = DescripCategories.QQ
-    pr.Models.AddRange(list(mlm.GetUnique(models)))
-    pr.Build('闲鱼')
+    try:
+        x = xianyu(node, extract_deleted, extract_deleted)
+        x.search()
+        x.parse()
+        models = model_im.GenerateModel(x.cache + '/C37R').get_models()
+        mlm = ModelListMerger()
+        pr = ParserResults()
+        pr.Categories = DescripCategories.QQ
+        pr.Models.AddRange(list(mlm.GetUnique(models)))
+        pr.Build('闲鱼')
+    except:
+        return ParserResults()
     return pr

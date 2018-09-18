@@ -428,10 +428,11 @@ class Generate(object):
 
     def _get_account_models(self):
         model = []
-        sql = '''select distinct * from accounts'''
+        sql = '''select distinct * from accounts group by name'''
         try:
             self.cursor.execute(sql)
             for row in self.cursor:
+                canceller.ThrowIfCancellationRequested()
                 user = Generic.User()
                 if row[0] is not None:
                     user.Identifier.Value = str(row[0])
@@ -454,6 +455,7 @@ class Generate(object):
         try:
             self.cursor.execute(sql)
             for row in self.cursor:
+                canceller.ThrowIfCancellationRequested()
                 bookmark = Generic.WebBookmark()
                 if row[1] is not None:
                     bookmark.TimeStamp.Value = self._get_timestamp(row[1])
@@ -476,6 +478,7 @@ class Generate(object):
         try:
             self.cursor.execute(sql)
             for row in self.cursor:
+                canceller.ThrowIfCancellationRequested()
                 visited = Generic.VisitedPage()
                 if row[1] is not None:
                     visited.Title.Value = row[1]
@@ -498,6 +501,7 @@ class Generate(object):
         try:
             self.cursor.execute(sql)
             for row in self.cursor:
+                canceller.ThrowIfCancellationRequested()
                 download = Generic.Attachment()
                 if row[1] is not None:
                     download.URL.Value = row[1]
@@ -522,6 +526,7 @@ class Generate(object):
         try:
             self.cursor.execute(sql)
             for row in self.cursor:
+                canceller.ThrowIfCancellationRequested()
                 browseload = Generic.Attachment()
                 if row[1] is not None:
                     browseload.URL.Value = row[1]
@@ -551,6 +556,7 @@ class Generate(object):
         try:
             self.cursor.execute(sql)
             for row in self.cursor:
+                canceller.ThrowIfCancellationRequested()
                 search = Generic.Search()
                 if row[2] is not None:
                     search.Content.Value = row[2]
@@ -577,6 +583,7 @@ class Generate(object):
         try:
             self.cursor.execute(sql)
             for row in self.cursor:
+                canceller.ThrowIfCancellationRequested()
                 cookie = Generic.Cookie()
                 if row[1] is not None:
                     cookie.Domain.Value = row[1]
@@ -589,9 +596,9 @@ class Generate(object):
                 if row[5] is not None:
                     cookie.Expiry.Value = self._get_timestamp(row[5])
                 if row[6] is not None:
-                    cookie.LastAccessTime = self._get_timestamp(row[6])
+                    cookie.LastAccessTime.Value = self._get_timestamp(row[6])
                 if row[7] not in [None, '']:
-                    cookie.SourceFile.Value = self._get_source_file(row[7])
+                    cookie.SourceFile.Value = self._get_source_file(str(row[7]))
                 if row[8] is not None:
                     cookie.Deleted = self._convert_deleted_status(row[8])
                 model.append(cookie)
@@ -618,8 +625,8 @@ class Generate(object):
             if isinstance(timestamp, int) and len(str(timestamp)) == 10:
                 ts = TimeStamp.FromUnixTime(timestamp, False)
                 if not ts.IsValidForSmartphone():
-                    ts = None
+                    ts = TimeStamp.FromUnixTime(0, False)
                 return ts
         except:
-            return None
+            return TimeStamp.FromUnixTime(0, False)
     

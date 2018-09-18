@@ -104,6 +104,11 @@ class Taobao(object):
         '''.format(ac.uid)
         reader = cmd.ExecuteReader()
         while reader.Read():
+            if canceller.IsCancellationRequested:
+                cmd.Dispose()
+                conn.Close()
+                self.im.db_close()
+                raise IOError('E')
             s = model_im.Search()
             s.account_id = ac.uid
             m_str = unity_c37r.c_sharp_get_string(reader, 0)
@@ -162,6 +167,11 @@ class Taobao(object):
         reader = cmd.ExecuteReader()
         f_dict = dict()
         while reader.Read():
+            if canceller.IsCancellationRequested:
+                cmd.Dispose()
+                conn.Close()
+                self.im.db_close()
+                raise IOError('E')
             f = model_im.Friend()
             f.account_id = self.account
             try:
@@ -199,6 +209,10 @@ class Taobao(object):
                 '''
                 reader = cmd.ExecuteReader()
         while reader is not None and reader.Read():
+            if canceller.IsCancellationRequested:
+                cmd.Dispose()
+                conn.Close()
+                raise IOError('E')
             try:
                 logs = model_im.APPLog()
                 logs.log_id = unity_c37r.c_sharp_get_long(reader, 0)
@@ -241,6 +255,11 @@ class Taobao(object):
         '''
         reader = cmd.ExecuteReader()
         while reader.Read():
+            if canceller.IsCancellationRequested:
+                cmd.Dispose()
+                conn.Close()
+                self.im.db_close()
+                raise IOError('e')
             user_name = unity_c37r.c_sharp_get_string(reader, 0)
             if f_dict.__contains__(user_name):
                 pass
@@ -266,6 +285,11 @@ class Taobao(object):
         # 各自采用不同的ID管理方式。导致这边筛选很尴尬
         idx = 0
         while reader.Read():
+            if canceller.IsCancellationRequested:
+                cmd.Dispose()
+                conn.Close()
+                self.im.db_close()
+                raise IOError('e')
             m = model_im.Message()
             sender = unity_c37r.c_sharp_get_blob(reader, 5).decode('utf-8') #struct.unpack('i', unity_c37r.c_sharp_get_blob(reader, 5))
             reciever = unity_c37r.c_sharp_get_blob(reader, 4).decode('utf-8') #struct.unpack('i', unity_c37r.c_sharp_get_blob(reader, 4))
@@ -379,17 +403,20 @@ class Taobao(object):
 
 def parse_tb(root, extract_deleted, extract_source):
     #root = FileSystem.FromLocalDir(r"D:\ios_case\taobao\C0B97359-E334-4838-93F1-A40BC2A5DF0B")
-    t = Taobao(root, extract_source, extract_deleted)
-    t.search()
-    for a in t.account:
-        t.parse(a)
-        t.parse_search(a)
-    models = model_im.GenerateModel(t.cache + '/C37R').get_models()
-    mlm = ModelListMerger()
-    pr = ParserResults()
-    pr.Categories = DescripCategories.QQ
-    pr.Models.AddRange(list(mlm.GetUnique(models)))
-    pr.Build("taobao")
+    try:
+        t = Taobao(root, extract_source, extract_deleted)
+        t.search()
+        for a in t.account:
+            t.parse(a)
+            t.parse_search(a)
+        models = model_im.GenerateModel(t.cache + '/C37R').get_models()
+        mlm = ModelListMerger()
+        pr = ParserResults()
+        pr.Categories = DescripCategories.QQ
+        pr.Models.AddRange(list(mlm.GetUnique(models)))
+        pr.Build("taobao")
+    except:
+        pr = ParserResults()
     return pr
 
 

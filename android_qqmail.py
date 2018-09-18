@@ -4,15 +4,11 @@ import PA_runtime
 import datetime
 import time
 from PA_runtime import *
+import logging
 import sqlite3
-from System.Linq import Enumerable
 import re
-import clr
-try:
-    clr.AddReference('model_mails')
-except:
-    pass
-del clr
+import shutil
+SafeLoadAssembly('model_mails')
 from model_mails import MM, Mails, Accounts, Contact, MailFolder, Attach, Generate
 
 SQL_ATTACH_TABLE_ACCOUNT1 = """attach database '"""
@@ -43,15 +39,16 @@ class QQMailParser(object):
         self.mm = MM()
         self.cachepath = ds.OpenCachePath("QQMail")
         self.cachedb = self.cachepath + "\\QQMail.db"
+        self.sourceDB = self.cachepath + '\\QQMailSourceDB'
         self.mm.db_create(self.cachedb)
         self.attachDir = os.path.normpath(os.path.join(self.node.Parent.Parent.Parent.Parent.AbsolutePath, 'media/0/Download/QQMail'))
 
     def analyze_mails(self):
-        mailNode = self.node.AbsolutePath
+        mailNode = self.sourceDB + '\\QMMailDB'
         if mailNode is None:
             return 
-        SQL_ATTACH_TABLE_ACCOUNT = SQL_ATTACH_TABLE_ACCOUNT1 + self.node.Parent.GetByPath('AccountInfo').AbsolutePath + SQL_ATTACH_TABLE_ACCOUNT2
         self.db = sqlite3.connect(mailNode)
+        SQL_ATTACH_TABLE_ACCOUNT = SQL_ATTACH_TABLE_ACCOUNT1 + self.sourceDB + '\\AccountInfo' + SQL_ATTACH_TABLE_ACCOUNT2
         if self.db is None:
             return
         mails = Mails()
@@ -60,6 +57,7 @@ class QQMailParser(object):
             cursor.execute(SQL_ATTACH_TABLE_ACCOUNT)
             cursor.execute(SQL_ASSOCIATE_TABLE_EMAILS)
             for row in cursor:
+                canceller.ThrowIfCancellationRequested()
                 mails.mailId = row[0]
                 mails.accountId = row[1]
                 mails.subject = row[2]
@@ -80,7 +78,7 @@ class QQMailParser(object):
             self.mm.db_commit()
             self.db.close()
         except Exception as e:
-            print(e)
+            logging.error(e)
 
     def decode_recover_mail_table(self):
         mailsNode = self.node
@@ -95,6 +93,7 @@ class QQMailParser(object):
         try:
             mails = Mails()
             for row in self.db.ReadTableDeletedRecords(ts1, False):
+                canceller.ThrowIfCancellationRequested()
                 mails.mailId = row['id'].Value if 'id' in row and not row['id'].IsDBNull else None
                 mails.folderId = row['folderId'].Value if 'folderId' in row and not row['folderId'].IsDBNull else None
                 mails.accountId = row['accountId'].Value if 'accountId' in row and not row['accountId'].IsDBNull else None
@@ -109,6 +108,7 @@ class QQMailParser(object):
             self.mm.db_commit()
             mails = Mails()
             for row in self.db.ReadTableDeletedRecords(ts2, False):
+                canceller.ThrowIfCancellationRequested()
                 mails.mailId = row['docid'].Value if 'docid' in row and not row['docid'].IsDBNull else None
                 mails.tos = repr(row['clreceiver'].Value) if 'clreceiver' in row and not row['clreceiver'].IsDBNull else None
                 mails.deleted = 1
@@ -116,6 +116,7 @@ class QQMailParser(object):
             self.mm.db_commit()
             mails = Mails()
             for row in self.db.ReadTableDeletedRecords(ts3, False):
+                canceller.ThrowIfCancellationRequested()
                 mails.folderId = row['id'].Value if 'id' in row and not row['id'].IsDBNull else None
                 mails.mail_folder = repr(row['name'].Value) if 'name' in row and not row['name'].IsDBNull else None
                 mails.deleted = 1
@@ -123,6 +124,7 @@ class QQMailParser(object):
             self.mm.db_commit()
             mails = Mails()
             for row in self.db.ReadTableDeletedRecords(ts4, False):
+                canceller.ThrowIfCancellationRequested()
                 mails.mailId = row['id'].Value if 'id' in row and not row['id'].IsDBNull else None
                 mails.content = repr(row['content'].Value) if 'content' in row and not row['content'].IsDBNull else None
                 mails.deleted = 1
@@ -130,6 +132,7 @@ class QQMailParser(object):
             self.mm.db_commit()
             mails = Mails()
             for  row in self.db.ReadTableDeletedRecords(ts5, False):
+                canceller.ThrowIfCancellationRequested()
                 mails.mailId = row['mailid'].Value if 'mailid' in row and not row['mailid'].IsDBNull else None
                 mails.downloadSize = row['size'].Value if 'size' in row and not row['size'].IsDBNull else None
                 mails.attachName = repr(row['displayname'].Value) if 'displayname' in row and not row['displayname'].IsDBNull else None
@@ -138,7 +141,7 @@ class QQMailParser(object):
                 self.mm.db_insert_table_mails(mails)
             self.mm.db_commit()
         except Exception as e:
-            print(e)
+            logging.error(e)
         accountNode = self.node.Parent.GetByPath('/AccountInfo')
         self.db = SQLiteParser.Database.FromNode(accountNode)
         if self.db is None:
@@ -147,6 +150,7 @@ class QQMailParser(object):
         try:
             mails = Mails()
             for row in self.db.ReadTableDeletedRecords(ts, False):
+                canceller.ThrowIfCancellationRequested()
                 mails.accountId = row['id'].Value if 'id' in row and not row['id'].IsDBNull else None
                 mails.account_email = repr(row['email'].Value) if 'email' in row and not row['email'].IsDBNull else None
                 mails.alias = repr(row['name'].Value) if 'name' in row and not row['name'].IsDBNull else None
@@ -154,10 +158,10 @@ class QQMailParser(object):
                 self.mm.db_insert_table_mails(mails)
             self.mm.db_commit()
         except Exception as e:
-            print(e)
+            logging.error(e)
 
     def analyze_accounts(self):
-        mailNode = self.node.Parent.GetByPath('/AccountInfo').AbsolutePath
+        mailNode = self.sourceDB + '\\AccountInfo'
         if mailNode is None:
             return 
         self.db = sqlite3.connect(mailNode)
@@ -166,6 +170,7 @@ class QQMailParser(object):
             cursor = self.db.cursor()
             cursor.execute(SQL_ASSOCIATE_TABLE_ACCOUNT)
             for row in cursor:
+                canceller.ThrowIfCancellationRequested()
                 accounts.accountId = row[0]
                 accounts.alias = row[1]
                 accounts.accountEmail = row[2]
@@ -173,19 +178,20 @@ class QQMailParser(object):
             self.mm.db_commit()
             self.db.close()
         except Exception as e:
-            print(e)
+            logging.error(e)
 
     def analyze_contact(self):
-        mailNode = self.node.AbsolutePath
+        mailNode = self.sourceDB + '\\QMMailDB'
         if mailNode is None:
             return 
         self.db = sqlite3.connect(mailNode)
         contact = Contact()
         try:
             cursor  = self.db.cursor()
-            cursor.execute(SQL_ATTACH_TABLE_ACCOUNT)
+            cursor.execute(SQL_ATTACH_TABLE_ACCOUNT1 + self.sourceDB + '\\AccountInfo' + SQL_ATTACH_TABLE_ACCOUNT2)
             cursor.execute(SQL_ASSOCIATE_TABLE_CONTACT)
             for row in cursor:
+                canceller.ThrowIfCancellationRequested()
                 contact.contactName = row[0]
                 contact.contactEmail = row[1]
                 contact.contactNick = row[2]
@@ -194,7 +200,7 @@ class QQMailParser(object):
             self.mm.db_commit()
             self.db.close()
         except Exception as e:
-            print(e)
+            logging.error(e)
 
     def decode_recover_mail_contact(self):
         mailsNode = self.node
@@ -205,6 +211,7 @@ class QQMailParser(object):
         try:
             contact = Contact()
             for row in self.db.ReadTableDeletedRecords(ts, False):
+                canceller.ThrowIfCancellationRequested()
                 contact.accountId = row['accountid'].Value if 'accountid' in row and not row['accountid'].IsDBNull else None
                 contact.contactName = repr(row['name'].Value) if 'name' in row and not row['name'].IsDBNull else None
                 contact.contactEmail = repr(row['address'].Value) if 'address' in row and not row['address'].IsDBNull else None
@@ -213,7 +220,7 @@ class QQMailParser(object):
                 self.mm.db_insert_table_contact(contact)
             self.mm.db_commit()
         except Exception as e:
-            print(e)
+            logging.error(e)
         accountNode = self.node.Parent.GetByPath('/AccountInfo')
         self.db = SQLiteParser.Database.FromNode(accountNode)
         if self.db is None:
@@ -222,24 +229,26 @@ class QQMailParser(object):
         try:
             contact = Contact()
             for row in self.db.ReadTableDeletedRecords(ts, False):
+                canceller.ThrowIfCancellationRequested()
                 contact.accountId = row['id'].Value if 'id' in row and not row['id'].IsDBNull else None
                 contact.accountEmail = repr(row['email'].Value) if 'email' in row and not row['email'].IsDBNull else None
                 contact.deleted = 1
                 self.mm.db_insert_table_contact(contact)
         except Exception as e:
-            print(e)
+            logging.error(e)
 
     def analyze_email_folder(self):
-        mailNode = self.node.AbsolutePath
+        mailNode = self.sourceDB + '\\QMMailDB'
         if mailNode is None:
             return 
         self.db = sqlite3.connect(mailNode)
         mailFolder = MailFolder()
         try:
             cursor = self.db.cursor()
-            cursor.execute(SQL_ATTACH_TABLE_ACCOUNT)
+            cursor.execute(SQL_ATTACH_TABLE_ACCOUNT1 + self.sourceDB + '\\AccountInfo' + SQL_ATTACH_TABLE_ACCOUNT2)
             cursor.execute(SQL_ASSOCIATE_TABLE_EMAIL_FOLDER)
             for row in cursor:
+                canceller.ThrowIfCancellationRequested()
                 mailFolder.folderName = row[0]
                 mailFolder.accountNick = row[1]
                 mailFolder.accountEmail = row[2]
@@ -247,19 +256,20 @@ class QQMailParser(object):
             self.mm.db_commit()
             self.db.close()
         except Exception as e:
-            print(e)
+            logging.error(e)
 
     def analyze_attach(self):
-        mailNode = self.node.AbsolutePath
+        mailNode = self.sourceDB + '\\QMMailDB'
         if mailNode is None:
             return 
         self.db = sqlite3.connect(mailNode)
         attach = Attach()
         try:
             cursor = self.db.cursor()
-            cursor.execute(SQL_ATTACH_TABLE_ACCOUNT)
+            cursor.execute(SQL_ATTACH_TABLE_ACCOUNT1 + self.sourceDB + '\\AccountInfo' + SQL_ATTACH_TABLE_ACCOUNT2)
             cursor.execute(SQL_ASSOCIATE_TABLE_ATTACH)
             for row in cursor:
+                canceller.ThrowIfCancellationRequested()
                 attach.accountNick = row[0]
                 attach.accountEmail = row[1]
                 attach.subject = row[2]
@@ -273,9 +283,10 @@ class QQMailParser(object):
             self.mm.db_commit()
             self.db.close()
         except Exception as e:
-            print(e)
+            logging.error(e)
 
     def parse(self):
+        self._copytocache()
         self.analyze_mails()
         self.decode_recover_mail_table()
         self.analyze_accounts()
@@ -284,12 +295,23 @@ class QQMailParser(object):
         self.analyze_email_folder()
         self.analyze_attach()
         self.mm.db_close()
-        
         generate = Generate(self.cachedb)
         models = generate.get_models()
         return models
+
+    def _copytocache(self):
+        sourceDir = self.node.Parent.PathWithMountPoint
+        targetDir = self.sourceDB
+        try:
+            if not os.path.exists(targetDir):
+                shutil.copytree(sourceDir, targetDir)
+        except Exception:
+            pass
 
 def analyze_android_qqmail(node, extractDeleted, extractSource):
     pr = ParserResults()
     pr.Models.AddRange(QQMailParser(node, extractDeleted, extractSource).parse())
     return pr
+
+def execute(node, extractDeleted):
+    return analyze_android_qqmail(node, extractDeleted, False)

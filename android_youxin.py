@@ -140,6 +140,9 @@ class YouXinParser(model_im.IM):
             ts = SQLiteParser.TableSignature('contact')
             SQLiteParser.Tools.AddSignatureToTable(ts, 'UID', SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
             for rec in db.ReadTableRecords(ts, self.extract_deleted):
+                if canceller.IsCancellationRequested:
+                    self.db_close()
+                    return
                 friend = model_im.Friend()
                 self.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
                 friend.source = self.app_name
@@ -160,6 +163,9 @@ class YouXinParser(model_im.IM):
             ts = SQLiteParser.TableSignature('PROFILE_TABLE')
             SQLiteParser.Tools.AddSignatureToTable(ts, 'UID', SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
             for rec in db.ReadTableRecords(ts, self.extract_deleted):
+                if canceller.IsCancellationRequested:
+                    self.db_close()
+                    return
                 id = rec['UID'].Value
                 if id == self.user or id in self.contacts.keys():
                     continue
@@ -199,6 +205,9 @@ class YouXinParser(model_im.IM):
             SQLiteParser.Tools.AddSignatureToTable(ts, 'uid', SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
             for id in self.contacts.keys():
                 for rec in db.ReadTableRecords(ts, self.extract_deleted):
+                    if canceller.IsCancellationRequested:
+                        self.db_close()
+                        return
                     if id != rec['uid'].Value:
                         continue
 
