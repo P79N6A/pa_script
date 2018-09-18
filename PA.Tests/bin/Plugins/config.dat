@@ -1017,6 +1017,26 @@
         </dict>
       </array>
     </dict>    
+    
+    <dict>
+      <key>Module</key>
+      <string>android_qqmail</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_android_qqmail</string>
+          <key>RunnerType</key>
+          <integer>2</integer>
+          <key>Patterns</key>
+          <array>
+            <string>/com.tencent.androidqqmail/databases/QMMailDB$</string>
+          </array>
+          <key>Category</key>
+          <string>QQMail</string>
+        </dict>
+      </array>
+    </dict>
 
 
   </array>
