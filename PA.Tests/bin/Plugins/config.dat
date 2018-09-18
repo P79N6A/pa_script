@@ -1117,6 +1117,26 @@
         </dict>
       </array>
     </dict>
+    
+    <dict>
+      <key>Module</key>
+      <string>android_notes</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_android_notes</string>
+          <key>RunnerType</key>
+          <integer>2</integer>
+          <key>Patterns</key>
+          <array>
+            <string>/com.example.android.notepad/databases/note_pad.db$</string>
+          </array>
+          <key>Category</key>
+          <string>Notes</string>
+        </dict>
+      </array>
+    </dict>
 
 
   </array>
