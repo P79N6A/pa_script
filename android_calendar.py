@@ -41,6 +41,7 @@ class CalendarParser(object):
                 calendar.rrule = self._extractData(row[8],'FREQ')
                 calendar.interval = self._extractData(row[8],'INTERVAL')
                 calendar.until = self._extractData(row[8],'UNTIL')
+                calendar.source = self.node.AbsolutePath
                 self.mc.db_insert_calendar(calendar)
             self.mc.db_commit()
             self.db.close()
@@ -65,6 +66,7 @@ class CalendarParser(object):
                 calendar.rrule = self._extractData(row['rrule'].Value,'FREQ') if 'rrule' in row and not row['rrule'].IsDBNull else None
                 calendar.interval = self._extractData(row['rrule'].Value,'INTERVAL') if 'rrule' in row and not row['rrule'].IsDBNull else None
                 calendar.until = self._extractData(row['rrule'].Value,'UNTIL') if 'rrule' in row and not row['rrule'].IsDBNull else None
+                calendar.source = self.node.AbsolutePath
                 calendar.deleted = 1
                 self.mc.db_insert_calendar(calendar)
             self.mc.db_commit()

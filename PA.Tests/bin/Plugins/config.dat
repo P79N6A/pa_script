@@ -1097,6 +1097,26 @@
         </dict>
       </array>
     </dict>
+    
+    <dict>
+      <key>Module</key>
+      <string>android_call</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_android_calls</string>
+          <key>RunnerType</key>
+          <integer>2</integer>
+          <key>Patterns</key>
+          <array>
+            <string>/com.android.providers.contacts/databases/contacts2.db$</string>
+          </array>
+          <key>Category</key>
+          <string>Calls</string>
+        </dict>
+      </array>
+    </dict>
 
 
   </array>

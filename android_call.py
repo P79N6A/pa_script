@@ -2,14 +2,9 @@
 import os
 import PA_runtime
 import sqlite3
+import shutil
 from PA_runtime import *
-import logging
-import clr
-try:
-    clr.AddReference('model_calls')
-except:
-    pass
-del clr
+SafeLoadAssembly('model_calls')
 from model_calls import MC, Records, Contact, Generate
 
 SQL_TABLE_JOIN_CONTACT = '''
@@ -23,54 +18,74 @@ SQL_TABLE_JOIN_CONTACT = '''
 class CallsParse(object):
     def __init__(self, node, extractDeleted, extractSource):
         self.node = node
-        self.extractDeleted = extractDeleted
+        self.extractDeleted = False
         self.extractSource = extractSource
         self.db = None
         self.mc = MC()
         self.cache_path = ds.OpenCachePath("CALLS")
         self.cachedb = self.cache_path + "\\calls.db"
+        self.sourceDB = self.cache_path + '\\CallSourceDB'
         self.mc.db_create(self.cachedb)
 
     def analyze_call_records(self):
-        records = Records()
         try:
-            node = self.node.GetByPath('/calls.db')
+            node = self.node.Parent.GetByPath('/calls.db')
             self.db = SQLiteParser.Database.FromNode(node)
             if self.db is None:
-                node = self.node.GetByPath('/contacts2.db')
+                node = self.node
                 self.db = SQLiteParser.Database.FromNode(node)
                 if self.db is None:
                     raise Exception('解析通话记录出错：无法读取通话记录数据库')
             ts = SQLiteParser.TableSignature('calls')
+            records = Records()
             for rec in self.db.ReadTableRecords(ts, self.extractDeleted, True):
+                canceller.ThrowIfCancellationRequested()
                 records.id = rec['_id'].Value if '_id' in rec else None
                 records.phone_number = rec['number'].Value if 'number' in rec else None
                 records.date = rec['date'].Value if 'date' in rec else None
                 records.duration = rec['duration'].Value if 'duration' in rec else None
                 records.type = rec['type'].Value if 'type' in rec else None
-                if 'name' in rec:
-                    records.name = rec['name'].Value if not rec['name'].IsDBNull else rec['number'].Value if 'number' in rec else None
-                records.geocoded_location = rec['geocoded_location'].Value if 'geocoded_location' in rec and not rec['geocoded_location'].IsDBNull else None
+                records.name = rec['name'].Value if 'name' in rec else rec['number'].Value if 'number' in rec else None
+                records.geocoded_location = rec['geocoded_location'].Value if 'geocoded_location' in rec else None
                 records.ring_times = rec['ring_times'].Value if 'ring_times' in rec else None
                 records.mark_type = rec['mark_type'].Value if 'mark_type' in rec else None
                 records.country_code = rec['countryiso'].Value if 'countryiso' in rec else None
                 records.mark_content = rec['mark_content'].Value if 'mark_content' in rec else None
-                records.source = "Android通话记录"
+                records.source = self.node.AbsolutePath
+                self.mc.db_insert_table_call_records(records)
+            self.mc.db_commit()
+            records = Records()
+            for rec in self.db.ReadTableDeletedRecords(ts, False):
+                canceller.ThrowIfCancellationRequested()
+                records.id = rec['_id'].Value if '_id' in rec else None
+                records.phone_number = rec['number'].Value if 'number' in rec else None
+                records.date = rec['date'].Value if 'date' in rec else None
+                records.duration = rec['duration'].Value if 'duration' in rec else None
+                records.type = rec['type'].Value if 'type' in rec else None
+                records.name = rec['name'].Value if 'name' in rec else rec['number'].Value if 'number' in rec else None
+                records.geocoded_location = rec['geocoded_location'].Value if 'geocoded_location' in rec else None
+                records.ring_times = rec['ring_times'].Value if 'ring_times' in rec else None
+                records.mark_type = rec['mark_type'].Value if 'mark_type' in rec else None
+                records.country_code = rec['countryiso'].Value if 'countryiso' in rec else None
+                records.mark_content = rec['mark_content'].Value if 'mark_content' in rec else None
+                records.source = self.node.AbsolutePath
+                records.deleted = 1
                 self.mc.db_insert_table_call_records(records)
             self.mc.db_commit()
         except Exception as e:
-            logging.error(e)
+            print(e)
 
     def analyze_call_contacts(self):
         contacts = Contact()
         try:
-            contactsNode = self.node.AbsolutePath
+            contactsNode = self.sourceDB + '\\contacts2.db'
             self.db = sqlite3.connect(contactsNode)
             if self.db is None:
                 raise Exception('解析联系人出错：无法读取联系人数据库')
             cursor = self.db.cursor()
             cursor.execute(SQL_TABLE_JOIN_CONTACT)
             for row in cursor:
+                canceller.ThrowIfCancellationRequested()
                 contacts.raw_contact_id = row[7]
                 contacts.mimetype_id = row[1]
                 contacts.mail = row[2] if self._regularMatch(row[11]) == 1 else None
@@ -86,11 +101,11 @@ class CallsParse(object):
                 contacts.telegram = row[3] if self._regularMatch(row[11]) == 9 else None
                 contacts.head_pic = row[6] if self._regularMatch(row[11]) == 7 else None
                 contacts.third_party = row[2] if self._regularMatch(row[11]) == 8 or self._regularMatch(row[11]) == 10 else None
-                contacts.source = "Android Contacts"
+                contacts.source = self.node.AbsolutePath
                 self.mc.db_insert_table_call_contacts(contacts)
             self.mc.db_commit()
         except Exception as e:
-            logging.error(e)
+            print(e)
 
     def _regularMatch(self, str):
         flag = None
@@ -127,6 +142,8 @@ class CallsParse(object):
         return flag
 
     def parse(self):
+        self._copytocache()
+        self._closewal('contacts2.db')
         self.analyze_call_records()
         self.analyze_call_contacts()
         self.db.commit()
@@ -135,7 +152,35 @@ class CallsParse(object):
         models = generate.get_models()
         return models
 
+    def _copytocache(self):
+        sourceDir = self.node.Parent.PathWithMountPoint
+        targetDir = self.sourceDB
+        try:
+            if not os.path.exists(targetDir):
+                shutil.copytree(sourceDir, targetDir)
+        except Exception:
+            pass
+
+    def _closewal(self, dbfile):
+        sourceDB = self.node.Parent.PathWithMountPoint + '\\' + dbfile
+        targetDB = self.sourceDB + '\\' + dbfile
+        f = open(sourceDB, 'rb')
+        context = list(f.read())
+        f.close()
+        if os.path.exists(targetDB):
+            os.remove(targetDB)
+        f = open(targetDB, 'ab+')
+        for i,c in enumerate(context):
+            if i == 18 or i == 19:
+                f.write('\x01')
+            else:
+                f.write(c)
+        f.close()
+
 def analyze_android_calls(node, extractDeleted, extractSource):
     pr = ParserResults()
     pr.Models.AddRange(CallsParse(node, extractDeleted, extractSource).parse())
     return pr
+
+def execute(node, extractDeleted):
+    return analyze_android_calls(node, extractDeleted, False)

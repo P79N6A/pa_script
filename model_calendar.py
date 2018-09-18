@@ -141,6 +141,13 @@ class Generate(object):
                 cal.RepeatInterval.Value = int(re.sub('.*=?', '', row[8]))
             else:
                 cal.RepeatInterval.Value = 1
+            if row[10] is not None:
+                cal.SourceFile.Value = self._get_source_file(str(row[10]))
             model.append(cal)
         return model
+
+        def _get_source_file(self, source_file):
+            if isinstance(source_file, str):
+            return source_file.replace('/', '\\')
+        return source_file
 
