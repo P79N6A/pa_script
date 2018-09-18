@@ -718,6 +718,26 @@
 
     <dict>
       <key>Module</key>
+      <string>apple_alipay</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_alipay</string>
+          <key>RunnerType</key>
+          <integer>1</integer>
+          <key>Patterns</key>
+          <array>
+            <string>com.alipay.iphoneclient</string>
+          </array>
+          <key>Category</key>
+          <string>Alipay</string>
+        </dict>
+      </array>
+    </dict>
+
+    <dict>
+      <key>Module</key>
       <string>apple_dingtalk</string>
       <key>Runners</key>
       <array>
