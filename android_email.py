@@ -31,6 +31,7 @@ def analyze_email(node, extract_deleted, extract_source):
     """ android 邮件 华为 """
     pr = ParserResults()
     res = EmailParser(node, extract_deleted, extract_source).parse()
+    pr.Build('系统邮箱')
     pr.Models.AddRange(res)
     return pr
 
