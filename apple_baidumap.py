@@ -13,7 +13,7 @@ try:
 except:
     pass
 del clr
-from model_map import *
+import model_map
 
 APPVERSION = "2.0"
 
