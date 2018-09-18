@@ -115,6 +115,8 @@ class EmailParser(object):
     def parse_email_tb_account(self):
         """ EmailProvider - Account """
         for rec in self.my_read_table(self.db_email_provider, 'Account'):
+            if canceller.IsCancellationRequested:
+                return
             if IsDBNull(rec['emailAddress'].Value) or not self._is_email_format(rec['emailAddress'].Value):
                 continue
             account = Accounts()
@@ -152,6 +154,8 @@ class EmailParser(object):
                 cachedFile       TEXT        
         """
         for rec in self.my_read_table(self.db_email_provider, 'Attachment'):
+            if canceller.IsCancellationRequested:
+                return
             if IsDBNull(rec['fileName'].Value) or IsDBNull(rec['size'].Value):
                 continue
             attach = Attach()
@@ -203,7 +207,8 @@ class EmailParser(object):
             select attachName, attachDir, downloadSize from attach where mailId=?
         '''
         for rec in self.my_read_table(self.db_email_provider, 'Message'):
-
+            if canceller.IsCancellationRequested:
+                return
             mail = Mails()
             if IsDBNull(rec['subject'].Value) or IsDBNull(rec['accountKey'].Value):
                 continue
@@ -261,6 +266,8 @@ class EmailParser(object):
 
         try:
             for rec in self.my_read_table(self.db_email_provider_body, 'Body'):
+                if canceller.IsCancellationRequested:
+                    return
                 if IsDBNull(rec['htmlContent'].Value) or IsDBNull(rec['messageKey'].Value):
                     continue
                 mailId = rec['messageKey'].Value

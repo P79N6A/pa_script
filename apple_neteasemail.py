@@ -125,6 +125,8 @@ class NeteaseMailParser(object):
         cursor.execute(SELECT_mailAbstract_JOIN_mailContent)
 
         for row in cursor:
+            if canceller.IsCancellationRequested:
+                return
             mail = Mails()
             mail.mailId      = row[0]
             if mail.mailId == 21:
@@ -215,6 +217,8 @@ class NeteaseMailParser(object):
     def parse_email_attachment(self, imail_db):
         """ imail - mailAttachment """
         for rec in self.my_read_table(db=imail_db, table_name='mailAttachment'):
+            if canceller.IsCancellationRequested:
+                return
             if IsDBNull(rec['name'].Value) or IsDBNull(rec['mailId'].Value):
                 continue
             attach = Attach()
@@ -243,6 +247,8 @@ class NeteaseMailParser(object):
             if todo_db is None:
                 return
             for rec in self.my_read_table(db=todo_db, table_name='recentcontact'):
+                if canceller.IsCancellationRequested:
+                    return
                 contact = Contact()
                 contact.contactName  = rec['name'].Value
                 contact.accountId    = rec['aid'].Value
@@ -285,6 +291,8 @@ class NeteaseMailParser(object):
             if todo_db is None:
                 return
             for rec in self.my_read_table(db=todo_db, table_name='todoList'):
+                if canceller.IsCancellationRequested:
+                    return
                 t = Todo()
                 t.content      = rec['content'].Value
                 t.createdTime  = rec['createdTime'].Value

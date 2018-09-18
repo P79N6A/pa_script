@@ -110,6 +110,8 @@ class SMSParser(object):
         """
         try:
             for rec in self.my_read_table('sim_cards'):
+                if canceller.IsCancellationRequested:
+                    return
                 if IsDBNull(rec['number'].Value):
                     continue
                 sim = Sim_cards()
@@ -133,6 +135,8 @@ class SMSParser(object):
             sms - 短信
         """
         for rec in self.my_read_table(table_name='sms'):
+            if canceller.IsCancellationRequested:
+                return
             if IsDBNull(rec['body'].Value):
                 continue
             sms = SMS()

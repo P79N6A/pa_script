@@ -344,6 +344,8 @@ class GenerateModel(object):
             exc()
             return []
         while row is not None:
+            if canceller.IsCancellationRequested:
+                return
             sms = Generic.SMS()
             if row[0] is not None:
                 sms.Body.Value = row[0]
@@ -410,6 +412,8 @@ class GenerateModel(object):
             exc()
             return 
         while row is not None:
+            if canceller.IsCancellationRequested:
+                return
             sms = Generic.SMS()
             if row[0] is not None:
                 sms.Body.Value = row[0]
