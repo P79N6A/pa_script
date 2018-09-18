@@ -170,7 +170,7 @@ class Model_SMS(object):
         try:
             cursor.execute(sql)
             row = cursor.fetchone()
-        except Exception as e:
+        except:
             pass
 
         while row is not None:
