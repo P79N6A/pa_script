@@ -311,7 +311,7 @@ class QQMailParser(object):
 def analyze_android_qqmail(node, extractDeleted, extractSource):
     pr = ParserResults()
     pr.Models.AddRange(QQMailParser(node, extractDeleted, extractSource).parse())
-    pr.Build('QQ邮箱')
+    pr.Build('QQMail')
     return pr
 
 def execute(node, extractDeleted):

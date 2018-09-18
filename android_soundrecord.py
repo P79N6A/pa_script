@@ -87,7 +87,7 @@ class SoundrecordParse(object):
 def analyze_android_soundrecord(node, extractDeleted, extractSource):
     pr = ParserResults()
     pr.Models.AddRange(SoundrecordParse(node, extractDeleted, extractSource).parse())
-    pr.Build('语音备忘录')
+    pr.Build('SoundRecords')
     return pr
 
 def execute(node, extractDeleted):
