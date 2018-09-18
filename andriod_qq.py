@@ -333,29 +333,31 @@ class Andriod_QQParser(object):
 	def processmedia(self,msg):
 		sdcard = '/storage/emulated/0/'
 		searchkey = ''
-		nodes = None
+		nodes = list()
 		print msg.content
 		if msg.content.find(sdcard) != -1 :
 			searchkey = msg.content[msg.content.find(sdcard) +len(sdcard):]						 					
 			nodes = self.root.FileSystem.Search(searchkey+'$')
-		if(nodes is not  None):
-			for node in nodes:
-				msg.media_path = node.AbsolutePath
-				if msg.media_path.endswith('.mp3') :
-					msg.type = MESSAGE_CONTENT_TYPE_VOICE                    
-				elif msg.media_path.endswith('.amr'):
-					msg.type = MESSAGE_CONTENT_TYPE_VOICE     
-				elif msg.media_path.endswith('.slk') :
-					msg.type = MESSAGE_CONTENT_TYPE_VOICE                    
-				elif msg.media_path.endswith('.mp4'):
-					msg.type = MESSAGE_CONTENT_TYPE_VIDEO
-				elif msg.media_path.endswith('.jpg'):
-					msg.type = MESSAGE_CONTENT_TYPE_IMAGE
-				elif msg.media_path.endswith('.png'):
-					msg.type = MESSAGE_CONTENT_TYPE_IMAGE
-				else:
-					msg.type = MESSAGE_CONTENT_TYPE_ATTACHMENT				
-				return True
+			if len(list(nodes)) == 0:
+				searchkey = msg.content[msg.content.rfind('/')+1:]
+				nodes = self.root.FileSystem.Search(searchkey+ '$')		
+		for node in nodes:
+			msg.media_path = node.AbsolutePath
+			if msg.media_path.endswith('.mp3') :
+				msg.type = MESSAGE_CONTENT_TYPE_VOICE                    
+			elif msg.media_path.endswith('.amr'):
+				msg.type = MESSAGE_CONTENT_TYPE_VOICE     
+			elif msg.media_path.endswith('.slk') :
+				msg.type = MESSAGE_CONTENT_TYPE_VOICE                    
+			elif msg.media_path.endswith('.mp4'):
+				msg.type = MESSAGE_CONTENT_TYPE_VIDEO
+			elif msg.media_path.endswith('.jpg'):
+				msg.type = MESSAGE_CONTENT_TYPE_IMAGE
+			elif msg.media_path.endswith('.png'):
+				msg.type = MESSAGE_CONTENT_TYPE_IMAGE
+			else:
+				msg.type = MESSAGE_CONTENT_TYPE_ATTACHMENT				
+			return True				
 		return False
 	def decode_msg_from_friendtbale(self,acc_id,table): 
 		#f table != 'mr_friend_373B750958FA49CDF32A08407A21CEDC_New':
@@ -693,6 +695,11 @@ class Andriod_QQParser(object):
 				elif(msgtype == -5040):    					
 					msg.content = str(msgstruct["content"].decode('utf-8',"ignore"))
 					pass
+				elif(msgtype == -2005):
+					sig = 0x16
+					if(msgdata[0] == sig):
+						msg.content = msgdata[1:msgdata.find("|")]
+						self.processmedia(msg)										
 				elif(msgtype == -2002):
 					if msgstruct is None:
 						sdcarad = '/storage/emulated/0/'
