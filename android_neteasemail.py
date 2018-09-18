@@ -37,7 +37,7 @@ def analyze_neteasemail(node, extract_deleted, extract_source):
     pr = ParserResults()
     res = NeteaseMailParser(node, extract_deleted, extract_source).parse()
     pr.Models.AddRange(res)
-
+    pr.Build('网易邮箱大师')
     return pr
 
 

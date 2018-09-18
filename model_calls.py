@@ -122,6 +122,10 @@ class Column(object):
         self.deleted = 0
         self.repeated = 0
 
+    def __setattr__(self, name, value):
+        if not IsDBNull(value):
+            self.__dict__[name] = value
+
     def get_values(self):
         return (self.source, self.deleted, self.repeated)
 
@@ -191,18 +195,27 @@ class Generate(object):
         self.cursor.execute(SQL_FIND_TABLE_RECORDS)
         for row in self.cursor:
             c = Calls.Call()
-            c.CountryCode.Value = row[10]
-            hours = row[3]/3600
-            minutes = row[3]-hours*3600
-            seconds = row[3]-hours*3600-minutes*60
-            c.Duration.Value = System.TimeSpan(hours, minutes, seconds)
-            c.TimeStamp.Value = TimeStamp.FromUnixTime(int(str(row[2])[0:-3:1]), False)
-            c.Type.Value = CallType.Incoming if row[4] == 1 else CallType.Outgoing if row[4] == 2 else CallType.Missed if row[4] == 3 else CallType.Unknown
+            if row[10] is not None:
+                c.CountryCode.Value = row[10]
+            if row[3] is not None:
+                hours = row[3]/3600
+                minutes = row[3]-hours*3600
+                seconds = row[3]-hours*3600-minutes*60
+                c.Duration.Value = System.TimeSpan(hours, minutes, seconds)
+            if row[2] is not None:
+                c.TimeStamp.Value = TimeStamp.FromUnixTime(int(str(row[2])[0:10:1]), False)
+            if row[4] is not None:
+                c.Type.Value = CallType.Incoming if row[4] == 1 else CallType.Outgoing if row[4] == 2 else CallType.Missed if row[4] == 3 else CallType.Unknown
             party = Generic.Party()
-            party.Identifier.Value = row[1]
-            party.Name.Value = row[5]
-            party.Role.Value = PartyRole.From if row[4] == 1 or row[4] == 3 else PartyRole.To
+            if row[1] is not None:
+                party.Identifier.Value = row[1]
+            if row[5] is not None:
+                party.Name.Value = row[5]
+            if row[4] is not None:
+                party.Role.Value = PartyRole.From if row[4] == 1 or row[4] == 3 else PartyRole.To
             c.Parties.Add(party)
+            if row[11] is not None:
+                c.SourceFile.Value = self._get_source_file(str(row[11]))
         self.cursor.close()
         self.cursor = None
         model.append(c)
@@ -220,7 +233,7 @@ class Generate(object):
                     addr = Contacts.StreetAddress()
                     addr.FullName.Value = addresses[a]
                     contact.Addresses.Add(addr)
-            contact.Name.Value = row[8][0]
+            contact.Name.Value = row[8]
             contact.Notes.Add(row[10])
             if row[4] is not None:
                 contact.TimeContacted.Value = TimeStamp.FromUnixTime(int(str(row[4])[0:-3:1]), False) if len(str(row[4])) > 10 else TimeStamp.FromUnixTime(row[4], False) if len(str(row[4])) == 10 else TimeStamp.FromUnixTime(0, False)
@@ -234,7 +247,14 @@ class Generate(object):
                     entry = Contacts.ContactEntry()
                     entry.Value.Value = phone[e]
                     contact.Entries.Add(entry)
+            if row[14] is not None:
+                contact.SourceFile.Value = self._get_source_file(str(row[14]))
         self.cursor.close()
         self.cursor = None
         model.append(contact)
         return model
+
+    def _get_source_file(self, source_file):
+        if isinstance(source_file, str):
+            return source_file.replace('/', '\\')
+        return source_file
