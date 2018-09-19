@@ -548,8 +548,8 @@ class Andriod_QQParser(object):
 		msg.type = MESSAGE_CONTENT_TYPE_LOCATION
 		locat = Location()
 		locat.location_id = msg.extra_id 
-		locat.latitude = lat
-		locat.longitude = lng
+		locat.latitude = float(lat)
+		locat.longitude = float(lng)
 		locat.address = address	
 		self.im.db_insert_table_location(locat)			
 		pass
