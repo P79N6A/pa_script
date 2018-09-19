@@ -26,5 +26,5 @@ clr.CompileModules(DIR+"apple_sms.dll", "apple_sms.py")
 clr.CompileModules(DIR+"apple_wechat.dll", "apple_wechat.py")
 clr.CompileModules(DIR+"apple_qq.dll", "apple_qq.py")
 clr.CompileModules(DIR+"fs_exFat.dll", "fs_exFat.py")
-
+clr.AddReference
 print('Build Finished!!!')

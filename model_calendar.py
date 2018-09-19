@@ -148,6 +148,6 @@ class Generate(object):
 
         def _get_source_file(self, source_file):
             if isinstance(source_file, str):
-            return source_file.replace('/', '\\')
+                return source_file.replace('/', '\\')
         return source_file
 
