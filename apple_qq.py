@@ -521,7 +521,7 @@ class QQParser(object):
                         if(loc is not None):
                            
                             msg.type = MESSAGE_CONTENT_TYPE_LOCATION
-                            msg.extra_id  = uuid.uuid1()
+                            msg.extra_id  = str(uuid.uuid1())
                             locat = Location()
                             locat.location_id = msg.extra_id
                             locat.latitude = loc[1]
@@ -605,8 +605,8 @@ class QQParser(object):
                             msg.type = MESSAGE_CONTENT_TYPE_LOCATION
                             locat = Location()
                             locat.location_id = msg.extra_id 
-                            locat.latitude = loc[1]
-                            locat.longitude = loc[2]
+                            locat.latitude = float(loc[1])
+                            locat.longitude = float(loc[2])
                             locat.address = loc[0]
                             self.im.db_insert_table_location(locat) 
                     if(msg.type not in types):	
@@ -845,8 +845,8 @@ class QQParser(object):
                             msg.type = MESSAGE_CONTENT_TYPE_LOCATION
                             locat = Location()
                             locat.location_id = msg.extra_id 
-                            locat.latitude = loc[1]
-                            locat.longitude = loc[2]
+                            locat.latitude = float(loc[1])
+                            locat.longitude = float(loc[2])
                             locat.address = loc[0]
                             self.im.db_insert_table_location(locat) 
                     if(msg.type not in types):	
@@ -929,7 +929,7 @@ class QQParser(object):
                     elif(msgtype == 337):
                         loc = self.get_location(acc_id,content)
                         if(loc is not None):
-                            msg.extra_id   = uuid.uuid1()
+                            msg.extra_id   = str(uuid.uuid1())
                             msg.type = MESSAGE_CONTENT_TYPE_LOCATION
                             locat = Location()
                             locat.location_id = msg.extra_id 
