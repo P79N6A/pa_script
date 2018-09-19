@@ -142,6 +142,8 @@ class SMSParser(object):
             sms - 短信
         """
         for rec in self.my_read_table(table_name='sms'):
+            if canceller.IsCancellationRequested:
+                return            
             if IsDBNull(rec['body'].Value):
                 continue
             sms = SMS()
@@ -244,6 +246,8 @@ class SMSParser_no_tar(SMSParser):
         9	path	            TEXT
         """
         for rec in self.my_read_table(table_name='SMS'):
+            if canceller.IsCancellationRequested:
+                return            
             if IsDBNull(rec['body'].Value):
                 continue
             sms = SMS()
