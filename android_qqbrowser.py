@@ -308,6 +308,7 @@ class QQBrowserParse(object):
 def analyze_android_qqbrowser(node, extractDeleted, extractSource):
     pr = ParserResults()
     pr.Models.AddRange(QQBrowserParse(node, extractDeleted, extractSource).parse())
+    pr.Build('QQBrowser')
     return pr
 
 def execute(node, extractDeleted):

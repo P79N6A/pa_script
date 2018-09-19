@@ -1,4 +1,4 @@
-#coding = utf-8
+# -*- coding: utf-8 -*-
 import os
 import PA_runtime
 import datetime
@@ -311,6 +311,7 @@ class QQMailParser(object):
 def analyze_android_qqmail(node, extractDeleted, extractSource):
     pr = ParserResults()
     pr.Models.AddRange(QQMailParser(node, extractDeleted, extractSource).parse())
+    pr.Build('QQMail')
     return pr
 
 def execute(node, extractDeleted):

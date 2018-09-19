@@ -2,6 +2,10 @@
 import clr
 clr.AddReference('System.Data.SQLite')
 clr.AddReference('Base3264-UrlEncoder')
+try:
+    clr.AddReference('model_im')
+except:
+    pass
 del clr
 
 import System.Data.SQLite as sql
@@ -27,6 +31,16 @@ en_recover = True
 
 def md5(string):
     return hashlib.md5(string).hexdigest()
+
+def create_sub_node(node, rpath, vname):
+    global on_c_sharp_platform
+    if not on_c_sharp_platform:
+        return None
+    mem = MemoryRange.CreateFromFile(rpath)
+    r_node = Node(vname, Files.NodeType.File)
+    r_node.Data = mem
+    node.Children.Add(r_node)
+    return r_node
 
 class MediaBts(object):
     def __init__(self, bts):
@@ -378,7 +392,16 @@ class Ding(object):
                     msg = model_im.Message()
                     msg.deleted = 0
                     msg.account_id = current_id
-                    msg.talker_id = GetString(reader, 1)
+                    cv_id = GetString(reader, 1)
+                    # update conversation id
+                    if cv_id.__contains__(':'):
+                        cvl = cv_id.split(':')
+                        if int(cvl[0]) == current_id:
+                            msg.talker_id = cvl[1]
+                        else:
+                            msg.talker_id = cvl[0]
+                    else:
+                        msg.talker_id = cv_id
                     msg.sender_id = GetInt64(reader, 5)
                     msg.is_sender = 1 if msg.sender_id == current_id else 0
                     msg.content = GetString(reader, 3)
@@ -599,7 +622,85 @@ class Ding(object):
             self.im.db_commit()
             cmd.Dispose()
             connection.Close()
-            
+            try:
+                self.parse_recovery(i, current_id, chat_tbl_list)
+            except:
+                pass
+
+    @staticmethod
+    def try_get_value(rec, key, def_val = None):
+        try:
+            if not rec[key].IsDBNull:
+                return rec[key].Value
+            else:
+                return def_val
+        except:
+            return def_val
+        
+    def parse_recovery(self, input_db, aid, chat_list = list()):
+        if not self.extract_deleted:
+            return
+        i = input_db
+        h, t = os.path.split(input_db)
+        rec_node = create_sub_node(self.root, i, t) # add the file to the node, must be Documents/xxxxxxxxx.db
+        if rec_node is None:
+            print('create node failed!')
+            continue
+        sb = SQLiteParser.Database.FromNode(rec_node)
+        ts = SQLiteParser.TableSignature('contact')
+        SQLiteParser.Tools.AddSignatureToTable(ts, "uid", SQLiteParser.FieldType.Int, SQLiteParser.FieldConstraints.NotNull)
+        for rec in sb.ReadTableDeletedRecords(ts, False):
+            if canceller.IsCancellationRequested:
+                self.im.db_close()
+                return
+            f = model_im.Friend()
+            try:
+                f.account_id = aid
+                f.friend_id = int(self.try_get_value(rec, 'uid', 0))
+                f.nickname = str(self.try_get_value(rec, 'nick', ""))
+                f.telephone = str(self.try_get_value(rec, 'mobile', ""))
+                f.email = str(self.try_get_value(rec, 'email', ""))
+                f.deleted = 1
+                self.im.db_insert_table_friend(f)
+            except Exception as e:
+                print('Error happened, dumps below:\n')
+                print(e)
+                print('dumps end\n')
+        if len(chat_list) == 0:
+            print('no message recovered!')
+            return
+        for t in chat_list:
+            ts = SQLiteParser.TableSignature(t)
+            SQLiteParser.Tools.AddSignatureToTable(ts, 'content', SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
+            for rec in sb.ReadTableDeletedRecords(ts, False):
+                if canceller.IsCancellationRequested:
+                    self.im.db_close()
+                    return
+                m = model_im.Message()
+                try:
+                    m.content = str(self.try_get_value(rec, 'content', ''))
+                    m.account_id = aid
+                    m.send_time = int(self.try_get_value(rec, 'localSentTime', 0))
+                    m.sender_id = int(self.try_get_value(rec, 'senderId', 0))
+                    m.deleted = 1
+                    cv_id = str(self.try_get_value(rec, 'senderId', ''))
+                    if cv_id.__contains__(':'):
+                        cvl = cv_id.split(':')
+                        if int(cvl[0]) == aid:
+                            m.talker_id = cvl[1]
+                        else:
+                            m.talker_id = cvl[0]
+                    else:
+                        m.talker_id = cv_id
+                    self.im.db_insert_table_message(m)
+                except:
+                    print('Error happened, dumps below:\n')
+                    print(e)
+                    print('dumps end\n')
+        self.im.db_commit()
+
+
+
 def parse_ding(root, extract_deleted, extract_source):
     try:
         d = Ding(root, extract_deleted, extract_source)

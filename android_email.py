@@ -32,6 +32,7 @@ def analyze_email(node, extract_deleted, extract_source):
     pr = ParserResults()
     res = EmailParser(node, extract_deleted, extract_source).parse()
     pr.Models.AddRange(res)
+    pr.Build('系统邮箱')
     return pr
 
 
