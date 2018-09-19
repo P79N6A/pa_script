@@ -891,6 +891,7 @@
           <key>Patterns</key>
           <array>
             <string>/data/com.whatsapp$</string>
+			<string>/Apps/com.whatsapp$</string>
           </array>
           <key>Category</key>
           <string>WhatsApp</string>
@@ -971,6 +972,7 @@
           <key>Patterns</key>
           <array>
             <string>/data/com.facebook.orca/databases$</string>
+			<string>/Apps/com.facebook.orca/databases$</string>
           </array>
           <key>Category</key>
           <string>Facebook</string>
