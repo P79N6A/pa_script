@@ -22,8 +22,6 @@ MAIL_DRAFTBOX = '2'    # 草稿箱
 
 
 def execute(node, extract_deleted):
-    """ 
-    """
     return analyze_neteasemail(node, extract_deleted, extract_source=False)
 
 def analyze_neteasemail(node, extract_deleted, extract_source):
@@ -33,7 +31,7 @@ def analyze_neteasemail(node, extract_deleted, extract_source):
     pr = ParserResults()
     res = NeteaseMailParser(node, extract_deleted, extract_source).parse()
     pr.Models.AddRange(res)
-    pr.Build('网易邮箱')
+    pr.Build('网易邮箱大师')
     return pr
 
 def exc():
@@ -173,7 +171,7 @@ class NeteaseMailParser(object):
     def parse_email_account(self, imail_db):
         accounts = {}
         for rec in self.my_read_table(db=imail_db, table_name='account'):
-            if IsDBNull(rec['email'].Value) or len(rec['email'].Value.strip()) < 5 or (type(rec['type'].Value) != int):
+            if IsDBNull(rec['email'].Value) or not self._is_email_format(rec['emailAddress'].Value) or (type(rec['type'].Value) != int):
                 continue
             reg_str = r'^\w+([-+.]\w+)*@\w+([-.]\w+)*\.\w+([-.]\w+)*$'
             match_obj = re.match(reg_str, rec['email'].Value)
@@ -339,7 +337,6 @@ class NeteaseMailParser(object):
         """
         if not name_email:
             return None
-        res = None
         try:
             res = ''
             name_email = eval(name_email)
@@ -352,6 +349,21 @@ class NeteaseMailParser(object):
                 name   = name_email['name']
                 email  = name_email['email']
                 res   += ' ' + email.strip() + ' ' + name.strip()
+            return res.lstrip()
         except:
             exc()
-        return res.lstrip()
+            return None
+
+    @staticmethod
+    def _is_email_format(rec):
+        """ 匹配邮箱地址 """
+        try:
+            if IsDBNull(rec) or len(rec.strip()) < 5:
+                return False
+            reg_str = r'^\w+([-+.]\w+)*@\w+([-.]\w+)*\.\w+([-.]\w+)*$'
+            match_obj = re.match(reg_str, rec)
+            if match_obj is None:
+                return False      
+            return True      
+        except:
+            return False

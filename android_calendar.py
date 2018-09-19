@@ -1,4 +1,4 @@
-#coding=utf-8
+# -*- coding: utf-8 -*-
 import os
 import PA_runtime
 import sqlite3
@@ -102,7 +102,7 @@ class CalendarParser(object):
 def analyze_android_calendar(node, extractDeleted, extractSource):
     pr = ParserResults()
     pr.Models.AddRange(CalendarParser(node, extractDeleted, extractSource).parse())
-    pr.Build('日历')
+    pr.Build('Calendar')
     return pr
 
 def execute(node, extractDeleted):

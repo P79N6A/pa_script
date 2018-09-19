@@ -180,7 +180,7 @@ class CallsParse(object):
 def analyze_android_calls(node, extractDeleted, extractSource):
     pr = ParserResults()
     pr.Models.AddRange(CallsParse(node, extractDeleted, extractSource).parse())
-    pr.Build('通话记录与通讯录')
+    pr.Build('Calls')
     return pr
 
 def execute(node, extractDeleted):

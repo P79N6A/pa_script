@@ -1,7 +1,15 @@
 #coding=utf-8
 # @Author  : xutao
 # @File    : ${android_facebook}.py
-
+import clr
+clr.AddReference('System.Core')
+clr.AddReference('System.Xml.Linq')
+clr.AddReference('System.Data.SQLite')
+try:
+    clr.AddReference('model_im')
+except:
+    pass
+del clr
 import PA_runtime
 from PA_runtime import *
 import os
@@ -11,12 +19,6 @@ import System
 from System.Xml.Linq import *
 import json
 from System.Xml.XPath import Extensions as XPathExtensions
-import clr
-try:
-    clr.AddReference('model_im')
-except:
-    pass
-del clr
 import model_im
 
 def GetString(reader, idx):

@@ -891,6 +891,7 @@
           <key>Patterns</key>
           <array>
             <string>/data/com.whatsapp$</string>
+			<string>/Apps/com.whatsapp$</string>
           </array>
           <key>Category</key>
           <string>WhatsApp</string>
@@ -971,12 +972,135 @@
           <key>Patterns</key>
           <array>
             <string>/data/com.facebook.orca/databases$</string>
+			<string>/Apps/com.facebook.orca/databases$</string>
           </array>
           <key>Category</key>
           <string>Facebook</string>
         </dict>
       </array>
 	</dict>
+  
+    
+    <dict>
+      <key>Module</key>
+      <string>android_qqmail</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_android_qqmail</string>
+          <key>RunnerType</key>
+          <integer>2</integer>
+          <key>Patterns</key>
+          <array>
+            <string>/data/com.tencent.androidqqmail/databases/QMMailDB$</string>
+          </array>
+          <key>Category</key>
+          <string>QQMail</string>
+        </dict>
+      </array>
+    </dict>
+    
+    <dict>
+      <key>Module</key>
+      <string>android_qqbrowser</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_android_qqbrowser</string>
+          <key>RunnerType</key>
+          <integer>2</integer>
+          <key>Patterns</key>
+          <array>
+            <string>/data/com.tencent.mtt/databases/default_user.db$</string>
+          </array>
+          <key>Category</key>
+          <string>QQBrowser</string>
+        </dict>
+      </array>
+    </dict>
+    
+    <dict>
+      <key>Module</key>
+      <string>android_calendar</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_android_calendar</string>
+          <key>RunnerType</key>
+          <integer>2</integer>
+          <key>Patterns</key>
+          <array>
+            <string>/data/com.android.providers.calendar/databases/calendar.db$</string>
+          </array>
+          <key>Category</key>
+          <string>Calendars</string>
+        </dict>
+      </array>
+    </dict>
+    
+    <dict>
+      <key>Module</key>
+      <string>android_call</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_android_calls</string>
+          <key>RunnerType</key>
+          <integer>2</integer>
+          <key>Patterns</key>
+          <array>
+            <string>/data/com.android.providers.contacts/databases/contacts2.db$</string>
+          </array>
+          <key>Category</key>
+          <string>Calls</string>
+        </dict>
+      </array>
+    </dict>
+    
+    <dict>
+      <key>Module</key>
+      <string>android_notes</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_android_notes</string>
+          <key>RunnerType</key>
+          <integer>2</integer>
+          <key>Patterns</key>
+          <array>
+            <string>/data/com.example.android.notepad/databases/note_pad.db$</string>
+          </array>
+          <key>Category</key>
+          <string>Notes</string>
+        </dict>
+      </array>
+    </dict>
+    
+    <dict>
+      <key>Module</key>
+      <string>android_soundrecord</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_android_soundrecord</string>
+          <key>RunnerType</key>
+          <integer>2</integer>
+          <key>Patterns</key>
+          <array>
+            <string>/data/com.android.soundrecorder/databases/record.*.db$</string>
+          </array>
+          <key>Category</key>
+          <string>Notes</string>
+        </dict>
+      </array>
+    </dict>
+
 
     <dict>
       <key>Module</key>
@@ -1017,6 +1141,27 @@
         </dict>
       </array>
     </dict>     
+
+    <dict>
+      <key>Module</key>
+      <string>android_sim</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_sim</string>
+          <key>RunnerType</key>
+          <integer>2</integer>
+          <key>Patterns</key>
+          <array>
+            <string>sim/sim.db$</string>
+            <string>user_de/0/com.android.providers.telephony/databases$</string>
+          </array>
+          <key>Category</key>
+          <string>None</string>
+        </dict>
+      </array>
+    </dict>       
 	
     <dict>
       <key>Module</key>
@@ -1030,135 +1175,14 @@
           <integer>2</integer>
           <key>Patterns</key>
           <array>
+            <string>sms/sms.db$</string>
             <string>user_de/0/com.android.providers.telephony/databases$</string>
           </array>
           <key>Category</key>
           <string>Messages</string>
         </dict>
       </array>
-    </dict>    
-    
-    <dict>
-      <key>Module</key>
-      <string>android_qqmail</string>
-      <key>Runners</key>
-      <array>
-        <dict>
-          <key>EntryPoint</key>
-          <string>analyze_android_qqmail</string>
-          <key>RunnerType</key>
-          <integer>2</integer>
-          <key>Patterns</key>
-          <array>
-            <string>/com.tencent.androidqqmail/databases/QMMailDB$</string>
-          </array>
-          <key>Category</key>
-          <string>QQMail</string>
-        </dict>
-      </array>
-    </dict>
-    
-    <dict>
-      <key>Module</key>
-      <string>android_qqbrowser</string>
-      <key>Runners</key>
-      <array>
-        <dict>
-          <key>EntryPoint</key>
-          <string>analyze_android_qqbrowser</string>
-          <key>RunnerType</key>
-          <integer>2</integer>
-          <key>Patterns</key>
-          <array>
-            <string>/com.tencent.mtt/databases/default_user.db$</string>
-          </array>
-          <key>Category</key>
-          <string>QQBrowser</string>
-        </dict>
-      </array>
-    </dict>
-    
-    <dict>
-      <key>Module</key>
-      <string>android_calendar</string>
-      <key>Runners</key>
-      <array>
-        <dict>
-          <key>EntryPoint</key>
-          <string>analyze_android_calendar</string>
-          <key>RunnerType</key>
-          <integer>2</integer>
-          <key>Patterns</key>
-          <array>
-            <string>/com.android.providers.calendar/databases/calendar.db$</string>
-          </array>
-          <key>Category</key>
-          <string>Calendars</string>
-        </dict>
-      </array>
-    </dict>
-    
-    <dict>
-      <key>Module</key>
-      <string>android_call</string>
-      <key>Runners</key>
-      <array>
-        <dict>
-          <key>EntryPoint</key>
-          <string>analyze_android_calls</string>
-          <key>RunnerType</key>
-          <integer>2</integer>
-          <key>Patterns</key>
-          <array>
-            <string>/com.android.providers.contacts/databases/contacts2.db$</string>
-          </array>
-          <key>Category</key>
-          <string>Calls</string>
-        </dict>
-      </array>
-    </dict>
-    
-    <dict>
-      <key>Module</key>
-      <string>android_notes</string>
-      <key>Runners</key>
-      <array>
-        <dict>
-          <key>EntryPoint</key>
-          <string>analyze_android_notes</string>
-          <key>RunnerType</key>
-          <integer>2</integer>
-          <key>Patterns</key>
-          <array>
-            <string>/com.example.android.notepad/databases/note_pad.db$</string>
-          </array>
-          <key>Category</key>
-          <string>Notes</string>
-        </dict>
-      </array>
-    </dict>
-    
-    <dict>
-      <key>Module</key>
-      <string>android_soundrecord</string>
-      <key>Runners</key>
-      <array>
-        <dict>
-          <key>EntryPoint</key>
-          <string>analyze_android_soundrecord</string>
-          <key>RunnerType</key>
-          <integer>2</integer>
-          <key>Patterns</key>
-          <array>
-            <string>/com.android.soundrecorder/databases/record.*.db$</string>
-          </array>
-          <key>Category</key>
-          <string>Notes</string>
-        </dict>
-      </array>
-    </dict>
-
-
+    </dict>  
 
   </array>
 </plist>

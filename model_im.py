@@ -710,6 +710,8 @@ class GenerateModel(object):
         return models
 
     def _get_account_models(self):
+        if canceller.IsCancellationRequested:
+            return []
         models = []
 
         sql = '''select account_id, nickname, username, password, photo, telephone, email, gender, age, country, 
@@ -723,7 +725,8 @@ class GenerateModel(object):
             print(e)
 
         while row is not None:
-            canceller.ThrowIfCancellationRequested()
+            if canceller.IsCancellationRequested:
+                break
             user = Common.User()
             account_id = None
             contact = {}
@@ -777,6 +780,8 @@ class GenerateModel(object):
         return models 
 
     def _get_friend_models(self):
+        if canceller.IsCancellationRequested:
+            return []
         models = []
 
         sql = '''select account_id, friend_id, nickname, remark, photo, type, telephone, email, gender, 
@@ -790,7 +795,8 @@ class GenerateModel(object):
             print(e)
 
         while row is not None:
-            canceller.ThrowIfCancellationRequested()
+            if canceller.IsCancellationRequested:
+                break
             friend = Common.Friend()
             account_id = None
             user_id = None
@@ -840,6 +846,8 @@ class GenerateModel(object):
         return models 
 
     def _get_group_models(self):
+        if canceller.IsCancellationRequested:
+            return []
         models = []
 
         sql = '''select account_id, chatroom_id, name, photo, type, notice, description, creator_id, 
@@ -853,7 +861,8 @@ class GenerateModel(object):
             print(e)
 
         while row is not None:
-            canceller.ThrowIfCancellationRequested()
+            if canceller.IsCancellationRequested:
+                break
             group = Common.Group()
             account_id = None
             user_id = None
@@ -902,6 +911,8 @@ class GenerateModel(object):
         return models 
 
     def _get_chat_models(self):
+        if canceller.IsCancellationRequested:
+            return []
         chats = {}
 
         sql = '''select account_id, talker_id, talker_name, sender_id, sender_name, is_sender, msg_id, type, 
@@ -915,7 +926,8 @@ class GenerateModel(object):
             print(e)
 
         while row is not None:
-            canceller.ThrowIfCancellationRequested()
+            if canceller.IsCancellationRequested:
+                break
             message = Common.Message()
             message.Content.Value = Common.MessageContent()
             account_id = None
@@ -1038,7 +1050,8 @@ class GenerateModel(object):
             print(e)
 
         while row is not None:
-            canceller.ThrowIfCancellationRequested()
+            if canceller.IsCancellationRequested:
+                break
             if row[2]:
                 model = self._get_user_intro(account_id, row[2])
                 if row[3]:
@@ -1054,6 +1067,8 @@ class GenerateModel(object):
         return models
 
     def _get_feed_models(self):
+        if canceller.IsCancellationRequested:
+            return []
         models = []
 
         sql = '''select account_id, sender_id, type, content, media_path, urls, preview_urls, 
@@ -1068,7 +1083,8 @@ class GenerateModel(object):
             print(e)
 
         while row is not None:
-            canceller.ThrowIfCancellationRequested()
+            if canceller.IsCancellationRequested:
+                break
             moment = Common.Moment()
             moment.Content.Value = Common.MomentContent()
             account_id = None
@@ -1110,6 +1126,8 @@ class GenerateModel(object):
         return models 
 
     def _get_search_models(self):
+        if canceller.IsCancellationRequested:
+            return []
         models = []
 
         sql = '''select account_id, key, create_time, source, deleted, repeated
@@ -1122,7 +1140,8 @@ class GenerateModel(object):
             print(e)
 
         while row is not None:
-            canceller.ThrowIfCancellationRequested()
+            if canceller.IsCancellationRequested:
+                break
             search = SearchedItem()
             if row[3] not in [None, '']:
                 search.SourceFile.Value = row[3]
@@ -1202,7 +1221,8 @@ class GenerateModel(object):
                 print(e)
 
             while row is not None:
-                canceller.ThrowIfCancellationRequested()
+                if canceller.IsCancellationRequested:
+                    break
                 like = Common.MomentLike()
                 if row[0]:
                     like.User.Value = self._get_user_intro(account_id, row[0], row[1])
@@ -1242,7 +1262,8 @@ class GenerateModel(object):
                 print(e)
 
             while row is not None:
-                canceller.ThrowIfCancellationRequested()
+                if canceller.IsCancellationRequested:
+                    break
                 comment = Common.MomentComment()
                 if row[0]:
                     comment.Sender.Value = self._get_user_intro(account_id, row[0], row[1])
