@@ -23,20 +23,19 @@ import sqlite3
 # EnterPoint: analyze_fsevents(root, extract_deleted, extract_source):
 # Patterns: '/\.fseventsd$'
 
-DB_VERSION = 10000
+DB_VERSION = 10001
 
 SQL_CREATE_TABLE_FSEVENT = '''
     create table if not exists fsevent(
         event_id INTEGER,
         path TEXT,
-        type TEXT,
         flags TEXT,
         node_id TEXT,
         source TEXT)'''
 
 SQL_INSERT_TABLE_FSEVENT = '''
-    insert into fsevent(event_id, path, type, flags, node_id, source) 
-        values(?, ?, ?, ?, ?, ?)'''
+    insert into fsevent(event_id, path, flags, node_id, source) 
+        values(?, ?, ?, ?, ?)'''
 
 SQL_CREATE_TABLE_VERSION = '''
     create table if not exists version(
@@ -117,7 +116,8 @@ class Parser():
         if self.need_parse():
             self.db_create()
             self.parse_fsevent()
-            self.db_insert_table_version(DB_VERSION)
+            if not canceller.IsCancellationRequested:
+                self.db_insert_table_version(DB_VERSION)
             self.db_commit()
             self.db_close()
 
@@ -192,14 +192,16 @@ class Parser():
                 self.db_cmd.Parameters.Add(param)
             self.db_cmd.ExecuteNonQuery()
 
-    def db_insert_table_fsevent(self, event_id, path, fs_type, flags, node_id, source):
-        self.db_insert_table(SQL_INSERT_TABLE_FSEVENT, (event_id, path, fs_type, flags, node_id, source))
+    def db_insert_table_fsevent(self, event_id, path, flags, node_id, source):
+        self.db_insert_table(SQL_INSERT_TABLE_FSEVENT, (event_id, path, flags, node_id, source))
 
     def db_insert_table_version(self, version):
         self.db_insert_table(SQL_INSERT_TABLE_VERSION, (version,))
 
     def parse_fsevent(self):
         for node in self.root.GetAllNodes(NodeType.File):
+            if canceller.IsCancellationRequested:
+                break
             buf = None
             try:
                 files = gzip.GzipFile(node.PathWithMountPoint, "rb")
@@ -210,7 +212,9 @@ class Parser():
                 continue
             buf_size = len(buf)
             offset = 0
-            while offset < buf_size - PAGE_HEADER_SIZE:            
+            while offset < buf_size - PAGE_HEADER_SIZE:   
+                if canceller.IsCancellationRequested:
+                    break
                 (magic, size) = self.parse_page_header(buf[offset:offset+PAGE_HEADER_SIZE])
                 if magic == '1SLD' or magic == '2SLD':
                     if offset + size <= buf_size:
@@ -221,18 +225,11 @@ class Parser():
             self.db_commit()
 
     def enumerate_flags(self, flag, f_map):
-        f_type = ''
         f_flag = ''
         for i in f_map:
             if i & flag:
-                if f_map[i] == 'FolderEvent;' or \
-                f_map[i] == 'FileEvent;' or \
-                f_map[i] == 'SymbolicLink;' or \
-                f_map[i] == 'HardLink;':
-                    f_type = ''.join([f_type, f_map[i]])
-                else:
-                    f_flag = ''.join([f_flag, f_map[i]])
-        return f_type, f_flag
+                 f_flag = ''.join([f_flag, f_map[i]])
+        return f_flag
 
     def parse_page_header(self, buf):
         magic = buf[0:4]
@@ -273,10 +270,12 @@ class Parser():
                 node_id = struct.unpack('Q', buf[offset:offset+8])[0]
                 offset += 8
 
-            (fs_type, fs_flags) = self.enumerate_flags(flags, EVENTMASK)
+            fs_flags = self.enumerate_flags(flags, EVENTMASK)
 
-            self.db_insert_table_fsevent(str(event_id), path, fs_type, fs_flags, str(node_id), source)
+            self.db_insert_table_fsevent(str(event_id), path, fs_flags, str(node_id), source)
 
+    def __check_cancel(self):
+        pass
 
 class GenerateModel():
     
@@ -285,5 +284,87 @@ class GenerateModel():
 
     def get_models(self):
         models = []
+
+        self.db = sqlite3.connect(self.cache_db)
+        models.extend(self._get_fsevent_models())
+        self.db_close()
         return models
+
+    def _get_fsevent_models(self):
+        models = []
+        cursor = self.db.cursor()
+
+        sql = 'select event_id,path,flags,node_id,source from fsevent'
+        row = None
+        try:
+            cursor.execute(sql)
+            row = cursor.fetchone()
+        except Exception as e:
+            print(e)
+
+        while row is not None:
+            if canceller.IsCancellationRequested:
+                break
+
+            model = Generic.FileSystemLog()
+            if row[0]:
+                model.EventId.Value = row[0]
+            if row[1]:
+                model.Path.Value = row[1]
+            if row[2]:
+                flags = row[2].split(';')
+                for flag in flags:
+                    value = self._convert_flag(flag)
+                    if value is not None:
+                        model.Flags.Add(value)
+            if row[3]:
+                model.NodeId.Value = row[3]
+            if row[4]:
+                model.LogSource.Value = row[4]
+
+            models.append(model)
+            row = self.cursor.fetchone()
+
+        cursor.close()
+        return models
+
+    @staticmethod
+    def _convert_flag(flag):
+        if flag == 'FolderEvent':
+            return Generic.FileSystemLogFlag.FolderEvent
+        elif flag == 'Mount':
+            return Generic.FileSystemLogFlag.Mount
+        elif flag == 'Unmount':
+            return Generic.FileSystemLogFlag.Unmount
+        elif flag == 'LastHardLinkRemoved':
+            return Generic.FileSystemLogFlag.LastHardLinkRemoved
+        elif flag == 'HardLink':
+            return Generic.FileSystemLogFlag.HardLink
+        elif flag == 'PermissionChange':
+            return Generic.FileSystemLogFlag.PermissionChange
+        elif flag == 'ExtendedAttrModified':
+            return Generic.FileSystemLogFlag.ExtendedAttrModified
+        elif flag == 'ExtendedAttrRemoved':
+            return Generic.FileSystemLogFlag.ExtendedAttrRemoved
+        elif flag == 'DocumentRevisioning':
+            return Generic.FileSystemLogFlag.DocumentRevisioning
+        elif flag == 'ItemCloned':
+            return Generic.FileSystemLogFlag.ItemCloned
+        elif flag == 'Created':
+            return Generic.FileSystemLogFlag.Created
+        elif flag == 'Removed':
+            return Generic.FileSystemLogFlag.Removed
+        elif flag == 'Renamed':
+            return Generic.FileSystemLogFlag.Renamed
+        elif flag == 'Modified':
+            return Generic.FileSystemLogFlag.Modified
+        elif flag == 'Exchange':
+            return Generic.FileSystemLogFlag.Exchange
+        elif flag == 'FinderInfoMod':
+            return Generic.FileSystemLogFlag.FinderInfoMod
+        elif flag == 'FolderCreated':
+            return Generic.FileSystemLogFlag.FolderCreated
+        else:
+            return None
+
 
