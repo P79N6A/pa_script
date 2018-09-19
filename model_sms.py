@@ -4,6 +4,10 @@ from PA_runtime import *
 import clr
 clr.AddReference('System.Core')
 clr.AddReference('System.Xml.Linq')
+try:
+    clr.AddReference('unity_c37r')
+except:
+    pass
 del clr
 
 from System.IO import MemoryStream
@@ -14,8 +18,11 @@ from System.Xml.XPath import Extensions as XPathExtensions
 from PA.InfraLib.Utils import *
 
 import os
+import time
 import sqlite3
 import traceback
+
+from unity_c37r import mapping_file_with_copy
 
 
 SMS_TYPE_ALL    = 0
@@ -70,11 +77,12 @@ SQL_CREATE_TABLE_SMS = '''
         sim_id              INT,
         sender_phonenumber  TEXT,
         sms_or_mms          TEXT,
+        read                INT DEFAULT 0,
         type                INT,
         suject              TEXT,
         body                TEXT,
         send_time           INT,
-        deliverd           INT,
+        deliverd            INT,
         is_sender           INT,
         source              TEXT,
         deleted             INT DEFAULT 0, 
@@ -87,6 +95,7 @@ SQL_INSERT_TABLE_SMS = '''
         sim_id,
         sender_phonenumber,
         sms_or_mms,
+        read,
         type,
         suject,
         body,
@@ -94,7 +103,7 @@ SQL_INSERT_TABLE_SMS = '''
         deliverd,
         is_sender,
         source, deleted, repeated) 
-        values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
+        values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
 
 SQL_CREATE_TABLE_VERSION = '''
     create table if not exists version(
@@ -170,7 +179,7 @@ class Model_SMS(object):
         try:
             cursor.execute(sql)
             row = cursor.fetchone()
-        except:
+        except Exception as e:
             pass
 
         while row is not None:
@@ -216,17 +225,18 @@ class Sim_cards(Column):
 class SMS(Column):
     def __init__(self):
         super(SMS, self).__init__()
-        self.msg_id              = None  # 消息ID[INT]
-        self.sim_id              = None  # SIM 卡 ID[INT]
-        self.sender_phonenumber  = None  # 发送者ID[TEXT]
-        self.sms_or_mms          = None  # 消息ID[TEXT]
-        self.type                = None  # 消息类型[INT], SMS_TYPE
-        self.suject              = None  # 主题,        一般是彩信 mms 才有[TEXT]
-        self.body                = None  # 内容[TEXT]
-        self.send_time           = None  # 发送时间[INT]
-        self.deliverd            = None  # 发送时间[INT]
-        self.is_sender           = None  # 自己是否为发送发[INT]
-        # self.media_path        = None  # 媒体文件地址[TEXT]
+        self.msg_id             = None  # 消息ID[INT]
+        self.sim_id             = None  # SIM 卡 ID[INT]
+        self.sender_phonenumber = None  # 发送者ID[TEXT]
+        self.sms_or_mms         = None  # 消息ID[TEXT]
+        self.read               = None  # 消息ID[TEXT]
+        self.type               = None  # 消息类型[INT], SMS_TYPE
+        self.suject             = None  # 主题,        一般是彩信 mms 才有[TEXT]
+        self.body               = None  # 内容[TEXT]
+        self.send_time          = None  # 发送时间[INT]
+        self.deliverd           = None  # 发送时间[INT]
+        self.is_sender          = None  # 自己是否为发送发[INT]
+        # self.media_path       = None  # 媒体文件地址[TEXT]
 
     def get_values(self):
         return (
@@ -234,6 +244,7 @@ class SMS(Column):
                 self.sim_id, 
                 self.sender_phonenumber, 
                 self.sms_or_mms, 
+                self.read,
                 self.type, 
                 self.suject,   
                 self.body,  
@@ -243,8 +254,9 @@ class SMS(Column):
             ) + super(SMS, self).get_values()
 
 class GenerateModel(object):
-    def __init__(self, cache_db):
-        self.cache_db  = cache_db
+    def __init__(self, cache_db, cachepath):
+        self.cache_db = cache_db
+        self.cachepath = cachepath
 
     def get_models(self):
         models = []
@@ -253,11 +265,12 @@ class GenerateModel(object):
 
         # 跨库连表
         try:
-            db_path_calls = 'CALLS/calls.db'
-            BASE_DIR      = os.path.dirname(os.path.dirname(self.cache_db))
-            calls_path    = os.path.join(BASE_DIR, db_path_calls)
+            db_path_calls = 'CALLS\calls.db'
+            BASE_DIR      = os.path.dirname(self.cachepath)
+            raw_calls_path = os.path.join(BASE_DIR, db_path_calls)
+            calls_path = os.path.join(self.cachepath, 'calls.db')
+            mapping_file_with_copy(raw_calls_path, calls_path)
             self.db.execute("ATTACH DATABASE '{}' AS calls".format(calls_path))
-
             models.extend(self._get_sms_models())
         except:
             exc()
@@ -275,6 +288,7 @@ class GenerateModel(object):
                 b.type,
                 b.deliverd,
                 b.send_time,
+                b.read,
                 
                 c.name,
 
@@ -298,7 +312,8 @@ class GenerateModel(object):
             msg_id            
             sim_id            
             sender_phonenumber
-            sms_or_mms        
+            sms_or_mms   
+            read     
             type              
             suject            
             body              
@@ -344,8 +359,6 @@ class GenerateModel(object):
             exc()
             return []
         while row is not None:
-            if canceller.IsCancellationRequested:
-                return
             sms = Generic.SMS()
             if row[0] is not None:
                 sms.Body.Value = row[0]
@@ -355,8 +368,12 @@ class GenerateModel(object):
                 sms.Delivered.Value = self._get_timestamp(row[2])
             if row[3] is not None:
                 sms.TimeStamp.Value = self._get_timestamp(row[3])
-                # sms.Read.Value = row[3]
-            # if row[4] is not None:
+            if row[4] == 0:
+                sms.Status.Value = MessageStatus.Unread
+            elif row[4] == 1:
+                sms.Status.Value = MessageStatus.Read
+            else:
+                sms.Status.Value = self._convert_sms_type(row[1])
             #     sms.PhoneNumber.Value = row[4]
             if row[-2] is not None:
                 sms.SourceFile.Value = self._get_source_file(row[-2])
@@ -364,6 +381,7 @@ class GenerateModel(object):
                 sms.Deleted = self._convert_deleted_status(row[-1])
             models.append(sms)
             row = self.cursor.fetchone()
+
         return models        
 
 
@@ -371,7 +389,15 @@ class GenerateModel(object):
         models = []
         sql = '''
             select 
-                *
+                body, 
+                type,
+                deliverd,
+                send_time,
+                suject,
+                read,
+
+                source,
+                deleted
             from 
                 sms
         '''
@@ -383,27 +409,19 @@ class GenerateModel(object):
                 sms.SourceFile
         
         table - sms
-            msg_id            
-            sim_id            
-            sender_phonenumber
-            sms_or_mms        
-            type              
-            suject            
-            body              
-            send_time       
-            deliverd  
-            is_sender         
-            source            
-            deleted           
-            repeated               
-            
-            SMS_TYPE_ALL    = 0
-            SMS_TYPE_INBOX  = 1
-            SMS_TYPE_SENT   = 2
-            SMS_TYPE_DRAFT  = 3
-            SMS_TYPE_OUTBOX = 4
-            SMS_TYPE_FAILED = 5
-            SMS_TYPE_QUEUED = 6 
+                msg_id            
+                sim_id            
+                sender_phonenumber
+                sms_or_mms        
+                type              
+                suject            
+                body              
+                send_time       
+                deliverd  
+                is_sender         
+                source            
+                deleted           
+                repeated               
             '''
         try:
             self.cursor.execute(sql)
@@ -412,8 +430,6 @@ class GenerateModel(object):
             exc()
             return 
         while row is not None:
-            if canceller.IsCancellationRequested:
-                return
             sms = Generic.SMS()
             if row[0] is not None:
                 sms.Body.Value = row[0]
@@ -423,13 +439,17 @@ class GenerateModel(object):
                 sms.Delivered.Value = self._get_timestamp(row[2])
             if row[3] is not None:
                 sms.TimeStamp.Value = self._get_timestamp(row[3])
-                # sms.Read.Value = row[3]
-            # if row[4] is not None:
-            #     sms.PhoneNumber.Value = row[4]
+            if row[4] == 0:
+                sms.Status.Value = MessageStatus.Unread
+            elif row[4] == 1:
+                sms.Status.Value = MessageStatus.Read
+            else:
+                sms.Status.Value = self._convert_sms_type(row[1])
             if row[-2] is not None:
                 sms.SourceFile.Value = self._get_source_file(row[-2])
             if row[-1] is not None:
                 sms.Deleted = self._convert_deleted_status(row[-1])
+
             models.append(sms)
             row = self.cursor.fetchone()
         return models        
@@ -459,3 +479,22 @@ class GenerateModel(object):
         if isinstance(source_file, str):
             return source_file.replace('/', '\\')
         return ''    
+    
+    @staticmethod
+    def _convert_sms_type(sms_type):
+        '''
+        SMS_TYPE_ALL    = 0
+        SMS_TYPE_INBOX  = 1
+        SMS_TYPE_SENT   = 2
+        SMS_TYPE_DRAFT  = 3
+        SMS_TYPE_OUTBOX = 4
+        SMS_TYPE_FAILED = 5
+        SMS_TYPE_QUEUED = 6 
+        '''
+        if sms_type in [2,4]:
+            return MessageStatus.Sent
+        elif sms_type == 3:
+            return MessageStatus.Unsent
+        elif sms_type == 1:
+            return MessageStatus.Unread
+        return MessageStatus.Default
