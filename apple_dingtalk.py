@@ -645,7 +645,7 @@ class Ding(object):
         rec_node = create_sub_node(self.root, i, t) # add the file to the node, must be Documents/xxxxxxxxx.db
         if rec_node is None:
             print('create node failed!')
-            continue
+            return
         sb = SQLiteParser.Database.FromNode(rec_node)
         ts = SQLiteParser.TableSignature('contact')
         SQLiteParser.Tools.AddSignatureToTable(ts, "uid", SQLiteParser.FieldType.Int, SQLiteParser.FieldConstraints.NotNull)
