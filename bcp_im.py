@@ -962,11 +962,13 @@ class Search(Column):
 
 
 class GenerateBcp(object):
-    def __init__(self, cache_db, bcp_db, collect_target_id, contact_account_type):
+    def __init__(self, bcp_path, cache_db, bcp_db, collect_target_id, contact_account_type):
+        self.bcp_path = bcp_path
         self.cache_db = cache_db
         self.bcp_db = bcp_db
         self.collect_target_id = collect_target_id
         self.contact_account_type = contact_account_type
+        self.cache_path = os.path.join(self.bcp_path, 'wechat')
         self.im = IM()
 
     def generate(self):
@@ -983,6 +985,8 @@ class GenerateBcp(object):
         self.im.db_close()
 
     def _generate_account(self):
+        if canceller.IsCancellationRequested:
+            return
         cursor = self.db.cursor()
         sql = '''select account_id, nickname, username, password, photo, telephone, email, gender, age, country, 
                         province, city, address, birthday, signature, source, deleted, repeated
@@ -995,7 +999,8 @@ class GenerateBcp(object):
             print(e)
 
         while row is not None:
-            canceller.ThrowIfCancellationRequested()
+            if canceller.IsCancellationRequested:
+                break
             account = Account(self.collect_target_id, self.contact_account_type, row[0], row[2])
             account.delete_status = self._convert_delete_status(row[16])
             account.regis_nickname = row[1]
@@ -1016,6 +1021,8 @@ class GenerateBcp(object):
         cursor.close()
 
     def _generate_friend(self):
+        if canceller.IsCancellationRequested:
+            return
         cursor = self.db.cursor()
         sql = '''select account_id, friend_id, nickname, remark, photo, type, telephone, email, gender, 
                         age, address, birthday, signature, source, deleted, repeated
@@ -1028,7 +1035,8 @@ class GenerateBcp(object):
             print(e)
 
         while row is not None:
-            canceller.ThrowIfCancellationRequested()
+            if canceller.IsCancellationRequested:
+                break
             friend = Friend(self.collect_target_id, self.contact_account_type, row[0], None)
             friend.delete_status = self._convert_delete_status(row[14])
             friend.friend_id = row[1]
@@ -1048,6 +1056,8 @@ class GenerateBcp(object):
         cursor.close()
 
     def _generate_group(self):
+        if canceller.IsCancellationRequested:
+            return
         cursor = self.db.cursor()
         sql = '''select account_id, chatroom_id, name, photo, type, notice, description, creator_id, 
                         owner_id, member_count, max_member_count, create_time, source, deleted, repeated
@@ -1060,7 +1070,8 @@ class GenerateBcp(object):
             print(e)
 
         while row is not None:
-            canceller.ThrowIfCancellationRequested()
+            if canceller.IsCancellationRequested:
+                break
             group = Group(self.collect_target_id, self.contact_account_type, row[0], None)
             group.delete_status = self._convert_delete_status(row[14])
             group.group_num = row[1]
@@ -1081,6 +1092,8 @@ class GenerateBcp(object):
         cursor.close()
 
     def _generate_group_member(self):
+        if canceller.IsCancellationRequested:
+            return
         cursor = self.db.cursor()
         sql = '''select account_id, chatroom_id, member_id, display_name, photo, telephone, email, 
                         gender, age, address, birthday, signature, source, deleted, repeated
@@ -1093,7 +1106,8 @@ class GenerateBcp(object):
             print(e)
 
         while row is not None:
-            canceller.ThrowIfCancellationRequested()
+            if canceller.IsCancellationRequested:
+                break
             gm = GroupMember(self.collect_target_id, self.contact_account_type, row[0], None)
             gm.delete_status = self._convert_delete_status(row[13])
             gm.group_num = row[1]
@@ -1115,6 +1129,8 @@ class GenerateBcp(object):
         cursor.close()
 
     def _generate_message(self):
+        if canceller.IsCancellationRequested:
+            return
         cursor = self.db.cursor()
         sql = '''select account_id, talker_id, talker_name, sender_id, sender_name, is_sender, msg_id, type, 
                         content, media_path, send_time, extra_id, status, talker_type, source, deleted, repeated
@@ -1127,7 +1143,8 @@ class GenerateBcp(object):
             print(e)
 
         while row is not None:
-            canceller.ThrowIfCancellationRequested()
+            if canceller.IsCancellationRequested:
+                break
             talker_type = row[13]
             if talker_type == model_im.CHAT_TYPE_GROUP:
                 message = GroupMessage(self.collect_target_id, self.contact_account_type, row[0], None)
@@ -1173,6 +1190,8 @@ class GenerateBcp(object):
         cursor.close()
 
     def _generate_feed(self):
+        if canceller.IsCancellationRequested:
+            return
         cursor = self.db.cursor()
         sql = '''select account_id, sender_id, type, content, media_path, urls, preview_urls, 
                         attachment_title, attachment_link, attachment_desc, send_time, likes, 
@@ -1186,7 +1205,8 @@ class GenerateBcp(object):
             print(e)
 
         while row is not None:
-            canceller.ThrowIfCancellationRequested()
+            if canceller.IsCancellationRequested:
+                break
             like_count = None
             if row[11] is not None:
                 try:
@@ -1221,6 +1241,8 @@ class GenerateBcp(object):
         cursor.close()
 
     def _generate_search(self):
+        if canceller.IsCancellationRequested:
+            return
         cursor = self.db.cursor()
         sql = '''select account_id, key, create_time, source, deleted, repeated
                  from search'''
@@ -1232,7 +1254,8 @@ class GenerateBcp(object):
             print(e)
 
         while row is not None:
-            canceller.ThrowIfCancellationRequested()
+            if canceller.IsCancellationRequested:
+                break
             search = Search(self.collect_target_id, self.contact_account_type, row[0], None)
             search.delete_status = self._convert_delete_status(row[4])
             search.create_time = row[2]

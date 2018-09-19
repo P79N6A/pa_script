@@ -21,7 +21,6 @@ import System.Data.SQLite as SQLite
 import os
 import hashlib
 import json
-import gc
 import string
 import sqlite3
 import shutil
@@ -82,13 +81,13 @@ class WeChatParser(model_im.IM):
         self.extract_deleted = extract_deleted
         self.extract_source = extract_source
 
-    def parse(self):
         self.user_hash = self.get_user_hash()
         self.cache_path = os.path.join(ds.OpenCachePath('wechat'), self.get_user_guid())
         if not os.path.exists(self.cache_path):
             os.makedirs(self.cache_path)
         self.cache_db = os.path.join(self.cache_path, self.user_hash + '.db')
 
+    def parse(self):
         if self.need_parse(self.cache_db, VERSION_APP_VALUE):
             self.db_create(self.cache_db)
 
@@ -106,11 +105,11 @@ class WeChatParser(model_im.IM):
             self._parse_user_fts_db(self.root.GetByPath('/fts/fts_message.db'))
 
             # 数据库填充完毕，请将中间数据库版本和app数据库版本插入数据库，用来检测app是否需要重新解析
-            self.db_insert_table_version(model_im.VERSION_KEY_DB, model_im.VERSION_VALUE_DB)
-            self.db_insert_table_version(model_im.VERSION_KEY_APP, VERSION_APP_VALUE)
+            if not canceller.IsCancellationRequested:
+                self.db_insert_table_version(model_im.VERSION_KEY_DB, model_im.VERSION_VALUE_DB)
+                self.db_insert_table_version(model_im.VERSION_KEY_APP, VERSION_APP_VALUE)
             self.db_commit()
             self.db_close()
-            gc.collect()
 
         models = self.get_models_from_cache_db()
         return models
@@ -164,6 +163,8 @@ class WeChatParser(model_im.IM):
     def _parse_user_contact_db(self, node):
         if node is None:
             return False
+        if canceller.IsCancellationRequested:
+            return False
 
         db_path = os.path.join(self.cache_path, 'cache.db')
         self.db_mapping(node.PathWithMountPoint, db_path)
@@ -183,7 +184,8 @@ class WeChatParser(model_im.IM):
             print(e)
 
         while row is not None:
-            canceller.ThrowIfCancellationRequested()
+            if canceller.IsCancellationRequested:
+                break
             username = self._db_column_get_string_value(row[0])
             if username not in [None, '']:
                 contact_type = self._db_column_get_int_value(row[1])
@@ -199,6 +201,8 @@ class WeChatParser(model_im.IM):
         self.db_remove_mapping(db_path)
 
         if self.extract_deleted:
+            if canceller.IsCancellationRequested:
+                return False
             db = SQLiteParser.Database.FromNode(node)
             if not db:
                 return False
@@ -207,7 +211,8 @@ class WeChatParser(model_im.IM):
                 ts = SQLiteParser.TableSignature('Friend')
                 SQLiteParser.Tools.AddSignatureToTable(ts, "userName", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
                 for rec in db.ReadTableDeletedRecords(ts, False):
-                    canceller.ThrowIfCancellationRequested()
+                    if canceller.IsCancellationRequested:
+                        break
                     username = self._db_record_get_string_value(rec, 'userName')
                     if username in [None, '']:
                         continue
@@ -263,7 +268,8 @@ class WeChatParser(model_im.IM):
 
             members, max_count = self._process_parse_group_members(contact_chatroom)
             for member in members:
-                canceller.ThrowIfCancellationRequested()
+                if canceller.IsCancellationRequested:
+                    break
                 cm = model_im.ChatroomMember()
                 cm.deleted = deleted
                 cm.source = source
@@ -299,11 +305,14 @@ class WeChatParser(model_im.IM):
     def _parse_user_mm_db(self, node):
         if not node:
             return False
+        if canceller.IsCancellationRequested:
+            return False
 
         tables = {}
         db_tables = []
         for username in self.contacts.keys():
-            canceller.ThrowIfCancellationRequested()
+            if canceller.IsCancellationRequested:
+                break
             m = hashlib.md5()
             m.update(username.encode('utf8'))
             user_hash = m.hexdigest()
@@ -333,13 +342,15 @@ class WeChatParser(model_im.IM):
             print(e)
 
         while row is not None:
-            canceller.ThrowIfCancellationRequested()
+            if canceller.IsCancellationRequested:
+                break
             db_tables.append(row[0])
             row = cursor.fetchone()
         cursor.close()
 
         for table in db_tables:
-            canceller.ThrowIfCancellationRequested()
+            if canceller.IsCancellationRequested:
+                break
             if not table.startswith('Chat_'):
                 continue
             if table in tables:
@@ -358,7 +369,8 @@ class WeChatParser(model_im.IM):
                 print(e)
 
             while row is not None:
-                canceller.ThrowIfCancellationRequested()
+                if canceller.IsCancellationRequested:
+                    break
                 msg = self._db_column_get_string_value(row[0])
                 msg_type = self._db_column_get_int_value(row[1], MSG_TYPE_TEXT)
                 msg_local_id = self._db_column_get_string_value(row[2])
@@ -373,12 +385,15 @@ class WeChatParser(model_im.IM):
         self.db_remove_mapping(db_path)
 
         if self.extract_deleted:
+            if canceller.IsCancellationRequested:
+                return
             db = SQLiteParser.Database.FromNode(node)
             if not db:
                 return False
 
             for table in db.Tables:
-                canceller.ThrowIfCancellationRequested()
+                if canceller.IsCancellationRequested:
+                    break
                 if not table.startswith('Chat_'):
                     continue
                 if table in tables:
@@ -389,7 +404,8 @@ class WeChatParser(model_im.IM):
                 ts = SQLiteParser.TableSignature(table)
                 SQLiteParser.Tools.AddSignatureToTable(ts, "Message", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
                 for rec in db.ReadTableDeletedRecords(ts, False):
-                    canceller.ThrowIfCancellationRequested()
+                    if canceller.IsCancellationRequested:
+                        break
                     msg = self._db_record_get_string_value(rec, 'Message')
                     msg_type = self._db_record_get_int_value(rec, 'Type', MSG_TYPE_TEXT)
                     msg_local_id = self._db_record_get_string_value(rec, 'MesLocalID')
@@ -428,6 +444,8 @@ class WeChatParser(model_im.IM):
     def _parse_user_wc_db(self, node):
         if node is None:
             return False
+        if canceller.IsCancellationRequested:
+            return False
 
         db_path = os.path.join(self.cache_path, 'cache.db')
         self.db_mapping(node.PathWithMountPoint, db_path)
@@ -448,12 +466,14 @@ class WeChatParser(model_im.IM):
             print(e)
 
         while row is not None:
-            canceller.ThrowIfCancellationRequested()
+            if canceller.IsCancellationRequested:
+                break
             db_tables.append(row[0])
             row = cursor.fetchone()
 
         for table in db_tables:
-            canceller.ThrowIfCancellationRequested()
+            if canceller.IsCancellationRequested:
+                break
             sql = 'select FromUser,Buffer from {}'.format(table)
             row = None
             try:
@@ -463,7 +483,8 @@ class WeChatParser(model_im.IM):
                 print(e)
 
             while row is not None:
-                canceller.ThrowIfCancellationRequested()
+                if canceller.IsCancellationRequested:
+                    break
                 username = self._db_column_get_string_value(row[0])
                 buffer = self._db_column_get_blob_value(row[1])
                 self._parse_user_wc_db_with_value(0, node.AbsolutePath, username, buffer)
@@ -474,19 +495,23 @@ class WeChatParser(model_im.IM):
         self.db_remove_mapping(db_path)
 
         if self.extract_deleted:
+            if canceller.IsCancellationRequested:
+                return False
             db = SQLiteParser.Database.FromNode(node)
             if not db:
                 return False
 
             tables = [t for t in db.Tables if t.startswith('MyWC01_')]
             for table in tables:
-                canceller.ThrowIfCancellationRequested()
+                if canceller.IsCancellationRequested:
+                    break
                 ts = SQLiteParser.TableSignature(table)
                 SQLiteParser.Tools.AddSignatureToTable(ts, "FromUser", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
                 SQLiteParser.Tools.AddSignatureToTable(ts, "Buffer", SQLiteParser.FieldType.Blob, SQLiteParser.FieldConstraints.NotNull)
             
                 for rec in db.ReadTableDeletedRecords(ts, False):
-                    canceller.ThrowIfCancellationRequested()
+                    if canceller.IsCancellationRequested:
+                        break
                     username = self._db_record_get_string_value(rec, 'FromUser')
                     buffer = self._db_record_get_blob_value(rec, 'Buffer')
                     deleted = 0 if rec.Deleted == DeletedState.Intact else 1
@@ -554,7 +579,8 @@ class WeChatParser(model_im.IM):
             likes = []
             if 'likeUsers' in root.Children:
                 for like_node in root.Children['likeUsers'].Values:
-                    canceller.ThrowIfCancellationRequested()
+                    if canceller.IsCancellationRequested:
+                        break
                     sender_id = self._bpreader_node_get_string_value(like_node, 'username', deleted = feed.deleted)
                     if len(sender_id) > 0:
                         fl = model_im.FeedLike()
@@ -576,7 +602,8 @@ class WeChatParser(model_im.IM):
             comments = []
             if 'commentUsers' in root.Children:
                 for comment_node in root.Children['commentUsers'].Values:
-                    canceller.ThrowIfCancellationRequested()
+                    if canceller.IsCancellationRequested:
+                        break
                     sender_id = self._bpreader_node_get_string_value(comment_node, 'username', deleted = feed.deleted)
                     content = self._bpreader_node_get_string_value(comment_node, 'content', deleted = feed.deleted)
                     if type(sender_id) == str and len(sender_id) > 0 and type(content) == str:
@@ -599,6 +626,8 @@ class WeChatParser(model_im.IM):
     def _parse_user_fts_db(self, node):
         if node is None:
             return False
+        if canceller.IsCancellationRequested:
+            return False
 
         username_ids = {}
 
@@ -620,7 +649,8 @@ class WeChatParser(model_im.IM):
             print(e)
 
         while row is not None:
-            canceller.ThrowIfCancellationRequested()
+            if canceller.IsCancellationRequested:
+                break
             username = self._db_column_get_string_value(row[0])
             id = self._db_column_get_int_value(row[1])
             if username != '' and id != 0:
@@ -638,13 +668,15 @@ class WeChatParser(model_im.IM):
             print(e)
 
         while row is not None:
-            canceller.ThrowIfCancellationRequested()
+            if canceller.IsCancellationRequested:
+                break
             if row[0].startswith('fts_message_table_') and row[0].endswith('_content'):
                 db_tables.append(row[0])
             row = cursor.fetchone()
 
         for table in db_tables:
-            canceller.ThrowIfCancellationRequested()
+            if canceller.IsCancellationRequested:
+                break
             sql = 'select c0usernameid,c3Message from {}'.format(table)
             row = None
             try:
@@ -654,7 +686,8 @@ class WeChatParser(model_im.IM):
                 print(e)
 
             while row is not None:
-                canceller.ThrowIfCancellationRequested()
+                if canceller.IsCancellationRequested:
+                    break
                 id = self._db_column_get_int_value(row[0])
                 content = self._db_column_get_string_value(row[1])
                 if id in username_ids:
@@ -667,6 +700,8 @@ class WeChatParser(model_im.IM):
         self.db_remove_mapping(db_path)
 
         if self.extract_deleted:
+            if canceller.IsCancellationRequested:
+                return False
             db = SQLiteParser.Database.FromNode(node)
             if not db:
                 return False
@@ -676,7 +711,8 @@ class WeChatParser(model_im.IM):
                 SQLiteParser.Tools.AddSignatureToTable(ts, "UsrName", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
                 SQLiteParser.Tools.AddSignatureToTable(ts, "usernameid", SQLiteParser.FieldType.Int, SQLiteParser.FieldConstraints.NotNull)
                 for rec in db.ReadTableDeletedRecords(ts, False):
-                    canceller.ThrowIfCancellationRequested()
+                    if canceller.IsCancellationRequested:
+                        break
                     username = self._db_record_get_string_value(rec, 'UsrName', '')
                     id = self._db_record_get_int_value(rec, 'usernameid')
                     if username != '' and id != 0 and id not in username_ids:
@@ -684,12 +720,14 @@ class WeChatParser(model_im.IM):
 
             tables = [t for t in db.Tables if t.startswith('fts_message_table_') and t.endswith('_content')]
             for table in tables:
-                canceller.ThrowIfCancellationRequested()
+                if canceller.IsCancellationRequested:
+                    break
                 ts = SQLiteParser.TableSignature(table)
                 SQLiteParser.Tools.AddSignatureToTable(ts, "c0usernameid", SQLiteParser.FieldType.Int, SQLiteParser.FieldConstraints.NotNull)
                 SQLiteParser.Tools.AddSignatureToTable(ts, "c3Message", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
                 for rec in db.ReadTableDeletedRecords(ts, False):
-                    canceller.ThrowIfCancellationRequested()
+                    if canceller.IsCancellationRequested:
+                        break
                     id = self._db_record_get_int_value(rec, 'c0usernameid', 0)
                     if id not in username_ids:
                         continue
@@ -791,7 +829,8 @@ class WeChatParser(model_im.IM):
             except Exception as e:
                 pass
             for m in ms:
-                canceller.ThrowIfCancellationRequested()
+                if canceller.IsCancellationRequested:
+                    break
                 username = None
                 display_name = None
                 if m.Attribute('UserName'):
