@@ -23,14 +23,14 @@ import sqlite3
 # EnterPoint: analyze_fsevents(root, extract_deleted, extract_source):
 # Patterns: '/\.fseventsd$'
 
-DB_VERSION = 10001
+DB_VERSION = 10002
 
 SQL_CREATE_TABLE_FSEVENT = '''
     create table if not exists fsevent(
         event_id INTEGER,
         path TEXT,
         flags TEXT,
-        node_id TEXT,
+        node_id INTEGER,
         source TEXT)'''
 
 SQL_INSERT_TABLE_FSEVENT = '''
@@ -272,7 +272,7 @@ class Parser():
 
             fs_flags = self.enumerate_flags(flags, EVENTMASK)
 
-            self.db_insert_table_fsevent(str(event_id), path, fs_flags, str(node_id), source)
+            self.db_insert_table_fsevent(event_id, path, fs_flags, node_id, source)
 
     def __check_cancel(self):
         pass
@@ -287,7 +287,7 @@ class GenerateModel():
 
         self.db = sqlite3.connect(self.cache_db)
         models.extend(self._get_fsevent_models())
-        self.db_close()
+        self.db.close()
         return models
 
     def _get_fsevent_models(self):
@@ -323,7 +323,7 @@ class GenerateModel():
                 model.LogSource.Value = row[4]
 
             models.append(model)
-            row = self.cursor.fetchone()
+            row = cursor.fetchone()
 
         cursor.close()
         return models
