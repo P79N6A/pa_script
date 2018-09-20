@@ -12,7 +12,7 @@ try:
     clr.AddReference('model_im')
     clr.AddReference('QQFriendNickName')
 except:
-    passqq
+    pass
 del clr
 import System
 from System.IO import MemoryStream
@@ -29,12 +29,6 @@ from collections import defaultdict
 import logging
 from  model_im import *
 import uuid 
-
-def cancel():
-    while True:  
-        if canceller.IsCancellationRequested:
-            sys.exit()
-            sleep(1)
 class QQParser(object):
     def __init__(self, app_root_dir, extract_deleted, extract_source):
         self.root = app_root_dir
@@ -57,8 +51,6 @@ class QQParser(object):
         #self.im.db_create(self.cachedb)
         self.VERSION_APP_VALUE = 10000
     def parse(self):        
-        th = threading.Thread(target=cancel,args=())
-        th.start()
         if self.im.need_parse(self.cachedb, self.VERSION_APP_VALUE):
             self.im.db_create(self.cachedb)
             self.decode_accounts()
@@ -642,8 +634,8 @@ class QQParser(object):
             x = json.loads(content)
             if('com.tencent.map'in x):
                 address	= x['meta']['Location.Search']['address']
-                lat	= x['meta']['Location.Search']['lat']
-                lng	= x['meta']['Location.Search']['lng']			
+                lat	= float(x['meta']['Location.Search']['lat'])
+                lng	= float(x['meta']['Location.Search']['lng'])
                 return address,lat,lng
         except:
             pass
