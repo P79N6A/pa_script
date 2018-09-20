@@ -127,8 +127,6 @@ class NeteaseMailParser(object):
                 return
             mail = Mails()
             mail.mailId      = row[0]
-            if mail.mailId == 21:
-                pass
             mail.content     = row[1]
             mail.mail_folder = self.mail_folder.get(row[2], None) # row[2] => mailBoxId
             mail.subject     = row[3]
