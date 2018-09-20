@@ -40,7 +40,7 @@ class BaiduMap(object):
                 if canceller.IsCancellationRequested:
                     return
                 fav_poi = model_map.Search()
-                fav_poi.source = "百度地图:"
+                fav_poi.source = "百度地图"
                 fav_poi.sourceApp = "百度地图"
                 fav_poi.sourceFile = self.root.AbsolutePath
                 fav_poi.item_type = 1 # 表明这是收藏的点
@@ -83,7 +83,7 @@ class BaiduMap(object):
                 if canceller.IsCancellationRequested:
                     return
                 search_history = model_map.Search()
-                search_history.source = "百度地图:"
+                search_history.source = "百度地图"
                 search_history.sourceApp = "百度地图"
                 search_history.sourceFile = search_node.AbsolutePath
                 if rec.Deleted == DeletedState.Deleted:
@@ -127,7 +127,7 @@ class BaiduMap(object):
                     addr =  model_map.Address()
                     if rec.Deleted == DeletedState.Deleted:
                         addr.deleted = 1
-                    addr.source = "百度地图:"
+                    addr.source = "百度地图"
                     addr.sourceApp = "百度地图"
                     addr.sourceFile = route_node.AbsolutePath
                     if "value" in rec and (not rec["value"].IsDBNull):

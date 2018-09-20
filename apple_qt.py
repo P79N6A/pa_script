@@ -249,12 +249,16 @@ def analyze_quicktime_meta(node,extractDeleted,extractSource):
     pr = ParserResults()
     qtLocations = []
     res = node.Search('((.qt)|(.MOV))$')
-    for f in res:
-        if f.Type == NodeType.File:
-            try: 
-                handleFile(f, qtLocations)
-            except:
-                TraceService.Trace(TraceLevel.Error, traceback.format_exc())
+    try:
+        for f in res:
+            canceller.ThrowIfCancellationRequested()
+            if f.Type == NodeType.File:
+                try: 
+                    handleFile(f, qtLocations)
+                except:
+                    TraceService.Trace(TraceLevel.Error, traceback.format_exc())
+    except:
+        pass
         
     pr.Models.AddRange(qtLocations)
     pr.Build('地理位置')

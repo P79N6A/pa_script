@@ -21,6 +21,7 @@ import os
 import time
 import sqlite3
 import traceback
+import re
 
 from unity_c37r import mapping_file_with_copy
 
@@ -203,6 +204,9 @@ class Column(object):
 
     def __setattr__(self, name, value):
         if not IsDBNull(value):
+            if isinstance(value, str):
+                # 过滤控制字符, 防止断言失败
+                value = re.compile('[\\x00-\\x08\\x0b-\\x0c\\x0e-\\x1f]').sub(' ', value)               
             self.__dict__[name] = value
 
     def get_values(self):

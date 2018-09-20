@@ -45,7 +45,7 @@ class TencentMap(object):
             if "userID" in account_bplist["loginKeysDictionary_OpenQQAPI"]:
                 self.account_id = account_bplist["loginKeysDictionary_OpenQQAPI"]["userID"].Value
                 account.account_id = self.account_id
-                account.source = "腾讯地图:" + self.account_id
+                account.source = "腾讯地图"
             try:
                 self.tencentMap.db_insert_table_account(account)
             except Exception as e:
@@ -70,7 +70,7 @@ class TencentMap(object):
 
     def decode_search_data(self, bp, dictvalue, search_node):
         search = model_map.Search()
-        search.source = "腾讯地图:"
+        search.source = "腾讯地图"
         search.sourceFile = search_node.AbsolutePath
         search.item_type = 0
         values = self.get_dict_from_search(bp, dictvalue)
@@ -116,7 +116,7 @@ class TencentMap(object):
         json_data = json.loads(tmp)
         if json_data.get("fav_list"):
             favorite_search = model_map.Search()
-            favorite_search.source = "腾讯地图:"
+            favorite_search.source = "腾讯地图"
             favorite_search.sourceFile = favorites_address_node.AbsolutePath
             favorite_search.item_type = 1
             for rs in json_data.get("fav_list"):
@@ -158,7 +158,7 @@ class TencentMap(object):
         values = self.get_dict_from_bplist(bp, dictvalue)
         if values:
             home_company = model_map.Search()
-            home_company.source = "腾讯地图:"
+            home_company.source = "腾讯地图"
             home_company.sourceFile = home_company_node.AbsolutePath
             home_company.item_type = 1
             if "name" in values:
@@ -206,7 +206,7 @@ class TencentMap(object):
         startvalues, endvalues = self.get_route_from_dict(bp, dictvalue)
         if startvalues and endvalues:
             route_address = model_map.Address()
-            route_address.source = "腾讯地图:"
+            route_address.source = "腾讯地图"
             route_address.sourceFile = route.AbsolutePath
             if "name" in startvalues and "name" in endvalues:
                 route_address.from_name = startvalues.get("name").Value
