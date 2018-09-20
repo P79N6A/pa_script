@@ -200,9 +200,14 @@ class WeChatParser(model_im.IM):
         return WeChatParser._md5(imei + uin)[:7]
 
     def _parse_mm_db(self, mm_db_path, source):
+        node_db = None
+        if self.extract_deleted:
+            node = self.create_memory_node(self.user_node, mm_db_path, os.path.basename(mm_db_path))
+            try:
+                node_db = SQLiteParser.Database.FromNode(node, canceller)
+            except Exception as e:
+                return
         db = sqlite3.connect(mm_db_path)
-        node = self.create_memory_node(self.user_node, mm_db_path, os.path.basename(mm_db_path))
-        node_db = SQLiteParser.Database.FromNode(node)
         self._parse_mm_db_user_info(db, source, node_db)
         self._parse_mm_db_contact(db, source, node_db)
         self._parse_mm_db_chatroom_member(db, source, node_db)
@@ -248,7 +253,10 @@ class WeChatParser(model_im.IM):
         if self.extract_deleted:
             if canceller.IsCancellationRequested:
                 return False
-            db = SQLiteParser.Database.FromNode(node)
+            try:
+                db = SQLiteParser.Database.FromNode(node, canceller)
+            except Exception as e:
+                return False
             if not db:
                 return False
 
@@ -917,8 +925,8 @@ class WeChatParser(model_im.IM):
         if not record[column].IsDBNull:
             try:
                 value = str(record[column].Value)
-                if record.Deleted != DeletedState.Intact:
-                    value = filter(lambda x: x in string.printable, value)
+                #if record.Deleted != DeletedState.Intact:
+                #    value = ''.join([c for c in value if ord(c) > 31 or c in string.printable])
                 return value
             except Exception as e:
                 return default_value
