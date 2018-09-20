@@ -62,7 +62,7 @@ class SMSParser(object):
 
     def parse(self):
         node = self.root.GetByPath("/mmssms.db")
-        self.db = SQLiteParser.Database.FromNode(node)
+        self.db = SQLiteParser.Database.FromNode(node,canceller)
         if self.db is None:
             return
         self.source_mmmssms_db = node.AbsolutePath
@@ -220,7 +220,7 @@ class SMSParser_no_tar(SMSParser):
         super(SMSParser_no_tar, self).__init__(node, extract_deleted, extract_source)
     
     def parse(self):
-        self.db = SQLiteParser.Database.FromNode(node)
+        self.db = SQLiteParser.Database.FromNode(node,canceller)
         if self.db is None:
             return
         self.source_sms_db = node.AbsolutePath

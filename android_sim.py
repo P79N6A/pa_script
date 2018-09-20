@@ -60,7 +60,7 @@ class SIMParser(object):
         
     def parse(self):
         node = self.root.GetByPath("/telephony.db")
-        self.db = SQLiteParser.Database.FromNode(node)
+        self.db = SQLiteParser.Database.FromNode(node,canceller)
         if self.db is None:
             return
         self.source_telephony_db = node.AbsolutePath
@@ -123,7 +123,7 @@ class SIMParser_no_tar(SIMParser):
     
     def parse(self):
         node = self.root.GetByPath('sim/sim.db$')
-        self.db = SQLiteParser.Database.FromNode(node)
+        self.db = SQLiteParser.Database.FromNode(node,canceller)
         if self.db is None:
             return
         self.source_sim_db = node.AbsolutePath
