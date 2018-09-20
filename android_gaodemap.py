@@ -192,7 +192,7 @@ class gaodeMap(object):
                         user_id_search.item_type = 0
                         user_id_search.source = "高德地图:" + user_id
                         user_id_search.sourceApp = "高德地图"
-                        user_id_search.sourceFile = self.sourceFile
+                        user_id_search.sourceFile = self.sourcefile
                         user_id_search.account_id = user_id
                         user_id_search.create_time = rec[4]
                         if rec[2]:
@@ -207,7 +207,7 @@ class gaodeMap(object):
                         user_id_route = model_map.Address()
                         user_id_route.source = "高德地图:" + user_id
                         user_id_route.sourceApp = "高德地图"
-                        user_id_route.sourceApp = self.sourcefile
+                        user_id_route.sourceFile = self.sourcefile
                         user_id_route.account_id = user_id
                         user_id_route.create_time = rec[4]
                         if rec[2]:

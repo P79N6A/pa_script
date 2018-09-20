@@ -24,7 +24,7 @@ class baiduMapParser(object):
         self.extract_deleted = extract_deleted
         self.extract_source = extract_source
         self.cache = ds.OpenCachePath("baiduMap")
-        self.baidumap =model_map.Map()
+        self.baidumap = model_map.Map()
         
     def parse(self):
 
