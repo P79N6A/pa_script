@@ -127,8 +127,6 @@ class NeteaseMailParser(object):
                 return
             mail = Mails()
             mail.mailId      = row[0]
-            if mail.mailId == 21:
-                pass
             mail.content     = row[1]
             mail.mail_folder = self.mail_folder.get(row[2], None) # row[2] => mailBoxId
             mail.subject     = row[3]
@@ -171,7 +169,7 @@ class NeteaseMailParser(object):
     def parse_email_account(self, imail_db):
         accounts = {}
         for rec in self.my_read_table(db=imail_db, table_name='account'):
-            if IsDBNull(rec['email'].Value) or not self._is_email_format(rec['emailAddress'].Value) or (type(rec['type'].Value) != int):
+            if IsDBNull(rec['email'].Value) or not self._is_email_format(rec['email'].Value):
                 continue
             reg_str = r'^\w+([-+.]\w+)*@\w+([-.]\w+)*\.\w+([-.]\w+)*$'
             match_obj = re.match(reg_str, rec['email'].Value)

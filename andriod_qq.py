@@ -167,7 +167,7 @@ class Andriod_QQParser(object):
 	def getImei(self):		
 		path = self.root.GetByPath('/files/imei')
 		if path is None:
-			return 
+			return ''
 		try:
 			d = path.PathWithMountPoint
 			f = open(d,"rb")               
@@ -179,7 +179,7 @@ class Andriod_QQParser(object):
 					self.imeilen = 15
 		except: 
 			#log("imie cant get decode will be failded")           
-			pass                
+			return ''                
 	def decode_accounts(self):
 		dblist = []
 		pattern = r"^([0-9]+).db$" 
@@ -359,10 +359,7 @@ class Andriod_QQParser(object):
 				msg.type = MESSAGE_CONTENT_TYPE_ATTACHMENT				
 			return True				
 		return False
-	def decode_msg_from_friendtbale(self,acc_id,table): 
-		#f table != 'mr_friend_373B750958FA49CDF32A08407A21CEDC_New':
-			#return 
-		return
+	def decode_msg_from_friendtbale(self,acc_id,table): 		
 		node =  self.root.GetByPath('/databases/'+ acc_id + '.db')
 		if node is None:
 			return
@@ -426,7 +423,7 @@ class Andriod_QQParser(object):
 					msgItems = msgstruct['mStructMsgItemLists']					
 					for l in msgItems:
 						try:
-							print l['b']
+							#print l['b']
 							link  = l['b']
 							if link == '':
 								continue
@@ -519,7 +516,7 @@ class Andriod_QQParser(object):
 							self.processmedia(msg)
 				else:    				
 					msg.content = msgdata.decode('utf-8',"ignore") 	
-				print msg.content						
+				#print msg.content						
 				self.im.db_insert_table_message(msg)			
 			except Exception as e:		
 				print (e)

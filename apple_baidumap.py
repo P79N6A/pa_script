@@ -24,7 +24,7 @@ class baiduMapParser(object):
         self.extract_deleted = extract_deleted
         self.extract_source = extract_source
         self.cache = ds.OpenCachePath("baiduMap")
-        self.baidumap =model_map.Map()
+        self.baidumap = model_map.Map()
         
     def parse(self):
 
@@ -54,7 +54,7 @@ class baiduMapParser(object):
         分析百度地图账号信息
         """
         account = model_map.Account()
-        account.source = "百度地图:"
+        account.source = "百度地图"
         accountNode = self.root.GetByPath("Library/Preferences/com.baidu.map.plist")
         if accountNode is None:
             return 
@@ -135,7 +135,7 @@ class baiduMapParser(object):
                     search.deleted = 0
                 elif rec.Deleted == DeletedState.Deleted:
                     search.deleted = 1
-                search.source = "百度地图:"
+                search.source = "百度地图"
                 search.sourceFile = historyNode.AbsolutePath
                 if "key" in rec:
                     seach_history = rec["key"].Value
@@ -148,11 +148,14 @@ class baiduMapParser(object):
                         dicts = json.loads(jsonfile)
                         search_name = dicts.get("historyMainTitleKey") if dicts.get("historyMainTitleKey") else dicts.get("poiHisValue")
                         search.keyword = search_name
-                        search.create_time = dicts.get("addtimesec")
+                        if dicts.get("addtimesec"):
+                            str_time = str(dicts.get("addtimesec")).replace("-","")
+                            search.create_time = int(str_time)
                     except Exception as e:
                         pass
                 try:
-                    self.baidumap.db_insert_table_search(search)
+                    if search.keyword:
+                        self.baidumap.db_insert_table_search(search)
                 except Exception as e:
                     pass
         except Exception as e:
@@ -213,7 +216,7 @@ class baiduMapParser(object):
                 routeaddr = model_map.Address() 
                 if rec.Deleted == DeletedState.Deleted:
                     routeaddr.deleted = 1
-                routeaddr.source = "百度地图:"
+                routeaddr.source = "百度地图"
                 routeaddr.sourceFile = hsAddressNode.AbsolutePath
                 seach_history = rec["key"].Value
                 if "value" in rec and (not rec["value"].IsDBNull):
@@ -241,7 +244,8 @@ class baiduMapParser(object):
                     except Exception as e:
                         pass
                 try:
-                    self.baidumap.db_insert_table_address(routeaddr)
+                    if routeaddr.from_name and routeaddr.to_name:
+                        self.baidumap.db_insert_table_address(routeaddr)
                 except Exception as e:
                     pass
         except Exception as e:

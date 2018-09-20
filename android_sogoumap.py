@@ -36,7 +36,7 @@ class SogouMap(object):
                 if canceller.IsCancellationRequested:
                     return
                 search = model_map.Search()
-                search.source = "搜狗地图:"
+                search.source = "搜狗地图"
                 search.sourceApp = "搜狗地图"
                 search.sourceFile = self.root.AbsolutePath
                 try:

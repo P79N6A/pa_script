@@ -39,7 +39,7 @@ class SogouMap(object):
                 if canceller.IsCancellationRequested:
                     return
                 search = model_map.Search()
-                search.source = "搜狗地图:"
+                search.source = "搜狗地图"
                 search.sourceApp = "搜狗地图"
                 search.sourceFile = history_node.AbsolutePath
                 if rec.Deleted == DeletedState.Deleted:
@@ -93,7 +93,7 @@ class SogouMap(object):
                     user.gender = rec["ZSEX"].Value
                 if "ZUSERID" in rec and (not rec["ZUSERID"].IsDBNull):
                     user.account_id = rec["ZUSERID"].Value
-                    user.source = "搜狗地图:" + rec["ZUSERID"].Value
+                    user.source = "搜狗地图" 
                 try:
                     self.sogoudb.db_insert_table_account(user)
                 except Exception as e:
@@ -129,7 +129,7 @@ class SogouMap(object):
                     search.keyword = rec["ZCAPTION"].Value
                 if "ZUSERID" in rec and (not rec["ZUSERID"].IsDBNull) and rec["ZTYPE"].Value == 105:
                     search.account_id = rec["ZUSERID"].Value
-                    search.source = "搜狗地图:" + rec["ZUSERID"].Value
+                    search.source = "搜狗地图"
                 if "ZATTRIBUTES" in rec and (not rec["ZATTRIBUTES"].IsDBNull):
                     b = bytes(rec["ZATTRIBUTES"].Value)
                     try:
@@ -163,7 +163,7 @@ class SogouMap(object):
         values = self.get_route_from_dict(bp, uid)
         if values:
             route_address = model_map.Address()
-            route_address.source = "搜狗地图:"
+            route_address.source = "搜狗地图"
             route_address.sourceApp = "搜狗地图"
             route_address.sourceFile = roure_addr.AbsolutePath
             if "bus.history.startname" in values:
