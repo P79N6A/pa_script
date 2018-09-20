@@ -64,7 +64,7 @@ class NeteaseMailParser(object):
     def parse(self):
 
         node = self.root.GetByPath("mmail")
-        imail_db = SQLiteParser.Database.FromNode(node)
+        imail_db = SQLiteParser.Database.FromNode(node,canceller)
         if imail_db is None:
             return
 

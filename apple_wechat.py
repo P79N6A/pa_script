@@ -203,7 +203,10 @@ class WeChatParser(model_im.IM):
         if self.extract_deleted:
             if canceller.IsCancellationRequested:
                 return False
-            db = SQLiteParser.Database.FromNode(node)
+            try:
+                db = SQLiteParser.Database.FromNode(node, canceller)
+            except Exception as e:
+                return False
             if not db:
                 return False
 
@@ -386,8 +389,11 @@ class WeChatParser(model_im.IM):
 
         if self.extract_deleted:
             if canceller.IsCancellationRequested:
-                return
-            db = SQLiteParser.Database.FromNode(node)
+                return False
+            try:
+                db = SQLiteParser.Database.FromNode(node, canceller)
+            except Exception as e:
+                return False
             if not db:
                 return False
 
@@ -497,7 +503,10 @@ class WeChatParser(model_im.IM):
         if self.extract_deleted:
             if canceller.IsCancellationRequested:
                 return False
-            db = SQLiteParser.Database.FromNode(node)
+            try:
+                db = SQLiteParser.Database.FromNode(node, canceller)
+            except Exception as e:
+                return False
             if not db:
                 return False
 
@@ -702,7 +711,10 @@ class WeChatParser(model_im.IM):
         if self.extract_deleted:
             if canceller.IsCancellationRequested:
                 return False
-            db = SQLiteParser.Database.FromNode(node)
+            try:
+                db = SQLiteParser.Database.FromNode(node, canceller)
+            except Exception as e:
+                return False
             if not db:
                 return False
 
@@ -846,12 +858,14 @@ class WeChatParser(model_im.IM):
         img_path = ''
 
         if msg_type == MSG_TYPE_IMAGE:
+            content = '[图片]'
             node = user_node.GetByPath('Img/{0}/{1}.pic'.format(friend_hash, msg_local_id))
             if node is not None:
                 img_path = node.AbsolutePath
             #else:
             #    model.deleted = 1
         elif msg_type == MSG_TYPE_VOICE:
+            content = '[语音]'
             node = user_node.GetByPath('Audio/{0}/{1}.aud'.format(friend_hash, msg_local_id))
             if node is not None:
                 img_path = node.AbsolutePath 
@@ -860,6 +874,7 @@ class WeChatParser(model_im.IM):
         #elif msg_type == MSG_TYPE_CONTACT_CARD:
         #    pass
         elif msg_type == MSG_TYPE_VIDEO or msg_type == MSG_TYPE_VIDEO_2:
+            content = '[视频]'
             node = user_node.GetByPath('Video/{0}/{1}.mp4'.format(friend_hash, msg_local_id))
             if node is None:
                 #model.deleted = 1
@@ -876,6 +891,7 @@ class WeChatParser(model_im.IM):
                 self._process_parse_message_location(content, location)
                 model.extra_id = location.location_id
                 self.db_insert_table_location(location)
+                content = '[坐标]{0},{1}\n[地址]{2}'.format(location.latitude, location.longitude, location.address)
             node = user_node.GetByPath('Location/{0}/{1}.pic_thum'.format(friend_hash, msg_local_id))
             if node is not None:
                 img_path = node.AbsolutePath
@@ -1139,8 +1155,8 @@ class WeChatParser(model_im.IM):
         if not record[column].IsDBNull:
             try:
                 value = str(record[column].Value)
-                if record.Deleted != DeletedState.Intact:
-                    value = filter(lambda x: x in string.printable, value)
+                #if record.Deleted != DeletedState.Intact:
+                #    value = filter(lambda x: x in string.printable, value)
                 return value
             except Exception as e:
                 return default_value
@@ -1220,8 +1236,8 @@ class WeChatParser(model_im.IM):
         if key in node.Children and node.Children[key] is not None:
             try:
                 value = str(node.Children[key].Value)
-                if deleted != 0:
-                    value = filter(lambda x: x in string.printable, value)
+                #if deleted != 0:
+                #    value = filter(lambda x: x in string.printable, value)
                 return value
             except Exception as e:
                 return default_value
