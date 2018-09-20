@@ -22,7 +22,7 @@
         </dict>
       </array>
     </dict>
-	<dict>
+    <dict>
       <key>Module</key>
       <string>apple_qt</string>
       <key>Runners</key>
@@ -61,7 +61,7 @@
       </array>
     </dict>
 
-	<dict>
+    <dict>
       <key>Module</key>
       <string>apple_wifi_log</string>
       <key>Runners</key>
@@ -80,7 +80,7 @@
         </dict>
       </array>
     </dict>
-	
+
     <dict>
       <key>Module</key>
       <string>apple_twr</string>
@@ -100,7 +100,7 @@
         </dict>
       </array>
     </dict>
-    
+
     <dict>
       <key>Module</key>
       <string>apple_icq</string>
@@ -140,7 +140,7 @@
         </dict>
       </array>
     </dict>
-    
+
     <dict>
       <key>Module</key>
       <string>apple_locations</string>
@@ -326,7 +326,7 @@
         </dict>
       </array>
     </dict>
-    
+
     <dict>
       <key>Module</key>
       <string>apple_notes</string>
@@ -358,7 +358,7 @@
         </dict>
       </array>
     </dict>
-    
+
     <dict>
       <key>Module</key>
       <string>apple_accts</string>
@@ -450,7 +450,7 @@
         </dict>
       </array>
     </dict>
-    
+
     <dict>
       <key>Module</key>
       <string>apple_cookies</string>
@@ -510,7 +510,7 @@
         </dict>
       </array>
     </dict>
-    
+
     <dict>
       <key>Module</key>
       <string>apple_ab</string>
@@ -530,7 +530,7 @@
         </dict>
       </array>
     </dict>
-    
+
     <dict>
       <key>Module</key>
       <string>apple_wechat</string>
@@ -793,9 +793,9 @@
         </dict>
       </array>
     </dict>
-    
+
     <!--安卓运行插件从这里开始-->
-    
+
     <dict>
       <key>Module</key>
       <string>android_wechat</string>
@@ -909,7 +909,7 @@
           <key>Patterns</key>
           <array>
             <string>/data/com.whatsapp$</string>
-	<string>/Apps/com.whatsapp$</string>
+            <string>/Apps/com.whatsapp$</string>
           </array>
           <key>Category</key>
           <string>WhatsApp</string>
@@ -956,8 +956,8 @@
         </dict>
       </array>
     </dict>
-    
-	<dict>
+
+    <dict>
       <key>Module</key>
       <string>andriod_qq</string>
       <key>Runners</key>
@@ -976,12 +976,12 @@
         </dict>
       </array>
     </dict>
-	
-	<dict>
-	  <key>Module</key>
-	  <string>android_facebook</string>
-	  <key>Runners</key>
-	  <array>
+
+    <dict>
+      <key>Module</key>
+      <string>android_facebook</string>
+      <key>Runners</key>
+      <array>
         <dict>
           <key>EntryPoint</key>
           <string>analyze_facebook</string>
@@ -990,15 +990,15 @@
           <key>Patterns</key>
           <array>
             <string>/data/com.facebook.orca/databases$</string>
-			<string>/Apps/com.facebook.orca/databases$</string>
+            <string>/Apps/com.facebook.orca/databases$</string>
           </array>
           <key>Category</key>
           <string>Facebook</string>
         </dict>
       </array>
-	</dict>
-  
-    
+    </dict>
+
+
     <dict>
       <key>Module</key>
       <string>android_qqmail</string>
@@ -1018,7 +1018,7 @@
         </dict>
       </array>
     </dict>
-    
+
     <dict>
       <key>Module</key>
       <string>android_qqbrowser</string>
@@ -1038,7 +1038,7 @@
         </dict>
       </array>
     </dict>
-    
+
     <dict>
       <key>Module</key>
       <string>android_calendar</string>
@@ -1058,7 +1058,7 @@
         </dict>
       </array>
     </dict>
-    
+
     <dict>
       <key>Module</key>
       <string>android_call</string>
@@ -1078,7 +1078,7 @@
         </dict>
       </array>
     </dict>
-    
+
     <dict>
       <key>Module</key>
       <string>android_notes</string>
@@ -1098,7 +1098,7 @@
         </dict>
       </array>
     </dict>
-    
+
     <dict>
       <key>Module</key>
       <string>android_soundrecord</string>
@@ -1158,7 +1158,7 @@
           <string>Mails</string>
         </dict>
       </array>
-    </dict>     
+    </dict>
 
     <dict>
       <key>Module</key>
@@ -1179,8 +1179,8 @@
           <string>None</string>
         </dict>
       </array>
-    </dict>       
-	
+    </dict>
+
     <dict>
       <key>Module</key>
       <string>android_sms</string>
@@ -1200,7 +1200,7 @@
           <string>Messages</string>
         </dict>
       </array>
-    </dict>  
+    </dict>
 
   </array>
 </plist>
