@@ -148,11 +148,14 @@ class baiduMapParser(object):
                         dicts = json.loads(jsonfile)
                         search_name = dicts.get("historyMainTitleKey") if dicts.get("historyMainTitleKey") else dicts.get("poiHisValue")
                         search.keyword = search_name
-                        search.create_time = dicts.get("addtimesec")
+                        if dicts.get("addtimesec"):
+                            str_time = str(dicts.get("addtimesec")).replace("-","")
+                            search.create_time = int(str_time)
                     except Exception as e:
                         pass
                 try:
-                    self.baidumap.db_insert_table_search(search)
+                    if search.keyword:
+                        self.baidumap.db_insert_table_search(search)
                 except Exception as e:
                     pass
         except Exception as e:
@@ -241,7 +244,8 @@ class baiduMapParser(object):
                     except Exception as e:
                         pass
                 try:
-                    self.baidumap.db_insert_table_address(routeaddr)
+                    if routeaddr.from_name and routeaddr.to_name:
+                        self.baidumap.db_insert_table_address(routeaddr)
                 except Exception as e:
                     pass
         except Exception as e:
