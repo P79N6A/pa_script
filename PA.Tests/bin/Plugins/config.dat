@@ -22,7 +22,25 @@
         </dict>
       </array>
     </dict>
-
+	<dict>
+      <key>Module</key>
+      <string>apple_qt</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_quicktime_meta</string>
+          <key>RunnerType</key>
+          <integer>0</integer>
+          <key>Patterns</key>
+          <array>
+            <string>/var/mobile$</string>
+          </array>
+          <key>Category</key>
+          <string>Locations</string>
+        </dict>
+      </array>
+    </dict>
     <dict>
       <key>Module</key>
       <string>apple_filesystem_log</string>
@@ -891,7 +909,7 @@
           <key>Patterns</key>
           <array>
             <string>/data/com.whatsapp$</string>
-			<string>/Apps/com.whatsapp$</string>
+	<string>/Apps/com.whatsapp$</string>
           </array>
           <key>Category</key>
           <string>WhatsApp</string>
