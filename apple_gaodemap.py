@@ -167,7 +167,7 @@ class gaodeMap(object):
                         if types.startswith("10"):
                             # parse POI_SNAPSHOT
                             user_id_poi = model_map.Search()
-							user_id_poi.account_id = str(user_id)
+                            user_id_poi.account_id = str(user_id)
                             user_id_poi.source = "高德地图"
                             user_id_poi.sourceApp = "高德地图"
                             user_id_poi.sourceFile = self.sourcefile
@@ -189,7 +189,7 @@ class gaodeMap(object):
                             # parse SEARCH_SNAPSHOT
                             user_id_search = model_map.Search()
                             user_id_search.item_type = 0
-							user_id_search.account_id = str(user_id)
+                            user_id_search.account_id = str(user_id)
                             user_id_search.source = "高德地图"
                             user_id_search.sourceApp = "高德地图"
                             user_id_search.sourceFile = self.sourcefile
@@ -225,7 +225,7 @@ class gaodeMap(object):
                             # 0 item_id  1 data 2 history_type 3 adcode 4 update_time 5 deleted 6 stale
                             if row[5] == 1:
                                 user_login_search = model_map.Search()
-								user_login_search.account_id = str(user_id)
+                                user_login_search.account_id = str(user_id)
                                 user_login_search.source = "高德地图"
                                 user_login_search.sourceApp = "高德地图"
                                 user_login_search.sourceFile = self.sourcefile
@@ -252,7 +252,7 @@ class gaodeMap(object):
                             # 11 common name 12 custom_name 13 address 14 type 15 city_name 16 deleted 17 poiid 18 data 19 poiid_parsed
                             if row[16] == 1:
                                 user_login_poi = model_map.Search()
-								user_id_poi.account_id = str(user_id)
+                                user_id_poi.account_id = str(user_id)
                                 user_login_poi.source = "高德地图"
                                 user_login_poi.sourceApp = "高德地图"
                                 user_login_poi.sourceFile = self.sourcefile
@@ -283,7 +283,7 @@ class gaodeMap(object):
                             # 0 item id  1 type 2 route name 3 update_time 4 data 5 deleted 6 stale
                             if row[5] == 1:
                                 no_login_route = model_map.Address()
-								no_login_route.account_id = str(user_id)
+                                no_login_route.account_id = str(user_id)
                                 no_login_route.source = "高德地图"
                                 no_login_route.sourceApp = "高德地图"
                                 no_login_route.sourceFile = self.sourcefile
