@@ -39,7 +39,7 @@ class TencentMap(object):
                 if canceller.IsCancellationRequested:
                     return
                 route_addr = model_map.Address()
-                route_addr.source = "腾讯地图:"
+                route_addr.source = "腾讯地图"
                 route_addr.sourceApp = "腾讯地图"
                 if rec.Deleted == DeletedState.Deleted:
                     route_addr.deleted = 1
@@ -97,7 +97,7 @@ class TencentMap(object):
                 if canceller.IsCancellationRequested:
                     return
                 search = model_map.Search()
-                search.source = "腾讯地图:"
+                search.source = "腾讯地图"
                 search.sourceApp = "腾讯地图"
                 search.sourceFile = search_node.AbsolutePath
                 if rec.Deleted == DeletedState.Deleted:
@@ -142,7 +142,7 @@ class TencentMap(object):
                 if canceller.IsCancellationRequested:
                     return
                 fav_addr = model_map.Search()
-                fav_addr.source = "腾讯地图:"
+                fav_addr.source = "腾讯地图"
                 fav_addr.sourceApp = "腾讯地图"
                 fav_addr.sourceFile = fav_node.AbsolutePath
                 fav_addr.item_type = 1

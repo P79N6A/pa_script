@@ -54,7 +54,7 @@ class baiduMapParser(object):
         分析百度地图账号信息
         """
         account = model_map.Account()
-        account.source = "百度地图:"
+        account.source = "百度地图"
         accountNode = self.root.GetByPath("Library/Preferences/com.baidu.map.plist")
         if accountNode is None:
             return 
@@ -135,7 +135,7 @@ class baiduMapParser(object):
                     search.deleted = 0
                 elif rec.Deleted == DeletedState.Deleted:
                     search.deleted = 1
-                search.source = "百度地图:"
+                search.source = "百度地图"
                 search.sourceFile = historyNode.AbsolutePath
                 if "key" in rec:
                     seach_history = rec["key"].Value
@@ -213,7 +213,7 @@ class baiduMapParser(object):
                 routeaddr = model_map.Address() 
                 if rec.Deleted == DeletedState.Deleted:
                     routeaddr.deleted = 1
-                routeaddr.source = "百度地图:"
+                routeaddr.source = "百度地图"
                 routeaddr.sourceFile = hsAddressNode.AbsolutePath
                 seach_history = rec["key"].Value
                 if "value" in rec and (not rec["value"].IsDBNull):
