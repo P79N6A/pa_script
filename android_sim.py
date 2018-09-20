@@ -21,7 +21,7 @@ import re
 
 
 def exc():
-    exc()
+    pass
     # traceback.print_exc()
 
 def analyze_sim(node, extract_deleted, extract_source):
