@@ -424,6 +424,8 @@ class Generate(object):
                 else:
                     if row[11] is not None:
                         email.Status.Value = MessageStatus.Unread if row[11] == 0 else MessageStatus.Read
+            else:
+                email.Folder.Value = '已删除'
             if row[1] is not None:
                 email.Subject.Value = row[1]
             if row[17] is not None:

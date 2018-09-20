@@ -107,7 +107,7 @@ class MailParser(object):
                 if self.node.GetByPath("/Documents/attachmentCacheFolder/") is not None:
                     self.attachNode = self.node.GetByPath("/Documents/attachmentCacheFolder/").PathWithMountPoint
                     mails.attachDir = self.attachNode + '''\\Documents\\attachmentCacheFolder\\ '''+ str(row[1]) if row[24] is not None else None
-                mails.source = 'QQ邮箱'
+                mails.source = self.node.AbsolutePath
                 self.mm.db_insert_table_mails(mails)
             self.mm.db_commit()
             self.db.close()
@@ -131,21 +131,21 @@ class MailParser(object):
                 canceller.ThrowIfCancellationRequested()
                 mails.mailId = row['mailId'].Value if 'mailId' in row and not row['mailId'].IsDBNull else None
                 mails.accountId = row['accountId'].Value if 'accountId' in row and not row['accountId'].IsDBNull else None
-                mails.subject = repr(row['subject'].Value) if 'subject' in row and not row['subject'].IsDBNull else None
-                mails.abstract = repr(row['abstract'].Value) if 'abstract' in row and not row['abstract'].IsDBNull else None
+                mails.subject = re.compile(u"[^\u4e00-\u9fa5]+").sub('', row['subject'].Value) if 'subject' in row and not row['subject'].IsDBNull else None
+                mails.abstract = re.compile(u"[^\u4e00-\u9fa5]+").sub('', row['abstract'].Value) if 'abstract' in row and not row['abstract'].IsDBNull else None
                 mails.folderId = row['folderId'].Value if 'folderId' in row and not row['folderId'].IsDBNull else None
-                mails.fromEmail = repr(row['fromEmail'].Value) if 'fromEmail' in row and not row['fromEmail'].IsDBNull else None
+                mails.fromEmail = re.compile(u"[^\u4e00-\u9fa5]+").sub('', row['fromEmail'].Value) if 'fromEmail' in row and not row['fromEmail'].IsDBNull else None
                 mails.receiveUtc = row['receivedUtc'].Value if 'receivedUtc' in row and not row['receivedUtc'].IsDBNull else None
                 mails.size = row['size'].Value if 'size' in row and not row['size'].IsDBNull else None
-                mails.tos = repr(row['tos'].Value) if 'tos' in row and not row['tos'].IsDBNull else None
-                mails.cc = repr(row['ccs'].Value) if 'ccs' in row and not row['ccs'].IsDBNull else None
-                mails.bcc = repr(row['bcc'].Value) if 'bcc' in row and not row['bcc'].IsDBNull else None
-                mails.ip = repr(row['ip'].Value) if 'ip' in row and not row['ip'].IsDBNull else None
+                mails.tos = re.compile(u"[^\u4e00-\u9fa5]+").sub('', row['tos'].Value)if 'tos' in row and not row['tos'].IsDBNull else None
+                mails.cc = re.compile(u"[^\u4e00-\u9fa5]+").sub('', row['ccs'].Value) if 'ccs' in row and not row['ccs'].IsDBNull else None
+                mails.bcc = re.compile(u"[^\u4e00-\u9fa5]+").sub('', row['bcc'].Value) if 'bcc' in row and not row['bcc'].IsDBNull else None
+                mails.ip = re.compile(u"[^\u4e00-\u9fa5]+").sub('', row['ip'].Value) if 'ip' in row and not row['ip'].IsDBNull else None
                 mails.isForward = row['isForward'].Value if 'isForward' in row and not row['isForward'].IsDBNull else None
                 mails.isRead = row['isRead'].Value if 'isRead' in row and not row['isRead'].IsDBNull else None
                 mails.isRecalled = row['isRecalled'].Value if 'isRecalled' in row and not row['isRecalled'].IsDBNull else None
                 mails.sendStatus = row['sendStatus'].Value if 'sendStatus' in row and not row['sendStatus'].IsDBNull else None
-                mails.source = 'QQ邮箱'
+                mails.source = self.node.AbsolutePath
                 mails.deleted = 1
                 self.mm.db_insert_table_mails(mails)
             self.mm.db_commit()
@@ -153,9 +153,9 @@ class MailParser(object):
             for row in self.db.ReadTableDeletedRecords(ts1, False):
                 canceller.ThrowIfCancellationRequested()
                 mails.accountId = row['id'].Value if 'id' in row and not row['id'].IsDBNull else None
-                mails.account_email = repr(row['name'].Value) if 'name' in row and not row['name'].IsDBNull else None
-                mails.alias = repr(row['alias'].Value) if 'alias' in row and not row['alias'].IsDBNull else None
-                mails.source = 'QQ邮箱'
+                mails.account_email = re.compile(u"[^\u4e00-\u9fa5]+").sub('', row['name'].Value) if 'name' in row and not row['name'].IsDBNull else None
+                mails.alias = re.compile(u"[^\u4e00-\u9fa5]+").sub('', row['alias'].Value) if 'alias' in row and not row['alias'].IsDBNull else None
+                mails.source = self.node.AbsolutePath
                 mails.deleted = 1
                 self.mm.db_insert_table_mails(mails)
             self.mm.db_commit()
@@ -163,8 +163,8 @@ class MailParser(object):
             for row in self.db.ReadTableDeletedRecords(ts2, False):
                 canceller.ThrowIfCancellationRequested()
                 mails.folderId = row['id'].Value if 'id' in row and not row['id'].IsDBNull else None
-                mails.mail_folder = repr(row['showName'].Value) if 'showName' in row and not row['showName'].IsDBNull else None
-                mails.source = 'QQ邮箱'
+                mails.mail_folder = re.compile(u"[^\u4e00-\u9fa5]+").sub('', row['showName'].Value) if 'showName' in row and not row['showName'].IsDBNull else None
+                mails.source = self.node.AbsolutePath
                 mails.deleted = 1
                 self.mm.db_insert_table_mails(mails)
             self.mm.db_commit()
@@ -172,8 +172,8 @@ class MailParser(object):
             for row in self.db.ReadTableDeletedRecords(ts3, False):
                 canceller.ThrowIfCancellationRequested()
                 mails.mailId = row['mailId'].Value if 'mailId' in row and not row['mailId'].IsDBNull else None
-                mails.content = repr(row['content'].Value) if 'content' in row and not row['content'].IsDBNull else None
-                mails.source = 'QQ邮箱'
+                mails.content = re.compile(u"[^\u4e00-\u9fa5]+").sub('', row['content'].Value) if 'content' in row and not row['content'].IsDBNull else None
+                mails.source = self.node.AbsolutePath
                 mails.deleted = 1
                 self.mm.db_insert_table_mails(mails)
             self.mm.db_commit()
@@ -185,10 +185,10 @@ class MailParser(object):
                 mails.downloadSize = row['downloadUtc'].Value if 'downloadUtc' in row and not row['downloadUtc'].IsDBNull else None
                 mails.downloadSize = row['downloadSize'].Value if 'downloadSize' in row and not row['downloadSize'].IsDBNull else None
                 mails.receiveUtc = row['mailUtc'].Value if 'mailUtc' in row and not row['mailUtc'].IsDBNull else None
-                mails.attachName = repr(row['name'].Value) if 'name' in row and not row['name'].IsDBNull else None
-                mails.exchangeField = repr(row['exchangeField'].Value) if 'exchangeField' in row and not row['exchangeField'].IsDBNull else None
-                mails.attach_object = repr(row['object'].Value) if 'object' in row and not row['object'].IsDBNull else None
-                mails.source = 'QQ邮箱'
+                mails.attachName = re.compile(u"[^\u4e00-\u9fa5]+").sub('', row['name'].Value) if 'name' in row and not row['name'].IsDBNull else None
+                mails.exchangeField = re.compile(u"[^\u4e00-\u9fa5]+").sub('', row['exchangeField'].Value) if 'exchangeField' in row and not row['exchangeField'].IsDBNull else None
+                mails.attach_object = re.compile(u"[^\u4e00-\u9fa5]+").sub('', row['object'].Value) if 'object' in row and not row['object'].IsDBNull else None
+                mails.source = self.node.AbsolutePath
                 mails.deleted = 1
                 self.mm.db_insert_table_mails(mails)
             self.mm.db_commit()
@@ -218,7 +218,7 @@ class MailParser(object):
                 accounts.loginDate = row[3]  #登陆时间
                 accounts.accountImage = row[4]  #账户头像
                 accounts.accountSign = row[5]  #账户登陆信息（密码之类的）
-                accounts.source = 'QQ邮箱'
+                accounts.source = self.node.AbsolutePath
                 self.mm.db_insert_table_account(accounts)
             self.mm.db_commit()
             self.db.close()
@@ -237,8 +237,8 @@ class MailParser(object):
             for row in self.db.ReadTableDeletedRecords(ts, False):
                 canceller.ThrowIfCancellationRequested()
                 accounts.accountId = row['id'].Value if 'id' in row and not row['id'].IsDBNull else None
-                accounts.alias = repr(row['alias'].Value) if 'alias' in row and not row['alias'].IsDBNull else None
-                accounts.accountEmail = repr(row['name'].Value) if 'name' in row and not row['name'].IsDBNull else None
+                accounts.alias = re.compile(u"[^\u4e00-\u9fa5]+").sub('', row['alias'].Value) if 'alias' in row and not row['alias'].IsDBNull else None
+                accounts.accountEmail = re.compile(u"[^\u4e00-\u9fa5]+").sub('', row['name'].Value) if 'name' in row and not row['name'].IsDBNull else None
                 accounts.loginDate = row['syncUtc'].Value if 'syncUtc' in row and not row['syncUtc'].IsDBNull else None
                 accounts.deleted = 1
                 self.mm.db_insert_table_account(accounts)
@@ -265,6 +265,7 @@ class MailParser(object):
             cursor.execute(SQL_ASSOCIATE_TABLE_CONTACT3)
             for row in cursor:
                 canceller.ThrowIfCancellationRequested()
+                contact.accountId = row[0]
                 contact.contactName = row[1]
                 contact.contactBirthday = row[2]
                 contact.contactDepartment = row[3]
@@ -276,7 +277,7 @@ class MailParser(object):
                 contact.contactNick = row[10]
                 contact.alias = row[11]
                 contact.accountEmail = row[12]
-                contact.source = 'QQ邮箱'
+                contact.source = self.node.AbsolutePath
                 self.mm.db_insert_table_contact(contact)
             self.mm.db_commit()
             self.db.close()
@@ -297,14 +298,14 @@ class MailParser(object):
             for row in self.db.ReadTableDeletedRecords(ts, False):
                 canceller.ThrowIfCancellationRequested()
                 contact.contactId = row['contactid'].Value if 'contactid' in row and not row['contactid'].IsDBNull else None
-                contact.contactName = repr(row['name'].Value) if 'name' in row and not row['name'].IsDBNull else None
-                contact.contactBirthday = repr(row['birthday'].Value) if 'birthday' in row and not row['birthday'].IsDBNull else None
-                contact.contactDepartment = repr(row['department'].Value) if 'department' in row and not row['department'].IsDBNull else None
-                contact.contactFamilyAddress = repr(row['familyAddress'].Value) if 'familyAddress' in row and not row['familyAddress'].IsDBNull else None
-                contact.contactMark = repr(row['mark'].Value) if 'mark' in row and not row['mark'].IsDBNull else None
-                contact.contactMobile = repr(row['mobile'].Value) if 'mobile' in row and not row['mobile'].IsDBNull else None
-                contact.contactTelephone = repr(row['telephone'].Value) if 'telephone' in row and not row['telephone'].IsDBNull else None
-                contact.source = 'QQ邮箱'
+                contact.contactName = re.compile(u"[^\u4e00-\u9fa5]+").sub('', row['name'].Value) if 'name' in row and not row['name'].IsDBNull else None
+                contact.contactBirthday = re.compile(u"[^\u4e00-\u9fa5]+").sub('', row['birthday'].Value) if 'birthday' in row and not row['birthday'].IsDBNull else None
+                contact.contactDepartment = re.compile(u"[^\u4e00-\u9fa5]+").sub('', row['department'].Value) if 'department' in row and not row['department'].IsDBNull else None
+                contact.contactFamilyAddress = re.compile(u"[^\u4e00-\u9fa5]+").sub('', row['familyAddress'].Value) if 'familyAddress' in row and not row['familyAddress'].IsDBNull else None
+                contact.contactMark = re.compile(u"[^\u4e00-\u9fa5]+").sub('', row['mark'].Value) if 'mark' in row and not row['mark'].IsDBNull else None
+                contact.contactMobile = row['mobile'].Value if 'mobile' in row and not row['mobile'].IsDBNull else None
+                contact.contactTelephone = row['telephone'].Value if 'telephone' in row and not row['telephone'].IsDBNull else None
+                contact.source = self.node.AbsolutePath
                 contact.deleted = 1
                 self.mm.db_insert_table_contact(contact)
             self.mm.db_commit()
@@ -312,9 +313,9 @@ class MailParser(object):
             for row in self.db.ReadTableDeletedRecords(ts1, False):
                 canceller.ThrowIfCancellationRequested()
                 contact.contactId = row['contactid'].Value if 'contactid' in row and not row['contactid'].IsDBNull else None
-                contact.contactEmail = repr(row['email'].Value) if 'email' in row and not row['email'].IsDBNull else None
-                contact.contactNick = repr(row['nick'].Value) if 'nick' in row and not row['nick'].IsDBNull else None
-                contact.source = 'QQ邮箱'
+                contact.contactEmail = re.compile(u"[^\u4e00-\u9fa5]+").sub('', row['email'].Value) if 'email' in row and not row['email'].IsDBNull else None
+                contact.contactNick = re.compile(u"[^\u4e00-\u9fa5]+").sub('', row['nick'].Value) if 'nick' in row and not row['nick'].IsDBNull else None
+                contact.source = self.node.AbsolutePath
                 contact.deleted = 1
                 self.mm.db_insert_table_contact(contact)
             self.mm.db_commit()
@@ -329,9 +330,9 @@ class MailParser(object):
             for row in self.db.ReadTableDeletedRecords(ts2, False):
                 canceller.ThrowIfCancellationRequested()
                 contact.accountId = row['id'].Value if 'id' in row and not row['id'].IsDBNull else None
-                contact.alias = repr(row['alias'].Value) if 'alias' in row and not row['alias'].IsDBNull else None
-                contact.accountEmail = repr(row['name'].Value) if 'name' in row and not row['name'].IsDBNull else None
-                contact.source = 'QQ邮箱'
+                contact.alias = re.compile(u"[^\u4e00-\u9fa5]+").sub('', row['alias'].Value) if 'alias' in row and not row['alias'].IsDBNull else None
+                contact.accountEmail = re.compile(u"[^\u4e00-\u9fa5]+").sub('', row['name'].Value) if 'name' in row and not row['name'].IsDBNull else None
+                contact.source = self.node.AbsolutePath
                 contact.deleted = 1
                 self.mm.db_insert_table_contact(contact)
             self.mm.db_commit()
@@ -357,7 +358,7 @@ class MailParser(object):
                 mailFolder.folderName = row[2]  #邮箱分类名
                 mailFolder.accountNick = row[3]  #邮箱分类所属账户昵称
                 mailFolder.accountEmail = row[4]  #邮箱分类所属账户邮箱
-                mailFolder.source = 'QQ邮箱'
+                mailFolder.source = self.node.AbsolutePath
                 self.mm.db_insert_table_mail_folder(mailFolder)
             self.mm.db_commit()
             self.db.close()
@@ -392,7 +393,7 @@ class MailParser(object):
                 attach.exchangeField = row[11]  #附件路径
                 attach.attachType = row[12]  #附件类型
                 attach.emailFolder = row[13]  #邮件类型
-                attach.source = 'QQ邮箱'
+                attach.source = self.node.AbsolutePath
                 self.mm.db_insert_table_attach(attach)
             self.mm.db_commit()
             self.db.close()
@@ -437,7 +438,7 @@ class MailParser(object):
 def analyze_qqmail(node, extractDeleted, extractSource):
     pr = ParserResults()
     pr.Models.AddRange(MailParser(node, extractDeleted, extractSource).parse())
-    pr.Build('QQ邮箱')
+    pr.Build('QQMail')
     return pr
 
 def execute(node, extractDeleted):
