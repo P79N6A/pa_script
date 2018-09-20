@@ -205,6 +205,7 @@ class gaodeMap(object):
                         elif types.startswith("30"):
                             # parse ROUTE_HISTORY_V2_SNAPSHOT
                             user_id_route = model_map.Address()
+                            user_id_route.account_id = str(user_id)
                             user_id_route.source = "高德地图"
                             user_id_route.sourceApp = "高德地图"
                             user_id_route.sourceFile = self.sourcefile

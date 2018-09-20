@@ -194,8 +194,7 @@ class gaodeMap(object):
 						user_id_search.account_id = str(user_id)
                         user_id_search.source = "高德地图"
                         user_id_search.sourceApp = "高德地图"
-                        user_id_search.sourceFile = self.sourcefile
-                        user_id_search.account_id = user_id
+                        user_id_search.sourceFile = self.sourcefile=
                         user_id_search.create_time = rec[4]
                         if rec[2]:
                             user_id_search = self.parse_search_json(user_id_search, rec[2])
@@ -211,7 +210,6 @@ class gaodeMap(object):
                         user_id_route.source = "高德地图"
                         user_id_route.sourceApp = "高德地图"
                         user_id_route.sourceFile = self.sourcefile
-                        user_id_route.account_id = user_id
                         user_id_route.create_time = rec[4]
                         if rec[2]:
                             user_id_route = self.parse_route_json(user_id_route, rec[2])
