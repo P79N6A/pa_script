@@ -237,7 +237,7 @@ class LocationsParser(object):
 
             result = Location()
             result.Deleted = record.Deleted
-            result.Category.Value = 'Harvested Wifi Locations'
+            result.Category.Value = 'Wifi探测'
 
             wn = WirelessNetwork()
             wn.Deleted = result.Deleted
@@ -387,7 +387,7 @@ class LocationsParser(object):
 
             result = Location()
             result.Deleted = record.Deleted
-            result.Category.Value = "Application Locations"
+            result.Category.Value = "应用探测"
             self.get_timestamp_from_record(record, result.TimeStamp)
             SQLiteParser.Tools.ReadColumnToField(record, 'BundleId', result.Description, self.extract_source)
             self.get_coordinate_and_data_from_record(record, result)
