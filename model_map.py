@@ -3,10 +3,12 @@ from PA_runtime import *
 import clr
 clr.AddReference('System.Core')
 clr.AddReference('System.Xml.Linq')
+clr.AddReference('System.Data.SQLite')
 del clr
 
 import pickle
 from System.Xml.Linq import *
+import System.Data.SQLite as SQLite
 
 import os
 import sqlite3
@@ -99,46 +101,68 @@ class Map(object):
     
     def __init__(self):
         self.db = None
-        self.cursor = None
+        self.db_command = None
+        self.db_trans = None
 
     def db_create(self, db_path):
         if os.path.exists(db_path):
-            os.remove(db_path)
-
-        self.db = sqlite3.connect(db_path)
-        self.cursor = self.db.cursor()
+            try:
+                os.remove(db_path)
+            except Exception as e:
+                print("{0} remove failed!".format(db_path))
+        
+        self.db = SQLite.SQLiteConnection("Data Source = {0}".format(db_path))
+        self.db.Open()
+        self.db_command = SQLite.SQLiteCommand(self.db)
+        self.db_trans = self.db.BeginTransaction()
 
         self.db_create_table()
+        self.db_commit()
 
     def db_close(self):
-        if self.cursor is not None:
-            self.cursor.close()
-            self.cursor = None
+        self.db_trans = None
+        if self.db_command is not None:
+            self.db_command.Dispose()
+            self.db_command = None
         if self.db is not None:
-            self.db.close()
+            self.db.Close()
             self.db = None
 
     def db_commit(self):
-        if self.db is not None:
-            self.db.commit()
+        if self.db_trans is not None:
+            try:
+                self.db_trans.Commit()
+            except Exception as e:
+                self.db_trans.RollBack()
+        self.db_trans = self.db.BeginTransaction()
 
     def db_create_table(self):
-        if self.cursor is not None:
-            self.cursor.execute(SQL_CREATE_TABLE_ACCOUNT)
-            self.cursor.execute(SQL_CREATE_TABLE_ADDRESS)
-            self.cursor.execute(SQL_CREATE_TABLE_SEARCH)
+        if self.db_command is not None:
+            self.db_command.CommandText = SQL_CREATE_TABLE_ACCOUNT
+            self.db_command.ExecuteNonQuery()
+            self.db_command.CommandText = SQL_CREATE_TABLE_ADDRESS
+            self.db_command.ExecuteNonQuery()
+            self.db_command.CommandText = SQL_CREATE_TABLE_SEARCH
+            self.db_command.ExecuteNonQuery()
+
+    def db_insert_table(self, sql, values):
+        if self.db_command is not None:
+            self.db_command.CommandText = sql
+            self.db_command.Parameters.Clear()
+            for value in values:
+                param = self.db_command.CreateParameter()
+                param.Value = value
+                self.db_command.Parameters.Add(param)
+            self.db_command.ExecuteNonQuery()
 
     def db_insert_table_account(self, column):
-        if self.cursor is not None:
-            self.cursor.execute(SQL_INSERT_TABLE_ACCOUNT, column.get_values())
+        self.db_insert_table(SQL_INSERT_TABLE_ACCOUNT, column.get_values())
 
     def db_insert_table_address(self, column):
-        if self.cursor is not None:
-            self.cursor.execute(SQL_INSERT_TABLE_ADDRESS, column.get_values())
+        self.db_insert_table(SQL_INSERT_TABLE_ADDRESS, column.get_values())
 
     def db_insert_table_search(self, column):
-        if self.cursor is not None:
-            self.cursor.execute(SQL_INSERT_TABLE_SEARCH, column.get_values())
+        self.db_insert_table(SQL_INSERT_TABLE_SEARCH, column.get_values())
 
 
 
@@ -150,6 +174,14 @@ class Column(object):
         self.sourceFile = ""
         self.deleted = 0
         self.repeated = 0
+
+    def __setattr__(self, name, value):
+        if not IsDBNull(value):
+            if isinstance(value, str):
+                # 过滤控制字符, 防止断言失败
+                value = re.compile('[\\x00-\\x08\\x0b-\\x0c\\x0e-\\x1f]').sub(' ', value)               
+            self.__dict__[name] = value
+
 
     def get_values(self):
         return self.source, self.sourceApp, self.sourceFile, self.deleted, self.repeated
@@ -216,7 +248,7 @@ class Search(Column):
         self.district = None        # 地区
         self.pos_x = None           # 搜索经度
         self.pos_y = None           # 搜索纬度
-        self.item_type = None       # 搜索类别[0.搜索 2.收藏]
+        self.item_type = 0       # 搜索类别[0.搜索 2.收藏]
 
     def get_values(self):
         return (self.account_id, self.keyword, self.create_time, self.delete_time, self.adcode, self.address, self.district, self.pos_x, self.pos_y, self.item_type) + super(Search, self).get_values()
@@ -462,9 +494,11 @@ class Genetate(object):
             if row[2]:
                 searchitem.TimeStamp.Value = self._get_timestamp(row[2])
             searchitem.Value.Value = row[1]
-            searchitem.PositionAddress.Value = row[5]
+            if row[5]:
+                searchitem.PositionAddress.Value = row[5]
             coo = Coordinate()
-            coo.PositionAddress.Value = row[6]
+            if row[6]:
+                coo.PositionAddress.Value = row[6]
             if row[7]:
                 coo.Longitude.Value = row[7]
             if row[8]:
@@ -492,5 +526,7 @@ class Genetate(object):
         return ts
              
     def _get_source_file(self, source_file):
-        return  source_file.replace('/', '\\')
+        if source_file:
+            return source_file.replace('/', '\\')
+        
 

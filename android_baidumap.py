@@ -1,4 +1,4 @@
-#coding=utf-8
+# -*- coding: utf-8 -*-
 import PA_runtime
 import json
 from PA_runtime import *
@@ -12,7 +12,6 @@ except:
 del clr
 import model_map
 
-APPVERSION = "1.0"
 
 class BaiduMap(object):
 
@@ -91,7 +90,7 @@ class BaiduMap(object):
                 if "value" in rec and (not rec["value"].IsDBNull):
                     tmp = rec["value"].Value
                     b = bytes(tmp)
-                    json_data = json.loads(b.decode("utf-16"))
+                    json_data = json.loads(b.decode("utf-16", errors='ignore'))
                     search_history.keyword = json_data["Fav_Content"]
                     if "Fav_Extra" in json_data and (json["Fav_Extra"] is not None):
                         search_history.district = json["Fav_Extra"]
@@ -131,11 +130,20 @@ class BaiduMap(object):
                     addr.sourceApp = "百度地图"
                     addr.sourceFile = route_node.AbsolutePath
                     if "value" in rec and (not rec["value"].IsDBNull):
+                        data = None
                         tmp = rec["value"].Value
                         try:
                             b = bytes(tmp)
-                            a =  b.decode("utf-8")
-                            data = json.loads(r'{0}'.format(a))
+                            jsonfile = b.decode("utf-8",errors='ignore')
+                            # data = json.loads(jsonfile)
+                        except Exception as e:
+                            pass
+                        try:
+                            data = json.dumps(jsonfile)
+                        except Exception as e:
+                            continue
+                        
+                        if "Fav_Content" in data:
                             strings = data.get("Fav_Content")
                             content = json.loads(strings)
                             if "Fav_Sync" in data:
@@ -154,32 +162,25 @@ class BaiduMap(object):
                                     addr.from_posX = content["efavnode"]["geoptx"]
                                 if "geopty" in content["efavnode"]:
                                     addr.from_posY = content["efavnode"]["geopty"]                  
-                        except Exception as e:
-                            print(e)
                     try:
-                        self.baidudb.db_insert_table_address(addr)
+                        if addr.from_name or addr.from_posX or addr.from_posY or addr.from_addr:
+                            self.baidudb.db_insert_table_address(addr)
                     except Exception as e:
-                        pass           
+                        print(e)           
         except Exception as e:
             print(e)
         self.baidudb.db_commit()
 
 
-    def check_to_update(self, path_db, appversion):
-        if os.path.exists(path_db) and path_db[-6:-3] == appversion:
-            return False
-        else:
-            return True
 
     def parse(self):
         
-        db_path = self.cache + "/baidu_db_1.0.db"
-        if self.check_to_update(db_path, APPVERSION):
-            self.baidudb.db_create(db_path)
-            self.parse_favorites_poi()
-            self.parse_search()
-            self.parse_route()
-            self.baidudb.db_close()
+        db_path = self.cache + "/baidu_db.db"
+        self.baidudb.db_create(db_path)
+        self.parse_favorites_poi()
+        self.parse_search()
+        self.parse_route()
+        self.baidudb.db_close()
         
         generate = model_map.Genetate(db_path)   
         tmpresult = generate.get_models()

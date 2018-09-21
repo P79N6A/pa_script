@@ -10,7 +10,6 @@ except:
     pass
 del clr
 import model_map
-APPVERSION = "1.0"
 
 class SogouMap(object):
 
@@ -130,15 +129,15 @@ class SogouMap(object):
                 if "ZUSERID" in rec and (not rec["ZUSERID"].IsDBNull) and rec["ZTYPE"].Value == 105:
                     search.account_id = rec["ZUSERID"].Value
                     search.source = "搜狗地图"
-                if "ZATTRIBUTES" in rec and (not rec["ZATTRIBUTES"].IsDBNull):
-                    b = bytes(rec["ZATTRIBUTES"].Value)
-                    try:
-                        jsonfile = b.decode("utf-8")
-                        ztime =  json.loads(jsonfile)
-                    except Exception as e:
-                        pass
-                    if ztime and "localVerAtt" in ztime:
-                        search.create_time = int(ztime["localVerAtt"][0:10])
+                # if "ZATTRIBUTES" in rec and (not rec["ZATTRIBUTES"].IsDBNull):
+                #     b = bytes(rec["ZATTRIBUTES"].Value)
+                #     try:
+                #         jsonfile = b.decode("utf-8")
+                #         ztime =  json.loads(jsonfile)
+                #     except Exception as e:
+                #         pass
+                #     if "localVerAtt" in ztime:
+                #         search.create_time = int(ztime["localVerAtt"][0:10])
                 try:
                     self.sogoudb.db_insert_table_search(search)
                 except Exception as e:
@@ -189,23 +188,23 @@ class SogouMap(object):
             pass
         return values
 
-    def check_to_update(self, path_db, appversion):
-        if os.path.exists(path_db) and path_db[-6:-3] == appversion:
-            return False
-        else:
-            return True
+    # def check_to_update(self, path_db, appversion):
+    #     if os.path.exists(path_db) and path_db[-6:-3] == appversion:
+    #         return False
+    #     else:
+    #         return True
 
 
     def parse(self):
         
         db_path = self.db_cache + "/sogou_db_1.0.db"
-        if self.check_to_update(db_path, APPVERSION):
-            self.sogoudb.db_create(db_path)
-            self.parse_history_data()
-            self.parse_user_data()
-            self.parse_favorites_data()
-            self.parse_route_data()
-            self.sogoudb.db_close()
+        # if self.check_to_update(db_path, APPVERSION):
+        self.sogoudb.db_create(db_path)
+        self.parse_history_data()
+        self.parse_user_data()
+        self.parse_favorites_data()
+        self.parse_route_data()
+        self.sogoudb.db_close()
 
         generate = model_map.Genetate(db_path)   
         tmpresult = generate.get_models()

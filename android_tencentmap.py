@@ -11,7 +11,6 @@ except:
 del clr
 import model_map
 
-APPVERSION = "1.0"
 
 class TencentMap(object):
 
@@ -46,8 +45,9 @@ class TencentMap(object):
                 route_addr.sourceFile = self.root.AbsolutePath
                 if "_lasted_used" in rec:
                     tmp = rec["_lasted_used"].Value
-                    tmpb = str(tmp)[:10]    #转成unix时间
-                    route_addr.create_time = int(tmpb)
+                    if len(str(tmp)) >= 10:
+                        tmpb = str(tmp).strip()[:10]    #转成unix时间
+                        route_addr.create_time = int(tmpb)
                 if (not rec["from_data"].IsDBNull) and (not rec["end_data"].IsDBNull):
                     try:
                         from_data = json.loads(rec["from_data"].Value)
@@ -179,13 +179,12 @@ class TencentMap(object):
             return True
 
     def parse(self):
-        db_path = self.cache + "/tencent_db_1.0.db"
-        if self.check_to_update(db_path, APPVERSION):
-            self.tencentdb.db_create(db_path)
-            self.parse_route()
-            self.parse_search()
-            self.parse_fav_addr()
-            self.tencentdb.db_close()
+        db_path = self.cache + "/tencent_db.db"
+        self.tencentdb.db_create(db_path)
+        self.parse_route()
+        self.parse_search()
+        self.parse_fav_addr()
+        self.tencentdb.db_close()
         
         generate = model_map.Genetate(db_path)   
         tmpresult = generate.get_models()
