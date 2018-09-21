@@ -76,7 +76,7 @@
             <string>/CrashReporter/WiFi/WiFiManager$</string>
           </array>
           <key>Category</key>
-          <string>wifilog</string>
+          <string>Wifi</string>
         </dict>
       </array>
     </dict>

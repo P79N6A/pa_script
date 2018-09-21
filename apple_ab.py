@@ -371,7 +371,7 @@ def analyze_addressbook(node, extractDeleted, extractSource):
         pr.Models.AddRange(results)
     except Exception,ex:
         traceback.print_exc()
-        message = ex.message
+        TraceService.TraceException(ex)
     prog.Report(100,message)
     pr.Build('通讯录')
     return pr

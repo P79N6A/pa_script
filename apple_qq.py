@@ -82,6 +82,8 @@ class QQParser(object):
                     self.decode_recover_fts_messages(acc_id)					
                 except:
                     pass
+            if canceller.IsCancellationRequested:
+                return
             self.im.db_insert_table_version(VERSION_KEY_DB, VERSION_VALUE_DB)
             self.im.db_insert_table_version(VERSION_KEY_APP, self.VERSION_APP_VALUE)
             self.im.db_commit()
