@@ -82,7 +82,7 @@ class QQMailParser(object):
 
     def decode_recover_mail_table(self):
         mailsNode = self.node
-        self.db = SQLiteParser.Database.FromNode(mailsNode)
+        self.db = SQLiteParser.Database.FromNode(mailsNode, canceller)
         if self.db is None:
             return
         ts1 = SQLiteParser.TableSignature('QM_MAIL_INFO')
@@ -143,7 +143,7 @@ class QQMailParser(object):
         except Exception as e:
             logging.error(e)
         accountNode = self.node.Parent.GetByPath('/AccountInfo')
-        self.db = SQLiteParser.Database.FromNode(accountNode)
+        self.db = SQLiteParser.Database.FromNode(accountNode, canceller)
         if self.db is None:
             return
         ts = SQLiteParser.TableSignature('AccountInfo')
@@ -204,7 +204,7 @@ class QQMailParser(object):
 
     def decode_recover_mail_contact(self):
         mailsNode = self.node
-        self.db = SQLiteParser.Database.FromNode(mailsNode)
+        self.db = SQLiteParser.Database.FromNode(mailsNode, canceller)
         if self.db is None:
             return
         ts = SQLiteParser.TableSignature('QM_CONTACT')
@@ -222,7 +222,7 @@ class QQMailParser(object):
         except Exception as e:
             logging.error(e)
         accountNode = self.node.Parent.GetByPath('/AccountInfo')
-        self.db = SQLiteParser.Database.FromNode(accountNode)
+        self.db = SQLiteParser.Database.FromNode(accountNode, canceller)
         if self.db is None:
             return
         ts = SQLiteParser.TableSignature('AccountInfo')

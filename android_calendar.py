@@ -49,7 +49,7 @@ class CalendarParser(object):
             print(e)
 
     def decode_recover_calendar_table(self):
-        self.db = SQLiteParser.Database.FromNode(self.node)
+        self.db = SQLiteParser.Database.FromNode(self.node, canceller)
         if self.db is None:
             return
         ts = SQLiteParser.TableSignature('Events')

@@ -6,6 +6,7 @@ import os
 import re
 import time
 import clr
+import traceback
 try:
     clr.AddReference('model_map')
 except:
@@ -13,7 +14,6 @@ except:
 del clr
 import model_map
 
-APPVERSION = "1.0"
 
 class SogouMap(object):
     
@@ -26,7 +26,7 @@ class SogouMap(object):
 
     def parse_search(self):
         try:
-            db = SQLiteParser.Database.FromNode(self.root)
+            db = SQLiteParser.Database.FromNode(self.root, canceller)
             if db is None:
                 return
             tbs = SQLiteParser.TableSignature("history_result_table")
@@ -42,30 +42,36 @@ class SogouMap(object):
                 try:
                     if "tm" in rec:
                         date = rec["tm"].Value
-                        strtime = time.strptime(date, "%Y-%m-%d %H:%M:%S")
-                        unixtime = time.mktime(strtime)
-                        search.create_time = unixtime
-
-                    if rec["type"].Value == 7:
-                        moreinfo = rec["logicId"].Value
-                        name, types, id, addr = re.split(",", moreinfo)
-                        if rec.Deleted == DeletedState.Deleted:
-                            search.deleted = 1
-                        search.keyword = name
-                        search.address = addr
-                    elif rec["type"].Value == 101 or rec["type"].Value == 5:
-                        data = rec["logicId"].Value
-                        index = self.check_digit_index(data)
-                        if index is None:
+                        try:
+                            strtime = time.strptime(date, "%Y-%m-%d %H:%M:%S")
+                            unixtime = time.mktime(strtime)
+                            search.create_time = unixtime
+                        except Exception as e:
                             pass
-                        else:
-                            search.keyword = data[:index]
-                            xhx_index =  self.trans_to_langlat(data)
-                            if xhx_index != -1:
-                                lang = data[index:xhx_index]
-                                lat = data[(xhx_index+1):]
-                                search.pos_x = float(lang)
-                                search.pos_y = lat
+                        # search.create_time = unixtime
+
+                    if "type" in rec and rec["type"].Value == 7:
+                        if "logicID" in rec:
+                            moreinfo = rec["logicId"].Value
+                            name, types, id, addr = re.split(",", moreinfo)[:3]
+                            if rec.Deleted == DeletedState.Deleted:
+                                search.deleted = 1
+                            search.keyword = name
+                            search.address = addr
+                    elif "type" in rec and rec["type"].Value == 101 or rec["type"].Value == 5:
+                        if "logicId" in rec:
+                            data = rec["logicId"].Value
+                            index = self.check_digit_index(data)
+                            if index is None:
+                                continue
+                            else:
+                                search.keyword = data[:index]
+                                xhx_index =  self.trans_to_langlat(data)
+                                if xhx_index != -1:
+                                    lang = data[index:xhx_index]
+                                    lat = data[(xhx_index+1):]
+                                    search.pos_x = float(lang)
+                                    search.pos_y = lat
                     try:
                         self.sogoudb.db_insert_table_search(search)
                     except Exception as e:
@@ -87,18 +93,17 @@ class SogouMap(object):
     def trans_to_langlat(self, strings):
         return strings.find("_")
 
-    def check_to_update(self, path_db, appversion):
-        if os.path.exists(path_db) and path_db[-6:-3] == appversion:
-            return False
-        else:
-            return True  
+    # def check_to_update(self, path_db, appversion):
+    #     if os.path.exists(path_db) and path_db[-6:-3] == appversion:
+    #         return False
+    #     else:
+    #         return True  
 
     def parse(self):
-        db_path = self.cache + "/sogou_db_1.0.db"
-        if self.check_to_update(db_path, APPVERSION):
-            self.sogoudb.db_create(db_path)
-            self.parse_search()
-            self.sogoudb.db_close()
+        db_path = self.cache + "/sogou_db.db"
+        self.sogoudb.db_create(db_path)
+        self.parse_search()
+        self.sogoudb.db_close()
         
         generate = model_map.Genetate(db_path)
         tmpresult = generate.get_models()

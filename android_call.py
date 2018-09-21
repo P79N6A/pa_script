@@ -30,10 +30,10 @@ class CallsParse(object):
     def analyze_call_records(self):
         try:
             node = self.node.Parent.GetByPath('/calls.db')
-            self.db = SQLiteParser.Database.FromNode(node)
+            self.db = SQLiteParser.Database.FromNode(node, canceller)
             if self.db is None:
                 node = self.node
-                self.db = SQLiteParser.Database.FromNode(node)
+                self.db = SQLiteParser.Database.FromNode(node, canceller)
                 if self.db is None:
                     raise Exception('解析通话记录出错：无法读取通话记录数据库')
             ts = SQLiteParser.TableSignature('calls')

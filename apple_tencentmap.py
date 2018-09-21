@@ -12,7 +12,7 @@ del clr
 import model_map
 
 # 想重新分析并生成数据库 在这里修改一下版本号
-APPVERSION = "1.0"
+# APPVERSION = "1.0"
 
 class TencentMap(object):
 
@@ -72,7 +72,6 @@ class TencentMap(object):
         search = model_map.Search()
         search.source = "腾讯地图"
         search.sourceFile = search_node.AbsolutePath
-        search.item_type = 0
         values = self.get_dict_from_search(bp, dictvalue)
         if "name" in values:
             search.keyword = values.get("name").Value
@@ -280,29 +279,26 @@ class TencentMap(object):
                 return
             if uid is None:
                 break
-            self.decode_route(bplist["$objects"], uid.Value)
+            self.decode_route(bplist["$objects"], uid.Value, route_node)
         self.tencentMap.db_commit() 
 
-    def check_to_update(self, path_db, appversion):
-        if os.path.exists(path_db) and path_db[-6:-3] == appversion:
-            return False
-        else:
-            return True
+    # def check_to_update(self, path_db, appversion):
+    #     if os.path.exists(path_db) and path_db[-6:-3] == appversion:
+    #         return False
+    #     else:
+    #         return True
             
     def parse(self):
         db_path = self.db_cache + "/tencent_db_1.0.db"
-
-        if self.check_to_update(db_path, APPVERSION):
-            db_path = self.db_cache + "/tencent_db_1.0.db"
-            self.tencentMap.db_create(db_path)
-            self.get_account_info() 
-            self.get_favorites_address()    # 得到收藏夹地址
-            self.get_search_data()          # 得到搜索记录
-            self.get_home_company()         # 得到公司和家地址
-            self.get_route_by_bus()         # 得到导航记录通过公交
-            self.get_route_by_car()         # 得到导航记录通过汽车
-            self.get_route_by_walk()        # 得到导航记录通过步行
-            self.tencentMap.db_close()
+        self.tencentMap.db_create(db_path)
+        self.get_account_info() 
+        self.get_favorites_address()    # 得到收藏夹地址
+        self.get_search_data()          # 得到搜索记录
+        self.get_home_company()         # 得到公司和家地址
+        self.get_route_by_bus()         # 得到导航记录通过公交
+        self.get_route_by_car()         # 得到导航记录通过汽车
+        self.get_route_by_walk()        # 得到导航记录通过步行
+        self.tencentMap.db_close()
         generate = model_map.Genetate(db_path)   
         tmpresult = generate.get_models()
         return tmpresult

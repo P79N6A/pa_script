@@ -15,7 +15,7 @@ except:
 del clr
 import model_map
 
-APPVERSION = "2.0"
+# APPVERSION = "2.0"
 
 class baiduMapParser(object):
 
@@ -29,11 +29,11 @@ class baiduMapParser(object):
     def parse(self):
 
         path = self.cache + "/baidu_db_1.0.db"
-        if self.check_to_update(path, APPVERSION):
-            self.baidumap.db_create(path)
-            self.account_info()
-            self.analyze_search_history()
-            self.my_history_address()
+        # if self.check_to_update(path, APPVERSION):
+        self.baidumap.db_create(path)
+        self.account_info()
+        self.analyze_search_history()
+        self.my_history_address()
 
         result = model_map.Genetate(path)
         tmpresult = result.get_models()
@@ -43,11 +43,11 @@ class baiduMapParser(object):
         return tmpresult
 
 
-    def check_to_update(self, path_db, appversion):
-        if os.path.exists(path_db) and path_db[-6:-3] == appversion:
-            return False
-        else:
-            return True
+    # def check_to_update(self, path_db, appversion):
+    #     if os.path.exists(path_db) and path_db[-6:-3] == appversion:
+    #         return False
+    #     else:
+    #         return True
 
     def account_info(self):
         """
@@ -120,7 +120,7 @@ class baiduMapParser(object):
         dicts = defaultdict(lambda: 'None')
         historyNode = self.root.GetByPath("Documents/his_record.sdb")
         try:
-            db = SQLiteParser.Database.FromNode(historyNode)
+            db = SQLiteParser.Database.FromNode(historyNode, canceller)
             if db is None:
                 return []
             tb = SQLiteParser.TableSignature('his_record')
@@ -203,7 +203,7 @@ class baiduMapParser(object):
         """      
         hsAddressNode = self.root.GetByPath("Documents/routeHis_record.sdb")
         try:
-            db = SQLiteParser.Database.FromNode(hsAddressNode)
+            db = SQLiteParser.Database.FromNode(hsAddressNode, canceller)
             if db is None:
                 return 
             tb = SQLiteParser.TableSignature('routeHis_record')
