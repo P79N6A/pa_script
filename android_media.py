@@ -4,7 +4,7 @@ import PA_runtime
 import sqlite3
 from PA_runtime import *
 import threading
-import logging, traceback
+import traceback
 SafeLoadAssembly('model_media')
 from model_media import *
 

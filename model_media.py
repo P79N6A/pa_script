@@ -242,7 +242,7 @@ class Generate(object):
                     media.SourceFile.Value = self._get_source_file(str(row[19]))
                 model.append(media)
         except:
-                traceback.print_exc()
+                pass
         return model
 
     def _get_model_thumbnail(self):
@@ -267,7 +267,7 @@ class Generate(object):
                 if row[6] is not None and row[6] is not '':
                     thumbnail.SourceFile.Value = self._get_source_file(str(row[6]))
         except:
-                traceback.print_exc()
+                pass
         return model
 
     def _get_source_file(self, source_file):
