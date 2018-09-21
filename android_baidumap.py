@@ -26,7 +26,7 @@ class BaiduMap(object):
         if self.root is None:
             return
         try:
-            db = SQLiteParser.Database.FromNode(self.root)
+            db = SQLiteParser.Database.FromNode(self.root, canceller)
             if db is None:
                 return
             tbs = SQLiteParser.TableSignature("fav_poi_main")
@@ -71,7 +71,7 @@ class BaiduMap(object):
         if search_node is None:
             return
         try:
-            db = SQLiteParser.Database.FromNode(search_node)
+            db = SQLiteParser.Database.FromNode(search_node, canceller)
             if db is None:
                 return 
             tbs = SQLiteParser.TableSignature("poi_his")
@@ -112,7 +112,7 @@ class BaiduMap(object):
         if route_node is None:
             return
         try:
-            db = SQLiteParser.Database.FromNode(route_node)
+            db = SQLiteParser.Database.FromNode(route_node, canceller)
             if db is None:
                 return
             tbs = SQLiteParser.TableSignature("route_his")

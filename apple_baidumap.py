@@ -120,7 +120,7 @@ class baiduMapParser(object):
         dicts = defaultdict(lambda: 'None')
         historyNode = self.root.GetByPath("Documents/his_record.sdb")
         try:
-            db = SQLiteParser.Database.FromNode(historyNode)
+            db = SQLiteParser.Database.FromNode(historyNode, canceller)
             if db is None:
                 return []
             tb = SQLiteParser.TableSignature('his_record')
@@ -203,7 +203,7 @@ class baiduMapParser(object):
         """      
         hsAddressNode = self.root.GetByPath("Documents/routeHis_record.sdb")
         try:
-            db = SQLiteParser.Database.FromNode(hsAddressNode)
+            db = SQLiteParser.Database.FromNode(hsAddressNode, canceller)
             if db is None:
                 return 
             tb = SQLiteParser.TableSignature('routeHis_record')

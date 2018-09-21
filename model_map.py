@@ -315,6 +315,8 @@ class Genetate(object):
             print(e)
        
         while row is not None:
+            if canceller.IsCancellationRequested:
+                return
             user = Common.User()
             user.Source.Value = row[18]
             user.SourceApp.Value = row[19]
@@ -405,6 +407,8 @@ class Genetate(object):
             print(e)
 
         while row is not None:
+            if canceller.IsCancellationRequested:
+                return
             journey = Journey()
             journey.Source.Value = row[12]
             journey.SourceApp.Value = row[13]
@@ -487,6 +491,8 @@ class Genetate(object):
             print(e)
 
         while row is not None:
+            if canceller.IsCancellationRequested:
+                return
             searchitem = SearchedItem()
             searchitem.Source.Value = row[10]
             searchitem.SourceApp.Value = row[11]

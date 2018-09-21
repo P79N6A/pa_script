@@ -26,7 +26,7 @@ class SogouMap(object):
 
     def parse_search(self):
         try:
-            db = SQLiteParser.Database.FromNode(self.root)
+            db = SQLiteParser.Database.FromNode(self.root, canceller)
             if db is None:
                 return
             tbs = SQLiteParser.TableSignature("history_result_table")

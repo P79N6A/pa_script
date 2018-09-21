@@ -26,7 +26,7 @@ class TencentMap(object):
         导航记录
         """
         try:
-            db = SQLiteParser.Database.FromNode(self.root)
+            db = SQLiteParser.Database.FromNode(self.root, canceller)
             if db is None:
                 return
             tbs = SQLiteParser.TableSignature("route_search_history_tab")
@@ -87,7 +87,7 @@ class TencentMap(object):
         """
         search_node = self.root.Parent.GetByPath("poi_search_history.db")
         try:
-            db = SQLiteParser.Database.FromNode(search_node)
+            db = SQLiteParser.Database.FromNode(search_node, canceller)
             if db is None:
                 return
             tbs = SQLiteParser.TableSignature("t_poi_search_history")
@@ -132,7 +132,7 @@ class TencentMap(object):
     def parse_fav_addr(self):
         fav_node = self.root.Parent.GetByPath("favorite_new.db")
         try:
-            db = SQLiteParser.Database.FromNode(fav_node)
+            db = SQLiteParser.Database.FromNode(fav_node, canceller)
             if db is None:
                 return
             tbs = SQLiteParser.TableSignature("favorite_poi_info")

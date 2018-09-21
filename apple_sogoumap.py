@@ -26,7 +26,7 @@ class SogouMap(object):
         if history_node is None:
             return
         try:
-            mapdb = SQLiteParser.Database.FromNode(history_node)
+            mapdb = SQLiteParser.Database.FromNode(history_node, canceller)
             if mapdb is None:
                 print("Documents/MapData.data is not exists!")
                 return 
@@ -69,7 +69,7 @@ class SogouMap(object):
         if user_node is None:
             return
         try:
-            mapdb = SQLiteParser.Database.FromNode(user_node)
+            mapdb = SQLiteParser.Database.FromNode(user_node, canceller)
             if mapdb is None:
                 print("Documents/MapData.data is not exists!")
                 return
@@ -107,7 +107,7 @@ class SogouMap(object):
         if addr_node is None:
             return
         try:
-            mapdb = SQLiteParser.Database.FromNode(addr_node)
+            mapdb = SQLiteParser.Database.FromNode(addr_node, canceller)
             if mapdb is None:
                 return
             tbs = SQLiteParser.TableSignature("ZSGMFAVORITEENTITY")
