@@ -619,7 +619,7 @@ class WhatsApp(object):
         if fg_node is None:
             return
         try:
-            db = SQLiteParser.Database.FromNode(fg_node)
+            db = SQLiteParser.Database.FromNode(fg_node, canceller)
             if db is None:
                 return
             tbs = SQLiteParser.TableSignature("chat_list")
@@ -638,7 +638,7 @@ class WhatsApp(object):
         friends, groups = self.get_recover_friends_groups_id() 
         if contacts_node is None:
             return
-        db = SQLiteParser.Database.FromNode(contacts_node)
+        db = SQLiteParser.Database.FromNode(contacts_node, canceller)
         if db is not None:
             try:
                 if "wa_contacts" not in db.Tables:
@@ -684,7 +684,7 @@ class WhatsApp(object):
         if message_node is None:
             return
         try:
-            db = SQLiteParser.Database.FromNode(message_node)
+            db = SQLiteParser.Database.FromNode(message_node, canceller)
             if db is None:
                 return
             tbs = SQLiteParser.TableSignature("messages")

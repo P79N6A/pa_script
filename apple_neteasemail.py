@@ -67,7 +67,7 @@ class NeteaseMailParser(object):
         """ 
             邮件内容 
         """
-        imail_db = SQLiteParser.Database.FromNode(node)
+        imail_db = SQLiteParser.Database.FromNode(node,canceller)
         if imail_db is None:
             return
         self.source_imail_db = node.AbsolutePath
@@ -239,7 +239,7 @@ class NeteaseMailParser(object):
             联系人 
         """
         try:
-            todo_db = SQLiteParser.Database.FromNode(node)
+            todo_db = SQLiteParser.Database.FromNode(node,canceller)
             if todo_db is None:
                 return
             for rec in self.my_read_table(db=todo_db, table_name='recentcontact'):
@@ -283,7 +283,7 @@ class NeteaseMailParser(object):
             待办事项 
         """
         try:
-            todo_db = SQLiteParser.Database.FromNode(node)
+            todo_db = SQLiteParser.Database.FromNode(node,canceller)
             if todo_db is None:
                 return
             for rec in self.my_read_table(db=todo_db, table_name='todoList'):
@@ -310,13 +310,13 @@ class NeteaseMailParser(object):
             读取手机数据库, 参数 db_path, db 二选一
         :type table_name: str
         :type db_path: str
-        :type db: SQLiteParser.Database.FromNode(node)
+        :type db: SQLiteParser.Database.FromNode(node,canceller)
         :rtype: db.ReadTableRecords()
         """
         if db is None:
             try:
                 node = self.root.GetByPath(db_path)
-                db = SQLiteParser.Database.FromNode(node)
+                db = SQLiteParser.Database.FromNode(node,canceller)
                 if db is None:
                     return 
             except:

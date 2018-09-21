@@ -17,7 +17,6 @@ del clr
 import model_map
 
 POI_SNAPSHOT = 12
-APPVERSION = "1.0"
 
 class gaodeMap(object):
 
@@ -343,11 +342,11 @@ class gaodeMap(object):
         return models
 
 
-    def check_to_update(self, path_db, appversion):
-        if os.path.exists(path_db) and path_db[-6:-3] == appversion:
-            return False
-        else:
-            return True
+    # def check_to_update(self, path_db, appversion):
+    #     if os.path.exists(path_db) and path_db[-6:-3] == appversion:
+    #         return False
+    #     else:
+    #         return True
 
 
     def parse(self):
@@ -356,9 +355,9 @@ class gaodeMap(object):
         
         if not os.path.exists(decode_db_path):
             self.decode_db()
-        if self.check_to_update(db_path, APPVERSION):
-            self.gaodemap.db_create(db_path)
-            self.entrance()
+        # if self.check_to_update(db_path, APPVERSION):
+        self.gaodemap.db_create(db_path)
+        self.entrance()
         generate = model_map.Genetate(db_path)
         tmpresult = generate.get_models()
         return tmpresult

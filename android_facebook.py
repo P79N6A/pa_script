@@ -69,7 +69,7 @@ class Facebook(object):
         if friends_node is None:
             return
         try:
-            db = SQLiteParser.Database.FromNode(friends_node)
+            db = SQLiteParser.Database.FromNode(friends_node, canceller)
             if db is None and "thread_users" not in db.Tables:
                 return
             tbs = SQLiteParser.TableSignature("thread_users")
@@ -316,7 +316,7 @@ class Facebook(object):
         fmessage_node = self.root.GetByPath("threads_db2")
         if fmessage_node is None:
             return
-        db = SQLiteParser.Database.FromNode(fmessage_node)
+        db = SQLiteParser.Database.FromNode(fmessage_node, canceller)
         if db is None and "messages" not in db.Tables:
             return
         tbs = SQLiteParser.TableSignature("messages")
@@ -410,7 +410,7 @@ class Facebook(object):
         gmessage_node = self.root.GetByPath("threads_db2")
         if gmessage_node is None:
             return
-        db = SQLiteParser.Database.FromNode(gmessage_node)
+        db = SQLiteParser.Database.FromNode(gmessage_node, canceller)
         if db is None and "messages" not in db.Tables:
             return
         tbs = SQLiteParser.TableSignature("messages")
