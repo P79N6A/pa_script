@@ -794,6 +794,27 @@
       </array>
     </dict>
 
+    <dict>
+      <key>Module</key>
+      <string>apple_sim</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_sim</string>
+          <key>RunnerType</key>
+          <integer>0</integer>
+          <key>Patterns</key>
+          <array>
+            <string>CellularUsage.db$</string>
+          </array>
+          <key>Category</key>
+          <string>Sim</string>
+        </dict>
+      </array>
+    </dict>
+
+
     <!--安卓运行插件从这里开始-->
 
     <dict>
@@ -1176,7 +1197,7 @@
             <string>user_de/0/com.android.providers.telephony/databases$</string>
           </array>
           <key>Category</key>
-          <string>None</string>
+          <string>Sim</string>
         </dict>
       </array>
     </dict>
@@ -1197,7 +1218,7 @@
             <string>user_de/0/com.android.providers.telephony/databases$</string>
           </array>
           <key>Category</key>
-          <string>Messages</string>
+          <string>Sms</string>
         </dict>
       </array>
     </dict>
