@@ -29,7 +29,7 @@ class QQBrowserParse(object):
         nodes.append(self.node)
         try:
             for node in nodes:
-                self.db = SQLiteParser.Database.FromNode(self.node)
+                self.db = SQLiteParser.Database.FromNode(self.node, canceller)
                 if self.db is None:
                     return 
                 ts = SQLiteParser.TableSignature('mtt_bookmarks')
@@ -63,7 +63,7 @@ class QQBrowserParse(object):
         record = Browserecord()
         try:
             node = self.node.Parent.GetByPath('/database')
-            self.db = SQLiteParser.Database.FromNode(node)
+            self.db = SQLiteParser.Database.FromNode(node, canceller)
             if self.db is None:
                 return 
             ts = SQLiteParser.TableSignature('history')
@@ -92,7 +92,7 @@ class QQBrowserParse(object):
         downloadfile = DownloadFile()
         try:
             node = self.node.Parent.GetByPath('/download_database')
-            self.db = SQLiteParser.Database.FromNode(node)
+            self.db = SQLiteParser.Database.FromNode(node, canceller)
             if self.db is None:
                 return
             ts = SQLiteParser.TableSignature('download')
@@ -133,7 +133,7 @@ class QQBrowserParse(object):
             node_internal = self.node.Parent.GetByPath('/filestore_0')
             nodes = [node_internal, node_external]
             for node in nodes:
-                self.db = SQLiteParser.Database.FromNode(node)
+                self.db = SQLiteParser.Database.FromNode(node, canceller)
                 if self.db is None:
                     return
                 ts = SQLiteParser.TableSignature('file_information')
@@ -161,7 +161,7 @@ class QQBrowserParse(object):
         nodes.append(self.node)
         try:
             for node in nodes:
-                self.db = SQLiteParser.Database.FromNode(self.node)
+                self.db = SQLiteParser.Database.FromNode(self.node, canceller)
                 if self.db is None:
                     return
                 ts = SQLiteParser.TableSignature('search_history')
@@ -214,7 +214,7 @@ class QQBrowserParse(object):
         plugin = Plugin()
         node = self.node.Parent.GetByPath('/plugin_db')
         try:
-            self.db = SQLiteParser.Database.FromNode(node)
+            self.db = SQLiteParser.Database.FromNode(node, canceller)
             if self.db is None:
                 return
             ts = SQLiteParser.TableSignature('plugins')
@@ -236,7 +236,7 @@ class QQBrowserParse(object):
         cookie = Cookie()
         node = self.node.Parent.Parent.GetByPath('/app_webview/Cookies')
         try:
-            self.db = SQLiteParser.Database.FromNode(node)
+            self.db = SQLiteParser.Database.FromNode(node, canceller)
             if self.db is None:
                 return
             ts = SQLiteParser.TableSignature('cookies')

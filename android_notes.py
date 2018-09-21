@@ -19,7 +19,7 @@ class NoteParse(object):
 
     def analyze_note_pad(self):  #note_pad备忘录 厂商自己的备忘录可能无法解析
         try:
-            self.db = SQLiteParser.Database.FromNode(self.node)
+            self.db = SQLiteParser.Database.FromNode(self.node, canceller)
             if self.db is None:
                 raise Exception('数据库解析出错')
             ts = SQLiteParser.TableSignature('notes')

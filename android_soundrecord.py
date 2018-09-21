@@ -21,7 +21,7 @@ class SoundrecordParse(object):
     def analyze_soundrecord_huawei(self):
         try:
             records = Records()
-            self.db = SQLiteParser.Database.FromNode(self.node)
+            self.db = SQLiteParser.Database.FromNode(self.node, canceller)
 
             if self.db is None:
                 return 
@@ -58,7 +58,7 @@ class SoundrecordParse(object):
     def analyze_soundrecord_xiaomi(self):
         records = Records()
         try:
-            self.db = SQLiteParser.Database.FromNode(self.node)
+            self.db = SQLiteParser.Database.FromNode(self.node, canceller)
             if self.db is None:
                 return 
             ts = SQLiteParser.TableSignature('records')

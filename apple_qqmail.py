@@ -117,7 +117,7 @@ class MailParser(object):
 
     def decode_recover_mail_table(self):  #需要在model中用sql语句做合并
         mailsNode = self.node.GetByPath("/Documents/FMailDB.db")
-        self.db = SQLiteParser.Database.FromNode(mailsNode)
+        self.db = SQLiteParser.Database.FromNode(mailsNode, canceller)
         if self.db is None:
             return
         ts = SQLiteParser.TableSignature('FM_MailInfo')
@@ -228,7 +228,7 @@ class MailParser(object):
 
     def decode_recover_table_accounts(self):
         mailsNode = self.node.GetByPath("/Documents/FMailDB.db")
-        self.db = SQLiteParser.Database.FromNode(mailsNode)
+        self.db = SQLiteParser.Database.FromNode(mailsNode, canceller)
         if self.db is None:
             return
         ts = SQLiteParser.TableSignature('FM_Account')
@@ -288,7 +288,7 @@ class MailParser(object):
     def decode_recover_table_contact(self):
         contactNode = self.node.GetByPath("/Documents/FMContact.db")
         mailsNode = self.node.GetByPath("/Documents/FMailDB.db")
-        self.db = SQLiteParser.Database.FromNode(contactNode)
+        self.db = SQLiteParser.Database.FromNode(contactNode, canceller)
         if self.db is None:
             return
         ts = SQLiteParser.TableSignature('FMContact')
@@ -321,7 +321,7 @@ class MailParser(object):
             self.mm.db_commit()
         except Exception as e:
             print(e)
-        self.db = SQLiteParser.Database.FromNode(mailsNode)
+        self.db = SQLiteParser.Database.FromNode(mailsNode, canceller)
         if self.db is None:
             return
         ts2 = SQLiteParser.TableSignature('FM_Account')
