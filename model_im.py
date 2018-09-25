@@ -1043,7 +1043,9 @@ class GenerateModel(object):
                     chats[key] = chat
 
             row = self.cursor.fetchone()
-        return chats.values().extend(models)
+        v = chats.values()
+        v.extend(models)
+        return v
 
     def _get_chatroom_member_models(self, account_id, chatroom_id):
         if account_id in [None, ''] or chatroom_id in [None, '']:
