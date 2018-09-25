@@ -10,7 +10,6 @@ except:
     pass
 del clr
 import model_map
-import bcp_gis
 
 
 class TencentMap(object):
