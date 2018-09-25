@@ -22,8 +22,8 @@ def print_run_time(func):
     return wrapper
 
 def exc():
-    # exc()
-    traceback.print_exc()
+    exc()
+    # traceback.print_exc()
 
 def analyze_baidubrowser(node, extract_deleted, extract_source):
     """

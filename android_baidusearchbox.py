@@ -15,8 +15,8 @@ from model_browser import *
 
 
 def exc():
-    # exc()
-    traceback.print_exc()
+    exc()
+    # traceback.print_exc()
 
 def analyze_baidusearchbox(node, extract_deleted, extract_source):
     """
