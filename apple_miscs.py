@@ -184,11 +184,11 @@ def analyze_startup_time(node, extract_deleted, extract_source):
     pr.Build('开机记录')
     return pr
 
-def analyze_permissions(node, extract_deleted, extract_source, installed_apps):
+def analyze_permissions(node, extract_deleted, extract_source):
     db = SQLiteParser.Tools.GetDatabaseByPath(node, '', 'access')
     if db is None:
         return
-
+    installed_apps = ds.InstalledApps
     permissions_dict = {
         'kTCCServiceCalendar': PermissionCategory.Calendars,
         'kTCCServicePhotos': PermissionCategory.Photos,
@@ -231,15 +231,34 @@ def analyze_tethering(node, extract_deleted, extract_source):
     pr.Build('个人热点')
     return pr
 
+def GetIthmbWidth(name):
+    pixMap = {
+        "3303":(24,22),
+        "3306":(39,39),
+        "3309":(64,64),
+        "3314":(125,125),
+        "3319":(160,157),
+        "3141":(160,158),
+        "3041":(80,79),
+        "4131":(240,240),
+        "4031":(120,120),
+        "4132":(64,64),
+        "4032":(32,32),
+        "4140":(336,332),
+        "4040":(168,166)
+    }
+    return pixMap.get(name,(110,110))
+
 def analyze_ithmb(node, extract_deleted, extract_source):
     pr = ParserResults()
     if node.Type != NodeType.File or node.Data is None or node.Data.Length <= 0:
         return pr
     m = re.match(r'(\d+)x(\d+).ithmb$', node.Name)
     if m is None:
-        return pr
-    rowStr,colStr = m.groups()
-    rows, cols = int(rowStr),int(colStr)
+        rows,cols = GetIthmbWidth(node.Name.split(".")[0])
+    else:
+        rowStr,colStr = m.groups()
+        rows, cols = int(rowStr),int(colStr)
     ithmbParser = IthmbParser(node,rows,cols)
     pr = ithmbParser.Parse()
     pr.Build('缩略图')

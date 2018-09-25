@@ -3,6 +3,26 @@ import os
 
 DIR = "Builds/"
 
+def GetIthmbWidth(name):
+    pixMap = {
+        "3303":(24,22),
+        "3306":(39,39),
+        "3309":(64,64),
+        "3319":(125,125),
+        "3319":(160,157),
+        "3141":(160,158),
+        "3041":(80,79),
+        "4131":(240,240),
+        "4031":(120,120),
+        "4132":(64,64),
+        "4032":(32,32),
+        "4140":(336,332),
+        "4040":(168,166)
+    }
+    return pixMap.get(name,(110,110))
+
+rows,cols = GetIthmbWidth("3041")
+
 for (root,dirs,files) in os.walk('.'):
     for filename in files:
         splits = os.path.splitext(filename)

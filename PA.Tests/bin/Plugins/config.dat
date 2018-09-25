@@ -3,6 +3,7 @@
 <plist version="1.0">
   <array>
     <!--苹果插件从这里开始,安卓插件请见下面-->
+	<!--要个性化自定义运行某些插件,请按此文件的格式建立config.debug.dat文件,调试版的程序程序会优先读取config.debug.dat文件-->
     <dict>
       <key>Module</key>
       <string>apple_push</string>
