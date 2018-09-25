@@ -28,11 +28,11 @@ def analyze_wifilog(node, extractDeleted, extractSource):
         if file.Type == NodeType.File:
             parse(file, wifi_log)
     wifi_log.db_close()
-    generate = model_wifi.Generate(db_path)
+    generate = model_wifi.Generate(db_path, node)
     results = generate.get_models()
     if results:
         pr.Models.AddRange(results)
-    pr.Build("WiFi")
+    pr.Build("无线网络连接历史")
     return pr
 
 
@@ -58,9 +58,9 @@ def parse(node, wifi_log):
             if lon_index != -1:
                 dicts["longitude"] = line[lon_index+11:lon_index+20]
             dicts["time"] = _toUnixTime(line[:23].rstrip())
-            if dicts["longitude"]:
+            if lon_index != -1 and dicts["longitude"]:
                 wifilog.Longitude = float(dicts["longitude"])
-            if dicts["latitude"]:
+            if lat_index != -1 and dicts["latitude"]:
                 wifilog.Latitude = float(dicts["latitude"])
             if dicts["time"]:
                 wifilog.Time = dicts["time"]
