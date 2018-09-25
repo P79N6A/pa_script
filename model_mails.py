@@ -233,7 +233,11 @@ class Column(object):
         self.repeated = 0
 
     def __setattr__(self, name, value):
-        if not IsDBNull(value):
+        if IsDBNull(value):
+            self.__dict__[name] = None
+        else:
+            if isinstance(value, str):
+                value = re.compile('[\\x00-\\x08\\x0b-\\x0c\\x0e-\\x1f]').sub(' ', value)                 
             self.__dict__[name] = value
 
     def get_values(self):
