@@ -179,9 +179,9 @@ class QQParser(object):
                     flag = row[3]
                     nickname = row[4]
                     content= row[5]
-                    msgid = str(row[6])	
+                    msgid = str(row[7])	
                     msg.account_id = acc_id
-                    msg.talker_id = uin
+                    msg.talker_id = str(row[6])
                     msg.source = node.AbsolutePath
                     try:					
                         msg.talker_name =  self.troops[group_id].name
@@ -613,7 +613,7 @@ class QQParser(object):
                     elif(msgtype == 337):
                         loc = self.get_location(acc_id,content)
                         if(loc is not None):
-                            msg.extra_id  = uuid.uuid1()
+                            msg.extra_id  = str(uuid.uuid1())
                             msg.type = MESSAGE_CONTENT_TYPE_LOCATION
                             locat = Location()
                             locat.location_id = msg.extra_id 
@@ -852,7 +852,7 @@ class QQParser(object):
                     elif(msgtype == 337):
                         loc = self.get_location(acc_id,content)
                         if(loc is not None):
-                            msg.extra_id   = uuid.uuid1()
+                            msg.extra_id   = str(uuid.uuid1())
                             msg.type = MESSAGE_CONTENT_TYPE_LOCATION
                             locat = Location()
                             locat.location_id = msg.extra_id 
@@ -1045,7 +1045,7 @@ class QQParser(object):
                 msgid =str(row['c0msgId'].Value)
                 group_id = str(row['c8conversationUin'].Value)
                 msg.account_id = acc_id
-                msg.talker_id = uin
+                msg.talker_id = group_id
                 msg.source = node.AbsolutePath
                 try:					
                     msg.talker_name =  self.troops[group_id].name
@@ -1102,7 +1102,7 @@ class QQParser(object):
                 msgid =str(row['c0msgId'].Value)
                 group_id = str(row['c8conversationUin'].Value)
                 msg.account_id = acc_id
-                msg.talker_id = uin
+                msg.talker_id = group_id
                 msg.source = node.AbsolutePath
                 try:					
                     msg.talker_name =  self.troops[group_id].name
