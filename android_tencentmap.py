@@ -74,7 +74,9 @@ class TencentMap(object):
                     if "lat" in end_data:
                         route_addr.to_posY = end_data["lat"]
                     try:
-                        self.tencentdb.db_insert_table_address(route_addr)
+                        if (route_addr.from_name or route_addr.from_addr or route_addr.to_name or route_addr.to_addr or route_addr.from_posX or route_addr.from_posY
+                            or route_addr.to_posX or route_addr.to_posY):
+                            self.tencentdb.db_insert_table_address(route_addr)
                     except Exception as e:
                         pass
         except Exception as e:
@@ -122,7 +124,8 @@ class TencentMap(object):
                     tmpb = str(tmpa)[:10]
                     search.create_time = int(tmpb)
                 try:
-                    self.tencentdb.db_insert_table_search(search)
+                    if fav_addr.keyword or fav_addr.address or fav_addr.pos_x or fav_addr.pos_y or fav_addr.create_time:
+                        self.tencentdb.db_insert_table_search(search)
                 except Exception as e:
                     pass
         except Exception as e:
@@ -165,7 +168,8 @@ class TencentMap(object):
                 if "lastEditTime" in rec and (not rec["lastEditTime"].IsDBNull):
                     fav_addr.create_time = rec["lastEditTime"].Value
                 try:
-                    self.tencentdb.db_insert_table_search(fav_addr)
+                    if fav_addr.keyword or fav_addr.address or fav_addr.pos_x or fav_addr.pos_y or fav_addr.create_time:
+                        self.tencentdb.db_insert_table_search(fav_addr)
                 except Exception as e:
                     pass       
         except Exception as e:
@@ -197,6 +201,7 @@ def analyze_tencentmap(node, extract_Deleted, extract_Source):
         for i in results:
             pr.Models.Add(i)
     pr.Build("腾讯地图")
+
     return pr
     
 def execute(node, extract_deleted):

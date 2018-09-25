@@ -315,6 +315,7 @@ class WeChatParser(model_im.IM):
                 like.source = feed.source
                 self.db_insert_table_feed_like(like)
             feed.likes = ','.join(str(item) for item in ids)
+            feed.likecount = len(likes)
         comments = sns.get_comments()
         if comments is not None and len(comments) > 0:
             ids = []
@@ -326,6 +327,7 @@ class WeChatParser(model_im.IM):
                 comment.source = feed.source
                 self.db_insert_table_feed_comment(comment)
             feed.comments = ','.join(str(item) for item in ids)
+            feed.commentcount = len(comments)
         self.db_insert_table_feed(feed)
 
     def _parse_mm_db_user_info(self, db, source, node_db):

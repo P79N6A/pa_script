@@ -73,7 +73,8 @@ class SogouMap(object):
                                     search.pos_x = float(lang)
                                     search.pos_y = lat
                     try:
-                        self.sogoudb.db_insert_table_search(search)
+                        if search.keyword or search.item_type or search.address or search.pos_x or search.pos_y:
+                            self.sogoudb.db_insert_table_search(search)
                     except Exception as e:
                         print(e)    
                 except Exception as e:
@@ -93,11 +94,6 @@ class SogouMap(object):
     def trans_to_langlat(self, strings):
         return strings.find("_")
 
-    # def check_to_update(self, path_db, appversion):
-    #     if os.path.exists(path_db) and path_db[-6:-3] == appversion:
-    #         return False
-    #     else:
-    #         return True  
 
     def parse(self):
         db_path = self.cache + "/sogou_db.db"
