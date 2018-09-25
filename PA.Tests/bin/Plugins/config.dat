@@ -1223,5 +1223,68 @@
       </array>
     </dict>
 
+     <dict>
+      <key>Module</key>
+      <string>android_baidubrowser</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_baidubrowser</string>
+          <key>RunnerType</key>
+          <integer>2</integer>
+          <key>Patterns</key>
+          <array>
+            <string>com.baidu.browser.apps/databases/dbbrowser.db$</string>
+            <string>data/data/com.baidu.browser.apps/databases/dbbrowser.db$</string>
+          </array>
+          <key>Category</key>
+          <string>Messages</string>
+        </dict>
+      </array>
+    </dict>  
+
+    <dict>
+      <key>Module</key>
+      <string>android_baidusearchbox</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_baidusearchbox</string>
+          <key>RunnerType</key>
+          <integer>2</integer>
+          <key>Patterns</key>
+          <array>
+            <string>data/data/com.baidu.searchbox/databases/SearchBox.db$</string>
+            <string>com.baidu.searchbox/databases/SearchBox.db$</string>
+          </array>
+          <key>Category</key>
+          <string>Messages</string>
+        </dict>
+      </array>
+    </dict>  
+    
+    <dict>
+      <key>Module</key>
+      <string>android_baidusearchbox</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_baidusearchbox_lite</string>
+          <key>RunnerType</key>
+          <integer>2</integer>
+          <key>Patterns</key>
+          <array>
+            <string>data/data/com.baidu.searchbox.lite/databases/SearchBox.db$</string>
+            <string>com.baidu.searchbox.lite/databases/SearchBox.db$</string>
+          </array>
+          <key>Category</key>
+          <string>Messages</string>
+        </dict>
+      </array>
+    </dict>    
+
   </array>
 </plist>
