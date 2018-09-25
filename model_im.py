@@ -14,13 +14,14 @@ from System.Xml.Linq import *
 from System.Linq import Enumerable
 from PA.InfraLib.Utils import *
 import System.Data.SQLite as SQLite
+from System import Convert
 
 import os
 import sqlite3
 import json
 import uuid
 
-VERSION_VALUE_DB = 5
+VERSION_VALUE_DB = 6
 
 GENDER_NONE = 0
 GENDER_MALE = 1
@@ -224,7 +225,11 @@ SQL_CREATE_TABLE_FEED = '''
         attachment_desc TEXT,
         send_time INT,
         likes TEXT,
+        likecount INT,
+        rtcount INT,
         comments TEXT,
+        commentcount INT,
+        device TEXT,
         location TEXT,
         source TEXT,
         deleted INT DEFAULT 0, 
@@ -232,8 +237,8 @@ SQL_CREATE_TABLE_FEED = '''
 
 SQL_INSERT_TABLE_FEED = '''
     insert into feed(account_id, sender_id, type, content, media_path, urls, preview_urls, attachment_title, 
-                     attachment_link, attachment_desc, send_time, likes, comments, location, source, deleted, repeated) 
-        values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
+                     attachment_link, attachment_desc, send_time, likes, likecount, rtcount, comments, commentcount, device, location, source, deleted, repeated) 
+        values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
 
 SQL_CREATE_TABLE_FEED_LIKE = '''
     create table if not exists feed_like(
@@ -605,13 +610,17 @@ class Feed(Column):
         self.attachment_desc = None  # 附件描述[TEXT]
         self.send_time = None  # 发布时间[INT]
         self.likes = None  # 赞[TEXT] 逗号分隔like_id 例如：like_id,like_id,like_id,...
+        self.likecount = None  # 赞数量[INT]
+        self.rtcount = None  # 转发数量[INT]
         self.comments = None  # 评论[TEXT] 逗号分隔comment_id 例如：comment_id,comment_id,comment_id,...
+        self.commentcount = None  # 评论数量[INT]
+        self.device = None  # 设备名称[TEXT]
         self.location = None  # 地址ID[TEXT]
         
     def get_values(self):
         return (self.account_id, self.sender_id, self.type, self.content, self.media_path, self.urls, self.preview_urls, 
-                self.attachment_title, self.attachment_link, self.attachment_desc, self.send_time, self.likes, self.comments, 
-                self.location) + super(Feed, self).get_values()
+                self.attachment_title, self.attachment_link, self.attachment_desc, self.send_time, self.likes, self.likecount,
+                self.rtcount, self.comments, self.commentcount, self.device, self.location) + super(Feed, self).get_values()
     
 
 class FeedLike(Column):
@@ -914,6 +923,7 @@ class GenerateModel(object):
         if canceller.IsCancellationRequested:
             return []
         chats = {}
+        models = []
 
         sql = '''select account_id, talker_id, talker_name, sender_id, sender_name, is_sender, msg_id, type, 
                         content, media_path, send_time, extra_id, status, talker_type, source, deleted, repeated
@@ -982,7 +992,9 @@ class GenerateModel(object):
             #    pass
             elif msg_type == MESSAGE_CONTENT_TYPE_LOCATION:
                 if row[11]:
-                    message.Content.Value.Location.Value = self._get_location(row[11])
+                    location = self._get_location(row[11])
+                    message.Content.Value.Location.Value = location
+                    models.append(location)
             elif msg_type == MESSAGE_CONTENT_TYPE_RED_ENVELPOE:
                 if row[11]:
                     message.Content.Value.RedEnvelope.Value = self._get_aareceipts(row[11])
@@ -1031,7 +1043,7 @@ class GenerateModel(object):
                     chats[key] = chat
 
             row = self.cursor.fetchone()
-        return chats.values() 
+        return chats.values().extend(models)
 
     def _get_chatroom_member_models(self, account_id, chatroom_id):
         if account_id in [None, ''] or chatroom_id in [None, '']:
@@ -1072,8 +1084,9 @@ class GenerateModel(object):
         models = []
 
         sql = '''select account_id, sender_id, type, content, media_path, urls, preview_urls, 
-                        attachment_title, attachment_link, attachment_desc, send_time, likes, 
-                        comments, location, source, deleted, repeated
+                        attachment_title, attachment_link, attachment_desc, send_time, likes,
+                        likecount, rtcount, comments, commentcount, device, location, source, 
+                        deleted, repeated
                  from feed'''
         row = None
         try:
@@ -1088,9 +1101,9 @@ class GenerateModel(object):
             moment = Common.Moment()
             moment.Content.Value = Common.MomentContent()
             account_id = None
-            if row[14] not in [None, '']:
+            if row[18] not in [None, '']:
                 moment.SourceFile.Value = row[14]
-            if row[15]:
+            if row[19]:
                 moment.Deleted = self._convert_deleted_status(row[15])
             if row[0]:
                 moment.OwnerUserID.Value = row[0]
@@ -1110,7 +1123,8 @@ class GenerateModel(object):
             #if row[6]:
             #    moment.PreviewUris.Add(row[6])
             if row[13]:
-                moment.Location.Value = self._get_location(row[13])
+                location = self._get_location(row[13])
+                moment.Location.Value = location
             if row[10]:
                 ts = self._get_timestamp(row[10])
                 if ts:
@@ -1118,7 +1132,15 @@ class GenerateModel(object):
             if row[11]:
                 moment.Likes.AddRange(self._get_feed_likes(account_id, row[11]))
             if row[12]:
-                moment.Comments.AddRange(self._get_feed_comments(account_id, row[12]))
+                moment.LikeCount.Value = row[12]
+            if row[13]:
+                moment.RtCount.Value = row[13]
+            if row[14]:
+                moment.Comments.AddRange(self._get_feed_comments(account_id, row[14]))
+            if row[15]:
+                moment.CommentCount.Value = row[15]
+            if row[16]:
+                moment.Device.Value = row[16]
             models.append(moment)
 
             row = self.cursor.fetchone()

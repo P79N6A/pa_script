@@ -21,6 +21,8 @@ import System.Data.SQLite as SQLite
 
 import os
 import sqlite3
+import shutil
+import hashlib
 import model_im
 
 # 即时通信类信息
@@ -962,13 +964,14 @@ class Search(Column):
 
 
 class GenerateBcp(object):
-    def __init__(self, bcp_path, cache_db, bcp_db, collect_target_id, contact_account_type):
+    def __init__(self, bcp_path, mount_path, cache_db, bcp_db, collect_target_id, contact_account_type):
         self.bcp_path = bcp_path
+        self.mount_path = mount_path
         self.cache_db = cache_db
         self.bcp_db = bcp_db
         self.collect_target_id = collect_target_id
         self.contact_account_type = contact_account_type
-        self.cache_path = os.path.join(self.bcp_path, 'wechat')
+        self.cache_path = os.path.join(bcp_path, contact_account_type)
         self.im = IM()
 
     def generate(self):
@@ -1146,6 +1149,12 @@ class GenerateBcp(object):
             if canceller.IsCancellationRequested:
                 break
             talker_type = row[13]
+            msg_type = row[7]
+            media_path = row[9]
+            bcp_media_path = None
+            if msg_type in [model_im.MESSAGE_CONTENT_TYPE_IMAGE, model_im.MESSAGE_CONTENT_TYPE_VOICE, model_im.MESSAGE_CONTENT_TYPE_VIDEO]:
+                if media_path not in [None, ''] and (not media_path.startswith('http')):
+                    bcp_media_path = self._copy_file_to_bcp_folder(media_path)
             if talker_type == model_im.CHAT_TYPE_GROUP:
                 message = GroupMessage(self.collect_target_id, self.contact_account_type, row[0], None)
                 message.delete_status = self._convert_delete_status(row[15])
@@ -1153,11 +1162,14 @@ class GenerateBcp(object):
                 message.group_name = row[2]
                 message.friend_id = row[3]
                 message.friend_nickname = row[4]
-                message.content = row[8]
+                if bcp_media_path is None:
+                    message.content = row[8]
+                else:
+                    message.content = bcp_media_path
                 message.mail_send_time = row[10]
                 message.local_action = self._convert_local_action(row[5])
                 message.talk_id = row[6]
-                message.media_type = self._convert_media_type(row[7])
+                message.media_type = self._convert_media_type(msg_type)
                 if row[7] == model_im.MESSAGE_CONTENT_TYPE_LOCATION:
                     location = self._get_location_from_id(row[11])
                     if location is not None:
@@ -1172,11 +1184,14 @@ class GenerateBcp(object):
                 message.regis_nickname = None  # 昵称
                 message.friend_id = row[1]
                 message.friend_nickname = row[2]
-                message.content = row[8]
+                if bcp_media_path is None:
+                    message.content = row[8]
+                else:
+                    message.content = bcp_media_path
                 message.mail_send_time = row[10]
                 message.local_action = self._convert_local_action(row[5])
                 message.talk_id = row[6]
-                message.media_type = self._convert_media_type(row[7])
+                message.media_type = self._convert_media_type(msg_type)
                 if row[7] == model_im.MESSAGE_CONTENT_TYPE_LOCATION:
                     location = self._get_location_from_id(row[11])
                     if location is not None:
@@ -1289,6 +1304,28 @@ class GenerateBcp(object):
 
         cursor.close()
         return location
+
+    def _copy_file_to_bcp_folder(self, src_file):
+        src_path = (self.mount_path + src_file).replace('/', '\\')
+        if not os.path.exists(src_path):
+            return None
+        dst_path = os.path.join(self.cache_path, self._md5(src_file), os.path.basename(src_file))
+        if os.path.exists(dst_path):
+            return os.path.relpath(dst_path, self.bcp_path)
+        dst_dir = os.path.dirname(dst_path)
+        if not os.path.exists(dst_dir):
+            os.makedirs(dst_dir)
+        try:
+            shutil.copy(src_path, dst_path)
+        except Exception as e:
+            return None
+        return os.path.relpath(dst_path, self.bcp_path)
+
+    @staticmethod
+    def _md5(src):
+        m = hashlib.md5()
+        m.update(src.encode('utf8'))
+        return m.hexdigest()
 
     @staticmethod
     def _convert_sexcode(sexcode):
