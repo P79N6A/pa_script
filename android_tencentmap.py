@@ -203,11 +203,6 @@ def analyze_tencentmap(node, extract_Deleted, extract_Source):
             pr.Models.Add(i)
     pr.Build("腾讯地图")
 
-    cache_path = r"E:\HUAWEI NXT-AL10__5LM0216630001436(4)\caches\tencentMap\tencent_db.db"
-    bcp_path = r"E:\HUAWEI NXT-AL10__5LM0216630001436(4)\caches\tencentMap\tencent_bcp.db"
-
-    generate = bcp_gis.BuildBCP(cache_path, bcp_path, "123456789", bcp_gis.NETWORK_APP_MAP_TENCENT)
-    generate.genetate()
     return pr
     
 def execute(node, extract_deleted):
