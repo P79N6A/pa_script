@@ -116,8 +116,9 @@ class YouXinParser(model_im.IM):
 
                 obj = json.loads(rec['[info]'].Value)
                 account.username = obj['name']
-                account.photo = obj['picture']
-                account.signature = obj['signature']
+                if rec['[type]'].Value == '2':
+                    account.photo = obj['picture']
+                    account.signature = obj['signature']
                 account.gender = model_im.GENDER_MALE if obj['sex'] == '男' else model_im.GENDER_FEMALE
                 account.birthday = obj['birthday']
                 break
