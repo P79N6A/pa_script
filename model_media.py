@@ -15,6 +15,7 @@ from System.Xml.XPath import Extensions as XPathExtensions
 
 import os
 import System
+import System.Data.SQLite as SQLite
 import sqlite3
 import re
 
@@ -99,15 +100,17 @@ class MM(object):
 
     def db_remove(self, db_path):
         try:
-            os.remove(db_path)
+            if os.path.exists(db_path):
+                os.remove(db_path)
         except Exception as e:
-            print("model_media db_create() remove %s error:%s"(db_path, e))
+            print("model_media db_create() remove %s error:%s"%(db_path, e))
 
     def db_create_table(self):
         if self.db_cmd is not None:
             self.db_cmd.CommandText = SQL_CREATE_TABLE_MEDIA
             self.db_cmd.ExecuteNonQuery()
             self.db_cmd.CommandText = SQL_CREATE_TABLE_THUMBNAILS
+            self.db_cmd.ExecuteNonQuery()
 
     def db_insert_table(self, sql, values):
         if self.db_cmd is not None:
