@@ -1141,10 +1141,13 @@ class GenerateModel(object):
             if row[2]:
                 moment.Type.Value = row[2]
             if row[5]:
-                urls = json.loads(row[5])
-                for url in urls:
-                    if len(url) > 0:
-                        moment.Uris.Add(url)
+                try:
+                    urls = json.loads(row[5])
+                    for url in urls:
+                        if len(url) > 0:
+                            moment.Uris.Add(url)
+                except Exception as e:
+                    pass
             #if row[6]:
             #    moment.PreviewUris.Add(row[6])
             if row[13]:
