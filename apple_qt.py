@@ -186,6 +186,67 @@ def parseLocation(loc):
         return None
     return [x or '0' for x in loc_match.groups()]
 
+def getFileLocation(f):
+    filemd = get_quicktime_md(f)
+    for key in filemd:
+        if not key[-7:] == '_source':
+            f.MetaData.Add(key, filemd [key], "Quicktime Metadata")
+            mdDefGroup = MetaData.EXPORT_METADATA_GROUP_NAME
+        if key == 'com.apple.quicktime.creationdate':
+            f.MetaData.Add("Record Time", TimeStamp(Convert.ToDateTime(filemd[key]), True).ToString(), mdDefGroup)
+        elif key == 'com.apple.quicktime.make':
+            f.MetaData.Add ("Camera Make", filemd [key], mdDefGroup)
+        elif key == 'com.apple.quicktime.model':
+            f.MetaData.Add ("Camera Model", filemd [key], mdDefGroup)
+        elif key == 'com.apple.quicktime.software':
+            f.MetaData.Add ("Camera Software", filemd [key], mdDefGroup)
+        elif key == 'com.apple.quicktime.camera.identifier':
+            f.MetaData.Add ("Camera Identifier", filemd [key], mdDefGroup)
+        elif key == 'com.apple.quicktime.comment':
+            f.MetaData.Add ("User Comment", filemd[key], mdDefGroup)
+        elif key == 'com.apple.quicktime.location.name':
+            f.MetaData.Add ("Location Name", filemd[key], mdDefGroup)
+        if key == 'com.apple.quicktime.location.ISO6709':
+            locval = parseLocation(filemd[key])
+            if locval is None:
+                continue
+
+            if 'com.apple.quicktime.location.ISO6709_source' in filemd:
+                src_ind = filemd['com.apple.quicktime.location.ISO6709_source'][0]
+                mdSrc = f.Data.GetSubRange(src_ind, sum(map(len, locval)))
+            if mdSrc is None:
+                msSrc = MemoryRange()
+            f.MetaData.Add("Lat/Lon/Elev", "%s/%s/%s" % tuple(locval), mdSrc, mdDefGroup)
+
+            cLoc = Location()
+            cLoc.Deleted = f.Deleted
+            cLoc.Category.Value = LocationCategories.MEDIA
+            cLoc.Position.Value = Coordinate(float(locval[0]), float(locval[1]), float(locval[2]))
+            cLoc.Name.Value = f.Name
+            cLoc.Description.Value = key
+            cLoc.SourceNode =  f #节点溯源
+            cLoc.SourceFile.Value = f.AbsolutePath
+            LinkModels(cLoc, f)
+            
+            if 'com.apple.quicktime.location.ISO6709_source' in filemd:
+                src_ind = filemd['com.apple.quicktime.location.ISO6709_source'][0]
+                cLoc.Position.Value.Latitude.Source = f.Data.GetSubRange(src_ind, len(locval[0]))
+                src_ind += len(locval[0])
+                cLoc.Position.Value.Longitude.Source = f.Data.GetSubRange(src_ind, len(locval[1]))
+                if locval[2] is not None and len(locval[2]) > 1:
+                    src_ind += len(locval[1])
+                    cLoc.Position.Value.Elevation.Source = f.Data.GetSubRange(src_ind, len(locval[2]))
+
+            if 'com.apple.quicktime.creationdate' in filemd:
+                tsStr = filemd['com.apple.quicktime.creationdate']
+                cLoc.TimeStamp.Value = TimeStamp(Convert.ToDateTime(tsStr), True)
+                if 'com.apple.quicktime.creationdate' in filemd:
+                    src = filemd['com.apple.quicktime.creationdate_source']
+                    cLoc.TimeStamp.Source = f.Data.GetSubRange(src[0],src[1])
+
+            return cLoc
+    return None
+
 def handleFile(f, lPALocations) :
     filemd = get_quicktime_md(f)
     for key in filemd:
