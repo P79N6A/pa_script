@@ -5,7 +5,12 @@ import sqlite3
 from PA_runtime import *
 import threading
 import traceback
-SafeLoadAssembly('model_media')
+import clr
+try:
+    clr.AddReference('model_media')
+except:
+    pass
+del clr
 from model_media import *
 
 

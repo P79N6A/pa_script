@@ -112,8 +112,8 @@ class Generate(object):
                 r.URL.Value = row[1]
             if row[2] is not None:
                 r.Title.Value = row[2]
-            if row[3] is not None:
-                r.ByteLength.Value = row[3]
+            #if row[3] is not None:
+            #    r.ByteLength.Value = row[3]
             if row[4] is not None:
                 r.TimeStamp.Value = TimeStamp.FromUnixTime(int(str(row[4])[0:10:1]), False) if len(str(row[4])) > 10 else TimeStamp.FromUnixTime(row[4], False) if len(str(row[4])) == 10 else TimeStamp.FromUnixTime(0, False)
             if row[5] is not None:
@@ -122,7 +122,7 @@ class Generate(object):
                 seconds = row[5]-hours*3600-minutes*60
                 r.Duration.Value = System.TimeSpan(hours, minutes, seconds)
             r.Type.Value = Generic.RecordingType.Audio
+            model.append(r)
         self.cursor.close()
         self.cursor = None
-        model.append(r)
         return model

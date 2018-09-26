@@ -4,7 +4,12 @@ import PA_runtime
 import sqlite3
 from PA_runtime import *
 import re
-SafeLoadAssembly('model_notes')
+import clr
+try:
+    clr.AddReference('model_notes')
+except:
+    pass
+del clr
 from model_notes import *
 
 class NoteParse(object):

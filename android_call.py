@@ -4,7 +4,12 @@ import PA_runtime
 import sqlite3
 import shutil
 from PA_runtime import *
-SafeLoadAssembly('model_calls')
+import clr
+try:
+    clr.AddReference('model_calls')
+except:
+    pass
+del clr
 from model_calls import MC, Records, Contact, Generate
 
 SQL_TABLE_JOIN_CONTACT = '''
