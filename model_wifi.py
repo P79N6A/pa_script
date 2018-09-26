@@ -109,8 +109,9 @@ class WIFI(Column):
 
 
 class Generate(object):
-    def __init__(self, cache_db):
+    def __init__(self, cache_db, node):
         self.cache_db = cache_db
+        self.node = node
 
     def get_models(self):
         models = []
@@ -140,7 +141,10 @@ class Generate(object):
 
         while row is not None:
             wireless = WirelessConnection()
+            wireless.SourceNode = self.node
             coord = Coordinate()
+            wifi_location = Location()
+            wifi_location.SourceNode = self.node
             if row[0]:
                 wireless.IPAddress.Value = row[0]
             if row[1]:
@@ -148,17 +152,19 @@ class Generate(object):
             if row[2]:
                 wireless.DefaultGateway.Value = row[2]
             if row[3]:
-                wireless.RouterMacAddress.Value = row[3]
+                wireless.SSId.Value = row[6]
             if row[4]:
                 coord.Longitude.Value = row[4]
             if row[5]:
                 coord.Latitude.Value = row[5]
             if coord:
                 wireless.Position.Value = coord
+                wifi_location.Position.Value = coord
             if row[6]:
-                wireless.ConnectionName.Value = row[6]
+                wireless.BSSId.Value = row[3]
             if row[7]:
-                wireless.Time.Value = self._convert_to_timestamp(row[7])
+                wireless.TimeStamp.Value = self._convert_to_timestamp(row[7])
+                wifi_location.TimeStamp.Value = self._convert_to_timestamp(row[7])
             if row[8]:
                 wireless.WirelessType.Value = self._convert_wireless_type(row[8])
             if row[9]:
@@ -169,6 +175,7 @@ class Generate(object):
                 wireless.Deleted = self._convert_deleted_status(row[11])
             
             models.append(wireless)
+            models.append(wifi_location)
             row = self.cursor.fetchone()
 
         return models

@@ -38,6 +38,8 @@ def _db_record_get_value(record, column, default_value=None):
         return record[column].Value
     return default_value
 
+VERSION_APP_VALUE = 1
+
 class TIphone(object):
     def __init__(self, root, extract_deleted, extract_source):
         self.node = root
@@ -48,13 +50,16 @@ class TIphone(object):
         self.messages = list()
         self.blogs = list()
         self.search = list()
+        self.need_parse = False
         cache = ds.OpenCachePath('Twitter')
         self.cache = cache
         if not os.path.exists(cache):
             os.mkdir(cache)
         #self.mb = microblog_base.BlogBase(env)
         self.im = model_im.IM()
-        self.im.db_create(cache + '/C37R')
+        if self.im.need_parse(cache + '/C37R', VERSION_APP_VALUE):
+            self.im.db_create(cache + '/C37R')
+            self.need_parse = True
         
     @staticmethod
     def check_account_id(account_str):
@@ -76,7 +81,7 @@ class TIphone(object):
             ana_res = BPReader(preference_node.Data).top
             m_d = ana_res['TFNTwitterHomeTimelineSerializedAccountCursorsKey']
             for key in m_d.Keys:
-                print(key)
+                #print(key)
                 r = self.check_account_id(key)
                 if r is not "" and not self.account.__contains__(r):
                     self.account.append(r)
@@ -270,8 +275,11 @@ def analyse_twitter(root, extract_deleted, extract_source):
     node = root
     try:
         t = TIphone(node, extract_deleted, extract_source)
-        t.parse_account()
-        t.im.db_close()
+        if t.need_parse:
+            t.parse_account()
+            t.im.db_close()
+            t.im.db_insert_table_version(model_im.VERSION_KEY_DB, model_im.VERSION_VALUE_DB)
+            t.im.db_insert_table_version(model_im.VERSION_KEY_APP, VERSION_APP_VALUE)
         models = model_im.GenerateModel(t.cache + "/C37R").get_models()
         mlm = ModelListMerger()
         pr = ParserResults()

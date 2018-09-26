@@ -24,6 +24,7 @@ import json
 import string
 import sqlite3
 import shutil
+import base64
 import datetime
 import model_im
 import bcp_im
@@ -111,6 +112,7 @@ class WeChatParser(model_im.IM):
             self.db_commit()
             self.db_close()
 
+        #bcp_im.GenerateBcp(ds.OpenCachePath('bcp'), self.root.FileSystem.MountPoint, self.cache_db, os.path.join(self.cache_path, self.user_hash + '_bcp.db'), 'collect_target_id', bcp_im.CONTACT_ACCOUNT_TYPE_IM_WECHAT).generate()
         models = self.get_models_from_cache_db()
         return models
 
@@ -133,7 +135,7 @@ class WeChatParser(model_im.IM):
         root = None
         try:
             root = BPReader.GetTree(user_plist)
-        except:
+        except Exception as e:
             return False
         if not root or not root.Children:
             return False
@@ -531,8 +533,10 @@ class WeChatParser(model_im.IM):
     def _parse_user_wc_db_with_value(self, deleted, source, username, buffer):
         if buffer is not None and buffer[:8] == 'bplist00':
             try:
+                root_mr = MemoryRange.FromBytes(Convert.FromBase64String(base64.b64encode(buffer)))
+                root_mr.seek(0)
                 root = BPReader.GetTree(root_mr)
-            except:
+            except Exception as e:
                 return
 
             if not root or not root.Children:
@@ -593,8 +597,8 @@ class WeChatParser(model_im.IM):
                     sender_id = self._bpreader_node_get_string_value(like_node, 'username', deleted = feed.deleted)
                     if len(sender_id) > 0:
                         fl = model_im.FeedLike()
-                        fl.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
-                        fl.source = node.AbsolutePath
+                        fl.deleted = feed.deleted
+                        fl.source = feed.source
                         fl.sender_id = sender_id
                         fl.sender_name = self._bpreader_node_get_string_value(like_node, 'nickname', deleted = feed.deleted)
                         try:
@@ -607,6 +611,7 @@ class WeChatParser(model_im.IM):
                         except Exception as e:
                             pass
             feed.likes = ','.join(str(item) for item in likes)
+            feed.likecount = len(likes)
 
             comments = []
             if 'commentUsers' in root.Children:
@@ -617,8 +622,8 @@ class WeChatParser(model_im.IM):
                     content = self._bpreader_node_get_string_value(comment_node, 'content', deleted = feed.deleted)
                     if type(sender_id) == str and len(sender_id) > 0 and type(content) == str:
                         fc = model_im.FeedComment()
-                        fc.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
-                        fc.source = node.AbsolutePath
+                        fc.deleted = deleted
+                        fc.source = feed.source
                         fc.sender_id = sender_id
                         fc.sender_name = self._bpreader_node_get_string_value(comment_node, 'nickname', deleted = feed.deleted)
                         fc.ref_user_id = self._bpreader_node_get_string_value(comment_node, 'refUserName', deleted = feed.deleted)
@@ -630,6 +635,7 @@ class WeChatParser(model_im.IM):
                         except Exception as e:
                             pass
             feed.comments = ','.join(str(item) for item in comments)
+            feed.commentcount = len(comments)
             self.db_insert_table_feed(feed)
 
     def _parse_user_fts_db(self, node):
@@ -701,7 +707,9 @@ class WeChatParser(model_im.IM):
                 content = self._db_column_get_string_value(row[1])
                 if id in username_ids:
                     username = username_ids.get(id)
-                    self._parse_user_fts_db_with_value(1, node.AbsolutePath, username, content)
+                else:
+                    username = id
+                self._parse_user_fts_db_with_value(1, node.AbsolutePath, username, content)
                 row = cursor.fetchone()
             self.db_commit()
         cursor.close()

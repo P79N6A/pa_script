@@ -706,7 +706,7 @@ def parse_ding(root, extract_deleted, extract_source):
         d = Ding(root, extract_deleted, extract_source)
         d.search_account()
         d.parse()
-        models = model_im.GenerateModel(d.cache_res, root.PathWithMountPoint).get_models()
+        models = model_im.GenerateModel(d.cache_res).get_models()
         mlm = ModelListMerger()
         pr = ParserResults()
         pr.Categories = DescripCategories.QQ

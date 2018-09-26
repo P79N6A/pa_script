@@ -7,7 +7,6 @@ try:
 except:
     pass
 del clr
-
 import model_im
 import os
 import sys
@@ -1341,12 +1340,28 @@ class Telegram(object):
             self.im.db_insert_table_message(m)
         self.im.db_commit()
 
+def try_to_get_telegram_group(grps):
+    for g in grps:
+        try:
+            node = g.GetByPath('Documents/tgdata.db')
+            s_node = g.GetByPath('Documents/standard.defaults')
+            if node is None or s_node is None:
+                continue
+            return g
+        except:
+            continue
+    return None
 
 def parse_telegram(root, extract_deleted, extract_source):
+    
     #r_node = FileSystem.FromLocalDir(r'D:\Cases\iPhone 8 plus_11.0_3986700581859246_tiquan\AppSharedFiles\ph.telegra.Telegraph\group.ph.telegra.Telegraph')
     #root.Children.Add(r_node)
-    r_node = root
+    group_container_nodes = ds.GroupContainers.ToArray()
+    r_node = try_to_get_telegram_group(group_container_nodes)
     try:
+        if r_node is None:
+            print('''can't find group node''')
+            raise IOError('E')
         t = Telegram(r_node, False, False)
         t.parse()
         models = model_im.GenerateModel(t.cache + '/C37R').get_models()
@@ -1355,7 +1370,8 @@ def parse_telegram(root, extract_deleted, extract_source):
         pr.Categories = DescripCategories.QQ
         pr.Models.AddRange(list(mlm.GetUnique(models)))
         pr.Build('钉钉')
-    except Exception:
+    except Exception as e:
+        print(e)
         pr = ParserResults()
     return pr
     
