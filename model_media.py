@@ -266,6 +266,7 @@ class Generate(object):
                     thumbnail.Height.Value = row[4]
                 if row[6] is not None and row[6] is not '':
                     thumbnail.SourceFile.Value = self._get_source_file(str(row[6]))
+                model.append(thumbnail)
         except:
                 pass
         return model

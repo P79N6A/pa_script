@@ -4,7 +4,12 @@ import PA_runtime
 import sqlite3
 from PA_runtime import *
 import re
-SafeLoadAssembly('model_browser')
+import clr
+try:
+    clr.AddReference('model_browser')
+except:
+    pass
+del clr
 from model_browser import *
 
 
@@ -23,6 +28,7 @@ class QQBrowserParse(object):
         bookmark = Bookmark()
         fs = self.node.FileSystem
         ns = fs.Search(r'/data/com.tencent.mtt/databases/\d+.db$')
+        pattern = re.compile('[\\x00-\\x08\\x0b-\\x0c\\x0e-\\x1f]')
         nodes = []
         for n in ns:
             nodes.append(n)
@@ -48,8 +54,8 @@ class QQBrowserParse(object):
                     canceller.ThrowIfCancellationRequested()
                     bookmark.id = row['_id'].Value if '_id' in row else None
                     bookmark.time = self._timeHandler(row['created'].Value) if 'created' in row else None
-                    bookmark.title = repr(row['title'].Value) if 'title' in row and row['title'].Value is not '' else None
-                    bookmark.url = repr(row['url'].Value) if 'url' in row and row['url'].Value is not '' else None
+                    bookmark.title = pattern.sub('', row['title'].Value) if 'title' in row and row['title'].Value is not '' else None
+                    bookmark.url = pattern.sub('', row['url'].Value) if 'url' in row and row['url'].Value is not '' else None
                     users = re.findall(r'^.*/(.+).db', node.AbsolutePath)
                     bookmark.owneruser = users[0]
                     bookmark.source = self.node.AbsolutePath
@@ -61,6 +67,7 @@ class QQBrowserParse(object):
 
     def analyze_browserecords(self):
         record = Browserecord()
+        pattern = re.compile('[\\x00-\\x08\\x0b-\\x0c\\x0e-\\x1f]')
         try:
             node = self.node.Parent.GetByPath('/database')
             self.db = SQLiteParser.Database.FromNode(node, canceller)
@@ -78,8 +85,8 @@ class QQBrowserParse(object):
             for row in self.db.ReadTableDeletedRecords(ts, False):
                 canceller.ThrowIfCancellationRequested()
                 record.id = row['ID'].Value if 'ID' in row else None
-                record.name = repr(row['NAME'].Value) if 'NAME' in row and row['NAME'].Value is not '' else None
-                record.url = repr(row['URL'].Value) if 'URL' in row and row['URL'].Value is not '' else None
+                record.name = pattern.sub('', row['NAME'].Value) if 'NAME' in row and row['NAME'].Value is not '' else None
+                record.url = pattern.sub('', row['URL'].Value) if 'URL' in row and row['URL'].Value is not '' else None
                 record.datetime = self._timeHandler(row['DATETIME'].Value) if 'DATETIME' in row else None
                 record.source = node.AbsolutePath
                 record.deleted = 1
@@ -90,6 +97,7 @@ class QQBrowserParse(object):
 
     def analyze_downloadfiles(self):
         downloadfile = DownloadFile()
+        pattern = re.compile('[\\x00-\\x08\\x0b-\\x0c\\x0e-\\x1f]')
         try:
             node = self.node.Parent.GetByPath('/download_database')
             self.db = SQLiteParser.Database.FromNode(node, canceller)
@@ -112,9 +120,9 @@ class QQBrowserParse(object):
             for row in self.db.ReadTableDeletedRecords(ts, False):
                 canceller.ThrowIfCancellationRequested()
                 downloadfile.id = row['id'].Value if 'id' in row else None
-                downloadfile.url = repr(row['url'].Value) if 'url' in row and row['url'].Value is not '' else None
-                downloadfile.filename = repr(row['filename'].Value) if 'filename' in row and row['filename'].Value is not '' else None
-                downloadfile.filefolderpath = self._transToAbsolutePath(repr(row['filefolderpath'].Value)) if 'filefolderpath' in row and row['filefolderpath'].Value is not '' else None
+                downloadfile.url = pattern.sub('', row['url'].Value) if 'url' in row and row['url'].Value is not '' else None
+                downloadfile.filename = pattern.sub('', row['filename'].Value) if 'filename' in row and row['filename'].Value is not '' else None
+                downloadfile.filefolderpath = self._transToAbsolutePath(pattern.sub(' ', row['filefolderpath'].Value)) if 'filefolderpath' in row and row['filefolderpath'].Value is not '' else None
                 downloadfile.totalsize = row['totalsize'].Value if 'totalsize' in row else None
                 downloadfile.createdate = self._timeHandler(row['creatdate'].Value) if 'totalsize' in row else None
                 downloadfile.donedate = self._timeHandler(row['donedate'].Value) if 'donedate' in row else None
@@ -128,6 +136,7 @@ class QQBrowserParse(object):
 
     def analyze_fileinfo(self):
         fileinfo = FileInfo()
+        pattern = re.compile('[\\x00-\\x08\\x0b-\\x0c\\x0e-\\x1f]')
         try:
             node_external = self.node.Parent.GetByPath('/filestore_0000-0000')
             node_internal = self.node.Parent.GetByPath('/filestore_0')
@@ -140,11 +149,11 @@ class QQBrowserParse(object):
                 for rec in self.db.ReadTableRecords(ts, self.extractDeleted, True):
                     canceller.ThrowIfCancellationRequested()
                     fileinfo.id = rec['FILE_ID'].Value if 'FILE_ID' in rec else None
-                    fileinfo.filepath = self._transToAbsolutePath(rec['FILE_PATH'].Value) if 'FILE_PATH' in rec and rec['FILE_PATH'].Value is not '' else None
-                    fileinfo.filename = rec['FILE_NAME'].Value if 'FILE_NAME' in rec and rec['FILE_NAME'].Value is not '' else None
+                    fileinfo.filepath = self._transToAbsolutePath(pattern.sub('', rec['FILE_PATH'].Value)) if 'FILE_PATH' in rec and rec['FILE_PATH'].Value is not '' else None
+                    fileinfo.filename = pattern.sub('', rec['FILE_NAME'].Value) if 'FILE_NAME' in rec and rec['FILE_NAME'].Value is not '' else None
                     fileinfo.size = rec['SIZE'].Value if 'SIZE' in rec else None
                     fileinfo.modified = self._timeHandler(rec['MODIFIED_DATE'].Value) if 'MODIFIED_DATE' in rec else None
-                    fileinfo.title = rec['TITLE'].Value if 'TITLE' in rec and rec['TITLE'].Value is not '' else None
+                    fileinfo.title = pattern.sub('', rec['TITLE'].Value) if 'TITLE' in rec and rec['TITLE'].Value is not '' else None
                     fileinfo.source = node.AbsolutePath
                     self.mb.db_insert_table_fileinfos(fileinfo)
                 self.mb.db_commit()
@@ -179,8 +188,8 @@ class QQBrowserParse(object):
                 for row in self.db.ReadTableDeletedRecords(ts, False):
                     canceller.ThrowIfCancellationRequested()
                     searchHistory.id = row['ID'].Value if 'ID' in row else None
-                    searchHistory.name = repr(row['NAME'].Value) if 'NAME' in row and row['NAME'].Value is not '' else None
-                    searchHistory.url = repr(row['URL'].Value) if 'URL' in row and row['URL'].Value is not '' else None
+                    searchHistory.name = pattern.sub('', row['NAME'].Value) if 'NAME' in row and row['NAME'].Value is not '' else None
+                    searchHistory.url = pattern.sub('', row['URL'].Value) if 'URL' in row and row['URL'].Value is not '' else None
                     searchHistory.datetime = self._timeHandler(row['DATETIME'].Value) if 'DATETIME' in row else None
                     users = re.findall(r'^.*/(.+).db', node.AbsolutePath)
                     searchHistory.owneruser = users[0]
@@ -297,7 +306,7 @@ class QQBrowserParse(object):
         self.analyze_browserecords()
         self.analyze_cookies()
         self.analyze_downloadfiles()
-        self.analyze_fileinfo()
+        #self.analyze_fileinfo()
         self.analyze_plugin()
         self.analyze_search_history()
         self.mb.db_close()

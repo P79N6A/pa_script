@@ -8,7 +8,12 @@ import logging
 import sqlite3
 import re
 import shutil
-SafeLoadAssembly('model_mails')
+import clr
+try:
+    clr.AddReference('model_mails')
+except:
+    pass
+del clr
 from model_mails import MM, Mails, Accounts, Contact, MailFolder, Attach, Generate
 
 SQL_ATTACH_TABLE_ACCOUNT1 = """attach database '"""
@@ -90,18 +95,19 @@ class QQMailParser(object):
         ts3 = SQLiteParser.TableSignature('QM_FOLDER')
         ts4 = SQLiteParser.TableSignature('QM_MAIL_CONTENT')
         ts5 = SQLiteParser.TableSignature('QM_MAIL_ATTACH')
+        pattern = re.compile('[\\x00-\\x08\\x0b-\\x0c\\x0e-\\x1f]')
         try:
             mails = Mails()
             for row in self.db.ReadTableDeletedRecords(ts1, False):
                 canceller.ThrowIfCancellationRequested()
-                mails.mailId = row['id'].Value if 'id' in row and not row['id'].IsDBNull else None
-                mails.folderId = row['folderId'].Value if 'folderId' in row and not row['folderId'].IsDBNull else None
-                mails.accountId = row['accountId'].Value if 'accountId' in row and not row['accountId'].IsDBNull else None
-                mails.subject = repr(row['subject'].Value) if 'subject' in row and not row['subject'].IsDBNull else None
-                mails.abstract = repr(row['abstract'].Value) if 'abstract' in row and not row['abstract'].IsDBNull else None
-                mails.fromEmail = repr(row['fromAddr'].Value) if 'fromAddr' in row and not row['fromAddr'].IsDBNull else None
-                mails.receiveUtc = row['utcReceived'].Value if 'utcReceived' in row and not row['utcReceived'].IsDBNull else None
-                mails.size = row['size'].Value if 'size' in row and not row['size'].IsDBNull else None
+                mails.mailId = row['id'].Value if 'id' in row else None
+                mails.folderId = row['folderId'].Value if 'folderId' in row else None
+                mails.accountId = row['accountId'].Value if 'accountId' in row else None
+                mails.subject = pattern.sub('', row['subject'].Value) if 'subject' in row else None
+                mails.abstract = pattern.sub('', row['abstract'].Value) if 'abstract' in row else None
+                mails.fromEmail = pattern.sub('', row['fromAddr'].Value) if 'fromAddr' in row else None
+                mails.receiveUtc = row['utcReceived'].Value if 'utcReceived' in row else None
+                mails.size = row['size'].Value if 'size' in row else None
                 mails.isRead = 1 if row['isUnread'].Value == 0 else 0
                 mails.deleted = 1
                 self.mm.db_insert_table_mails(mails)
@@ -109,33 +115,33 @@ class QQMailParser(object):
             mails = Mails()
             for row in self.db.ReadTableDeletedRecords(ts2, False):
                 canceller.ThrowIfCancellationRequested()
-                mails.mailId = row['docid'].Value if 'docid' in row and not row['docid'].IsDBNull else None
-                mails.tos = repr(row['clreceiver'].Value) if 'clreceiver' in row and not row['clreceiver'].IsDBNull else None
+                mails.mailId = row['docid'].Value if 'docid' in row else None
+                mails.tos = pattern.sub('', row['clreceiver'].Value) if 'clreceiver' in row else None
                 mails.deleted = 1
                 self.mm.db_insert_table_mails(mails)
             self.mm.db_commit()
             mails = Mails()
             for row in self.db.ReadTableDeletedRecords(ts3, False):
                 canceller.ThrowIfCancellationRequested()
-                mails.folderId = row['id'].Value if 'id' in row and not row['id'].IsDBNull else None
-                mails.mail_folder = repr(row['name'].Value) if 'name' in row and not row['name'].IsDBNull else None
+                mails.folderId = row['id'].Value if 'id' in row else None
+                mails.mail_folder = pattern.sub('', row['name'].Value) if 'name' in row else None
                 mails.deleted = 1
                 self.mm.db_insert_table_mails(mails)
             self.mm.db_commit()
             mails = Mails()
             for row in self.db.ReadTableDeletedRecords(ts4, False):
                 canceller.ThrowIfCancellationRequested()
-                mails.mailId = row['id'].Value if 'id' in row and not row['id'].IsDBNull else None
-                mails.content = repr(row['content'].Value) if 'content' in row and not row['content'].IsDBNull else None
+                mails.mailId = row['id'].Value if 'id' in row else None
+                mails.content = pattern.sub('', row['content'].Value) if 'content' in row else None
                 mails.deleted = 1
                 self.mm.db_insert_table_mails(mails)
             self.mm.db_commit()
             mails = Mails()
             for  row in self.db.ReadTableDeletedRecords(ts5, False):
                 canceller.ThrowIfCancellationRequested()
-                mails.mailId = row['mailid'].Value if 'mailid' in row and not row['mailid'].IsDBNull else None
-                mails.downloadSize = row['size'].Value if 'size' in row and not row['size'].IsDBNull else None
-                mails.attachName = repr(row['displayname'].Value) if 'displayname' in row and not row['displayname'].IsDBNull else None
+                mails.mailId = row['mailid'].Value if 'mailid' in row else None
+                mails.downloadSize = row['size'].Value if 'size' in row else None
+                mails.attachName = pattern.sub('', row['displayname'].Value) if 'displayname' in row else None
                 mails.attachDir = self.attachDir if mails.attachName is not None else None
                 mails.deleted = 1
                 self.mm.db_insert_table_mails(mails)
@@ -151,9 +157,9 @@ class QQMailParser(object):
             mails = Mails()
             for row in self.db.ReadTableDeletedRecords(ts, False):
                 canceller.ThrowIfCancellationRequested()
-                mails.accountId = row['id'].Value if 'id' in row and not row['id'].IsDBNull else None
-                mails.account_email = repr(row['email'].Value) if 'email' in row and not row['email'].IsDBNull else None
-                mails.alias = repr(row['name'].Value) if 'name' in row and not row['name'].IsDBNull else None
+                mails.accountId = row['id'].Value if 'id' in row else None
+                mails.account_email = pattern.sub('', row['email'].Value) if 'email' in row else None
+                mails.alias = pattern.sub('', row['name'].Value) if 'name' in row else None
                 mails.deleted = 1
                 self.mm.db_insert_table_mails(mails)
             self.mm.db_commit()
@@ -208,14 +214,15 @@ class QQMailParser(object):
         if self.db is None:
             return
         ts = SQLiteParser.TableSignature('QM_CONTACT')
+        pattern = re.compile('[\\x00-\\x08\\x0b-\\x0c\\x0e-\\x1f]')
         try:
             contact = Contact()
             for row in self.db.ReadTableDeletedRecords(ts, False):
                 canceller.ThrowIfCancellationRequested()
-                contact.accountId = row['accountid'].Value if 'accountid' in row and not row['accountid'].IsDBNull else None
-                contact.contactName = repr(row['name'].Value) if 'name' in row and not row['name'].IsDBNull else None
-                contact.contactEmail = repr(row['address'].Value) if 'address' in row and not row['address'].IsDBNull else None
-                contact.contactNick = repr(row['name'].Value) if 'name' in row and not row['name'].IsDBNull else None
+                contact.accountId = row['accountid'].Value if 'accountid' in row else None
+                contact.contactName = pattern.sub('', row['name'].Value) if 'name' in row else None
+                contact.contactEmail = pattern.sub('', row['address'].Value) if 'address' in row else None
+                contact.contactNick = pattern.sub('', row['name'].Value) if 'name' in row else None
                 contact.deleted = 1
                 self.mm.db_insert_table_contact(contact)
             self.mm.db_commit()
@@ -230,8 +237,8 @@ class QQMailParser(object):
             contact = Contact()
             for row in self.db.ReadTableDeletedRecords(ts, False):
                 canceller.ThrowIfCancellationRequested()
-                contact.accountId = row['id'].Value if 'id' in row and not row['id'].IsDBNull else None
-                contact.accountEmail = repr(row['email'].Value) if 'email' in row and not row['email'].IsDBNull else None
+                contact.accountId = row['id'].Value if 'id' in row else None
+                contact.accountEmail = pattern.sub('', row['email'].Value) if 'email' in row else None
                 contact.deleted = 1
                 self.mm.db_insert_table_contact(contact)
         except Exception as e:

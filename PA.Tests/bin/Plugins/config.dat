@@ -1075,7 +1075,7 @@
             <string>/data/com.android.providers.calendar/databases/calendar.db$</string>
           </array>
           <key>Category</key>
-          <string>Calendars</string>
+          <string>Calenders</string>
         </dict>
       </array>
     </dict>

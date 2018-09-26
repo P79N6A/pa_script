@@ -3,7 +3,12 @@ import os
 import PA_runtime
 import sqlite3
 from PA_runtime import *
-SafeLoadAssembly('model_calendar')
+import clr
+try:
+    clr.AddReference('model_calendar')
+except:
+    pass
+del clr
 import shutil
 from model_calendar import *
 
