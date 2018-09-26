@@ -21,7 +21,7 @@ import traceback
 
 def exc():
     pass
-    # traceback.print_exc()
+    #traceback.print_exc()
 
 
 VERSION_VALUE_DB = 1
@@ -176,6 +176,8 @@ class GenerateModel(object):
         models = []
         self.db = sqlite3.connect(self.cache_db)
         self.cursor = self.db.cursor()
+
+        models.extend(self._get_sim_models())
 
         self.cursor.close()
         self.db.close()

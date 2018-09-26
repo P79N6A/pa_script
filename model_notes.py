@@ -90,6 +90,8 @@ class Column(object):
     def __setattr__(self, name, value):
         if not IsDBNull(value):
             self.__dict__[name] = value
+        else:
+            self.__dict__[name] = None
 
     def get_values(self):
         return (self.source, self.deleted, self.repeated)
@@ -159,9 +161,9 @@ class Generate(object):
                 note.Summary.Value = row[2]
             if row[14] is not None:
                 note.SourceFile.Value = self._get_source_file(str(row[14]))
+            model.append(note)
         self.cursor.close()
         self.cursor = None
-        model.append(note)
         return model
 
     def _get_source_file(self, source_file):

@@ -70,7 +70,7 @@ class RenRenParser(model_im.IM):
                 self.user = None
                 self.contacts = None
             self.db_insert_table_version(model_im.VERSION_KEY_DB, model_im.VERSION_VALUE_DB)
-            self.db_insert_table_version(model_im.VERSION_KEY_APP)
+            self.db_insert_table_version(model_im.VERSION_KEY_APP, VERSION_APP_VALUE)
             self.db_commit()
             self.db_close()
         models  = self.get_models_from_cache_db()
@@ -260,7 +260,6 @@ class RenRenParser(model_im.IM):
                             if IsDBNull(friend.photo):
                                 friend.photo = None
                             self.db_insert_table_friend(friend)
-
         self.db_commit()
         return True
 

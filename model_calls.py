@@ -125,6 +125,8 @@ class Column(object):
     def __setattr__(self, name, value):
         if not IsDBNull(value):
             self.__dict__[name] = value
+        else:
+            self.__dict__[name] = None
 
     def get_values(self):
         return (self.source, self.deleted, self.repeated)
@@ -216,9 +218,9 @@ class Generate(object):
             c.Parties.Add(party)
             if row[11] is not None:
                 c.SourceFile.Value = self._get_source_file(str(row[11]))
+            model.append(c)
         self.cursor.close()
         self.cursor = None
-        model.append(c)
         return model
 
     def _get_model_contacts(self):
@@ -249,9 +251,9 @@ class Generate(object):
                     contact.Entries.Add(entry)
             if row[14] is not None:
                 contact.SourceFile.Value = self._get_source_file(str(row[14]))
+            model.append(contact)
         self.cursor.close()
         self.cursor = None
-        model.append(contact)
         return model
 
     def _get_source_file(self, source_file):
