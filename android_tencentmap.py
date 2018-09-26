@@ -124,7 +124,7 @@ class TencentMap(object):
                     tmpb = str(tmpa)[:10]
                     search.create_time = int(tmpb)
                 try:
-                    if fav_addr.keyword or fav_addr.address or fav_addr.pos_x or fav_addr.pos_y or fav_addr.create_time:
+                    if search.keyword or search.address or search.pos_x or search.pos_y or search.create_time:
                         self.tencentdb.db_insert_table_search(search)
                 except Exception as e:
                     pass
