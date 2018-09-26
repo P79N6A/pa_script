@@ -183,11 +183,11 @@ class NeteaseMailParser(object):
             mail.bcc         = rec['mailBCC'].Value 
             mail.isForward   = rec['isForwarded'].Value 
             mail.isRead      = rec['isRead'].Value 
-            mail.isDeleted   = rec['isDeleted'].Value 
             mail.receiveUtc  = rec['recvDate'].Value
             mail.size        = rec['mailSize'].Value 
             mail.content     = rec['htmlContent'].Value 
             mail.source      = self.source_mmail_db
+            mail.deleted     = rec['isDeleted'].Value 
             if rec['mailboxKey'].Value == MAIL_OUTBOX:      # 已发送
                 mail.sendStatus = 1
             elif rec['mailboxKey'].Value == MAIL_DRAFTBOX:  # 草稿箱
