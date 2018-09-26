@@ -1,3 +1,10 @@
+import clr
+try:
+    clr.AddReference('javaobj')
+except:
+    pass
+del clr
+
 import struct
 import javaobj
 import time
