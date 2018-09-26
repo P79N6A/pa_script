@@ -417,8 +417,8 @@ class Generate(object):
             email = Generic.Email()
             if row[22] not in [None, '']:
                 email.SourceFile.Value = self._get_source_file(row[22])
-            if row[23] is not None:
-                email.Deleted = self._convert_deleted_status(row[23])
+            if row[24] is not None:
+                email.Deleted = self._convert_deleted_status(row[24])
             if row[16] is not None:
                 email.Folder.Value = row[16]
                 if row[16] == '已发送':
