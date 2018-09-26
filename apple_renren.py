@@ -111,7 +111,8 @@ class RenRenParser(model_im.IM):
         account = model_im.Account()
         account.source = self.app_name
         account.account_id = self.user
-        account.username = self.bpreader_node_get_value(root, 'user_name', '')
+        account.username = self.user
+        account.nickname = self.bpreader_node_get_value(root, 'user_name', '')
         account.photo = self.bpreader_node_get_value(root, 'head_url', '')
         self.db_insert_table_account(account)
         self.db_commit()
