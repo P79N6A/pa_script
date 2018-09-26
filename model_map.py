@@ -323,6 +323,8 @@ class Genetate(object):
             if row[20]:
                 user.SourceFile.Value =self._get_source_file(row[20])
             user.ID.Value = row[0]
+            if row[0]:
+                user.ID.Value = row[0]
             if row[1]:
                 user.Name.Value = row[1]
             if row[2]:

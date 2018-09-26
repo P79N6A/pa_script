@@ -4,6 +4,7 @@ from PA_runtime import *
 import clr
 clr.AddReference('System.Core')
 clr.AddReference('System.Xml.Linq')
+clr.AddReference('System.Data.SQLite')
 del clr
 
 from System.IO import MemoryStream
@@ -14,8 +15,8 @@ from System.Xml.XPath import Extensions as XPathExtensions
 
 import os
 import System
+import System.Data.SQLite as SQLite
 import sqlite3
-import logging
 
 SQL_CREATE_TABLE_BOOKMARK = '''
     CREATE TABLE IF NOT EXISTS bookmark(
@@ -177,77 +178,95 @@ SQL_INSERT_TABLE_COOKIES = '''
 class MB(object):
     def __init__(self):
         self.db = None
-        self.cursor = None
+        self.db_cmd = None
+        self.db_trans = None
 
     def db_create(self,db_path):
         self.db_remove(db_path)
-        self.db = sqlite3.connect(db_path)
-        self.cursor = self.db.cursor()
-        self.db_create_tables()
+        self.db = SQLite.SQLiteConnection('Data Source = {}'.format(db_path))
+        self.db.Open()
+        self.db_cmd = SQLite.SQLiteCommand(self.db)
+        self.db_trans = self.db.BeginTransaction()
+        self.db_create_table()
+        self.db_commit()
 
     def db_commit(self):
-        if self.db is not None:
-            self.db.commit()
+        if self.db_trans is not None:
+            self.db_trans.Commit()
+        self.db_trans = self.db.BeginTransaction()
 
     def db_close(self):
-        if self.cursor is not None:
-            self.cursor.close()
-            self.cursor = None
+        self.db_trans = None
+        if self.db_cmd is not None:
+            self.db_cmd.Dispose()
+            self.db_cmd = None
         if self.db is not None:
-            self.db.close()
+            self.db.Close()
             self.db = None
 
     def db_remove(self, db_path):
-        if os.path.exists(db_path):
+        try:
             os.remove(db_path)
+        except Exception as e:
+            print("model_browser db_create() remove %s error:%s"(db_path, e))
 
-    def db_create_tables(self):
-        if self.cursor is not None:
-            self.cursor.execute(SQL_CREATE_TABLE_ACCOUNTS)
-            self.cursor.execute(SQL_CREATE_TABLE_BOOKMARK)
-            self.cursor.execute(SQL_CREATE_TABLE_BROWSERECORDS)
-            self.cursor.execute(SQL_CREATE_TABLE_DOWNLOADFILES)
-            self.cursor.execute(SQL_CREATE_TABLE_FILEINFO)
-            self.cursor.execute(SQL_CREATE_TABLE_SAVEPAGE)
-            self.cursor.execute(SQL_CREATE_TABLE_SEARCHHISTORY)
-            self.cursor.execute(SQL_CREATE_TABLE_PLUGIN)
-            self.cursor.execute(SQL_CREATE_TABLE_COOKIES)
+    def db_create_table(self):
+        if self.db_cmd is not None:
+            self.db_cmd.CommandText = SQL_CREATE_TABLE_ACCOUNTS
+            self.db_cmd.ExecuteNonQuery()
+            self.db_cmd.CommandText = SQL_CREATE_TABLE_BOOKMARK
+            self.db_cmd.ExecuteNonQuery()
+            self.db_cmd.CommandText = SQL_CREATE_TABLE_BROWSERECORDS
+            self.db_cmd.ExecuteNonQuery()
+            self.db_cmd.CommandText = SQL_CREATE_TABLE_DOWNLOADFILES
+            self.db_cmd.ExecuteNonQuery()
+            self.db_cmd.CommandText = SQL_CREATE_TABLE_FILEINFO
+            self.db_cmd.ExecuteNonQuery()
+            self.db_cmd.CommandText = SQL_CREATE_TABLE_SAVEPAGE
+            self.db_cmd.ExecuteNonQuery()
+            self.db_cmd.CommandText = SQL_CREATE_TABLE_SEARCHHISTORY
+            self.db_cmd.ExecuteNonQuery()
+            self.db_cmd.CommandText = SQL_CREATE_TABLE_PLUGIN
+            self.db_cmd.ExecuteNonQuery()
+            self.db_cmd.CommandText = SQL_CREATE_TABLE_COOKIES
+            self.db_cmd.ExecuteNonQuery()
+
+    def db_insert_table(self, sql, values):
+        if self.db_cmd is not None:
+            self.db_cmd.CommandText = sql
+            self.db_cmd.Parameters.Clear()
+            for value in values:
+                param = self.db_cmd.CreateParameter()
+                param.Value = value
+                self.db_cmd.Parameters.Add(param)
+            self.db_cmd.ExecuteNonQuery()
 
     def db_insert_table_accounts(self, Account):
-        if self.cursor is not None:
-            self.cursor.execute(SQL_INSERT_TABLE_ACCOUNTS, Account.get_values())
+        self.db_insert_table(SQL_INSERT_TABLE_ACCOUNTS, Account.get_values())
 
     def db_insert_table_bookmarks(self, Bookmark):
-        if self.cursor is not None:
-            self.cursor.execute(SQL_INSERT_TABLE_BOOKMARK, Bookmark.get_values())
+        self.db_insert_table(SQL_INSERT_TABLE_BOOKMARK, Bookmark.get_values())
 
     def db_insert_table_browserecords(self, BrowseRecord):
-        if self.cursor is not None:
-            self.cursor.execute(SQL_INSERT_TABLE_BROWSERECORDS, BrowseRecord.get_values())
+        self.db_insert_table(SQL_INSERT_TABLE_BROWSERECORDS, BrowseRecord.get_values())
 
     def db_insert_table_downloadfiles(self, DownloadFile):
-        if self.cursor is not None:
-            self.cursor.execute(SQL_INSERT_TABLE_DOWNLOADFILES, DownloadFile.get_values())
+        self.db_insert_table(SQL_INSERT_TABLE_DOWNLOADFILES, DownloadFile.get_values())
 
     def db_insert_table_fileinfos(self, FileInfo):
-        if self.cursor is not None:
-            self.cursor.execute(SQL_INSERT_TABLE_FILEINFO, FileInfo.get_values())
+        self.db_insert_table(SQL_INSERT_TABLE_FILEINFO, FileInfo.get_values())
 
     def db_insert_table_savepages(self, SavePage):
-        if self.cursor is not None:
-            self.cursor.execute(SQL_INSERT_TABLE_SAVEPAGE, SavePage.get_values())
+        self.db_insert_table(SQL_INSERT_TABLE_SAVEPAGE, SavePage.get_values())
 
     def db_insert_table_searchhistory(self, SearchHistory):
-        if self.cursor is not None:
-            self.cursor.execute(SQL_INSERT_TABLE_SEARCHHISTORY, SearchHistory.get_values())
+        self.db_insert_table(SQL_INSERT_TABLE_SEARCHHISTORY, SearchHistory.get_values())
 
     def db_insert_table_plugin(self, Plugin):
-        if self.cursor is not None:
-            self.cursor.execute(SQL_INSERT_TABLE_PLUGIN, Plugin.get_values())
+        self.db_insert_table(SQL_INSERT_TABLE_PLUGIN, Plugin.get_values())
 
     def db_insert_table_cookies(self, Cookie):
-        if self.cursor is not None:
-            self.cursor.execute(SQL_INSERT_TABLE_COOKIES, Cookie.get_values())
+        self.db_insert_table(SQL_INSERT_TABLE_COOKIES, Cookie.get_values())
 
 
 class Column(object):
@@ -257,7 +276,11 @@ class Column(object):
         self.repeated = 0
 
     def __setattr__(self, name, value):
-        if not IsDBNull(value):
+        if IsDBNull(value):
+            self.__dict__[name] = None
+        else:
+            if isinstance(value, str):
+                value = re.compile('[\\x00-\\x08\\x0b-\\x0c\\x0e-\\x1f]').sub(' ', value)                 
             self.__dict__[name] = value
 
     def get_values(self):

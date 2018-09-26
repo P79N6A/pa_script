@@ -1096,7 +1096,7 @@
             <string>/data/com.android.providers.calendar/databases/calendar.db$</string>
           </array>
           <key>Category</key>
-          <string>Calendars</string>
+          <string>Calenders</string>
         </dict>
       </array>
     </dict>
@@ -1161,6 +1161,25 @@
       </array>
     </dict>
 
+    <dict>
+      <key>Module</key>
+      <string>android_media</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_android_media</string>
+          <key>RunnerType</key>
+          <integer>2</integer>
+          <key>Patterns</key>
+          <array>
+            <string>/com.android.providers.media/databases/internal.db$</string>
+          </array>
+          <key>Category</key>
+          <string>Notes</string>
+        </dict>
+      </array>
+    </dict>
 
     <dict>
       <key>Module</key>
