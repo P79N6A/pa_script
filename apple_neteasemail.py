@@ -54,6 +54,7 @@ class NeteaseMailParser(object):
         
         self.accounts = {}
         self.mail_folder = {}
+        self.neg_primary_key = 1
 
     def parse(self):
         self.parse_email(node=self.root.GetByPath("Documents/imail.db"))
@@ -90,7 +91,7 @@ class NeteaseMailParser(object):
                 mail = Mails()
                 if IsDBNull(rec['subject'].Value):
                     continue
-                mail.mailId      = rec['localId'].Value 
+                mail.mailId      = self.convert_primary_key(rec['localId'].Value)
                 mail.mail_folder = self.mail_folder.get(rec['mailBoxId'].Value, None)
                 mail.subject     = rec['subject'].Value
                 mail.abstract    = rec['summary'].Value 
@@ -349,3 +350,9 @@ class NeteaseMailParser(object):
             return True      
         except:
             return False
+
+    def convert_primary_key(self, mailId):
+        if mailId == 0:
+            self.neg_primary_key -= 1
+            return self.neg_primary_key
+        return mailId
