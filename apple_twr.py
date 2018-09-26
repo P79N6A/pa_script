@@ -161,7 +161,7 @@ class TIphone(object):
                     message_dict[ck] = message_list
             # to messages...
             for k in message_dict:
-                if cancller.IsCancellationRequested:
+                if canceller.IsCancellationRequested:
                     raise IOError('e')
                 l = message_dict[k]
                 uids = k.split('-')
