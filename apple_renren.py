@@ -77,7 +77,7 @@ class RenRenParser(model_im.IM):
         return models
 
     def get_models_from_cache_db(self):
-        models = model_im.GenerateModel(self.cache_db, self.mount_dir).get_models()
+        models = model_im.GenerateModel(self.cache_db).get_models()
         return models
 
     def get_user_list(self):
@@ -293,9 +293,9 @@ class RenRenParser(model_im.IM):
                     message.is_sender = model_im.MESSAGE_TYPE_SEND if rec['from_user_id'].Value == self.user else model_im.MESSAGE_TYPE_RECEIVE
                     message.talker_id = contactid
                     if contact.get('type', 0) == CONTACT_TYPE_FRIEND:
-                        message.talker_type = model_im.CHAT_TYPE_GROUP
-                    if contact.get('type', 0) == CONTACT_TYPE_GROUP:
                         message.talker_type = model_im.CHAT_TYPE_FRIEND
+                    if contact.get('type', 0) == CONTACT_TYPE_GROUP:
+                        message.talker_type = model_im.CHAT_TYPE_GROUP
                     message.talker_name = rec['fname'].Value
                     message.sender_id = message.talker_id
                     message.sender_name = message.talker_name
@@ -420,3 +420,4 @@ class RenRenParser(model_im.IM):
         if key in node.Children and node.Children[key] is not None:
             return node.Children[key].Value
         return default_value
+
