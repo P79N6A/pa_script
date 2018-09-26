@@ -4,6 +4,7 @@ from PA_runtime import *
 import clr
 clr.AddReference('System.Core')
 clr.AddReference('System.Xml.Linq')
+clr.AddReference('System.Data.SQLite')
 del clr
 
 from System.IO import MemoryStream
@@ -70,42 +71,59 @@ SQL_INSERT_TABLE_THUMBNAILS = '''
 class MM(object):
     def __init__(self):
         self.db = None
-        self.cursor = None
+        self.db_cmd = None
+        self.db_trans = None
 
     def db_create(self,db_path):
         self.db_remove(db_path)
-        self.db = sqlite3.connect(db_path)
-        self.cursor = self.db.cursor()
-        self.db_create_tables()
+        self.db = SQLite.SQLiteConnection('Data Source = {}'.format(db_path))
+        self.db.Open()
+        self.db_cmd = SQLite.SQLiteCommand(self.db)
+        self.db_trans = self.db.BeginTransaction()
+        self.db_create_table()
+        self.db_commit()
 
     def db_commit(self):
-        if self.db is not None:
-            self.db.commit()
+        if self.db_trans is not None:
+            self.db_trans.Commit()
+        self.db_trans = self.db.BeginTransaction()
 
     def db_close(self):
-        if self.cursor is not None:
-            self.cursor.close()
-            self.cursor = None
+        self.db_trans = None
+        if self.db_cmd is not None:
+            self.db_cmd.Dispose()
+            self.db_cmd = None
         if self.db is not None:
-            self.db.close()
+            self.db.Close()
             self.db = None
 
     def db_remove(self, db_path):
-        if os.path.exists(db_path):
+        try:
             os.remove(db_path)
+        except Exception as e:
+            print("model_media db_create() remove %s error:%s"(db_path, e))
 
-    def db_create_tables(self):
-        if self.cursor is not None:
-            self.cursor.execute(SQL_CREATE_TABLE_MEDIA)
-            self.cursor.execute(SQL_CREATE_TABLE_THUMBNAILS)
+    def db_create_table(self):
+        if self.db_cmd is not None:
+            self.db_cmd.CommandText = SQL_CREATE_TABLE_MEDIA
+            self.db_cmd.ExecuteNonQuery()
+            self.db_cmd.CommandText = SQL_CREATE_TABLE_THUMBNAILS
+
+    def db_insert_table(self, sql, values):
+        if self.db_cmd is not None:
+            self.db_cmd.CommandText = sql
+            self.db_cmd.Parameters.Clear()
+            for value in values:
+                param = self.db_cmd.CreateParameter()
+                param.Value = value
+                self.db_cmd.Parameters.Add(param)
+            self.db_cmd.ExecuteNonQuery()
 
     def db_insert_table_media(self, Media):
-        if self.cursor is not None:
-            self.cursor.execute(SQL_INSERT_TABLE_MEDIA, Media.get_values())
+        self.db_insert_table(SQL_INSERT_TABLE_MEDIA, Media.get_values())
 
     def db_insert_table_thumbnails(self, Thumbnails):
-        if self.cursor is not None:
-            self.cursor.execute(SQL_INSERT_TABLE_THUMBNAILS, Thumbnails.get_values())
+        self.db_insert_table(SQL_INSERT_TABLE_THUMBNAILS, Thumbnails.get_values())
 
 
 class Media(object):
