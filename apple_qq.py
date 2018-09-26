@@ -29,6 +29,7 @@ from collections import defaultdict
 import logging
 from  model_im import *
 import uuid 
+import hashlib
 class QQParser(object):
     def __init__(self, app_root_dir, extract_deleted, extract_source):
         self.root = app_root_dir
@@ -46,10 +47,12 @@ class QQParser(object):
         self.troopmsgtables =set()
         self.troops = collections.defaultdict(Chatroom)
         self.im = IM()
-        self.cachepath = ds.OpenCachePath("QQ")
-        self.cachedb =  self.cachepath  + "/QQ.db"
-        #self.im.db_create(self.cachedb)
-        self.VERSION_APP_VALUE = 10000
+        self.cachepath = ds.OpenCachePath("QQ")        
+        m = hashlib.md5()
+        m.update(self.root.AbsolutePath)        
+        self.cachedb =  self.cachepath  + '/' + m.hexdigest().upper() + ".db"               
+        self.VERSION_APP_VALUE = 10000    
+    
     def parse(self):        
         if self.im.need_parse(self.cachedb, self.VERSION_APP_VALUE):
             self.im.db_create(self.cachedb)
@@ -303,17 +306,21 @@ class QQParser(object):
         self.accounts.append(ac.account_id)
         self.im.db_insert_table_account(ac)
         self.im.db_commit()
-    def decode_friendlist_v3(self,acc_id):
-        node = self.root.GetByPath('/Documents/contents/' + acc_id + '/QQFriendList_v3.plist')
-        if node is not None:
-            #friendPlistPath =  self.cachepath  + "/QQFriendList_v3.plist"
-            #node.SaveToFile(friendPlistPath)
-            friendPlistPath = node.PathWithMountPoint
-            #this get friend nickname
-            self.friendsGroups,self.friendsNickname = getFriendNickName(friendPlistPath)
+    def decode_friendlist(self,acc_id):
+        try:
+            node = self.root.GetByPath('/Documents/contents/' + acc_id + '/QQFriendList_v3.plist')
+            if node is not None:
+                friendPlistPath = node.PathWithMountPoint            
+                self.friendsGroups,self.friendsNickname = getFriendNickName(friendPlistPath)            
+            else:
+                node = self.root.GetByPath('/Documents/contents/' + acc_id + '/QQFriendList_v2.plist')    
+                if node is not None:
+                    friendPlistPath = node.PathWithMountPoint            
+                    self.friendsGroups,self.friendsNickname = getFriendNickNameV2(friendPlistPath)  
+                
             for k in self.friendsNickname:
                 if canceller.IsCancellationRequested:
-                    return
+                    return            
                 friend = Friend()
                 friend.account_id = acc_id
                 friend.friend_id = k
@@ -321,9 +328,11 @@ class QQParser(object):
                 friend.remark = self.friendsNickname[k][1]
                 friend.source = node.AbsolutePath
                 self.im.db_insert_table_friend(friend)
+        except:
+            pass
         self.im.db_commit()
     def decode_friends(self, acc_id):
-        self.decode_friendlist_v3(acc_id)
+        self.decode_friendlist(acc_id)
     def decode_group_info(self,acc_id):        
         node = self.root.GetByPath('/Documents/contents/' + acc_id + '/QQTroopMemo')
         if node is  not None:
@@ -350,87 +359,91 @@ class QQParser(object):
         if db is None:
             return		
         sql = ''
-        if 'tb_troop' in db.Tables:
-            sql = 'select groupCode, groupName , groupMemNum  from tb_troop'
-        else:
-            sql = 'select groupCode, groupName , groupMemNum  from tb_troop_new'
-        cursor = conn.execute(sql)
-        for row in cursor:   
-            if canceller.IsCancellationRequested:
-                return         
-            groupCode = str(row[0])
-            groupName = str(row[1])
-            groupMemNum = row[2]
-            group = self.troops[groupCode]
-            group.member_count = groupMemNum
-            group.name = groupName
-            group.chatroom_id = groupCode
-            group.account_id = acc_id
-            if(group.source is None):
-                group.source = node.AbsolutePath
-            self.im.db_insert_table_chatroom(group)
+        try:
+            if 'tb_troop' in db.Tables:
+                sql = 'select groupCode, groupName  from tb_troop'
+            else:
+                sql = 'select groupCode, groupName   from tb_troop_new'
+            cursor = conn.execute(sql)
+            for row in cursor:   
+                if canceller.IsCancellationRequested:
+                    return         
+                groupCode = str(row[0])
+                groupName = str(row[1])
+                group = self.troops[groupCode]
+                group.name = groupName
+                group.chatroom_id = groupCode
+                group.account_id = acc_id
+                if(group.source is None):
+                    group.source = node.AbsolutePath
+                self.im.db_insert_table_chatroom(group)
+        except:
+            pass
         self.im.db_commit()
 
     def decode_groupMember_info(self, acc_id):
-        node = self.root.GetByPath('/Documents/contents/' + acc_id + '/QQ_Group_CFG.db')
-        chatroommmebers = collections.defaultdict(ChatroomMember)
-        if node is not None:
-            d = node.PathWithMountPoint
-            conn = sqlite3.connect(d)
-            sql = 'select strNick,groupCode,MemberUin,strRemark,PhoneNumber  from tb_troopRemarkNew'
-            cursor = conn.execute(sql)
-            for row in cursor:
-                if canceller.IsCancellationRequested:
-                        return
-                chatroommem = ChatroomMember()
-                strNick = row[0]
-                groupCode = str(row[1])
-                MemberUin = str(row[2])
-                strRemark = row[3]
-                PhoneNumber = row[4]
-                chatroommem.account_id = acc_id
-                chatroommem.chatroom_id = groupCode
-                chatroommem.member_id = MemberUin
-                chatroommem.display_name = strNick
-                chatroommem.telephone  = PhoneNumber
-                chatroommem.signature = strRemark
-                chatroommem.source = node.AbsolutePath
-                chatroommmebers[(groupCode,MemberUin)] =  chatroommem
-        node = self.root.GetByPath('/Documents/contents/' + acc_id + '/QQ.db')
-        if node is not None:
-            d = node.PathWithMountPoint
-            conn = sqlite3.connect(d)
-            sql = 'select nick,GroupCode,MemUin,Age,JoinTime,LastSpeakTime,gender from tb_TroopMem'
-            cursor = conn.execute(sql)
-            for row in cursor:
+        try:
+            node = self.root.GetByPath('/Documents/contents/' + acc_id + '/QQ_Group_CFG.db')
+            chatroommmebers = collections.defaultdict(ChatroomMember)
+            if node is not None:
+                d = node.PathWithMountPoint
+                conn = sqlite3.connect(d)
+                sql = 'select strNick,groupCode,MemberUin,strRemark,PhoneNumber  from tb_troopRemarkNew'
+                cursor = conn.execute(sql)
+                for row in cursor:
                     if canceller.IsCancellationRequested:
-                        return
-                    nick = row[0]
+                            return
+                    chatroommem = ChatroomMember()
+                    strNick = row[0]
                     groupCode = str(row[1])
                     MemberUin = str(row[2])
-                    Age = row[3]
-                    JoinTime = row[4]
-                    LastSpeakTime =  row[5]
-                    gender = row[6]
-                    chatmem = chatroommmebers[(groupCode, MemberUin)]
-                    if(chatmem.source is None):
-                        chatmem.source = node.AbsolutePath
-                    chatmem.account_id = acc_id
-                    chatmem.chatroom_id = groupCode
-                    chatmem.member_id = MemberUin
-                    if(chatmem.display_name == ''):
-                        chatmem.display_name = nick
-                    chatmem.age  = Age
-                    if(gender == 0):
-                        chatmem.gender = GENDER_MALE
-                    elif(gender == 1):
-                        chatmem.gender = GENDER_FEMALE
-                    else:
-                        chatmem.gender = GENDER_NONE
-                    chatmem.JoinTime = JoinTime
-                    chatmem.lastspeektime = LastSpeakTime
-        for k in chatroommmebers:
-            self.im.db_insert_table_chatroom_member(chatroommmebers[k])
+                    strRemark = row[3]
+                    PhoneNumber = row[4]
+                    chatroommem.account_id = acc_id
+                    chatroommem.chatroom_id = groupCode
+                    chatroommem.member_id = MemberUin
+                    chatroommem.display_name = strNick
+                    chatroommem.telephone  = PhoneNumber
+                    chatroommem.signature = strRemark
+                    chatroommem.source = node.AbsolutePath
+                    chatroommmebers[(groupCode,MemberUin)] =  chatroommem
+            node = self.root.GetByPath('/Documents/contents/' + acc_id + '/QQ.db')
+            if node is not None:
+                d = node.PathWithMountPoint
+                conn = sqlite3.connect(d)
+                sql = 'select nick,GroupCode,MemUin,Age,JoinTime,LastSpeakTime,gender from tb_TroopMem'
+                cursor = conn.execute(sql)
+                for row in cursor:
+                        if canceller.IsCancellationRequested:
+                            return
+                        nick = row[0]
+                        groupCode = str(row[1])
+                        MemberUin = str(row[2])
+                        Age = row[3]
+                        JoinTime = row[4]
+                        LastSpeakTime =  row[5]
+                        gender = row[6]
+                        chatmem = chatroommmebers[(groupCode, MemberUin)]
+                        if(chatmem.source is None):
+                            chatmem.source = node.AbsolutePath
+                        chatmem.account_id = acc_id
+                        chatmem.chatroom_id = groupCode
+                        chatmem.member_id = MemberUin
+                        if(chatmem.display_name == ''):
+                            chatmem.display_name = nick
+                        chatmem.age  = Age
+                        if(gender == 0):
+                            chatmem.gender = GENDER_MALE
+                        elif(gender == 1):
+                            chatmem.gender = GENDER_FEMALE
+                        else:
+                            chatmem.gender = GENDER_NONE
+                        chatmem.JoinTime = JoinTime
+                        chatmem.lastspeektime = LastSpeakTime
+            for k in chatroommmebers:
+                self.im.db_insert_table_chatroom_member(chatroommmebers[k])
+        except:
+            pass
         self.im.db_commit()
 
     def decode_friend_messages(self, acc_id):
