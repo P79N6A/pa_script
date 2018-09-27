@@ -88,17 +88,22 @@ class BaiduMap(object):
                 if rec.Deleted == DeletedState.Deleted:
                     search_history.deleted = 1
                 if "value" in rec and (not rec["value"].IsDBNull):
-                    tmp = rec["value"].Value
-                    b = bytes(tmp)
-                    json_data = json.loads(b.decode("utf-16", errors='ignore'))
-                    search_history.keyword = json_data["Fav_Content"]
-                    if "Fav_Extra" in json_data and (json["Fav_Extra"] is not None):
-                        search_history.district = json["Fav_Extra"]
-                    if "Fav_Sync" in json_data:
-                        if "cityId" in json_data["Fav_Sync"]:
-                            search_history.adcode = json_data["Fav_Sync"]["cityId"]
-                        if "addtimesec" in json_data["Fav_Sync"]:
-                            search_history.create_time = int(json_data["Fav_Sync"]["addtimesec"])
+                    try:
+                        tmp = rec["value"].Value
+                        b = bytes(tmp)
+                        json_data = json.loads(b.decode("utf-16", errors='ignore'))
+                    except Exception as e:
+                        pass
+                    if json_data:
+                        if "Fav_Content" in json_data:
+                            search_history.keyword = json_data["Fav_Content"]
+                        if "Fav_Extra" in json_data and json["Fav_Extra"]:
+                            search_history.district = json["Fav_Extra"]
+                        if "Fav_Sync" in json_data:
+                            if "cityId" in json_data["Fav_Sync"]:
+                                search_history.adcode = json_data["Fav_Sync"]["cityId"]
+                            if "addtimesec" in json_data["Fav_Sync"]:
+                                search_history.create_time = int(json_data["Fav_Sync"]["addtimesec"])
                     try:
                         self.baidudb.db_insert_table_search(search_history)
                     except Exception as e:
@@ -122,53 +127,51 @@ class BaiduMap(object):
             for rec in db.ReadTableRecords(tbs, self.extract_Deleted, True):
                 if canceller.IsCancellationRequested:
                     return
-                if "value" in rec and (rec["value"] is not None):
-                    addr =  model_map.Address()
-                    if rec.Deleted == DeletedState.Deleted:
-                        addr.deleted = 1
-                    addr.source = "百度地图"
-                    addr.sourceApp = "百度地图"
-                    addr.sourceFile = route_node.AbsolutePath
-                    if "value" in rec and (not rec["value"].IsDBNull):
-                        data = None
-                        tmp = rec["value"].Value
-                        try:
-                            b = bytes(tmp)
-                            jsonfile = b.decode("utf-8",errors='ignore')
-                            # data = json.loads(jsonfile)
-                        except Exception as e:
-                            pass
-                        try:
-                            data = json.dumps(jsonfile)
-                        except Exception as e:
-                            continue
-                        
-                        if "Fav_Content" in data:
-                            strings = data.get("Fav_Content")
-                            content = json.loads(strings)
-                            if "Fav_Sync" in data:
-                                addr.create_time = int(data["addtimesec"])
-                            if "sfavnode" in content:
-                                if "name" in content["sfavnode"]:
-                                    addr.from_name = content["sfavnode"]["name"]
-                                if "geoptx" in content["sfavnode"]:
-                                    addr.from_posX = content["sfavnode"]["geoptx"]
-                                if "geopty" in content["sfavnode"]:
-                                    addr.from_posY = content["sfavnode"]["geopty"]
-                            if "efavnode" in content:
-                                if "name" in content["efavnode"]:
-                                    addr.from_name = content["efavnode"]["name"]
-                                if "geoptx" in content["efavnode"]:
-                                    addr.from_posX = content["efavnode"]["geoptx"]
-                                if "geopty" in content["efavnode"]:
-                                    addr.from_posY = content["efavnode"]["geopty"]                  
+                routeaddr = model_map.Address() 
+                if rec.Deleted == DeletedState.Deleted:
+                    routeaddr.deleted = 1
+                routeaddr.source = "百度地图"
+                routeaddr.sourceFile = route_node.AbsolutePath
+                seach_history = rec["key"].Value.replace("0&","")
+                try:
+                    fromname, toname = seach_history.split("&")
+                    routeaddr.from_name = fromname
+                    routeaddr.to_name = toname
+                except Exception as e:
+                    print(e)
+                    routeaddr.fromname = seach_history
+                if "value" in rec and (not rec["value"].IsDBNull):
+                    seach_info = rec["value"].Value
                     try:
-                        if addr.from_name or addr.from_posX or addr.from_posY or addr.from_addr:
-                            self.baidudb.db_insert_table_address(addr)
+                        b = bytes(seach_info)
+                        jsonflie = b.decode('utf-16')
+                        dicts= json.loads(jsonflie)
+                        search_time = dicts.get("addtimesec")
+                        routeaddr.create_time = search_time
+
+                        from_name = dicts.get("sfavnode").get("name")
+                        from_geoptx = dicts.get("sfavnode").get("geoptx")
+                        from_geopty = dicts.get("sfavnode").get("geopty")
+                        routeaddr.from_name = from_name
+                        routeaddr.from_posX = from_geoptx
+                        routeaddr.from_posY = from_geopty
+
+                        to_name = dicts.get("efavnode").get("name")
+                        to_geoptx = dicts.get("efavnode").get("geoptx")
+                        to_geopty = dicts.get("efavnode").get("geopty")
+                        routeaddr.to_name = to_name
+                        routeaddr.to_posX = to_geoptx
+                        routeaddr.to_posY = to_geopty
                     except Exception as e:
-                        print(e)           
+                        self.baidudb.db_insert_table_address(routeaddr)
+                    try:
+                        if routeaddr.from_posX and routeaddr.from_posY and routeaddr.to_posX and routeaddr.to_posY:
+                            self.baidudb.db_insert_table_address(routeaddr)
+                    except Exception as e:
+                        pass
         except Exception as e:
             print(e)
+                        
         self.baidudb.db_commit()
 
 
