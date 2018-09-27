@@ -117,7 +117,7 @@ class NeteaseMailParser(object):
     def parse_mailbox(self):
         """ 邮件类型预处理 mailbox """
         for rec in self.my_read_table(table_name='Mailbox'):
-            if IsDBNull(rec['serverId'].Value): # str
+            if IsDBNull(rec['serverId'].Value) or IsDBNull(rec['displayName'].Value) or not rec['displayName'].Value : # str
                 continue
             self.mail_folder[rec['serverId'].Value] = rec['displayName'].Value
             folder = MailFolder()
@@ -194,12 +194,19 @@ class NeteaseMailParser(object):
                 mail.sendStatus = 0
             # 附件
             if rec['hasAttach'].Value == 1:
-                self.mm.cursor.execute(SELECT_ATTACH_SQL, (mail.mailId,))
-                rows = self.mm.cursor.fetchall() # list, None 值以 '' 代替
-                mail.attachName   = ','.join(map(lambda x: x[0] if x[0] is not None else '', rows))
-                mail.attachDir    = ','.join(map(lambda x: x[1] if x[1] is not None else '', rows))
-                mail.downloadSize = ','.join(map(lambda x: x[2] if x[2] is not None else '', rows))
-                mail.downloadUtc  = ','.join(map(lambda x: x[3] if x[3] is not None else '0', rows))
+                try:
+                    self.mm.db_cmd.CommandText = SELECT_ATTACH_SQL.format(mail.mailId)
+                    rows = self.mm.db_cmd.ExecuteReader()
+                    while rows.Read():
+                        # list, None 以 '' 代替
+                        mail.attachName   = ','.join(map(lambda x: x[0] if x[0] is not None else '', rows))
+                        mail.attachDir    = ','.join(map(lambda x: x[1] if x[1] is not None else '', rows))
+                        mail.downloadSize = ','.join(map(lambda x: x[2] if x[2] is not None else '', rows))
+                        mail.downloadUtc  = ','.join(map(lambda x: x[3] if x[3] is not None else '0', rows))
+                except:
+                    exc()
+                finally:
+                    rows.Dispose()            
             try:
                 self.mm.db_insert_table_mails(mail)
             except:

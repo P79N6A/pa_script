@@ -1,3 +1,4 @@
+
 # coding=utf-8
 import os
 import traceback
@@ -15,32 +16,32 @@ from model_browser import *
 
 
 def exc():
-    exc()
-    # traceback.print_exc()
+    # exc()
+    traceback.print_exc()
 
-def analyze_baidusearchbox(node, extract_deleted, extract_source):
+def analyze_baidumobile(node, extract_deleted, extract_source):
     """
         android 华为 (data/data/com.baidu.searchbox/)
     """
     pr = ParserResults()
     cachedb_name = "\\BaiduSearchbox.db"
-    res = BaiduSearchboxParser(node, extract_deleted, extract_source, cachedb_name).parse()
+    res = BaiduMobileParser(node, extract_deleted, extract_source, cachedb_name).parse()
     pr.Models.AddRange(res)
     pr.Build('手机百度')
     return pr
 
-def analyze_baidusearchbox_lite(node, extract_deleted, extract_source):
+def analyze_baidumobile_lite(node, extract_deleted, extract_source):
     """
         android 华为 (data/data/com.baidu.searchbox.lite/)
     """
     pr = ParserResults()
     cachedb_name = "\\BaiduSearchbox_Lite.db"
-    res = BaiduSearchboxParser(node, extract_deleted, extract_source, cachedb_name).parse()
+    res = BaiduMobileParser(node, extract_deleted, extract_source, cachedb_name).parse()
     pr.Models.AddRange(res)
     pr.Build('手机百度极速版')
     return pr
 
-class BaiduSearchboxParser(object):
+class BaiduMobileParser(object):
 
     def __init__(self, node, extract_deleted, extract_source, cachedb_name):
 
@@ -49,7 +50,7 @@ class BaiduSearchboxParser(object):
         self.extract_source = extract_source
 
         self.mb = MB()
-        self.cachepath = ds.OpenCachePath("BaiduSearchbox")
+        self.cachepath = ds.OpenCachePath("BaiduMobile")
         self.cachedb = self.cachepath + cachedb_name 
         self.mb.db_create(self.cachedb)
 

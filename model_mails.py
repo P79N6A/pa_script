@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 
-
 from PA_runtime import *
 import clr
 clr.AddReference('System.Core')
 clr.AddReference('System.Xml.Linq')
+clr.AddReference('System.Data.SQLite')
 del clr
 
 from System.IO import MemoryStream
@@ -12,6 +12,7 @@ from System.Text import Encoding
 from System.Xml.Linq import *
 from System.Linq import Enumerable
 from System.Xml.XPath import Extensions as XPathExtensions
+import System.Data.SQLite as SQLite
 
 import os
 import sqlite3
@@ -167,62 +168,95 @@ SQL_INSERT_TABLE_SEARCH = ''''''
 class MM(object):
     def __init__(self):
         self.db = None
-        self.cursor = None
-
+        self.db_cmd = None
+        self.db_trans = None
+        
     def db_create(self, db_path):
         if os.path.exists(db_path):
             os.remove(db_path)
-        self.db = sqlite3.connect(db_path)
-        self.cursor = self.db.cursor()
-        self.db_create_table()
+        self.db = SQLite.SQLiteConnection('Data Source = {}'.format(db_path))
+        self.db.Open()
+        self.db_cmd = SQLite.SQLiteCommand(self.db)
+        self.db_trans = self.db.BeginTransaction()
 
-    def db_close(self):
-        if self.cursor is not None:
-            self.cursor.close()
-            self.cursor = None
-        if self.db is not None:
-            self.db.close()
-            self.db = None
+        self.db_create_table()
+        self.db_commit()
 
     def db_commit(self):
+        if self.db_cmd is not None:        
+            if self.db_trans is not None:
+                self.db_trans.Commit()
+            self.db_trans = self.db.BeginTransaction()
+
+    def db_update(self, SQL, values=None):
+        if self.db_cmd is not None:
+            self.db_cmd.CommandText = SQL
+            self.db_cmd.Parameters.Clear()            
+            for v in values:
+                param = self.db_cmd.CreateParameter()
+                param.Value = v
+                self.db_cmd.Parameters.Add(param)     
+            try:
+                self.db_cmd.ExecuteNonQuery()
+            except:
+                traceback.print_exc()
+
+    def db_close(self):
+        self.db_trans = None
+        if self.db_cmd is not None:
+            self.db_cmd.Dispose()
+            self.db_cmd = None
         if self.db is not None:
-            self.db.commit()
+            self.db.Close()
+            self.db = None
 
     def db_create_table(self):
-        if self.cursor is not None:
-            self.cursor.execute(SQL_CREATE_TABLE_MAILS)
-            self.cursor.execute(SQL_CREATE_TABLE_ACCOUNT)
-            self.cursor.execute(SQL_CREATE_TABLE_CONTACT)
-            self.cursor.execute(SQL_CREATE_TABLE_MAIL_FOLDER)
-            self.cursor.execute(SQL_CREATE_TABLE_ATTACH)
-            self.cursor.execute(SQL_CREATE_TABLE_TODO)
-            #self.cursor.execute(SQL_CREATE_TABLE_SEARCH)
+        if self.db_cmd is not None:
+            self.db_cmd.CommandText = SQL_CREATE_TABLE_ACCOUNT
+            self.db_cmd.ExecuteNonQuery()
+            self.db_cmd.CommandText = SQL_CREATE_TABLE_ATTACH
+            self.db_cmd.ExecuteNonQuery()
+            self.db_cmd.CommandText = SQL_CREATE_TABLE_CONTACT
+            self.db_cmd.ExecuteNonQuery()
+            self.db_cmd.CommandText = SQL_CREATE_TABLE_MAIL_FOLDER
+            self.db_cmd.ExecuteNonQuery()
+            self.db_cmd.CommandText = SQL_CREATE_TABLE_MAILS
+            self.db_cmd.ExecuteNonQuery()
+            self.db_cmd.CommandText = SQL_CREATE_TABLE_SEARCH
+            self.db_cmd.ExecuteNonQuery()
+            self.db_cmd.CommandText = SQL_CREATE_TABLE_TODO
+            self.db_cmd.ExecuteNonQuery()
 
-    def db_insert_table_mails(self,Mails):
-        if self.cursor is not None:
-            self.cursor.execute(SQL_INSERT_TABLE_MAILS, Mails.get_values())
+    def db_insert_table(self, sql, values):
+        if self.db_cmd is not None:
+            self.db_cmd.CommandText = sql
+            self.db_cmd.Parameters.Clear()
+            for value in values:
+                param = self.db_cmd.CreateParameter()
+                param.Value = value
+                self.db_cmd.Parameters.Add(param)
+            self.db_cmd.ExecuteNonQuery()
+
+    def db_insert_table_mails(self, column):
+        self.db_insert_table(SQL_INSERT_TABLE_MAILS, column.get_values())
+        
     
-    def db_insert_table_account(self,Accounts):
-        if self.cursor is not None:
-            self.cursor.execute(SQL_INSERT_TABLE_ACCOUNT, Accounts.get_values())
+    def db_insert_table_account(self, column):
+        self.db_insert_table(SQL_INSERT_TABLE_ACCOUNT, column.get_values())
 
-    def db_insert_table_contact(self,Contact):
-        if self.cursor is not None:
-            self.cursor.execute(SQL_INSERT_TABLE_CONTACT, Contact.get_values())
+    def db_insert_table_contact(self, column):
+        self.db_insert_table(SQL_INSERT_TABLE_CONTACT, column.get_values())
 
-    def db_insert_table_mail_folder(self,MailFolder):
-        if self.cursor is not None:
-            self.cursor.execute(SQL_INSERT_TABLE_MAIL_FOLDER, MailFolder.get_values())
+    def db_insert_table_mail_folder(self, column):
+        self.db_insert_table(SQL_INSERT_TABLE_MAIL_FOLDER, column.get_values())
 
-    def db_insert_table_attach(self,Attach):
-        if self.cursor is not None:
-            self.cursor.execute(SQL_INSERT_TABLE_ATTACH, Attach.get_values())
+    def db_insert_table_attach(self, column):
+        self.db_insert_table(SQL_INSERT_TABLE_ATTACH, column.get_values())
 
-    def db_insert_table_todo(self,Todo):
-        if self.cursor is not None:
-            self.cursor.execute(SQL_INSERT_TABLE_TODO, Todo.get_values())
+    def db_insert_table_todo(self, column):
+        self.db_insert_table(SQL_INSERT_TABLE_TODO, column.get_values())
 
-    def db_insert_table_search(self,Search):
+    def db_insert_table_search(self, column):
         pass
 
 
@@ -405,7 +439,8 @@ class Generate(object):
             select mailId,subject,abstract,fromEmail,receiveUtc,size,tos,cc,bcc,ip,isForward,
             isRead,isRecalled,sendStatus,account_email,alias,mail_folder,content,group_concat(downloadUtc) as downloadUtc,
             group_concat(downloadSize) as downloadSize,group_concat(attachName) as attachName,group_concat(attachDir) as attachDir,source,repeated,deleted,accountId
-            from mails group by mailId) as a left join accounts on a.accountId = accounts.accountId'''
+            from mails group by mailId) as a left join accounts on a.accountId = accounts.accountId
+            '''
         row = None
         try:
             self.cursor.execute(sql)

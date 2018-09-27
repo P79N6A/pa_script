@@ -4,6 +4,7 @@ from PA_runtime import *
 import clr
 clr.AddReference('System.Core')
 clr.AddReference('System.Xml.Linq')
+clr.AddReference('System.Data.SQLite')
 try:
     clr.AddReference('unity_c37r')
 except:
@@ -16,12 +17,12 @@ from System.Xml.Linq import *
 from System.Linq import Enumerable
 from System.Xml.XPath import Extensions as XPathExtensions
 from PA.InfraLib.Utils import *
+import System.Data.SQLite as SQLite
 
 import os
 import time
 import sqlite3
 import traceback
-import re
 
 from unity_c37r import mapping_file_with_copy
 
@@ -118,48 +119,65 @@ SQL_INSERT_TABLE_VERSION = '''
 class Model_SMS(object):
     def __init__(self):
         self.db = None
-        self.cursor = None
+        self.db_cmd = None
+        self.db_trans = None
+        
 
     def db_create(self, db_path):
         if os.path.exists(db_path):
             os.remove(db_path)
-        self.db = sqlite3.connect(db_path)
-        self.cursor = self.db.cursor()
+
+        self.db = SQLite.SQLiteConnection('Data Source = {}'.format(db_path))
+        self.db.Open()
+        self.db_cmd = SQLite.SQLiteCommand(self.db)
+        self.db_trans = self.db.BeginTransaction()
 
         self.db_create_table()
-
-    def db_close(self):
-        if self.cursor is not None:
-            self.cursor.close()
-            self.cursor = None
-        if self.db is not None:
-            self.db.close()
-            self.db = None
+        self.db_commit()
 
     def db_commit(self):
-        if self.db is not None:
-            self.db.commit()
+        if self.db_trans is not None:
+            self.db_trans.Commit()
+        self.db_trans = self.db.BeginTransaction()
 
+    def db_close(self):
+        self.db_trans = None
+        if self.db_cmd is not None:
+            self.db_cmd.Dispose()
+            self.db_cmd = None
+        if self.db is not None:
+            self.db.Close()
+            self.db = None   
+            
     def db_create_table(self):
-        if self.cursor is not None:
-            self.cursor.execute(SQL_CREATE_TABLE_SMS)
-            self.cursor.execute(SQL_CREATE_TABLE_SIM_CARDS)
-            self.cursor.execute(SQL_CREATE_TABLE_VERSION)
+        if self.db_cmd is not None:
+            self.db_cmd.CommandText = SQL_CREATE_TABLE_SMS
+            self.db_cmd.ExecuteNonQuery()
+            self.db_cmd.CommandText = SQL_CREATE_TABLE_SIM_CARDS
+            self.db_cmd.ExecuteNonQuery()
+            self.db_cmd.CommandText = SQL_CREATE_TABLE_VERSION
+            self.db_cmd.ExecuteNonQuery()
+
+    def db_insert_table(self, sql, values):
+        if self.db_cmd is not None:
+            self.db_cmd.CommandText = sql
+            self.db_cmd.Parameters.Clear()
+            for value in values:
+                param = self.db_cmd.CreateParameter()
+                param.Value = value
+                self.db_cmd.Parameters.Add(param)
+            self.db_cmd.ExecuteNonQuery()
 
     def db_insert_table_sim_cards(self, column):
-        if self.cursor is not None:
-            self.cursor.execute(SQL_INSERT_TABLE_SIM_CARDS, column.get_values())
+        self.db_insert_table(SQL_INSERT_TABLE_SIM_CARDS, column.get_values())
+
 
     def db_insert_table_sms(self, column):
-        if self.cursor is not None:
-            try:
-                self.cursor.execute(SQL_INSERT_TABLE_SMS, column.get_values())
-            except:
-                pass
+        self.db_insert_table(SQL_INSERT_TABLE_SMS, column.get_values())
+
 
     def db_insert_table_version(self, key, version):
-        if self.cursor is not None:
-            self.cursor.execute(SQL_INSERT_TABLE_VERSION, (key, version))
+        self.db_insert_table(SQL_INSERT_TABLE_VERSION, (key, version))
 
     '''
     版本检测分为两部分
