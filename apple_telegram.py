@@ -24,6 +24,7 @@ import struct
 import unity_c37r
 import random
 import json
+import traceback
 ################################doc dict###########################
 DocDict = {"image": ["image/jpeg", 
 "image/pcx",
@@ -974,10 +975,16 @@ class Telegram(object):
         self.extract_source = extract_source
         self.account = None
         self.cache = ds.OpenCachePath('Tg')
+        self.hash_code = unity_c37r.md5(container_root.AbsolutePath)
+        self.need_parse = False
         self.im = model_im.IM()
-        self.im.db_create(self.cache + '/C37R')
         self.container = container_root
         self.__find_account()
+        if self.im.need_parse(self.cache + '/{}.C37R'.format(self.hash_code), 1):
+            self.im.db_create(self.cache + '/{}.C37R'.format(self.hash_code))
+            self.need_parse = True
+        else:
+            self.need_parse = False
 
     def __find_account(self):
         def_node = self.root.GetByPath("Documents/standard.defaults")
@@ -1176,7 +1183,7 @@ class Telegram(object):
     def parse(self):
         if self.account is None:
             print('Get Account Id Failed, Parse Ret!')
-            return
+            return False
         
         tg_node = self.root.GetByPath('Documents/tgdata.db')
         conn = sql.SQLiteConnection('Data Source = {}; Readonly=True'.format(tg_node.PathWithMountPoint))
@@ -1201,8 +1208,9 @@ class Telegram(object):
             a.username = GetString(reader, 8)
             self.im.db_insert_table_account(a)
         else:
+            self.im.db_close()
             print("this is not the right group!")
-            return
+            return False
         cmd.Dispose()
         cmd.CommandText = '''
         select uid, first_name, last_name, phone_number, photo_small, photo_medium, photo_big, username from users_v29
@@ -1211,6 +1219,7 @@ class Telegram(object):
         reader = cmd.ExecuteReader()
         while reader.Read():
             f = model_im.Friend()
+            f.account_id = self.account
             f.friend_id = GetInt64(reader, 0)
             f.nickname = GetString(reader, 2) + GetString(reader, 1)
             f.telephone = GetString(reader, 3)
@@ -1296,6 +1305,7 @@ class Telegram(object):
         reader = cmd.ExecuteReader()
         while reader.Read():
             m = model_im.Message()
+            m.account_id = self.account
             m.msg_id = GetInt64(reader, 0)
             m.is_sender = GetInt64(reader, 6)
             m.content = GetString(reader, 2)
@@ -1322,6 +1332,7 @@ class Telegram(object):
         reader = cmd.ExecuteReader()
         while reader.Read():
             m = model_im.Message()
+            m.account_id = self.account
             m.talker_id = GetInt64(reader, 0)
             bts = GetBlob(reader, 1)
             m.msg_id = GetInt64(reader, 2)
@@ -1355,6 +1366,7 @@ class Telegram(object):
                 continue
             self.im.db_insert_table_message(m)
         self.im.db_commit()
+        return True
 
 def try_to_get_telegram_group(grps):
     res = list()
@@ -1375,23 +1387,29 @@ def parse_telegram(root, extract_deleted, extract_source):
         if len(r_nodes) is 0:
             print('''can't find group node''')
             raise IOError('E')
-        res = list()
+        res = []
         for r in r_nodes:
             try:
                 t = Telegram(r, root, False, False)
-                t.parse()
-                models = model_im.GenerateModel(t.cache + '/C37R').get_models()
-                res.append(models)
+                if t.need_parse:
+                    result = t.parse()
+                    if not result:
+                        continue
+                    t.im.db_insert_table_version(model_im.VERSION_KEY_DB, model_im.VERSION_VALUE_DB)
+                    t.im.db_insert_table_version(model_im.VERSION_KEY_APP, 1)
+                models = model_im.GenerateModel(t.cache + '/{}.C37R'.format(t.hash_code)).get_models()
+                res.extend(models)
             except:
+                traceback.print_exc()
                 if canceller.IsCancellationRequested:
                     raise IOError('E')
                 else:
                     continue
         mlm = ModelListMerger()
         pr = ParserResults()
-        pr.Categories = DescripCategories.QQ
+        pr.Categories = DescripCategories.Telegram
         pr.Models.AddRange(list(mlm.GetUnique(res)))
-        pr.Build('钉钉')
+        pr.Build('Telegram')
     except Exception as e:
         print(e)
         pr = ParserResults()
