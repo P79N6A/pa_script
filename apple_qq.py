@@ -346,8 +346,8 @@ class QQParser(object):
                         v = data.Value
                         g.chatroom_id = data.Key
                         g.account_id = acc_id
-                        g.name = v["name"].ToString()
-                        g.notice = v["memo"].ToString()
+                        g.name = NextStepExts.SafeGetString(v,"name","")
+                        g.notice = NextStepExts.SafeGetString(v,"memo","") #v["memo"].ToString()
                         g.source = node.AbsolutePath
                         self.troops[g.chatroom_id] = g
                     except:
