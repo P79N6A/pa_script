@@ -14,6 +14,9 @@ from model_browser import *
 
 import time
 
+# app数据库版本
+VERSION_APP_VALUE = 1
+
 def print_run_time(func):  
     def wrapper(*args, **kw):  
         local_time = time.time()  
@@ -46,23 +49,32 @@ class BaiduBrowserParser(object):
 
         self.mb = MB()
         self.cachepath = ds.OpenCachePath("BaiduBrowser")
-        self.cachedb = self.cachepath + "\\BaiduBrowser.db"
-        self.mb.db_create(self.cachedb)
+        self.cache_db = self.cachepath + "\\BaiduBrowser.db"
 
     def parse(self):
         '''
             databases/dbbrowser.db
             app_webview_baidu/Cookies
         '''
-        # self.parse_Account('app_webview_baidu/Cookies', 'account_userinfo')
-        self.parse_Bookmark('databases/dbbrowser.db', 'bookmark')
-        self.parse_Browserecord('databases/dbbrowser.db', 'history')
-        self.parse_Cookies('app_webview_baidu/Cookies', 'cookies')
-        self.parse_DownloadFile('databases/flyflowdownload.db', 'bddownloadtable')
-        self.parse_SearchHistory('databases/dbbrowser.db', 'url_input_record')
+        if self.mb.need_parse(self.cache_db, VERSION_APP_VALUE):
+            if not self._read_db('databases/dbbrowser.db'):
+                return  
+            self.mb.db_create(self.cache_db)
+            # self.parse_Account('app_webview_baidu/Cookies', 'account_userinfo')
+            self.parse_Bookmark('databases/dbbrowser.db', 'bookmark')
+            self.parse_Browserecord('databases/dbbrowser.db', 'history')
+            self.parse_Cookies('app_webview_baidu/Cookies', 'cookies')
+            self.parse_DownloadFile('databases/flyflowdownload.db', 'bddownloadtable')
+            self.parse_SearchHistory('databases/dbbrowser.db', 'url_input_record')
 
-        self.mb.db_close()
-        models = Generate(self.cachedb).get_models()
+            if not canceller.IsCancellationRequested:
+                self.mb.db_insert_table_version(VERSION_KEY_DB, VERSION_VALUE_DB)
+                self.mb.db_insert_table_version(VERSION_KEY_APP, VERSION_APP_VALUE)
+                self.mb.db_commit()
+                
+            self.mb.db_close()
+            
+        models = Generate(self.cache_db).get_models()
         return models
 
     def parse_Bookmark(self, db_path, table_name):

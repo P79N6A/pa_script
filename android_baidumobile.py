@@ -14,18 +14,21 @@ except:
 del clr
 from model_browser import *
 
+# app数据库版本
+VERSION_APP_VALUE = 1
+
 
 def exc():
-    # exc()
-    traceback.print_exc()
+    pass
+    # traceback.print_exc()
 
 def analyze_baidumobile(node, extract_deleted, extract_source):
     """
         android 华为 (data/data/com.baidu.searchbox/)
     """
     pr = ParserResults()
-    cachedb_name = "\\BaiduSearchbox.db"
-    res = BaiduMobileParser(node, extract_deleted, extract_source, cachedb_name).parse()
+    cache_db_name = "\\BaiduSearchbox.db"
+    res = BaiduMobileParser(node, extract_deleted, extract_source, cache_db_name).parse()
     pr.Models.AddRange(res)
     pr.Build('手机百度')
     return pr
@@ -35,15 +38,15 @@ def analyze_baidumobile_lite(node, extract_deleted, extract_source):
         android 华为 (data/data/com.baidu.searchbox.lite/)
     """
     pr = ParserResults()
-    cachedb_name = "\\BaiduSearchbox_Lite.db"
-    res = BaiduMobileParser(node, extract_deleted, extract_source, cachedb_name).parse()
+    cache_db_name = "\\BaiduSearchbox_Lite.db"
+    res = BaiduMobileParser(node, extract_deleted, extract_source, cache_db_name).parse()
     pr.Models.AddRange(res)
     pr.Build('手机百度极速版')
     return pr
 
 class BaiduMobileParser(object):
 
-    def __init__(self, node, extract_deleted, extract_source, cachedb_name):
+    def __init__(self, node, extract_deleted, extract_source, cache_db_name):
 
         self.root = node.Parent.Parent  # data/data/com.baidu.searchbox/
         self.extract_deleted = extract_deleted
@@ -51,8 +54,7 @@ class BaiduMobileParser(object):
 
         self.mb = MB()
         self.cachepath = ds.OpenCachePath("BaiduMobile")
-        self.cachedb = self.cachepath + cachedb_name 
-        self.mb.db_create(self.cachedb)
+        self.cache_db = self.cachepath + cache_db_name 
 
         self.uid_list = ['anony']
 
@@ -64,19 +66,29 @@ class BaiduMobileParser(object):
             databases/downloads.db
             app_webview_baidu/Cookies
         '''
-        self.parse_Account("databases/SearchBox.db", 'account_userinfo')
-        if self.uid_list:
-           for uid in self.uid_list:
-               self.parse_Bookmark('databases/' + uid + '_searchbox.db', 'favor')
-        else:
-           self.parse_Bookmark('databases/anony_searchbox.db', 'favor')
-        self.parse_Browserecord("databases/box_visit_history.db", 'visit_search_history')
-        self.parse_Cookies('app_webview_baidu/Cookies', 'cookies')
-        self.parse_DownloadFile('databases/downloads.db', 'downloads')
-        self.parse_SearchHistory("databases/SearchBox.db", 'clicklog')
+        if self.mb.need_parse(self.cache_db, VERSION_APP_VALUE):
+            
+            if not self._read_db('databases/SearchBox.db'):
+                return              
+            self.mb.db_create(self.cache_db)
+            self.parse_Account("databases/SearchBox.db", 'account_userinfo')
+            if self.uid_list:
+                for uid in self.uid_list:
+                    self.parse_Bookmark('databases/' + uid + '_searchbox.db', 'favor')
+            self.parse_Bookmark('databases/anony_searchbox.db', 'favor')
+            self.parse_Browserecord("databases/box_visit_history.db", 'visit_search_history')
+            self.parse_Cookies('app_webview_baidu/Cookies', 'cookies')
+            self.parse_DownloadFile('databases/downloads.db', 'downloads')
+            self.parse_SearchHistory("databases/SearchBox.db", 'clicklog')
 
-        self.mb.db_close()
-        models = Generate(self.cachedb).get_models()
+            if not canceller.IsCancellationRequested:
+                self.mb.db_insert_table_version(VERSION_KEY_DB, VERSION_VALUE_DB)
+                self.mb.db_insert_table_version(VERSION_KEY_APP, VERSION_APP_VALUE)
+                self.mb.db_commit()
+            self.mb.db_close()
+
+
+        models = Generate(self.cache_db).get_models()
         return models
 
     def parse_Account(self, db_path, table_name):

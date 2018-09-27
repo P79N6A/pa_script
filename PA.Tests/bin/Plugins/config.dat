@@ -1234,7 +1234,7 @@
           <key>Patterns</key>
           <array>
             <string>sim/sim.db$</string>
-            <string>user_de/0/com.android.providers.telephony/databases$</string>
+            <string>com.android.providers.telephony/databases$</string>
           </array>
           <key>Category</key>
           <string>Sim</string>
@@ -1255,7 +1255,7 @@
           <key>Patterns</key>
           <array>
             <string>sms/sms.db$</string>
-            <string>user_de/0/com.android.providers.telephony/databases$</string>
+            <string>com.android.providers.telephony/databases$</string>
           </array>
           <key>Category</key>
           <string>Sms</string>
@@ -1276,7 +1276,6 @@
           <key>Patterns</key>
           <array>
             <string>com.baidu.browser.apps/databases/dbbrowser.db$</string>
-            <string>data/data/com.baidu.browser.apps/databases/dbbrowser.db$</string>
           </array>
           <key>Category</key>
           <string>BaiduBrowser</string>
@@ -1296,7 +1295,6 @@
           <integer>2</integer>
           <key>Patterns</key>
           <array>
-            <string>data/data/com.baidu.searchbox/databases/SearchBox.db$</string>
             <string>com.baidu.searchbox/databases/SearchBox.db$</string>
           </array>
           <key>Category</key>
@@ -1310,7 +1308,6 @@
           <integer>2</integer>
           <key>Patterns</key>
           <array>
-            <string>data/data/com.baidu.searchbox.lite/databases/SearchBox.db$</string>
             <string>com.baidu.searchbox.lite/databases/SearchBox.db$</string>
           </array>
           <key>Category</key>

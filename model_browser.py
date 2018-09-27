@@ -18,6 +18,12 @@ import System
 import System.Data.SQLite as SQLite
 import sqlite3
 
+VERSION_KEY_DB  = 'db'
+VERSION_VALUE_DB = 1
+
+VERSION_KEY_APP = 'app'
+
+
 SQL_CREATE_TABLE_BOOKMARK = '''
     CREATE TABLE IF NOT EXISTS bookmark(
         id INTEGER,
@@ -175,6 +181,15 @@ SQL_CREATE_TABLE_COOKIES = '''
 SQL_INSERT_TABLE_COOKIES = '''
     INSERT INTO cookies(id, host_key, name, value, createdate, expiredate, lastaccessdate, hasexipred, owneruser, source, deleted, repeated) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
 
+SQL_CREATE_TABLE_VERSION = '''
+    create table if not exists version(
+        key TEXT primary key,
+        version INT)'''
+
+SQL_INSERT_TABLE_VERSION = '''
+    insert into version(key, version) values(?, ?)'''
+
+
 class MB(object):
     def __init__(self):
         self.db = None
@@ -182,11 +197,17 @@ class MB(object):
         self.db_trans = None
 
     def db_create(self,db_path):
-        self.db_remove(db_path)
+        if os.path.exists(db_path):
+            try:
+                os.remove(db_path)
+            except Exception as e:
+                print('model_im db_create() remove %s error: %s' % (db_path, e))
+                
         self.db = SQLite.SQLiteConnection('Data Source = {}'.format(db_path))
         self.db.Open()
         self.db_cmd = SQLite.SQLiteCommand(self.db)
         self.db_trans = self.db.BeginTransaction()
+
         self.db_create_table()
         self.db_commit()
 
@@ -230,6 +251,8 @@ class MB(object):
             self.db_cmd.ExecuteNonQuery()
             self.db_cmd.CommandText = SQL_CREATE_TABLE_COOKIES
             self.db_cmd.ExecuteNonQuery()
+            self.db_cmd.CommandText = SQL_CREATE_TABLE_VERSION
+            self.db_cmd.ExecuteNonQuery()
 
     def db_insert_table(self, sql, values):
         if self.db_cmd is not None:
@@ -267,6 +290,44 @@ class MB(object):
 
     def db_insert_table_cookies(self, Cookie):
         self.db_insert_table(SQL_INSERT_TABLE_COOKIES, Cookie.get_values())
+
+    def db_insert_table_version(self, key, version):
+        self.db_insert_table(SQL_INSERT_TABLE_VERSION, (key, version))
+
+    '''
+    版本检测分为两部分
+    如果中间数据库结构改变，会修改db_version
+    如果app增加了新的内容，需要修改app_version
+    只有db_version和app_version都没有变化时，才不需要重新解析
+    '''
+    @staticmethod
+    def need_parse(cache_db, app_version):
+        if not os.path.exists(cache_db):
+            return True
+        db = sqlite3.connect(cache_db)
+        cursor = db.cursor()
+        sql = 'select key,version from version'
+        row = None
+        db_version_check = False
+        app_version_check = False
+        try:
+            cursor.execute(sql)
+            row = cursor.fetchone()
+        except:
+            pass
+
+        while row is not None:
+            if row[0] == VERSION_KEY_DB and row[1] == VERSION_VALUE_DB:
+                db_version_check = True
+            elif row[0] == VERSION_KEY_APP and row[1] == app_version:
+                app_version_check = True
+            row = cursor.fetchone()
+
+        if cursor is not None:
+            cursor.close()
+        if db is not None:
+            db.close()
+        return not (db_version_check and app_version_check)
 
 
 class Column(object):
