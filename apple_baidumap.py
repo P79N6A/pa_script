@@ -36,7 +36,7 @@ class baiduMapParser(object):
         self.analyze_search_history()
         self.my_history_address()
         nameValues.SafeAddValue(bcp_gis.NETWORK_APP_MAP_BAIDU,db_path)
-        result = model_map.Genetate(path)
+        result = model_map.Genetate(db_path)
         tmpresult = result.get_models()
         self.baidumap.db_close()
 
