@@ -22,6 +22,7 @@ def analyze_sim(node, extract_deleted, extract_source):
     pr = ParserResults()
     if res is not None:
         pr.Models.AddRange(res)
+    pr.Build('SIM 卡')
     return pr
 
 
