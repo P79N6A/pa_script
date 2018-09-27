@@ -84,7 +84,7 @@ class NeteaseMailParser(object):
     def parse_email_abstract(self, imail_db):
         """ imail - mailAttachment 邮件主要内容 """
         SELECT_ATTACH_SQL = '''
-            select attachName, attachDir, downloadSize from attach where mailId=?
+            select attachName, attachDir, downloadSize from attach where mailId={}
         '''
         try:
             for rec in self.my_read_table(db=imail_db, table_name='mailAbstract'):
@@ -112,11 +112,18 @@ class NeteaseMailParser(object):
                 mail.downloadSize = rec['size'].Value 
                 # 附件
                 if rec['hasAttachments'].Value == 1:
-                    self.mm.cursor.execute(SELECT_ATTACH_SQL, (mail.mailId,))
-                    rows = self.mm.cursor.fetchall() # list, None 以 '' 代替
-                    mail.attachName   = ','.join(map(lambda x: x[0] if x[0] is not None else '', rows))
-                    mail.attachDir    = ','.join(map(lambda x: x[1] if x[1] is not None else '', rows))
-                    mail.downloadSize = ','.join(map(lambda x: x[2] if x[2] is not None else '', rows))
+                    try:
+                        self.mm.db_cmd.CommandText = SELECT_ATTACH_SQL.format(mail.mailId)
+                        rows = self.mm.db_cmd.ExecuteReader()
+                        while rows.Read():
+                            # list, None 以 '' 代替
+                            mail.attachName   = ','.join(map(lambda x: x[0] if x[0] is not None else '', rows))
+                            mail.attachDir    = ','.join(map(lambda x: x[1] if x[1] is not None else '', rows))
+                            mail.downloadSize = ','.join(map(lambda x: x[2] if x[2] is not None else '', rows))
+                    except:
+                        exc()
+                    finally:
+                        rows.Dispose()
                 try:
                     self.mm.db_insert_table_mails(mail)
                 except:
@@ -124,7 +131,6 @@ class NeteaseMailParser(object):
             self.mm.db_commit()
         except:
             exc()
-
 
     def parse_email_account(self, imail_db):
         accounts = {}
@@ -171,7 +177,7 @@ class NeteaseMailParser(object):
                     mailContent = re.compile('[\\x00-\\x08\\x0b-\\x0c\\x0e-\\x1f]').sub(' ', rec['value'].Value) 
                     a = (mailContent, mailId)
                     try:
-                        self.mm.cursor.execute(SQL_UPDATE_EMAIL_CONTENT, a)
+                        self.mm.db_update(SQL_UPDATE_EMAIL_CONTENT, a)
                     except:
                         exc()
             self.mm.db_commit()
@@ -251,15 +257,14 @@ class NeteaseMailParser(object):
         SQL_UPDATE_ACCOUNTS_password = '''
                update accounts set password=? where accountEmail=?
         ''' 
-        password_accountEmail = []
         for accountId in self.accounts:
             table_name = 'accountConfig_{}'.format(accountId)
             for rec in self.my_read_table(db=imail_db, table_name=table_name):
                 if rec['DBkey'].Value == 'wmsrexc()':
-                    password_accountEmail.append((rec['DBvalue'].Value, self.accounts[accountId]['email']))
+                    self.mm.db_update(SQL_UPDATE_ACCOUNTS_password, (rec['DBvalue'].Value, 
+                                                                     self.accounts[accountId]['email']))
                     break
         try:
-            self.mm.cursor.executemany(SQL_UPDATE_ACCOUNTS_password, password_accountEmail)
             self.mm.db_commit()
         except:
             exc()

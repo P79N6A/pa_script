@@ -22,7 +22,7 @@ def print_run_time(func):
     return wrapper
 
 def exc():
-    exc()
+    pass
     # traceback.print_exc()
 
 def analyze_baidubrowser(node, extract_deleted, extract_source):
@@ -326,6 +326,6 @@ class BaiduBrowserParser(object):
             node = fs.Search(r'com\.baidu\.browser\.apps.*?{}$'.format(file_name))
             for i in node:
                 _path = i.AbsolutePath
-                print 'file_name, _path', file_name, _path
+                #print 'file_name, _path', file_name, _path
         # print 'baidu.browser _path', _path
         return _path

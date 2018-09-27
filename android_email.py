@@ -103,7 +103,7 @@ class EmailParser(object):
             11. Policy
             12. QuickResponse  
         """
-        self.db_email_provider = SQLiteParser.Database.FromNode(node)
+        self.db_email_provider = SQLiteParser.Database.FromNode(node,canceller)
         self.source_emailprovider = node.AbsolutePath
         
         if self.db_email_provider is None:
@@ -255,7 +255,7 @@ class EmailParser(object):
         """
         /EmailProviderBody.db
         """
-        self.db_email_provider_body = SQLiteParser.Database.FromNode(node)
+        self.db_email_provider_body = SQLiteParser.Database.FromNode(node,canceller)
 
         SQL_UPDATE_EMAIL_CONTENT = '''
             update mails set content=? where mailId=?
@@ -287,7 +287,7 @@ class EmailParser(object):
             /Contact.db
         """
         try:        
-            self.db_contact = SQLiteParser.Database.FromNode(node)
+            self.db_contact = SQLiteParser.Database.FromNode(node,canceller)
             self.source_contact = node.AbsolutePath
 
             SQL_UPDATE_EMAIL_CONTENT = '''
@@ -312,7 +312,7 @@ class EmailParser(object):
     def my_read_table(self, db, table_name, extract_deleted=None):
         """ 
         读取手机数据库, 多数据库模式
-        :type db: SQLiteParser.Database.FromNode(node)tr
+        :type db: SQLiteParser.Database.FromNode(node,canceller)
         :type table_name: str 
         :rtype: db.ReadTableRecords()
         """

@@ -60,8 +60,10 @@ def module_print(msg, level = 0):
     elif level == 2:
         print('[MiLiao Error]:{}'.format(msg))
     elif level == 3:
-        print('******\r\n[MiLiao Critical]:{}, Parse Exists!********\r\n')
+        print('******\r\n[MiLiao Critical]:{}, Parse Exists!********\r\n'.format(msg))
+
 VERSION_APP_VALUE = 1
+
 class MiLiao(object):
     def __init__(self, root, extract_deleted, extract_source):
         self.root_node = root
@@ -89,7 +91,6 @@ class MiLiao(object):
         res = BPReader(perfer_node.Data).top
         v_dict = res['local_client_setting_init_status']
         if v_dict is None:
-            #print('find by property list failed, try to load from file_system...')
             module_print('find by property list failed, try to load from file_system...', 1)
         else:
             for k in v_dict.Keys:
@@ -112,23 +113,15 @@ class MiLiao(object):
     
     def analyse_account(self, aid):
         account_node = self.root_node.GetByPath('/Documents/{}/account'.format(aid))
-        # for debug
-        # print  os.listdir(account_node.PathWithMountPoint)
         ##########################Friends#####################################
         f_sql_node = account_node.GetByPath('/{}_Relation2.sqlite'.format(aid))
-        #db = sqlite3.connect(f_sql_node.PathWithMountPoint)
-        #cur = db.cursor()
         db = unity_c37r.create_connection(f_sql_node.PathWithMountPoint)
         cmd = sql.SQLiteCommand(db)
         friends = list()
-        # cur.execute('''
-        # select miliaoid, name, comments, icon, type, timestamp from MLRelation2Object 
-        # ''')
         cmd.CommandText = '''
             select miliaoid, name, comments, icon, type, timestamp from MLRelation2Object 
         '''
         reader = cmd.ExecuteReader()
-        #row = cur.fetchone()
         while reader.Read():
             if canceller.IsCancellationRequested:
                 self.im.db_close()
@@ -141,17 +134,13 @@ class MiLiao(object):
             f.remark = unity_c37r.c_sharp_get_string(reader, 2)
             pic = unity_c37r.c_sharp_get_string(reader, 3)
             f.icon = self.__get_media_path(pic, -1)
-            # f.type check this later
             f.source = f_sql_node.AbsolutePath
-            # update time ?
             friends.append(f)
         cmd.Dispose()
         db.Close()
 
         f_info_node = account_node.GetByPath('/{}_PersonalInfo2.sqlite'.format(aid))
-        #db = sqlite3.connect(f_info_node.PathWithMountPoint)
         db = unity_c37r.create_connection(f_info_node.PathWithMountPoint)
-        #cur = db.cursor()
         cmd = sql.SQLiteCommand(db)
         for f in friends:
             cmd.CommandText = '''
@@ -175,10 +164,6 @@ class MiLiao(object):
             self.im.db_insert_table_friend(f)
             cmd.Dispose()
         self.im.db_commit()
-        # cur.execute('''
-        # select info from MLPersonalInfo2Object where miliaoid = {} 
-        # '''.format(aid))
-        # row = cur.fetchone()
         cmd.CommandText = '''
             select info from MLPersonalInfo2Object where miliaoid = {} 
         '''.format(aid)
@@ -280,20 +265,12 @@ class MiLiao(object):
         for k in grp:
             self.im.db_insert_table_chatroom(grp[k])
         self.im.db_commit()
-        # parse message
-        # as it very complex, we move it to another function
         self.__parse_message(account_node, aid)
 
     def __parse_message(self, a_node, aid):
-        # friend message
         f_message_node = a_node.GetByPath('/{}_Message.sqlite'.format(aid))
-        #f_sql = sqlite3.connect(f_message_node.PathWithMountPoint)
         db = unity_c37r.create_connection(f_message_node.PathWithMountPoint)
         cmd = sql.SQLiteCommand(db)
-        #cur = f_sql.cursor()
-        # cur.execute('''
-        #     select ZLOCAL_ID, ZBODY_TYPE, ZTIMESTAMP, ZBODY, ZEXT_ID, ZMSG_SENDER, ZMSG_TO, ZMSG_XML from ZMESSAGEV5OBJECT
-        # ''')
         cmd.CommandText = '''
             select ZLOCAL_ID, ZBODY_TYPE, ZTIMESTAMP, ZBODY, ZEXT_ID, ZMSG_SENDER, ZMSG_TO, ZMSG_XML from ZMESSAGEV5OBJECT
         '''
@@ -303,6 +280,7 @@ class MiLiao(object):
                 self.im.db_close()
                 raise IOError("E")
             m = model_im.Message()
+            m.talker_type = model_im.CHAT_TYPE_FRIEND
             m.account_id = aid
             target_id = unity_c37r.c_sharp_get_string(reader, 5)
             m.is_sender = 1 if str(target_id) == aid else 0
@@ -347,6 +325,7 @@ class MiLiao(object):
                 self.im.db_close()
                 raise IOError("E")
             m = model_im.Message()
+            m.talker_type = model_im.CHAT_TYPE_GROUP
             m.msg_id = unity_c37r.c_sharp_get_string(reader, 1)
             m.account_id = aid
             sender_id = unity_c37r.c_sharp_get_string(reader, 4)

@@ -22,6 +22,7 @@ def analyze_sim(node, extract_deleted, extract_source):
     pr = ParserResults()
     if res is not None:
         pr.Models.AddRange(res)
+    pr.Build('SIM 卡')
     return pr
 
 
@@ -64,7 +65,7 @@ class SIMParser(object):
         6	slot_id	            INTEGER			
         """
         for rec in self.my_read_table(table_name='subscriber_info'):
-            if IsDBNull(rec['ROWID'].Value) or IsDBNull(rec['subscriber_mdn'].Value):
+            if self.is_empty(rec, 'ROWID', 'subscriber_mdn'):
                 continue
             sim = SIM()
             sim._id    = rec['ROWID'].Value
@@ -89,3 +90,22 @@ class SIMParser(object):
             return
         tb = SQLiteParser.TableSignature(table_name)
         return self.db.ReadTableRecords(tb, self.extract_deleted, True)
+
+    @staticmethod
+    def is_empty(rec, *args):
+        ''' 过滤数据 '''
+        # 验证手机号, 包含 +86, 86 开头
+        if 'subscriber_mdn' in args:
+            s = rec['subscriber_mdn'].Value
+            try:
+                reg_str = r'^((\+86)|(86))?(1)\d{10}$'
+                match_obj = re.match(reg_str, s)
+                if match_obj is None:
+                    return True      
+            except:
+                return True         
+
+        for i in args:
+            if IsDBNull(rec[i].Value) or not rec[i].Value:
+                return True
+        return False
