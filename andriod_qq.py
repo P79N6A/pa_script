@@ -131,9 +131,9 @@ class Andriod_QQParser(object):
         if self.im.need_parse(self.cachedb, self.VERSION_APP_VALUE):
             self.im.db_create(self.cachedb)
             self.getImei()
-            self.decode_accounts()
-            try:
-                for acc_id in self.accounts:
+            self.decode_accounts()     
+            for acc_id in self.accounts:
+                try:
                     if canceller.IsCancellationRequested:
                         return		
                     self.friendsNickname.clear()
@@ -152,15 +152,15 @@ class Andriod_QQParser(object):
                     self.decode_groupMember_info(acc_id)
                     self.decode_friend_messages(acc_id)            
                     self.decode_group_messages(acc_id)	                                     
-                '''
-                    self.decode_recover_friends(acc_id)
-                    self.decode_recover_group_info(acc_id)
-                    self.decode_recover_groupMember_info(acc_id)
-                    self.decode_recover_friend_messages(acc_id)
-                    self.decode_recover_group_messages(acc_i)
-                '''
-            except Exception as e:
-                print e
+                    '''
+                        self.decode_recover_friends(acc_id)
+                        self.decode_recover_group_info(acc_id)
+                        self.decode_recover_groupMember_info(acc_id)
+                        self.decode_recover_friend_messages(acc_id)
+                        self.decode_recover_group_messages(acc_i)
+                    '''
+                except Exception as e:
+                    print e
         if canceller.IsCancellationRequested:
             return
         self.im.db_insert_table_version(VERSION_KEY_DB, VERSION_VALUE_DB)

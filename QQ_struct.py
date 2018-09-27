@@ -1,10 +1,14 @@
 import struct
-import javaobj
 import time
 import json
 import re
 import pdb
-
+import clr
+try:
+    clr.AddReference('javaobj')   
+except:
+    pass
+import javaobj
 class tencent_struct:
 	@staticmethod
 	def format2(bbb):
