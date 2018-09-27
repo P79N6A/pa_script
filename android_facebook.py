@@ -7,6 +7,7 @@ clr.AddReference('System.Xml.Linq')
 clr.AddReference('System.Data.SQLite')
 try:
     clr.AddReference('model_im')
+    clr.AddReference("bcp_im")
 except:
     pass
 del clr
@@ -20,6 +21,7 @@ from System.Xml.Linq import *
 import json
 from System.Xml.XPath import Extensions as XPathExtensions
 import model_im
+import bcp_im
 
 def GetString(reader, idx):
     return reader.GetString(idx) if not reader.IsDBNull(idx) else ""
@@ -509,6 +511,7 @@ class Facebook(object):
 
         generate = model_im.GenerateModel(db_path)
         results = generate.get_models()
+        nameValues.SafeAddValue(bcp_im.CONTACT_ACCOUNT_TYPE_IM_FACEBOOK, db_path)
         return results 
 
 

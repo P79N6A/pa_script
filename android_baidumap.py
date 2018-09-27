@@ -7,11 +7,12 @@ import os
 import clr
 try:
     clr.AddReference('model_map')
+    clr.AddReference("bcp_gis")
 except:
     pass
 del clr
 import model_map
-
+import bcp_gis
 
 class BaiduMap(object):
 
@@ -138,7 +139,6 @@ class BaiduMap(object):
                     routeaddr.from_name = fromname
                     routeaddr.to_name = toname
                 except Exception as e:
-                    print(e)
                     routeaddr.fromname = seach_history
                 if "value" in rec and (not rec["value"].IsDBNull):
                     seach_info = rec["value"].Value
@@ -184,7 +184,7 @@ class BaiduMap(object):
         self.parse_search()
         self.parse_route()
         self.baidudb.db_close()
-        
+        nameValues.SafeAddValue(bcp_gis.NETWORK_APP_MAP_BAIDU,db_path)
         generate = model_map.Genetate(db_path)   
         tmpresult = generate.get_models()
         return tmpresult 

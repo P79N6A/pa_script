@@ -10,10 +10,12 @@ import pickle
 import clr
 try:
     clr.AddReference('model_map')
+    clr.AddReference("bcp_gis")
 except:
     pass
 del clr
 import model_map
+import bcp_gis
 
 # APPVERSION = "2.0"
 
@@ -27,17 +29,15 @@ class baiduMapParser(object):
         self.baidumap = model_map.Map()
         
     def parse(self):
-
-        path = self.cache + "/baidu_db_1.0.db"
+        db_path = self.cache + "/baidu_db_1.0.db"
         # if self.check_to_update(path, APPVERSION):
-        self.baidumap.db_create(path)
+        self.baidumap.db_create(db_path)
         self.account_info()
         self.analyze_search_history()
         self.my_history_address()
-
+        nameValues.SafeAddValue(bcp_gis.NETWORK_APP_MAP_BAIDU,db_path)
         result = model_map.Genetate(path)
         tmpresult = result.get_models()
-
         self.baidumap.db_close()
 
         return tmpresult

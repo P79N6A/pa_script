@@ -9,10 +9,12 @@ import clr
 import traceback
 try:
     clr.AddReference('model_map')
+    clr.AddReference("bcp_gis")
 except:
     pass
 del clr
 import model_map
+import bcp_gis
 
 
 class SogouMap(object):
@@ -100,7 +102,7 @@ class SogouMap(object):
         self.sogoudb.db_create(db_path)
         self.parse_search()
         self.sogoudb.db_close()
-        
+        nameValues.SafeAddValue(bcp_gis.NETWORK_APP_MAP_SOGOU, db_path)
         generate = model_map.Genetate(db_path)
         tmpresult = generate.get_models()
         return tmpresult
