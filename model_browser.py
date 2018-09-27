@@ -208,7 +208,7 @@ class MB(object):
         try:
             os.remove(db_path)
         except Exception as e:
-            print("model_browser db_create() remove %s error:%s"(db_path, e))
+            print('model_im db_create() remove %s error: %s' % (db_path, e))
 
     def db_create_table(self):
         if self.db_cmd is not None:
