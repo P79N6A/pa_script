@@ -3,6 +3,7 @@
 <plist version="1.0">
   <array>
     <!--苹果插件从这里开始,安卓插件请见下面-->
+	<!--要个性化自定义运行某些插件,请按此文件的格式建立config.debug.dat文件,调试版的程序程序会优先读取config.debug.dat文件-->
     <dict>
       <key>Module</key>
       <string>apple_push</string>
@@ -123,12 +124,12 @@
 
     <dict>
       <key>Module</key>
-      <string>apple_tgm</string>
+      <string>apple_telegram</string>
       <key>Runners</key>
       <array>
         <dict>
           <key>EntryPoint</key>
-          <string>analyze_telegram</string>
+          <string>parse_telegram</string>
           <key>RunnerType</key>
           <integer>1</integer>
           <key>Patterns</key>
@@ -774,6 +775,26 @@
       </array>
     </dict>
 
+	<dict>
+      <key>Module</key>
+      <string>apple_tb</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>parse_tb</string>
+          <key>RunnerType</key>
+          <integer>1</integer>
+          <key>Patterns</key>
+          <array>
+            <string>com.taobao.taobao4iphone</string>
+          </array>
+          <key>Category</key>
+          <string>Taobao</string>
+        </dict>
+      </array>
+    </dict>
+	
     <dict>
       <key>Module</key>
       <string>apple_xy</string>
@@ -1032,7 +1053,7 @@
           <integer>2</integer>
           <key>Patterns</key>
           <array>
-            <string>/data/com.tencent.androidqqmail/databases/QMMailDB$</string>
+            <string>/com.tencent.androidqqmail/databases/QMMailDB$</string>
           </array>
           <key>Category</key>
           <string>QQMail</string>
@@ -1052,7 +1073,7 @@
           <integer>2</integer>
           <key>Patterns</key>
           <array>
-            <string>/data/com.tencent.mtt/databases/default_user.db$</string>
+            <string>/com.tencent.mtt/databases/default_user.db$</string>
           </array>
           <key>Category</key>
           <string>QQBrowser</string>
@@ -1072,7 +1093,7 @@
           <integer>2</integer>
           <key>Patterns</key>
           <array>
-            <string>/data/com.android.providers.calendar/databases/calendar.db$</string>
+            <string>/com.android.providers.calendar/databases/calendar.db$</string>
           </array>
           <key>Category</key>
           <string>Calenders</string>
@@ -1092,7 +1113,7 @@
           <integer>2</integer>
           <key>Patterns</key>
           <array>
-            <string>/data/com.android.providers.contacts/databases/contacts2.db$</string>
+            <string>/com.android.providers.contacts/databases/contacts2.db$</string>
           </array>
           <key>Category</key>
           <string>Calls</string>
@@ -1112,7 +1133,7 @@
           <integer>2</integer>
           <key>Patterns</key>
           <array>
-            <string>/data/com.example.android.notepad/databases/note_pad.db$</string>
+            <string>/com.example.android.notepad/databases/note_pad.db$</string>
           </array>
           <key>Category</key>
           <string>Notes</string>
@@ -1132,7 +1153,27 @@
           <integer>2</integer>
           <key>Patterns</key>
           <array>
-            <string>/data/com.android.soundrecorder/databases/record.*.db$</string>
+            <string>/com.android.soundrecorder/databases/record.*.db$</string>
+          </array>
+          <key>Category</key>
+          <string>Notes</string>
+        </dict>
+      </array>
+    </dict>
+
+    <dict>
+      <key>Module</key>
+      <string>android_media</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_android_media</string>
+          <key>RunnerType</key>
+          <integer>2</integer>
+          <key>Patterns</key>
+          <array>
+            <string>/com.android.providers.media/databases/internal.db$</string>
           </array>
           <key>Category</key>
           <string>Notes</string>
