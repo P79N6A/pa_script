@@ -1032,7 +1032,7 @@
           <integer>2</integer>
           <key>Patterns</key>
           <array>
-            <string>/data/com.tencent.androidqqmail/databases/QMMailDB$</string>
+            <string>/com.tencent.androidqqmail/databases/QMMailDB$</string>
           </array>
           <key>Category</key>
           <string>QQMail</string>
@@ -1052,7 +1052,7 @@
           <integer>2</integer>
           <key>Patterns</key>
           <array>
-            <string>/data/com.tencent.mtt/databases/default_user.db$</string>
+            <string>/com.tencent.mtt/databases/default_user.db$</string>
           </array>
           <key>Category</key>
           <string>QQBrowser</string>
@@ -1072,7 +1072,7 @@
           <integer>2</integer>
           <key>Patterns</key>
           <array>
-            <string>/data/com.android.providers.calendar/databases/calendar.db$</string>
+            <string>/com.android.providers.calendar/databases/calendar.db$</string>
           </array>
           <key>Category</key>
           <string>Calenders</string>
@@ -1092,7 +1092,7 @@
           <integer>2</integer>
           <key>Patterns</key>
           <array>
-            <string>/data/com.android.providers.contacts/databases/contacts2.db$</string>
+            <string>/com.android.providers.contacts/databases/contacts2.db$</string>
           </array>
           <key>Category</key>
           <string>Calls</string>
@@ -1112,7 +1112,7 @@
           <integer>2</integer>
           <key>Patterns</key>
           <array>
-            <string>/data/com.example.android.notepad/databases/note_pad.db$</string>
+            <string>/com.example.android.notepad/databases/note_pad.db$</string>
           </array>
           <key>Category</key>
           <string>Notes</string>
@@ -1132,7 +1132,7 @@
           <integer>2</integer>
           <key>Patterns</key>
           <array>
-            <string>/data/com.android.soundrecorder/databases/record.*.db$</string>
+            <string>/com.android.soundrecorder/databases/record.*.db$</string>
           </array>
           <key>Category</key>
           <string>Notes</string>
