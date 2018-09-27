@@ -8,11 +8,13 @@ import sqlite3
 import clr
 try:
     clr.AddReference('model_mails')
+    clr.AddReference('bcp_mail')
 except:
     pass
 del clr
 from System.Linq import Enumerable
 from model_mails import MM,Mails,Accounts,Contact,MailFolder,Attach,Generate
+import bcp_mail
 
 SQL_ASSOCIATE_TABLE_MAILS = '''
     select distinct i.*,j.downloadUtc,j.downloadSize,j.mailUtc,j.name as attach_name,j.exchangeField,j.object from (
@@ -429,7 +431,7 @@ class MailParser(object):
         self.analyze_mail_attach()
         self.analyze_mail_search()
         self.mm.db_close()
-
+        nameValues.SafeAddValue(bcp_mail.MAIL_TOOL_TYPE_QQMAIL, self.cachedb)
         generate = Generate(self.cachedb)
         models = generate.get_models()
         return models
