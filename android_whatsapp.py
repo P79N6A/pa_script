@@ -7,6 +7,7 @@ clr.AddReference('System.Xml.Linq')
 clr.AddReference('System.Data.SQLite')
 try:
     clr.AddReference('model_im')
+    clr.AddReference("bcp_im")
 except:
     pass
 del clr
@@ -20,6 +21,7 @@ from System.Data.SQLite import *
 import shutil
 import json
 import model_im
+import bcp_im
 
 
 def GetString(reader, idx):
@@ -705,6 +707,7 @@ class WhatsApp(object):
         self.get_group_messages()
         self.get_feeds()       
         self.whatsapp.db_close()
+        nameValues.SafeAddValue(bcp_im.CONTACT_ACCOUNT_TYPE_IM_WHATSAPP, db_path)
         generate = model_im.GenerateModel(db_path)
         results = generate.get_models()
 
