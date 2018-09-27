@@ -7,7 +7,6 @@ clr.AddReference('System.Data.SQLite')
 try:
     clr.AddReference('model_im')
     clr.AddReference('bcp_im')
-    clr.AddReference('bcp_extra')
 except:
     pass
 del clr
@@ -29,7 +28,6 @@ import base64
 import datetime
 import model_im
 import bcp_im
-import bcp_extra
 
 # EnterPoint: analyze_wechat(root, extract_deleted, extract_source):
 # Patterns: '/DB/MM\.sqlite$'
@@ -89,7 +87,7 @@ class WeChatParser(model_im.IM):
         if not os.path.exists(self.cache_path):
             os.makedirs(self.cache_path)
         self.cache_db = os.path.join(self.cache_path, self.user_hash + '.db')
-        bcp_extra.BCP.set_path(self.cache_db, bcp_im.CONTACT_ACCOUNT_TYPE_IM_WECHAT)
+        nameValues.SafeAddValue(bcp_im.CONTACT_ACCOUNT_TYPE_IM_WECHAT, self.cache_db)
 
     def parse(self):
         if self.need_parse(self.cache_db, VERSION_APP_VALUE):
