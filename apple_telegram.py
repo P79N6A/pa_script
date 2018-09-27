@@ -968,7 +968,7 @@ def GetBlob(reader, idx):
 
 class Telegram(object):
     
-    def __init__(self, root, extract_deleted, extract_source):
+    def __init__(self, root, container_root, extract_deleted, extract_source):
         self.root = root
         self.extract_deleted = extract_deleted
         self.extract_source = extract_source
@@ -976,16 +976,29 @@ class Telegram(object):
         self.cache = ds.OpenCachePath('Tg')
         self.im = model_im.IM()
         self.im.db_create(self.cache + '/C37R')
+        self.container = container_root
         self.__find_account()
 
     def __find_account(self):
         def_node = self.root.GetByPath("Documents/standard.defaults")
-        p = BPReader.GetTree(def_node.Data)
-        self.account = p["telegraphUserId"].Value
-        if self.account is None:
-            print ('Get Telegram UserID Failed! Try to Load From App Documents')
-        # pass ignoring right now.
-        pass
+        if def_node is not None:
+            p = BPReader.GetTree(def_node.Data)
+            self.account = p["telegraphUserId"].Value
+            if self.account is None:
+                print ('Get Telegram UserID Failed! Try to Load From App Documents')
+            else:
+                return
+        else:
+            print('try to find account from container documents, old version detected...')
+            pnode = self.container.GetByPath('Library/Preferences/ph.telegra.Telegraph.plist')
+            if pnode is None:
+                raise IOError("Can't find Accounts! parse EXIT!")
+            p = BPReader.GetTree(pnode.Data)
+            self.account = p['telegraphUserId'].Value
+            if self.account is None:
+                raise IOError("Can't find Accounts! parse EXIT!")
+            else:
+                return
     
     def __get_photo(self, photo_id):
         pass
@@ -1187,6 +1200,9 @@ class Telegram(object):
             a.photo = p
             a.username = GetString(reader, 8)
             self.im.db_insert_table_account(a)
+        else:
+            print("this is not the right group!")
+            return
         cmd.Dispose()
         cmd.CommandText = '''
         select uid, first_name, last_name, phone_number, photo_small, photo_medium, photo_big, username from users_v29
@@ -1341,34 +1357,40 @@ class Telegram(object):
         self.im.db_commit()
 
 def try_to_get_telegram_group(grps):
+    res = list()
     for g in grps:
         try:
             node = g.GetByPath('Documents/tgdata.db')
-            s_node = g.GetByPath('Documents/standard.defaults')
-            if node is None or s_node is None:
+            if node is None:
                 continue
-            return g
+            res.append(g)
         except:
             continue
-    return None
+    return res
 
 def parse_telegram(root, extract_deleted, extract_source):
-    
-    #r_node = FileSystem.FromLocalDir(r'D:\Cases\iPhone 8 plus_11.0_3986700581859246_tiquan\AppSharedFiles\ph.telegra.Telegraph\group.ph.telegra.Telegraph')
-    #root.Children.Add(r_node)
     group_container_nodes = ds.GroupContainers.ToArray()
-    r_node = try_to_get_telegram_group(group_container_nodes)
+    r_nodes = try_to_get_telegram_group(group_container_nodes)
     try:
-        if r_node is None:
+        if len(r_nodes) is 0:
             print('''can't find group node''')
             raise IOError('E')
-        t = Telegram(r_node, False, False)
-        t.parse()
-        models = model_im.GenerateModel(t.cache + '/C37R').get_models()
+        res = list()
+        for r in r_nodes:
+            try:
+                t = Telegram(r, root, False, False)
+                t.parse()
+                models = model_im.GenerateModel(t.cache + '/C37R').get_models()
+                res.append(models)
+            except:
+                if canceller.IsCancellationRequested:
+                    raise IOError('E')
+                else:
+                    continue
         mlm = ModelListMerger()
         pr = ParserResults()
         pr.Categories = DescripCategories.QQ
-        pr.Models.AddRange(list(mlm.GetUnique(models)))
+        pr.Models.AddRange(list(mlm.GetUnique(res)))
         pr.Build('钉钉')
     except Exception as e:
         print(e)
