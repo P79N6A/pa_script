@@ -51,7 +51,7 @@ namespace TestApp
             //3.测试
             //4.
             //这个路径改成你们电脑上的实际案例路径,支持多镜像案例(比如安卓的全盘包括data.img和external_data.img)
-            string casePath = @"D:\Cases\HUAWEI NXT-AL10__5LM0216630001436_full\Manifest.pnfa";
+            string casePath = @"E:\Cases\1_full\Manifest.pnfa";
             var pack = CasePackage.FromPath(casePath);
             if(pack!=null && pack.RpcClient.Connect())
             {
