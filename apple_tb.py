@@ -27,7 +27,6 @@ import logging
 import re
 import unity_c37r
 import json
-import biplist
 import random
 #
 # 淘宝多账号并不会删除账号的cache数据，因此，我们要建对象，而不是解析单个脚本
