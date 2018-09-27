@@ -1305,6 +1305,7 @@ class Telegram(object):
         reader = cmd.ExecuteReader()
         while reader.Read():
             m = model_im.Message()
+            m.talker_type = model_im.CHAT_TYPE_FRIEND
             m.account_id = self.account
             m.msg_id = GetInt64(reader, 0)
             m.is_sender = GetInt64(reader, 6)
@@ -1332,6 +1333,7 @@ class Telegram(object):
         reader = cmd.ExecuteReader()
         while reader.Read():
             m = model_im.Message()
+            m.talker_type = model_im.CHAT_TYPE_GROUP
             m.account_id = self.account
             m.talker_id = GetInt64(reader, 0)
             bts = GetBlob(reader, 1)
