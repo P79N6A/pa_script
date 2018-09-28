@@ -133,13 +133,17 @@ class BaiduMap(object):
                     routeaddr.deleted = 1
                 routeaddr.source = "百度地图"
                 routeaddr.sourceFile = route_node.AbsolutePath
-                seach_history = rec["key"].Value.replace("0&","")
+                seach_history = ""
+                try:
+                    seach_history = rec["key"].Value.replace("0&","")
+                except Exception as e:
+                    seach_history = rec["key"].Value
                 try:
                     fromname, toname = seach_history.split("&")
                     routeaddr.from_name = fromname
                     routeaddr.to_name = toname
                 except Exception as e:
-                    routeaddr.fromname = seach_history
+                    continue
                 if "value" in rec and (not rec["value"].IsDBNull):
                     seach_info = rec["value"].Value
                     try:
