@@ -12,6 +12,7 @@ except:
 del clr
 import model_map
 import bcp_gis
+import uuid
 
 
 class TencentMap(object):
@@ -185,7 +186,7 @@ class TencentMap(object):
             return True
 
     def parse(self):
-        db_path = self.cache + "/tencent_db.db"
+        db_path = model_map.md5(self.cache, self.root.AbsolutePath)
         self.tencentdb.db_create(db_path)
         self.parse_route()
         self.parse_search()

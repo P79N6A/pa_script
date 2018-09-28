@@ -13,6 +13,7 @@ except:
 del clr
 import model_map
 import bcp_gis
+import uuid
 
 class BaiduMap(object):
 
@@ -143,7 +144,7 @@ class BaiduMap(object):
                     routeaddr.from_name = fromname
                     routeaddr.to_name = toname
                 except Exception as e:
-                    continue
+                    continue 
                 if "value" in rec and (not rec["value"].IsDBNull):
                     seach_info = rec["value"].Value
                     try:
@@ -182,7 +183,7 @@ class BaiduMap(object):
 
     def parse(self):
         
-        db_path = self.cache + "/baidu_db.db"
+        db_path = model_map.md5(self.cache ,self.root.AbsolutePath)
         self.baidudb.db_create(db_path)
         self.parse_favorites_poi()
         self.parse_search()

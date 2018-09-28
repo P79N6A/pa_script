@@ -22,7 +22,7 @@ import shutil
 import json
 import model_im
 import bcp_im
-
+import hashlib
 
 def GetString(reader, idx):
     return reader.GetString(idx) if not reader.IsDBNull(idx) else ""
@@ -36,9 +36,20 @@ def GetBlob(reader, idx):
 def GetFloat(reader, idx):
     return reader.GetFloat(idx) if not reader.IsDBNull(idx) else 0
 
+def release_connection(reader, conn):
+    reader.Close()
+    conn.Close()
+
 def moveFileto(sourceDir,  targetDir): 
     shutil.copy(sourceDir,  targetDir)
 
+def md5(cache_path, node_path):
+    m = hashlib.md5()   
+    m.update(node_path)
+    db_path = cache_path + "\\" + m.hexdigest() + ".db"
+    return db_path
+
+VERSION_APP_VALUE = 1
 
 class WhatsApp(object):
     def __init__(self, node, extractDeleted, extractSource):
@@ -607,6 +618,8 @@ class WhatsApp(object):
                     pass
         except Exception as e:
             peint(e)
+        if conn != None:
+            conn.Close()
         self.whatsapp.db_commit()
 
 
@@ -697,16 +710,22 @@ class WhatsApp(object):
     def parse(self):
         if not os.path.exists(self.root.PathWithMountPoint + "/databases/msgstore.db"):
             return
-        db_path = self.cache + "/whatsapp_1.0.db"
-        self.whatsapp.db_create(db_path)
-        self.get_account()
-        self.get_friends()
-        self.get_groups()
-        self.get_group_member()
-        self.get_friend_messages()
-        self.get_group_messages()
-        self.get_feeds()       
-        self.whatsapp.db_close()
+        db_path = md5(self.cache, self.root.AbsolutePath)
+        if self.whatsapp.need_parse(db_path, VERSION_APP_VALUE):
+            self.whatsapp.db_create(db_path)
+            self.get_account()
+            self.get_friends()
+            self.get_groups()
+            self.get_group_member()
+            self.get_friend_messages()
+            self.get_group_messages()
+            self.get_feeds()       
+            self.whatsapp.db_close()
+
+            if not canceller.IsCancellationRequested:
+                self.whatsapp.db_insert_table_version(model_im.VERSION_KEY_DB, model_im.VERSION_VALUE_DB)
+                self.whatsapp.db_insert_table_version(model_im.VERSION_KEY_APP, VERSION_APP_VALUE)
+
         nameValues.SafeAddValue(bcp_im.CONTACT_ACCOUNT_TYPE_IM_WHATSAPP, db_path)
         generate = model_im.GenerateModel(db_path)
         results = generate.get_models()

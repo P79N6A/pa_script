@@ -12,6 +12,7 @@ import System.Data.SQLite as SQLite
 
 import os
 import sqlite3
+import hashlib
 
 SQL_CREATE_TABLE_ACCOUNT = '''
     create table if not exists account(
@@ -537,4 +538,10 @@ class Genetate(object):
         if source_file:
             return source_file.replace('/', '\\')
         
+
+def md5(cache_path, node_path):
+    m = hashlib.md5()   
+    m.update(node_path)
+    db_path = cache_path + "\\" + m.hexdigest() + ".db"
+    return db_path
 

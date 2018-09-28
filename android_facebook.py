@@ -22,6 +22,7 @@ import json
 from System.Xml.XPath import Extensions as XPathExtensions
 import model_im
 import bcp_im
+import hashlib
 
 def GetString(reader, idx):
     return reader.GetString(idx) if not reader.IsDBNull(idx) else ""
@@ -35,6 +36,17 @@ def GetBlob(reader, idx):
 def GetFloat(reader, idx):
     return reader.GetFloat(idx) if not reader.IsDBNull(idx) else 0
 
+def release_connection(reader, conn):
+    reader.Close()
+    conn.Close()
+
+def md5(cache_path, node_path):
+    m = hashlib.md5()   
+    m.update(node_path)
+    db_path = cache_path + "\\" + m.hexdigest() + ".db"
+    return db_path
+
+VERSION_APP_VALUE = 1
 
 class Facebook(object):
     def __init__(self, node, extractDeleted, extractSource):
@@ -222,6 +234,7 @@ class Facebook(object):
         except Exception as e:
             print(e)
             #pass
+        release_connection(reader, conn)
         self.facebook_db.db_commit()
 
 
@@ -311,6 +324,7 @@ class Facebook(object):
         except Exception as e:
             print(e)
             #pass
+        release_connection(reader, conn)
         self.facebook_db.db_commit()
         
 
@@ -498,16 +512,19 @@ class Facebook(object):
 
 
     def parse(self):
-
-        db_path = self.cache + "/facebook_db.db"
-        self.facebook_db.db_create(db_path)
-        self.get_account_id()
-        self.get_friends()
-        self.get_friends_chat()
-        self.get_groups_chat()
-        self.get_recover_friends_chat()
-        self.get_recover_groups_chat()
-        self.facebook_db.db_close()
+        db_path = md5(self.cache, self.root.AbsolutePath)
+        if self.facebook_db.need_parse(db_path, VERSION_APP_VALUE):
+            self.facebook_db.db_create(db_path)
+            self.get_account_id()
+            self.get_friends()
+            self.get_friends_chat()
+            self.get_groups_chat()
+            self.get_recover_friends_chat()
+            self.get_recover_groups_chat()
+            self.facebook_db.db_close()
+            if not canceller.IsCancellationRequested:
+                self.facebook_db.db_insert_table_version(model_im.VERSION_KEY_DB, model_im.VERSION_VALUE_DB)
+                self.facebook_db.db_insert_table_version(model_im.VERSION_KEY_APP, VERSION_APP_VALUE)
 
         generate = model_im.GenerateModel(db_path)
         results = generate.get_models()

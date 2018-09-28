@@ -355,8 +355,7 @@ class gaodeMap(object):
     def parse(self):
         
         decode_db_path = self.cache + "/girf_sync_decode.db"
-        db_path = self.cache + "/gaode_db.db"
-        
+        db_path = model_map.md5(self.cache, self.root.AbsolutePath)
         if not os.path.exists(decode_db_path):
             self.decode_db()
 
