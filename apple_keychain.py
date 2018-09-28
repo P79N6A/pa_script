@@ -51,14 +51,11 @@ class KeyChainParser():
         return self.get_models()
 
     def analyze_wifi_plist(self):
-        nodes = list(self.root.FileSystem.Search("com.apple.wifi.plist"))
+        nodes = list(self.root.FileSystem.Search("/SystemConfiguration/com\.apple\.wifi\.plist$"))
         if nodes is None:
             return
         for node in nodes:
-            if 'SystemConfiguration/com.apple.wifi.plist' not in node.AbsolutePath:
-                continue
-            file = node.AbsolutePath
-            memoryRange = MemoryRange.CreateFromFile(file)
+            memoryRange = node.Data
             try:
                 root = BPReader.GetTree(memoryRange)
                 wifi_list = root.Children['List of known networks'].Value
@@ -79,8 +76,7 @@ class KeyChainParser():
                 traceback.print_exc()
 
     def analyze_keychain_plist(self):
-        file = self.root.AbsolutePath()
-        map_0 = PlistHelper.ReadPlist(file)
+        map_0 = PlistHelper.ReadPlist(self.root)
         if map_0 is not None and str(type(map_0)) == "<type 'NSDictionary'>":
             for iter_0 in map_0:
                 key_0 = iter_0.Key
@@ -165,6 +161,7 @@ class KeyChainParser():
 
         for param in self.params:
             keychain = Generic.Keychain()
+            keychain.Deleted = DeletedState.Intact
             if param.type == WiFiAcc:
                 id = param.id
                 for name in self.wifiMap.keys():
@@ -335,17 +332,9 @@ class KeyChainParser():
 
 def analyze_keychain(root, extract_deleted, extract_source):
     pr = ParserResults()
-    
     models = KeyChainParser(root, extract_deleted, extract_source).parse()
-
     mlm = ModelListMerger()
-
     pr.Models.AddRange(list(mlm.GetUnique(models)))
-
     pr.Build('KeyChain')
-
     gc.collect()
     return pr
-
-def execute(node,extracteDeleted):
-    return analyze_keychain(node, extracteDeleted, False)
