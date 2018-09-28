@@ -58,7 +58,6 @@ class KeyChainParser():
             if 'SystemConfiguration/com.apple.wifi.plist' not in node.AbsolutePath:
                 continue
             file = node.AbsolutePath
-            file = 'E:\com.apple.wifi.plist'
             memoryRange = MemoryRange.CreateFromFile(file)
             try:
                 root = BPReader.GetTree(memoryRange)
