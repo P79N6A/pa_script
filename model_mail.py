@@ -188,9 +188,9 @@ SQL_INSERT_TABLE_MAIL = '''
 1    owner_account_id   所属用户id
 2    mail_id            所属邮件id
 3    attachment_name    附件名
-4    attachment_save_dir保存路径
+4    attachment_save_dir 保存路径
 5    attachment_size    附件大小（字节）
-6    attachment_download_date附件下载日期
+6    attachment_download_date 附件下载日期
 6    source             提取源
 7    deleted            是否删除
 8    repeated           是否重复
@@ -277,6 +277,19 @@ class MM(object):
             self.db_trans.Commit()
         self.db_trans = self.db.BeginTransaction()
 
+    def db_update(self, SQL, values=None):
+        if self.db_cmd is not None:
+            self.db_cmd.CommandText = SQL
+            self.db_cmd.Parameters.Clear()            
+            for v in values:
+                param = self.db_cmd.CreateParameter()
+                param.Value = v
+                self.db_cmd.Parameters.Add(param)     
+            try:
+                self.db_cmd.ExecuteNonQuery()
+            except:
+                traceback.print_exc()
+            
     def db_close(self):
         self.db_trans = None
         if self.db_cmd is not None:
@@ -291,7 +304,7 @@ class MM(object):
             if os.path.exists(db_path):
                 os.remove(db_path)
         except Exception as e:
-            print("model_mail db_create() remove %s error:%s"(db_path, e))
+            print("model_mail db_create() remove %s error:%s"%(db_path, e))
 
     def db_create_table(self):
         if self.db_cmd is not None:
@@ -571,10 +584,10 @@ class Generate(object):
                 friend.LivingAddresses.Add(addr)
                 if not IsDBNull(sr[5]):
                     friend.Remarks.Value = sr[5]  #联系人备注
-                if not IsDBNull(sr[6]):
-                    friend.PhoneNumber.Value = sr[6]  #联系人电话
                 if not IsDBNull(sr[7]):
-                    friend.Email.Value = sr[7]  #联系人邮箱
+                    friend.PhoneNumber.Value = sr[7]  #联系人电话
+                if not IsDBNull(sr[8]):
+                    friend.Email.Value = sr[8]  #联系人邮箱
                 if not IsDBNull(sr[19]):
                     friend.SourceFile.Value = self._get_source_file(sr[19])  #提取源
                 if not IsDBNull(sr[20]):
@@ -587,11 +600,11 @@ class Generate(object):
 
     def _get_mail_model(self):
         model = []
-        sql = '''select distinct a.mail_group, a.mail_send_status, a.mail_subject, a.mail_content, a.mail_sent_date, 
+        sql = '''select a.mail_group, a.mail_send_status, a.mail_subject, a.mail_content, a.mail_sent_date, 
             a.mail_from, a.mail_ip, a.mail_to, a.mail_cc, a.mail_bcc, b.attachment_name, b.attachment_save_dir, b.attachment_download_date, b.attachment_size,
             a.mail_abstract, a.mail_size, a.mail_recall_status, c.account_alias, c.account_user, c.account_last_login, c.account_email, c.account_id, a.mail_read_status, a.source, a.deleted
-            from mail as a left join attachment as b on a.mail_id = b.mail_id left join account as c on a.owner_account_id = c.account_id where not (mail_subject is null and mail_abstract is null and mail_from is null and mail_to is null and mail_cc is null and mail_bcc is null
-            and mail_content is null)'''
+            from mail as a left join attachment as b on a.mail_id = b.mail_id left join account as c on a.owner_account_id = c.account_id
+            '''
         try:
             self.db_cmd.CommandText = sql
             sr = self.db_cmd.ExecuteReader()
@@ -707,9 +720,9 @@ class Generate(object):
     @staticmethod
     def _get_timestamp(timestamp):
         try:
-            if isinstance(timestamp, (long, float, str)) and len(str(timestamp)) > 10:
+            if isinstance(timestamp, (long, float, str, Int64)) and len(str(timestamp)) > 10:
                 timestamp = int(str(timestamp)[:10])
-            if isinstance(timestamp, int) and len(str(timestamp)) == 10:
+            if isinstance(timestamp, (int, Int64)) and len(str(timestamp)) == 10:
                 ts = TimeStamp.FromUnixTime(timestamp, False)
                 if not ts.IsValidForSmartphone():
                     ts = TimeStamp.FromUnixTime(0, False)
