@@ -1400,6 +1400,7 @@ def parse_telegram(root, extract_deleted, extract_source):
                     t.im.db_insert_table_version(model_im.VERSION_KEY_DB, model_im.VERSION_VALUE_DB)
                     t.im.db_insert_table_version(model_im.VERSION_KEY_APP, 1)
                 models = model_im.GenerateModel(t.cache + '/{}.C37R'.format(t.hash_code)).get_models()
+                nameValues.SafeAddValue('1030063', t.cache + '/{}.C37R'.format(t.hash_code))
                 res.extend(models)
             except:
                 traceback.print_exc()
