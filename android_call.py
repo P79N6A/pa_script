@@ -10,6 +10,7 @@ try:
 except:
     pass
 del clr
+import hashlib
 from model_calls import MC, Records, Contact, Generate
 
 SQL_TABLE_JOIN_CONTACT = '''
@@ -28,7 +29,10 @@ class CallsParse(object):
         self.db = None
         self.mc = MC()
         self.cache_path = ds.OpenCachePath("CALLS")
-        self.cachedb = self.cache_path + "\\calls.db"
+        md5_db = hashlib.md5()
+        db_name = 'calls'
+        md5_db.update(db_name.encode(encoding = 'utf-8'))
+        self.cachedb = self.cache_path + "\\" + md5_db.hexdigest().upper() + ".db"
         self.sourceDB = self.cache_path + '\\CallSourceDB'
         self.mc.db_create(self.cachedb)
 
