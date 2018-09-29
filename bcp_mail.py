@@ -169,6 +169,14 @@ MAIL_SAVE_DRAFT = "03"
 MAIL_SAVE_TRASH = "04"
 MAIL_SAVE_OTHER = "99"
 
+MAIL_TOOL_TYPE_FOXMAIL = "01001"
+MAIL_TOOL_TYPE_OUTLOOK = "01002"
+MAIL_TOOL_TYPE_PHONE = "01003"
+MAIL_TOOL_TYPE_139 = "01004"
+MAIL_TOOL_TYPE_189 = "01005"
+MAIL_TOOL_TYPE_WO = "01006"
+MAIL_TOOL_TYPE_QQMAIL = "01007"
+MAIL_TOOL_TYPE_OTHER = "01999"
 
 class MailBcp(object):
     def __init__(self):
@@ -382,136 +390,143 @@ class GenerateBcp(object):
         self.cache_db = cache_db
         self.collect_target_id = collect_target_id
         self.mail_tool_type = mail_tool_type
-        self.cache_path = bcp_db
+        self.cache_path = bcp_db + '\\BCP_MAIL.db'
         self.mail = MailBcp()
 
     def generate(self):
         self.mail.db_create(self.cache_path)
-        self.db = sqlite3.connect(self.cache_db)
+        self.db = SQLite.SQLiteConnection('Data Source = {}'.format(self.cache_db))
+        self.db.Open()
         self._generate_account()
         self._generate_contact()
         self._generate_mail()
         self._generate_attachment()
-        self.db.close()
+        self.db.Close()
         self.mail.db_close()
 
     def _generate_account(self):
-        if canceller.IsCancellationRequested:
-            return
-        cursor = self.db.cursor()
-        sql = '''select * from accounts'''
         try:
-            cursor.execute(sql)
-            for row in cursor:
+            self.db_cmd = SQLite.SQLiteCommand(self.db)
+            if self.db_cmd is None:
+                return
+            self.db_cmd.CommandText = '''select distinct * from account'''
+            sr = self.db_cmd.ExecuteReader()
+            while(sr.Read()):
                 if canceller.IsCancellationRequested:
                     break
                 account = Account()
                 account.COLLECT_TARGET_ID = self.collect_target_id
                 account.MAIL_TOOL_TYPE = self.mail_tool_type
-                account.ACCOUNT = row[2]
-                account.REGIS_NICKNAME = row[1]
-                account.PASSWORD = row[6]
-                account.DELETE_STATUS = self._convert_delete_status(row[8])
-                account.LAST_LOGIN_TIME = row[3]
+                account.ACCOUNT = sr[1]
+                account.REGIS_NICKNAME = sr[2]
+                account.PASSWORD = sr[3]
+                account.DELETE_STATUS = self._convert_delete_status(sr[18])
+                account.LAST_LOGIN_TIME = sr[15]
                 self.mail.db_insert_table_account(account)
             self.mail.db_commit()
+            self.db_cmd.Dispose()
         except Exception as e:
             print(e)
 
     def _generate_contact(self):
-        if canceller.IsCancellationRequested:
-            return
-        cursor = self.db.cursor()
-        sql = '''select group_concat(contactName), group_concat(contactBirthday),
-            group_concat(contactDepartment), group_concat(contactFamilyAddress), group_concat(contactMark),
-            group_concat(contactMobile), group_concat(contactTelephone), group_concat(contactEmail), 
-            group_concat(contactNick), group_concat(groupName), group_concat(alias), group_concat(accountEmail),
-            group_concat(accountId), source, deleted, repeated from contact where contactName not Null group by contactName'''
         try:
-            cursor.execute(sql)
-            for row in cursor:
+            self.db_cmd = SQLite.SQLiteCommand(self.db)
+            if self.db_cmd is None:
+                return
+            self.db_cmd.CommandText = '''select distinct b.account_user, a.contact_user,a.contact_alias, a.contact_group,
+                                         a.contact_remark, a.contact_phone, a.contact_birthday, a.contact_profession, 
+                                         a.contact_addr, a.contact_head_pic, a.contact_reg_date, a.contact_last_login,
+                                         a.contact_last_modify, a.deleted from contact as a left join account as b on a.owner_account_id = b.account_id'''
+            sr = self.db_cmd.ExecuteReader()
+            while(sr.Read()):
                 if canceller.IsCancellationRequested:
                     break
                 contact = Contact()
                 contact.COLLECT_TARGET_ID = self.collect_target_id
                 contact.MAIL_TOOL_TYPE = self.mail_tool_type
-                contact.ACCOUNT = row[11]
-                contact.FRIEND_ACCOUNT = row[7]
-                contact.FRIEND_NICKNAME = row[8]
-                contact.FRIEND_GROUP = row[9]
-                contact.FRIEND_REMARK = row[4]
-                contact.FIXED_PHONE = row[6]
-                contact.MSISDN = row[5]
-                contact.BIRTHDAY = row[1]
-                contact.OCCUPATION_NAME = row[2]
-                contact.POSTAL_ADDRESS = row[3]
+                contact.ACCOUNT = sr[0]
+                contact.FRIEND_ACCOUNT = sr[1]
+                contact.FRIEND_NICKNAME = sr[2]
+                contact.FRIEND_GROUP = sr[3]
+                contact.FRIEND_REMARK = sr[4]
+                contact.FIXED_PHONE = sr[5]
+                contact.BIRTHDAY = sr[6]
+                contact.OCCUPATION_NAME = sr[7]
+                contact.POSTAL_ADDRESS = sr[8]
+                contact.USER_PHOTO = sr[9]
+                contact.ACCOUNT_REG_DATE = sr[10]
+                contact.LAST_LOGIN_TIME = sr[11]
+                contact.LATEST_MOD_TIME = sr[12]
+                contact.DELETE_STATUS = sr[13]
                 self.mail.db_insert_table_contact(contact)
             self.mail.db_commit()
         except Exception as e:
             print(e)
 
     def _generate_mail(self):
-        if canceller.IsCancellationRequested:
-            return
-        cursor = self.db.cursor()
-        sql = '''select a.*, accounts.accountEmail, accounts.loginDate from (
-            select mailId,subject,abstract,fromEmail,receiveUtc,size,tos,cc,bcc,ip,isForward,
-            isRead,isRecalled,sendStatus,account_email,alias,mail_folder,content,group_concat(downloadUtc) as downloadUtc,
-            group_concat(downloadSize) as downloadSize,group_concat(attachName) as attachName,group_concat(attachDir) as attachDir,source,repeated,deleted,accountId
-            from mails group by mailId) as a left join accounts on a.accountId = accounts.accountId'''
         try:
-            cursor.execute(sql)
-            for row in cursor:
+            self.db_cmd = SQLite.SQLiteCommand(self.db)
+            if self.db_cmd is None:
+                return
+            self.db_cmd.CommandText = '''select distinct b.account_user, a.mail_id, a.mail_from, a.mail_to, a.mail_cc,
+                                         a.mail_bcc, a.mail_sent_date, a.mail_subject, a.mail_content, a.mail_read_status,
+                                         a.deleted, a.mail_group, a.mail_group, a.deleted from mail as a left join account as b on a.owner_account_id = b.account_id'''
+            sr = self.db_cmd.ExecuteReader()
+            while(sr.Read()):
                 if canceller.IsCancellationRequested:
                     break
                 mail = Mail()
                 mail.COLLECT_TARGET_ID = self.collect_target_id
                 mail.MAIL_TOOL_TYPE = self.mail_tool_type
-                mail.ACCOUNT = row[14]
-                mail.SEQUENCE_NAME = row[0]
-                mail.FROM = row[3]
-                mail.TO = row[6]
-                mail.CC = row[7]
-                mail.BCC = row[8]
-                mail.MAIL_SEND_TIME = row[4]
-                mail.MAIL_SUBJECT = row[1]
-                mail.MAINFILE = row[17]
-                mail.MAIL_STATUS = MAIL_VIEW_UNREAD if row[11] == 0 else MAIL_VIEW_READ if row[11] == 1 else MAIL_VIEW_OTHER
-                mail.DELETE_STATUS = self._convert_delete_status(row[24])
-                if row[16] is '收件箱':
+                mail.ACCOUNT = sr[0]
+                mail.SEQUENCE_NAME = sr[1]
+                mail.FROM = sr[2]
+                mail.TO = sr[3]
+                mail.CC = sr[4]
+                mail.BCC = sr[5]
+                mail.MAIL_SEND_TIME = self._get_timestamp(sr[6])
+                mail.MAIL_SUBJECT = sr[7]
+                mail.MAINFILE = sr[8]
+                mail.MAIL_VIEW_STATUS = MAIL_VIEW_UNREAD if sr[9] == 0 else MAIL_VIEW_READ if sr[9] == 1 else MAIL_VIEW_OTHER
+                mail.DELETE_STATUS = self._convert_delete_status(sr[10])
+                if sr[11] is '收件箱':
                     mail.MAIL_SAVE_FOLDER = MAIL_SAVE_RECIEVE
-                elif row[16] is '发件箱':
+                elif sr[11] is '发件箱':
                     mail.MAIL_SAVE_FOLDER = MAIL_SAVE_POST
-                elif row[16] is '草稿箱':
+                elif sr[11] is '草稿箱':
                     mail.MAIL_SAVE_FOLDER = MAIL_SAVE_DRAFT
-                elif row[16] is '垃圾箱':
+                elif sr[11] is '垃圾箱':
                     mail.MAIL_SAVE_FOLDER = MAIL_SAVE_TRASH
                 else:
                     mail.MAIL_SAVE_FOLDER = MAIL_SAVE_OTHER
+                mail.FRIEND_GROUP = sr[12]
+                mail.DELETE_STATUS = sr[13]
                 self.mail.db_insert_table_mail(mail)
             self.mail.db_commit()
         except Exception as e:
             print(e)
 
     def _generate_attachment(self):
-        if canceller.IsCancellationRequested:
-            return
-        cursor = self.db.cursor()
-        sql = '''select * from attach'''
         try:
-            cursor.execute(sql)
-            for row in cursor:
+            self.db_cmd = SQLite.SQLiteCommand(self.db)
+            if self.db_cmd is None:
+                return
+            self.db_cmd.CommandText = '''select distinct b.account_user, a.mail_id, a.attachment_name, a.attachment_save_dir,
+                                         a.attachment_size, a.deleted from attachment as a left join account as b on a.owner_account_id = b.account_id'''
+            sr = self.db_cmd.ExecuteReader()
+            while(sr.Read()):
                 if canceller.IsCancellationRequested:
                     break
                 attachment = Attachment()
                 attachment.COLLECT_TARGET_ID = self.collect_target_id
                 attachment.MAIL_TOOL_TYPE = self.mail_tool_type
-                attachment.ACCOUNT = row[1]
-                attachment.SEQUENCE_NAME = row[13]
-                attachment.MATERIALS_NAME = row[8]
-                attachment.FILE_NAME = row[11]
-                attachment.FILE_SIZE = row[4]
-                self._copy_attachment(self.mountDir, row[11])
+                attachment.ACCOUNT = sr[0]
+                attachment.SEQUENCE_NAME = sr[1]
+                attachment.MATERIALS_NAME = sr[2]
+                attachment.FILE_NAME = sr[3]
+                attachment.FILE_SIZE = sr[4]
+                attachment.DELETE_STATUS = sr[5]
+                self._copy_attachment(self.mountDir, sr[3])
                 self.mail.db_insert_table_attachment(attachment)
             self.mail.db_commit()
         except Exception as e:
@@ -534,4 +549,17 @@ class GenerateBcp(object):
             return DELETE_STATUS_NOT_DELETED
         else:
             return DELETE_STATUS_DELETED
+
+    @staticmethod
+    def _get_timestamp(timestamp):
+        try:
+            if isinstance(timestamp, (long, float, str)) and len(str(timestamp)) > 10:
+                timestamp = int(str(timestamp)[:10])
+            if isinstance(timestamp, int) and len(str(timestamp)) == 10:
+                ts = TimeStamp.FromUnixTime(timestamp, False)
+                if not ts.IsValidForSmartphone():
+                    ts = TimeStamp.FromUnixTime(0, False)
+                return ts
+        except:
+            return TimeStamp.FromUnixTime(0, False)
 

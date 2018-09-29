@@ -5,10 +5,7 @@ import clr
 clr.AddReference('System.Core')
 clr.AddReference('System.Xml.Linq')
 clr.AddReference('System.Data.SQLite')
-try:
-    clr.AddReference('unity_c37r')
-except:
-    pass
+
 del clr
 
 from System.IO import MemoryStream
@@ -24,7 +21,7 @@ import time
 import sqlite3
 import traceback
 
-from unity_c37r import mapping_file_with_copy
+import shutil
 
 
 SMS_TYPE_ALL    = 0
@@ -118,29 +115,45 @@ SQL_INSERT_TABLE_VERSION = '''
 
 class Model_SMS(object):
     def __init__(self):
+        # self.db = None
+        # self.cursor = None
         self.db = None
         self.db_cmd = None
         self.db_trans = None
-        
 
     def db_create(self, db_path):
         if os.path.exists(db_path):
-            os.remove(db_path)
-
+            # os.remove(db_path)
+            try:
+                os.remove(db_path)
+            except:
+                print('db_path:', db_path)
+                exc()
         self.db = SQLite.SQLiteConnection('Data Source = {}'.format(db_path))
         self.db.Open()
         self.db_cmd = SQLite.SQLiteCommand(self.db)
-        self.db_trans = self.db.BeginTransaction()
-
+        try:
+            self.db_trans = self.db.BeginTransaction()
+        except:
+            exc()
+            
         self.db_create_table()
         self.db_commit()
 
     def db_commit(self):
+        # if self.db is not None:
+        #     self.db.commit()
         if self.db_trans is not None:
             self.db_trans.Commit()
         self.db_trans = self.db.BeginTransaction()
 
     def db_close(self):
+        # if self.cursor is not None:
+        #     self.cursor.close()
+        #     self.cursor = None
+        # if self.db is not None:
+        #     self.db.close()
+        #     self.db = None
         self.db_trans = None
         if self.db_cmd is not None:
             self.db_cmd.Dispose()
@@ -150,7 +163,11 @@ class Model_SMS(object):
             self.db = None   
             
     def db_create_table(self):
+        # if self.cursor is not None:
         if self.db_cmd is not None:
+            # self.cursor.execute(SQL_CREATE_TABLE_SMS)
+            # self.cursor.execute(SQL_CREATE_TABLE_SIM_CARDS)
+            # self.cursor.execute(SQL_CREATE_TABLE_VERSION)
             self.db_cmd.CommandText = SQL_CREATE_TABLE_SMS
             self.db_cmd.ExecuteNonQuery()
             self.db_cmd.CommandText = SQL_CREATE_TABLE_SIM_CARDS
@@ -169,14 +186,23 @@ class Model_SMS(object):
             self.db_cmd.ExecuteNonQuery()
 
     def db_insert_table_sim_cards(self, column):
+        # if self.cursor is not None:
+        #     self.cursor.execute(SQL_INSERT_TABLE_SIM_CARDS, column.get_values())
         self.db_insert_table(SQL_INSERT_TABLE_SIM_CARDS, column.get_values())
 
 
     def db_insert_table_sms(self, column):
+        # if self.cursor is not None:
+        #     try:
+        #         self.cursor.execute(SQL_INSERT_TABLE_SMS, column.get_values())
+        #     except:
+        #         pass
         self.db_insert_table(SQL_INSERT_TABLE_SMS, column.get_values())
 
 
     def db_insert_table_version(self, key, version):
+        # if self.cursor is not None:
+        #     self.cursor.execute(SQL_INSERT_TABLE_VERSION, (key, version))
         self.db_insert_table(SQL_INSERT_TABLE_VERSION, (key, version))
 
     '''
@@ -222,9 +248,6 @@ class Column(object):
 
     def __setattr__(self, name, value):
         if not IsDBNull(value):
-            if isinstance(value, str):
-                # 过滤控制字符, 防止断言失败
-                value = re.compile('[\\x00-\\x08\\x0b-\\x0c\\x0e-\\x1f]').sub(' ', value)               
             self.__dict__[name] = value
 
     def get_values(self):
@@ -283,6 +306,8 @@ class GenerateModel(object):
     def get_models(self):
         models = []
         self.db = sqlite3.connect(self.cache_db)
+        # self.db = SQLite.SQLiteConnection('Data Source = {}'.format(self.db_path))
+
         self.cursor = self.db.cursor()
 
         # 跨库连表
@@ -291,7 +316,11 @@ class GenerateModel(object):
             BASE_DIR      = os.path.dirname(self.cachepath)
             raw_calls_path = os.path.join(BASE_DIR, db_path_calls)
             calls_path = os.path.join(self.cachepath, 'calls.db')
-            mapping_file_with_copy(raw_calls_path, calls_path)
+            try:
+                if not os.path.exists(calls_path):
+                    shutil.copy(raw_calls_path, calls_path)
+            except:
+                exc()
             self.db.execute("ATTACH DATABASE '{}' AS calls".format(calls_path))
             models.extend(self._get_sms_models())
         except:

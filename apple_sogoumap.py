@@ -6,10 +6,12 @@ import json
 import clr
 try:
     clr.AddReference('model_map')
+    clr.AddReference("bcp_gis")
 except:
     pass
 del clr
 import model_map
+import bcp_gis
 
 class SogouMap(object):
 
@@ -208,6 +210,7 @@ class SogouMap(object):
 
         generate = model_map.Genetate(db_path)   
         tmpresult = generate.get_models()
+        nameValues.SafeAddValue(bcp_gis.NETWORK_APP_MAP_SOGOU,db_path)
         return tmpresult
 
     

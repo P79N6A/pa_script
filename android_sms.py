@@ -20,6 +20,7 @@ SMS_TYPE_OUTBOX = 4
 SMS_TYPE_FAILED = 5
 SMS_TYPE_QUEUED = 6
 
+VERSION_APP_VALUE = 1
 
 def execute(node, extract_deleted):
     """ main """
@@ -29,7 +30,6 @@ def analyze_sms(node, extract_deleted, extract_source):
     """
         node: sms/sms.db$
         android 小米 短信 (user_de/0/com.android.providers.telephony/databases$ - mmssms.db)
-
     """
     # print node.AbsolutePath
     node_path = node.AbsolutePath
@@ -37,7 +37,8 @@ def analyze_sms(node, extract_deleted, extract_source):
     res = None
     if node_path.endswith('sms/sms.db'):
         res = SMSParser_no_tar(node, extract_deleted, extract_source).parse()
-    elif node_path.endswith('user_de/0/com.android.providers.telephony/databases'):
+    #elif node_path.endswith('user_de/0/com.android.providers.telephony/databases'):
+    elif node_path.endswith('com.android.providers.telephony/databases'):
         res = SMSParser(node, extract_deleted, extract_source).parse()
 
     pr = ParserResults()
@@ -54,24 +55,31 @@ class SMSParser(object):
         self.extract_deleted = extract_deleted
         self.extract_source = extract_source
 
-        self.sms = Model_SMS()
+        self.m_sms = Model_SMS()
         self.cachepath = ds.OpenCachePath("AndroidSMS")
-        self.cachedb = self.cachepath + "\\AndroidSMS.db"
-        self.sms.db_create(self.cachedb)
-        self.sms.db_create_table()
+        self.cache_db = self.cachepath + "\\AndroidSMS.db"
 
     def parse(self):
-        node = self.root.GetByPath("/mmssms.db")
-        self.db = SQLiteParser.Database.FromNode(node,canceller)
-        if self.db is None:
-            return
-        self.source_mmmssms_db = node.AbsolutePath
+        if self.m_sms.need_parse(self.cache_db, VERSION_APP_VALUE):
+            print('node.AbsolutePath:', self.root.AbsolutePath)
+            node = self.root.GetByPath("/mmssms.db")
+            self.db = SQLiteParser.Database.FromNode(node, canceller)
+            if self.db is None:
+                return
 
-        self.parse_main()
+            self.m_sms.db_create(self.cache_db)
+            self.source_mmmssms_db = node.AbsolutePath
+            self.parse_main()
 
-        self.sms.db_close()
-        models = GenerateModel(self.cachedb, self.cachepath).get_models()
-        return models
+            # 数据库填充完毕，请将中间数据库版本和app数据库版本插入数据库，用来检测app是否需要重新解析
+            if not canceller.IsCancellationRequested:
+                self.m_sms.db_insert_table_version(VERSION_KEY_DB, VERSION_VALUE_DB)
+                self.m_sms.db_insert_table_version(VERSION_KEY_APP, VERSION_APP_VALUE)
+                self.m_sms.db_commit()
+            self.m_sms.db_close() 
+
+        models = GenerateModel(self.cache_db, self.cachepath).get_models()
+        return models        
 
     def parse_main(self):
         """
@@ -127,11 +135,11 @@ class SMSParser(object):
                sim.sync_enabled = rec['sync_enabled'].Value
                sim.source       = self.source_mmmssms_db
                try:
-                   self.sms.db_insert_table_sim_cards(sim)
+                   self.m_sms.db_insert_table_sim_cards(sim)
                except:
                    exc()
            try:
-               self.sms.db_commit()
+               self.m_sms.db_commit()
            except:
                pass
        except:
@@ -153,7 +161,7 @@ class SMSParser(object):
             sms.read               = rec['read'].Value
             sms.type               = rec['type'].Value    # SMS_TYPE
             sms.subject            = rec['subject'].Value
-            sms.body               = rec['body'].Value.replace('\0', '')
+            sms.body               = rec['body'].Value
             sms.send_time          = rec['date_sent'].Value
             sms.deliverd           = rec['date'].Value
             sms.is_sender          = 1 if sms.type == SMS_TYPE_SENT else 0
@@ -164,11 +172,11 @@ class SMSParser(object):
                 pass    
             sms.source             = self.source_mmmssms_db
             try:
-                self.sms.db_insert_table_sms(sms)
+                self.m_sms.db_insert_table_sms(sms)
             except:
                 exc()
         try:
-            self.sms.db_commit()
+            self.m_sms.db_commit()
         except:
             exc()
 
@@ -192,11 +200,11 @@ class SMSParser(object):
             sms.deleted            = rec['deleted'].Value
             sms.source             = self.source_mmmssms_db
             try:
-                self.sms.db_insert_table_sms(sms)
+                self.m_sms.db_insert_table_sms(sms)
             except:
                 exc()
         try:
-            self.sms.db_commit()
+            self.m_sms.db_commit()
         except:
             exc()            
 
@@ -214,7 +222,7 @@ class SMSParser(object):
 
 
 class SMSParser_no_tar(SMSParser):
-    ''' 处理没有 tar 包的案例 sms/sms.db$ '''
+    ''' 处理逻辑提取, 没有 tar 包的案例 sms/sms.db$ '''
 
     def __init__(self, node, extract_deleted, extract_source):
         super(SMSParser_no_tar, self).__init__(node, extract_deleted, extract_source)
@@ -227,8 +235,8 @@ class SMSParser_no_tar(SMSParser):
 
         self.parse_sms()
 
-        self.sms.db_close()
-        models = GenerateModel(self.cachedb).get_models()
+        self.m_sms.db_close()
+        models = GenerateModel(self.cache_db).get_models()
         return models    
 
     def parse_sms(self):
@@ -264,11 +272,11 @@ class SMSParser_no_tar(SMSParser):
 
             sms.source             = self.source_sms_db
             try:
-                self.sms.db_insert_table_sms(sms)
+                self.m_sms.db_insert_table_sms(sms)
             except:
                 exc()
         try:
-            self.sms.db_commit()
+            self.m_sms.db_commit()
         except:
             exc()
 

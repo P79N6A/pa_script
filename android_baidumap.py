@@ -7,11 +7,13 @@ import os
 import clr
 try:
     clr.AddReference('model_map')
+    clr.AddReference("bcp_gis")
 except:
     pass
 del clr
 import model_map
-
+import bcp_gis
+import uuid
 
 class BaiduMap(object):
 
@@ -132,14 +134,17 @@ class BaiduMap(object):
                     routeaddr.deleted = 1
                 routeaddr.source = "百度地图"
                 routeaddr.sourceFile = route_node.AbsolutePath
-                seach_history = rec["key"].Value.replace("0&","")
+                seach_history = ""
+                try:
+                    seach_history = rec["key"].Value.replace("0&","")
+                except Exception as e:
+                    seach_history = rec["key"].Value
                 try:
                     fromname, toname = seach_history.split("&")
                     routeaddr.from_name = fromname
                     routeaddr.to_name = toname
                 except Exception as e:
-                    print(e)
-                    routeaddr.fromname = seach_history
+                    continue 
                 if "value" in rec and (not rec["value"].IsDBNull):
                     seach_info = rec["value"].Value
                     try:
@@ -178,13 +183,13 @@ class BaiduMap(object):
 
     def parse(self):
         
-        db_path = self.cache + "/baidu_db.db"
+        db_path = model_map.md5(self.cache ,self.root.AbsolutePath)
         self.baidudb.db_create(db_path)
         self.parse_favorites_poi()
         self.parse_search()
         self.parse_route()
         self.baidudb.db_close()
-        
+        nameValues.SafeAddValue(bcp_gis.NETWORK_APP_MAP_BAIDU,db_path)
         generate = model_map.Genetate(db_path)   
         tmpresult = generate.get_models()
         return tmpresult 

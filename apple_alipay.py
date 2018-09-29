@@ -59,6 +59,8 @@ class AlipayParser(model_im.IM):
             os.makedirs(self.cache_path)
         self.cache_db = os.path.join(self.cache_path, 'cache.db')
 
+        nameValues.SafeAddValue('1290007', self.cache_db)
+
     def parse(self):
         if self.need_parse(self.cache_db, VERSION_APP_VALUE):
             self.db_create(self.cache_db)

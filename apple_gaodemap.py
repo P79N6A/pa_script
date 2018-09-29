@@ -11,10 +11,12 @@ import os
 import clr
 try:
     clr.AddReference('model_map')
+    clr.AddReference("bcp_gis")
 except:
     pass
 del clr
 import model_map
+import bcp_gis
 
 POI_SNAPSHOT = 12
 
@@ -360,6 +362,7 @@ class gaodeMap(object):
         self.entrance()
         generate = model_map.Genetate(db_path)
         tmpresult = generate.get_models()
+        nameValues.SafeAddValue(bcp_gis.NETWORK_APP_MAP_GAODE,db_path)
         return tmpresult
 
 

@@ -13,6 +13,8 @@ from model_sim import *
 import time
 import re
 
+# app数据库版本
+VERSION_APP_VALUE = 1
 
 
 def analyze_sim(node, extract_deleted, extract_source):
@@ -45,19 +47,27 @@ class SIMParser(object):
 
         self.m_sim = Model_SIM()
         self.cachepath = ds.OpenCachePath("AndroidSIM")
-        self.cachedb = self.cachepath + "\\AndroidSIM.db"
-        self.m_sim.db_create(self.cachedb)
-        self.m_sim.db_create_table()
-        
+        self.cache_db = self.cachepath + "\\AndroidSIM.db"
+
     def parse(self):
-        node = self.root.GetByPath("/telephony.db")
-        self.db = SQLiteParser.Database.FromNode(node,canceller)
-        if self.db is None:
-            return
-        self.source_telephony_db = node.AbsolutePath
-        self.parse_siminfo()
-        self.m_sim.db_close()
-        models = GenerateModel(self.cachedb).get_models()
+        if self.m_sim.need_parse(self.cache_db, VERSION_APP_VALUE):
+
+            node = self.root.GetByPath("/telephony.db")
+            self.db = SQLiteParser.Database.FromNode(node, canceller)
+            if self.db is None:
+                return
+            self.m_sim.db_create(self.cache_db)
+            self.source_telephony_db = node.AbsolutePath
+            self.parse_siminfo()
+
+            # 数据库填充完毕，请将中间数据库版本和app数据库版本插入数据库，用来检测app是否需要重新解析
+            if not canceller.IsCancellationRequested:
+                self.m_sim.db_insert_table_version(VERSION_KEY_DB, VERSION_VALUE_DB)
+                self.m_sim.db_insert_table_version(VERSION_KEY_APP, VERSION_APP_VALUE)
+                self.m_sim.db_commit()
+            self.m_sim.db_close() 
+
+        models = GenerateModel(self.cache_db).get_models()
         return models
 
     def parse_siminfo(self):
@@ -67,9 +77,9 @@ class SIMParser(object):
         1	_id	                INTEGER
         2	icc_id	                TEXT
         3	sim_id	                INTEGER			
-        4	display_name	                TEXT
-        5	carrier_name	                TEXT
-        6	name_source	                INTEGER
+        4	display_name	        TEXT
+        5	carrier_name	        TEXT
+        6	name_source	            INTEGER
         7	color	                INTEGER
         8	number	                TEXT
         9	display_number_format	INTEGER
@@ -120,7 +130,7 @@ class SIMParser_no_tar(SIMParser):
         self.source_sim_db = node.AbsolutePath
         self.parse_sim()
         self.m_sim.db_close()
-        models = GenerateModel(self.cachedb).get_models()
+        models = GenerateModel(self.cache_db).get_models()
         return models    
 
     def parse_sim(self):

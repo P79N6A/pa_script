@@ -6,10 +6,12 @@ import json
 import clr
 try:
     clr.AddReference('model_map')
+    clr.AddReference("bcp_gis")
 except:
     pass
 del clr
 import model_map
+import bcp_gis
 
 # 想重新分析并生成数据库 在这里修改一下版本号
 # APPVERSION = "1.0"
@@ -301,6 +303,7 @@ class TencentMap(object):
         self.tencentMap.db_close()
         generate = model_map.Genetate(db_path)   
         tmpresult = generate.get_models()
+        nameValues.SafeAddValue(bcp_gis.NETWORK_APP_MAP_TENCENT,db_path)
         return tmpresult
         
 

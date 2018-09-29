@@ -983,7 +983,7 @@ class BuildBCP(object):
             return SEXCODE_UNKNOWN
 
     def _convert_browse_type(self, value):
-        if len(value) == 0:
+        if value is None:
             return MAP_TYPE_OTHER
         elif value == "谷歌地图":
             return MAP_TYPE_GOOGLE

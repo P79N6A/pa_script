@@ -6,7 +6,6 @@ clr.AddReference('System.Xml.Linq')
 try:
     clr.AddReference('model_im')
     clr.AddReference('bcp_im')
-    clr.AddReference('bcp_extra')
     clr.AddReference('tencent_struct')
 except:
     pass
@@ -30,7 +29,6 @@ import sqlite3
 import shutil
 import model_im
 import bcp_im
-import bcp_extra
 import tencent_struct
 
 # EnterPoint: analyze_wechat(root, extract_deleted, extract_source):
@@ -90,7 +88,7 @@ class WeChatParser(model_im.IM):
         if not os.path.exists(self.cache_path):
             os.makedirs(self.cache_path)
         self.cache_db = os.path.join(self.cache_path, self.user_hash + '.db')
-        bcp_extra.BCP.set_path(self.cache_db, bcp_im.CONTACT_ACCOUNT_TYPE_IM_WECHAT)
+        nameValues.SafeAddValue(bcp_im.CONTACT_ACCOUNT_TYPE_IM_WECHAT, self.cache_db)
 
     def parse(self):
         if not self.is_valid_user_dir:

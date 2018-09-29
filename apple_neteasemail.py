@@ -7,10 +7,13 @@ from PA_runtime import *
 import clr
 try:
     clr.AddReference('model_mails')
+    clr.AddReference('bcp_mail')
 except:
     pass
 del clr
 from model_mails import *
+import bcp_mail
+
 import re
 
 
@@ -61,6 +64,9 @@ class NeteaseMailParser(object):
         self.parse_contacts(node=self.root.GetByPath("Documents/contacts.db"))
         self.parse_todo(node=self.root.GetByPath("Documents/todo.db"))
         self.mm.db_close()
+
+        nameValues.SafeAddValue(bcp_mail.MAIL_TOOL_TYPE_OTHER, self.cachedb)
+
         generate = Generate(self.cachedb)
         return generate.get_models()
 

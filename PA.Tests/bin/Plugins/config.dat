@@ -23,6 +23,48 @@
         </dict>
       </array>
     </dict>
+	
+	<dict>
+      <key>Module</key>
+      <string>apple_keychain</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_keychain</string>
+          <key>RunnerType</key>
+          <integer>0</integer>
+          <key>Patterns</key>
+          <array>
+            <string>/tmp/keychain\.plist$</string>
+			<string>/Keychains/keychain-backup\.plist$</string>
+          </array>
+          <key>Category</key>
+          <string>KeyChains</string>
+        </dict>
+      </array>
+    </dict>
+	
+	<dict>
+      <key>Module</key>
+      <string>apple_renren</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_renren</string>
+          <key>RunnerType</key>
+          <integer>1</integer>
+          <key>Patterns</key>
+          <array>
+            <string>com.xiaonei.xiaonei</string>
+          </array>
+          <key>Category</key>
+          <string>RenRen</string>
+        </dict>
+      </array>
+    </dict>
+	
     <dict>
       <key>Module</key>
       <string>apple_qt</string>
@@ -42,6 +84,7 @@
         </dict>
       </array>
     </dict>
+	
     <dict>
       <key>Module</key>
       <string>apple_filesystem_log</string>
@@ -1234,7 +1277,7 @@
           <key>Patterns</key>
           <array>
             <string>sim/sim.db$</string>
-            <string>user_de/0/com.android.providers.telephony/databases$</string>
+            <string>com.android.providers.telephony/databases$</string>
           </array>
           <key>Category</key>
           <string>Sim</string>
@@ -1255,7 +1298,7 @@
           <key>Patterns</key>
           <array>
             <string>sms/sms.db$</string>
-            <string>user_de/0/com.android.providers.telephony/databases$</string>
+            <string>com.android.providers.telephony/databases$</string>
           </array>
           <key>Category</key>
           <string>Sms</string>
@@ -1296,7 +1339,6 @@
           <integer>2</integer>
           <key>Patterns</key>
           <array>
-            <string>data/data/com.baidu.searchbox/databases/SearchBox.db$</string>
             <string>com.baidu.searchbox/databases/SearchBox.db$</string>
           </array>
           <key>Category</key>
@@ -1310,7 +1352,6 @@
           <integer>2</integer>
           <key>Patterns</key>
           <array>
-            <string>data/data/com.baidu.searchbox.lite/databases/SearchBox.db$</string>
             <string>com.baidu.searchbox.lite/databases/SearchBox.db$</string>
           </array>
           <key>Category</key>

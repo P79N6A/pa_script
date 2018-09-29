@@ -6,10 +6,13 @@ import os
 import clr
 try:
     clr.AddReference('model_map')
+    clr.AddReference("bcp_gis")
 except:
     pass
 del clr
 import model_map
+import bcp_gis
+import uuid
 
 
 class TencentMap(object):
@@ -183,13 +186,13 @@ class TencentMap(object):
             return True
 
     def parse(self):
-        db_path = self.cache + "/tencent_db.db"
+        db_path = model_map.md5(self.cache, self.root.AbsolutePath)
         self.tencentdb.db_create(db_path)
         self.parse_route()
         self.parse_search()
         self.parse_fav_addr()
         self.tencentdb.db_close()
-        
+        nameValues.SafeAddValue(bcp_gis.NETWORK_APP_MAP_TENCENT, db_path)
         generate = model_map.Genetate(db_path)   
         tmpresult = generate.get_models()
         return tmpresult        

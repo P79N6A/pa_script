@@ -24,9 +24,11 @@ def exc():
     #traceback.print_exc()
 
 
-VERSION_VALUE_DB = 1
 VERSION_KEY_DB  = 'db'
+VERSION_VALUE_DB = 1
+
 VERSION_KEY_APP = 'app'
+
 
 SQL_CREATE_TABLE_SIM = '''
     create table if not exists sim(
@@ -133,8 +135,8 @@ class Model_SIM(object):
         try:
             cursor.execute(sql)
             row = cursor.fetchone()
-        except Exception as e:
-            pass
+        except:
+            exc()
 
         while row is not None:
             if row[0] == VERSION_KEY_DB and row[1] == VERSION_VALUE_DB:
@@ -240,7 +242,6 @@ class GenerateModel(object):
             models.append(sim)
             row = self.cursor.fetchone()
         return models        
-
 
     @staticmethod
     def _convert_deleted_status(deleted):

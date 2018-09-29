@@ -11,11 +11,13 @@ import os
 import clr
 try:
     clr.AddReference('model_map')
+    clr.AddReference("bcp_gis")
 except:
     pass
 del clr
 
 import model_map
+import bcp_gis
 
 POI_SNAPSHOT = 12
 
@@ -353,15 +355,14 @@ class gaodeMap(object):
     def parse(self):
         
         decode_db_path = self.cache + "/girf_sync_decode.db"
-        db_path = self.cache + "/gaode_db.db"
-        
+        db_path = model_map.md5(self.cache, self.root.AbsolutePath)
         if not os.path.exists(decode_db_path):
             self.decode_db()
 
         self.gaodemap.db_create(db_path)
         self.entrance()
         self.gaodemap.db_close()
-        
+        nameValues.SafeAddValue(bcp_gis.NETWORK_APP_MAP_GAODE, db_path)
         generate = model_map.Genetate(db_path)
         tmpresult = generate.get_models()
         return tmpresult
