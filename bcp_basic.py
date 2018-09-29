@@ -874,6 +874,49 @@ class GenerateBcp(object):
         except Exception as e:
             print(e)
 
+        def _generate_basic_info(self):
+            pass
+
+        def _generate_terminal_info(self):
+            pass
+
+        def _generate_mobile_info(self):
+            pass
+
+        def _generate_os_info(self):
+            pass
+
+        def _generate_sim_info(self):
+            pass
+
+        def _generate_contact_info(self):
+            pass
+
+        def _generate_contact_detail(self):
+            pass
+
+        def _generate_call_record(self):
+            pass
+
+        def _generate_sms_info(self):
+            pass
+
+        def _generate_mms_info(self):
+            pass
+
+        def _generate_calendar_info(self):
+            pass
+
+        def _generate_sync_account(self):
+            pass
+
+        def _generate_alarm_clock(self):
+            pass
+
+        def _generate_operate_record(self):
+            pass
+
+
     @staticmethod
     def _copy_attachment(mountDir, dir):
         x = mountDir + dir
