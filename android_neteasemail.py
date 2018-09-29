@@ -1,10 +1,7 @@
 # coding=utf-8
-import os
 import traceback
 import re
 
-import PA_runtime
-from PA_runtime import *
 import clr
 try:
     clr.AddReference('unity_c37r')
@@ -129,7 +126,7 @@ class NeteaseMailParser(object):
             5	protocolType	        INTEGER
             6	isDeleted	        INTEGER
         """
-        for rec in self._read_table('AccountCore'):
+        for rec in self._read_table('AccountCore', extract_deleted=False):
             if canceller.IsCancellationRequested:
                 return            
             if self._is_empty(rec, 'id') or not self._is_email_format(rec, 'mailAddress'):
@@ -380,15 +377,17 @@ class NeteaseMailParser(object):
         self.cur_db_source = node.AbsolutePath
         return True
 
-    def _read_table(self, table_name):
+    def _read_table(self, table_name, extract_deleted=None):
         """ 
             读取手机数据库 - 表
         :type table_name: str
         :rtype: db.ReadTableRecords()                                       
         """
+        if extract_deleted is None:
+            extract_deleted = self.extract_deleted
         try:
             tb = SQLiteParser.TableSignature(table_name)  
-            return self.cur_db.ReadTableRecords(tb, self.extract_deleted, True)
+            return self.cur_db.ReadTableRecords(tb, extract_deleted, True)
         except:
             exc()          
 
@@ -430,9 +429,6 @@ class NeteaseMailParser(object):
             self.neg_primary_key -= 1
             return self.neg_primary_key
         return mailId
-
-
-            
 
 def exc():
     if DEBUG:

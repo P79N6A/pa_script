@@ -198,7 +198,7 @@ class EmailParser(object):
 
         if not self._read_db(db_path):
             return
-        for rec in self._read_table(table_name):
+        for rec in self._read_table(table_name, extract_deleted=False):
             if canceller.IsCancellationRequested:
                 return
             if not self._is_email_format(rec, 'emailAddress'):
@@ -470,17 +470,19 @@ class EmailParser(object):
         self.cur_db_source = node.AbsolutePath
         return True
 
-    def _read_table(self, table_name):
+    def _read_table(self, table_name, extract_deleted=None):
         """ 
             读取手机数据库 - 表
         :type table_name: str
         :rtype: db.ReadTableRecords()                                       
         """
+        if extract_deleted is None:
+            extract_deleted = self.extract_deleted
         try:
             tb = SQLiteParser.TableSignature(table_name)  
-            return self.cur_db.ReadTableRecords(tb, self.extract_deleted, True)
+            return self.cur_db.ReadTableRecords(tb, extract_deleted, True)
         except:
-            exc()          
+            exc()         
 
     def _get_account_id(self, my_email):
         ''' return corresponding account_id by email
