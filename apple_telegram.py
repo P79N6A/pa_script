@@ -678,7 +678,7 @@ class MediaParser(object):
             url_length = bts.read_int()
             if url_length > 0:
                 uri = bts.read_bytes(url_length).decode('utf-8')
-                res['uri'].append(uri)
+                res['uri'] = uri
         if v >= 4:
             at_size = bts.read_int()
             if at_size > 0:
