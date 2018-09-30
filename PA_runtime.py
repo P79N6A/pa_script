@@ -108,10 +108,6 @@ def save_cache_path(softwore_code, db_path, cache_dir):
             if db_path in files:
                 return
     with open(file_path, "a+") as f:
-        files = f.read()
-        if db_path in files:
-            return
-        else:
-            f.write(db_path+"\n")
+        f.write(db_path+"\n")
     
  
