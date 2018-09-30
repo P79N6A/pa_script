@@ -26,6 +26,7 @@ class baiduMapParser(object):
         self.extract_deleted = extract_deleted
         self.extract_source = extract_source
         self.cache = ds.OpenCachePath("baiduMap")
+        self.tmp_dir = ds.OpenCachePath("tmp")
         self.baidumap = model_map.Map()
         
     def parse(self):
@@ -35,7 +36,7 @@ class baiduMapParser(object):
         self.account_info()
         self.analyze_search_history()
         self.my_history_address()
-        nameValues.SafeAddValue(bcp_gis.NETWORK_APP_MAP_BAIDU,db_path)
+        PA_runtime.save_cache_path(bcp_gis.NETWORK_APP_MAP_BAIDU, db_path, self.tmp_dir)
         result = model_map.Genetate(db_path)
         tmpresult = result.get_models()
         self.baidumap.db_close()

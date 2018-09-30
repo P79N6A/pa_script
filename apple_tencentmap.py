@@ -25,6 +25,7 @@ class TencentMap(object):
         self.tencentMap = model_map.Map()
         self.db_cache = ds.OpenCachePath("tencentMap")
         self.account_id = None
+        self.tmp_dir = ds.OpenCachePath("tmp")
 
     def get_account_info(self):
         """
@@ -303,7 +304,7 @@ class TencentMap(object):
         self.tencentMap.db_close()
         generate = model_map.Genetate(db_path)   
         tmpresult = generate.get_models()
-        nameValues.SafeAddValue(bcp_gis.NETWORK_APP_MAP_TENCENT,db_path)
+        PA_runtime.save_cache_path(bcp_gis.NETWORK_APP_MAP_TENCENT,db_path,self.tmp_dir)
         return tmpresult
         
 

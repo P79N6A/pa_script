@@ -192,7 +192,8 @@ class TencentMap(object):
         self.parse_search()
         self.parse_fav_addr()
         self.tencentdb.db_close()
-        nameValues.SafeAddValue(bcp_gis.NETWORK_APP_MAP_TENCENT, db_path)
+        tmp_dir = ds.OpenCachePath("tmp")
+        PA_runtime.save_cache_path(bcp_gis.NETWORK_APP_MAP_TENCENT, db_path, tmp_dir)
         generate = model_map.Genetate(db_path)   
         tmpresult = generate.get_models()
         return tmpresult        
