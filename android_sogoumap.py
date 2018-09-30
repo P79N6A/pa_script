@@ -102,7 +102,8 @@ class SogouMap(object):
         self.sogoudb.db_create(db_path)
         self.parse_search()
         self.sogoudb.db_close()
-        nameValues.SafeAddValue(bcp_gis.NETWORK_APP_MAP_SOGOU, db_path)
+        tmp_dir = ds.OpenCachePath("tmp")
+        PA_runtime.save_cache_path(bcp_gis.NETWORK_APP_MAP_SOGOU, db_path, tmp_dir)
         generate = model_map.Genetate(db_path)
         tmpresult = generate.get_models()
         return tmpresult

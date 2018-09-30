@@ -726,7 +726,8 @@ class WhatsApp(object):
                 self.whatsapp.db_insert_table_version(model_im.VERSION_KEY_DB, model_im.VERSION_VALUE_DB)
                 self.whatsapp.db_insert_table_version(model_im.VERSION_KEY_APP, VERSION_APP_VALUE)
 
-        nameValues.SafeAddValue(bcp_im.CONTACT_ACCOUNT_TYPE_IM_WHATSAPP, db_path)
+        tmp_dir = ds.OpenCachePath("tmp")
+        PA_runtime.save_cache_path(bcp_im.CONTACT_ACCOUNT_TYPE_IM_WHATSAPP, db_path, tmp_dir)
         generate = model_im.GenerateModel(db_path)
         results = generate.get_models()
 

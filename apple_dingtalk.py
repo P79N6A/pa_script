@@ -65,7 +65,7 @@ PNG = 1
 GIF = 2
 SYSTEM = 3
 AVATAR = 4
-
+APP_V = 1
 class Ding(object):
     def __init__(self, root, extract_deleted, extract_source):
         self.root = root
@@ -74,7 +74,10 @@ class Ding(object):
         self.result_sql = list()
         self.im = model_im.IM()
         cache = ds.OpenCachePath('Dingtalk')
-        self.im.db_create(cache + '/c37r')
+        self.need_parse = False
+        if self.im.need_parse(cache + '/c37r', APP_V):
+            self.need_parse = True
+            self.im.db_create(cache + '/c37r')
         self.cache_res = cache + '/c37r'
 
     def log_print(self, msg):
@@ -704,15 +707,20 @@ class Ding(object):
 def parse_ding(root, extract_deleted, extract_source):
     try:
         d = Ding(root, extract_deleted, extract_source)
-        d.search_account()
-        d.parse()
+        if d.need_parse:
+            d.search_account()
+            d.parse()
+            d.im.db_insert_table_version(model_im.VERSION_KEY_APP, APP_V)
+            d.im.db_insert_table_version(model_im.VERSION_KEY_DB, model_im.VERSION_VALUE_DB)
         models = model_im.GenerateModel(d.cache_res).get_models()
         mlm = ModelListMerger()
         pr = ParserResults()
         pr.Categories = DescripCategories.QQ
         pr.Models.AddRange(list(mlm.GetUnique(models)))
+        nameValues.SafeAddValue('1030162', d.cache_res)
         pr.Build('钉钉')
-    except Exception:
+    except Exception as e:
+        print(e)
         pr = ParserResults()
     return pr
     

@@ -10,6 +10,7 @@ try:
 except:
     pass
 del clr
+import hashlib
 from model_notes import *
 
 class NoteParse(object):
@@ -19,7 +20,10 @@ class NoteParse(object):
         self.extractSource = extractSource
         self.db = None
         self.mn = MN()
-        self.db_path = ds.OpenCachePath('NOTES') + '\\notes.db'
+        md5_db = hashlib.md5()
+        db_name = 'notes'
+        md5_db.update(db_name.encode(encoding = 'utf-8'))
+        self.db_path = ds.OpenCachePath('NOTES') + '\\' + md5_db.hexdigest().upper() + '.db'
         self.mn.db_create(self.db_path)
 
     def analyze_note_pad(self):  #note_pad备忘录 厂商自己的备忘录可能无法解析

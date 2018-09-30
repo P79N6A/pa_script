@@ -71,7 +71,7 @@ SQL_FIND_TABLE_RECORDS = '''
     '''
 
 SQL_FIND_TABLE_CONTACTS = '''
-    SELECT DISTINCT raw_contact_id, group_concat(mail), group_concat(company), group_concat(title), last_time_contact, last_time_modify,
+    SELECT DISTINCT raw_contact_id, mimetype_id, group_concat(mail), group_concat(company), group_concat(title), last_time_contact, last_time_modify,
     times_contacted, group_concat(phone_number), group_concat(name), group_concat(address), group_concat(notes), group_concat(telegram), 
     group_concat(head_pic), source, deleted, repeated FROM contacts GROUP BY raw_contact_id
     '''
@@ -226,25 +226,27 @@ class Generate(object):
     def _get_model_contacts(self):
         model = []
         self.cursor = self.db.cursor()
-        self.cursor.execute(SQL_FIND_TABLE_CONTACTS)
+        self.cursor.execute('select distinct * from contacts')
         for row in self.cursor:
             contact = Contacts.Contact()
-            if row[9] is not None:
-                addresses = row[9].split(',')
+            if row[10] is not None:
+                addresses = row[10].split(',')
                 for a in range(len(addresses)):
                     addr = Contacts.StreetAddress()
                     addr.FullName.Value = addresses[a]
                     contact.Addresses.Add(addr)
-            contact.Name.Value = row[8]
-            contact.Notes.Add(row[10])
-            if row[4] is not None:
-                contact.TimeContacted.Value = TimeStamp.FromUnixTime(int(str(row[4])[0:-3:1]), False) if len(str(row[4])) > 10 else TimeStamp.FromUnixTime(row[4], False) if len(str(row[4])) == 10 else TimeStamp.FromUnixTime(0, False)
+            if row[9] is not None:
+                contact.Name.Value = row[9]
+            if row[10] is not None:
+                contact.Notes.Add(row[11])
             if row[5] is not None:
-                contact.TimeModified.Value = TimeStamp.FromUnixTime(int(str(row[5])[0:-3:1]), False) if len(str(row[5])) > 10 else TimeStamp.FromUnixTime(row[5], False) if len(str(row[5])) == 10 else TimeStamp.FromUnixTime(0, False)
+                contact.TimeContacted.Value = self._get_timestamp(row[5])
             if row[6] is not None:
-                contact.TimesContacted.Value = row[6]
+                contact.TimeModified.Value = self._get_timestamp(row[6])
             if row[7] is not None:
-                phone = row[7].split(',')
+                contact.TimesContacted.Value = row[7]
+            if row[8] is not None:
+                phone = row[8].split(',')
                 for e in range(len(phone)):
                     entry = Contacts.ContactEntry()
                     entry.Value.Value = phone[e]
@@ -260,3 +262,15 @@ class Generate(object):
         if isinstance(source_file, str):
             return source_file.replace('/', '\\')
         return source_file
+
+    def _get_timestamp(self, timestamp):
+        try:
+            if isinstance(timestamp, (long, float, str)) and len(str(timestamp)) > 10:
+                timestamp = int(str(timestamp)[:10])
+            if isinstance(timestamp, int) and len(str(timestamp)) == 10:
+                ts = TimeStamp.FromUnixTime(timestamp, False)
+                if not ts.IsValidForSmartphone():
+                    ts = None
+                return ts
+        except:
+            return None

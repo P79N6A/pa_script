@@ -18,6 +18,7 @@ import model_mail
 import bcp_mail
 
 import shutil
+import hashlib
 import System.Data.SQLite as SQLite
 
 SQL_ASSOCIATE_TABLE_ACCOUNT = '''select id, email, name, pwd from AccountInfo'''
@@ -105,9 +106,15 @@ class QQMailParser(object):
         self.db = None
         self.mm = MM()
         self.cachepath = ds.OpenCachePath("QQMail")
-        self.cachedb = self.cachepath + "\\QQMail.db"
+        md5_db = hashlib.md5()
+        md5_rdb = hashlib.md5()
+        db_name = 'QQMail'
+        md5_db.update(db_name.encode(encoding = 'utf-8'))
+        rdb_name = 'QQMailRecover'
+        md5_rdb.update(rdb_name.encode(encoding = 'utf-8'))
+        self.cachedb = self.cachepath + "\\" + md5_db.hexdigest().upper() + ".db"
         self.sourceDB = self.cachepath + '\\QQMailSourceDB'
-        self.recoverDB = self.cachepath + '\\QQMailRecover.db'
+        self.recoverDB = self.cachepath + '\\' + md5_rdb.hexdigest().upper() + '.db'
         self.attachDir = os.path.normpath(os.path.join(self.node.Parent.Parent.Parent.Parent.AbsolutePath, 'media/0/Download/QQMail'))
     
     def analyze_account(self, accountPath, deleteFlag):
