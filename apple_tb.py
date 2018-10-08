@@ -9,6 +9,7 @@ clr.AddReference('Base3264-UrlEncoder')
 try:
     clr.AddReference('model_im')
     clr.AddReference('unity_c37r')
+    clr.AddReference('model_eb')
 except:
     pass
 del clr
@@ -19,6 +20,8 @@ from System.Text import *
 from System.IO import *
 from System.Security.Cryptography import *
 from System import Convert
+from PA.InfraLib.Utils import PList
+from PA.InfraLib.Extensions import PlistHelper
 
 import datetime
 import model_im
@@ -28,9 +31,13 @@ import re
 import unity_c37r
 import json
 import random
+import model_eb
+import traceback
 #
 # 淘宝多账号并不会删除账号的cache数据，因此，我们要建对象，而不是解析单个脚本
 #
+TB_VERSION = 1
+
 class TbAccount(object):
     def __init__(self):
         self.uid = None   # 淘宝数字账号
@@ -43,13 +50,30 @@ class Taobao(object):
         self.extract_source = extract_source
         self.extract_deleted = extract_deleted
         self.cache = ds.OpenCachePath('taobao')
-        self.im = model_im.IM()
-        self.im.db_create(self.cache + '/C37R')
+        self.eb = model_eb.EB(self.cache + '/C37R', TB_VERSION, u'淘宝')
+        self.im = self.eb.im
+        self.need_parse = self.eb.need_parse
+        self.master_account = None # 从Documents/../TBSettingsUserInfo.json(xml) 中获取        
+        if self.need_parse:
+            self.eb.db_create()
+            self.get_master_account()
         self.account = list()
-        self.log = unity_c37r.SimpleLogger(self.cache + '/C37R.log', True, 'Taobao')
+        self.log = self.eb.log
         self.message_dict = dict() # 放关于message对应的表
         self.log.set_level(1) # 开启双重print
-   
+
+    def get_master_account(self):
+        node = self.node.GetByPath('Documents/TBSUserInfo/TBSettingsUserInfo.json')
+        if node is None:
+            return
+        p = PlistHelper.ReadPlist(node)
+        if p is not None:
+            try:
+                self.master_account = p['userId'].ToString()
+            except:
+                traceback.print_exc()
+                return
+
     def search(self):
         cache_node = self.node.GetByPath('Library/Caches')
         pl = os.listdir(cache_node.PathWithMountPoint)
@@ -94,6 +118,69 @@ class Taobao(object):
                 cmd.Dispose()
                 conn.Close()
 
+    def parse_prefer_file_cache(self):
+        #这些cache均是master account的
+        dir_node = self.node.GetByPath('Documents/wxstorage')
+        if dir_node is None:
+            return
+        abs_path = dir_node.PathWithMountPoint
+        relative_path = dir_node.AbsolutePath
+        fl = os.listdir(abs_path)
+        md5_fl = list()
+        for f in fl:
+            try:
+                if f.__contains__('.'):
+                    continue
+                else:
+                    md5_fl.append(f)
+            except:
+                pass
+        fl = list()
+        for ft in md5_fl:
+            f = open(os.path.join(abs_path, ft), 'r')
+            try:
+                js = json.loads(f.read())
+                f.close()
+                #现在暂时只分析这两种文件其余的暂不支持（主要是类似于微信公众号的东西，意义不太大。）
+                if js.__contains__('recommedResult'):
+                    self.log.m_print('got file:%s' % ft)
+                    il = js.get('recommedResult')
+                    for it in il:
+                        itmsl = it.get('itemList')
+                        for iter in itmsl:
+                            try:
+                                p = model_eb.EBProduct()
+                                p.set_value_with_idx(p.product_id, iter.get('itemId'))
+                                p.set_value_with_idx(p.url, iter.get('targetUrl'))
+                                p.set_value_with_idx(p.product_name, iter.get('title'))
+                                p.set_value_with_idx(p.price, iter.get('marketPrice'))
+                                p.set_value_with_idx(p.source, model_eb.EB_PRODUCT_BROWSE)
+                                p.set_value_with_idx(p.source_file, os.path.join(relative_path, ft))
+                                self.eb.db_insert_table_product(p.get_value())
+                            except:
+                                traceback.print_exc()
+                                continue
+                    self.eb.db_commit()
+                    continue
+                if js.__contains__('storageLists'):
+                    self.log.m_print('got shop file %s' %ft)
+                    il = js.get('storageLists')[0]
+                    il = il.get('goodsList')
+                    for it in il:
+                        p = model_eb.EBProduct()
+                        p.set_value_with_idx(p.shop_id, it.get('shid'))
+                        p.set_value_with_idx(p.product_name, it.get('name'))
+                        p.set_value_with_idx(p.url, it.get('url'))
+                        p.set_value_with_idx(p.price, it.get('price'))
+                        p.set_value_with_idx(p.source, model_eb.EB_PRODUCT_BROWSE)
+                        p.set_value_with_idx(p.source_file, os.path.join(relative_path, ft))
+                        self.eb.db_insert_table_product(p.get_value())
+                    self.eb.db_commit()
+                    continue      
+            except:
+                traceback.print_exc()
+                continue
+                               
     def parse_search(self, ac):
         db_node = self.node.GetByPath('Library/edge_compute.db')
         conn = unity_c37r.create_connection(db_node.PathWithMountPoint)
@@ -112,7 +199,11 @@ class Taobao(object):
             s.account_id = ac.uid
             m_str = unity_c37r.c_sharp_get_string(reader, 0)
             try:
-                s.key = re.search('keyword=(.*?),', m_str, re.I | re.M).group(1)
+                #s.key = re.search('keyword=(.*?),', m_str, re.I | re.M).group(1)
+                match =  re.search('keyword=(.*?),', m_str, re.I | re.M)
+                if match is None:
+                    continue
+                s.key = match.group(1)
             except:
                 self.log.m_err('error string:{}'.format(m_str))
                 continue
@@ -172,7 +263,7 @@ class Taobao(object):
                 self.im.db_close()
                 raise IOError('E')
             f = model_im.Friend()
-            f.account_id = self.account
+            f.account_id = ac.uid # Fix error
             try:
                 f.friend_id = int(unity_c37r.c_sharp_get_string(reader, 4))
             except Exception as e:
@@ -204,7 +295,7 @@ class Taobao(object):
                 conn = unity_c37r.create_connection(log_node.PathWithMountPoint)
                 cmd = sql.SQLiteCommand(conn)
                 cmd.CommandText = '''
-                    select id, operation_id, record, logtime, result from Record 
+                    select id, operation_id, record, logtime, result from Record
                 '''
                 reader = cmd.ExecuteReader()
         while reader is not None and reader.Read():
@@ -213,27 +304,31 @@ class Taobao(object):
                 conn.Close()
                 raise IOError('E')
             try:
-                logs = model_im.APPLog()
-                logs.log_id = unity_c37r.c_sharp_get_long(reader, 0)
-                logs.log_description = ""
+                logs = model_eb.EBLog()
                 m_str = unity_c37r.c_sharp_get_string(reader, 1)
                 m_sl = m_str.split('|')
                 sender = m_sl[1]
                 reciever = m_sl[2]
                 if reciever == 'wwLogin':
                     sender = re.search(r'\(null\)(.*)', sender, re.I | re.M).group(1)
-                    logs.log_description = '''{} try to login'''.format(sender)
+                    desc = '''{} try to login'''.format(sender)
+                    logs.set_value_with_idx(logs.description, desc)
                 else:
                     sender = re.search('cnhhupan(.*)', sender, re.I | re.M).group(1)
                     reciever = re.search('cnhhupan(.*)', reciever, re.I | re.M).group(1)
-                    logs.log_description = '''{} try to send message to {}'''.format(sender, reciever)
+                    desc = '''{} try to send message to {}'''.format(sender, reciever)
+                    logs.set_value_with_idx(logs.description, desc)
                 m_str = unity_c37r.c_sharp_get_string(reader, 2)
                 js = json.loads(m_str)
-                logs.log_content = js.get('title')
-                logs.log_time = unity_c37r.c_sharp_get_long(reader, 3) / 1000
-                logs.log_result = unity_c37r.c_sharp_get_long(reader, 4)
-                self.im.db_insert_table_log(logs)
+                content = js.get('title')
+                logs.set_value_with_idx(logs.content, content)
+                log_time = unity_c37r.c_sharp_get_long(reader, 3) / 1000
+                logs.set_value_with_idx(logs.time, log_time)
+                result = unity_c37r.c_sharp_get_long(reader, 4)
+                logs.set_value_with_idx(logs.result, result)
+                self.eb.db_insert_table_log(logs.get_value())
             except Exception as e:
+                traceback.print_exc()
                 self.log.m_print(e)
                 self.log.m_err('detect wrong string format: {}'.format(m_str))
         if conn is not None:
@@ -271,7 +366,6 @@ class Taobao(object):
                 f_dict[f.remark] = f
         
         for k in f_dict:
-            #self.log.m_print(k)
             self.im.db_insert_table_friend(f_dict[k])
 
         cmd.Dispose()
@@ -358,14 +452,26 @@ class Taobao(object):
                     # 这里有子类型号
                     # 实际上是属于千牛发送的自动排列的消息内容
                     sub_tp = js.get('template').get('id')
+                    sub_string = js.get('template').get('data').get('text')
+                    f = open('D:/webs/{}.xml'.format(random.randint(0, 0xffffffff)), 'w+')
+                    if sub_string is not None:
+                        f.write(sub_string)
+                    f.close()
                     if sub_tp == 20002:
                         m.type = model_im.MESSAGE_CONTENT_TYPE_ATTACHMENT
                         deal = model_im.Deal()
-                        deal.deal_id = js.get('header').get('degrade').get('alternative').split(':')[1]
+                        trade = model_eb.EBDeal()
+                        alter_string = js.get('header').get('degrade').get('alternative')
+                        if alter_string.__contains__(':'):
+                            deal.deal_id = alter_string.split(':')[1]
                         m.extra_id = deal.deal_id
                         deal.description = '''title:{}\ncontent:{}'''.format(js.get('header').get('title'), js.get('header').get('degrade').get('alternative'))
+                        trade.set_value_with_idx(trade.desc, deal.description)
                         deal.type = model_im.DEAL_TYPE_RECEIPT # may fix it later
+                        trade.set_value_with_idx(trade.deal_type, model_eb.TRADE_PAY)
+                        #trade.set_value_with_idx(trade.status, model_eb.EBDEAL)
                         self.im.db_insert_table_deal(deal)
+                        self.eb.db_insert_table_deal(trade.get_value())
                     elif sub_tp == 20013: # 快速入口
                         m.type = model_im.MESSAGE_CONTENT_TYPE_TEXT
                         label_list = js.get('template').get('data').get('alist')
@@ -378,6 +484,8 @@ class Taobao(object):
                         m.content = '''title:{}\ncontent:{}'''.format(js.get('header').get('title'), js.get('degrade').get('alternative'))
                 except Exception as e:
                     self.log.m_err('detect wrong message content:{}\nidx:{}'.format(m_str, idx))
+                    m.type = model_im.MESSAGE_CONTENT_TYPE_TEXT
+                    m.content = u'解析失败,原始内容:' + m_str
             elif tp == 112:
                     js = json.loads(m_str)
                     m.type = model_im.MESSAGE_CONTENT_TYPE_TEXT
@@ -399,22 +507,102 @@ class Taobao(object):
             self.im.db_insert_table_message(m)
             idx += 1
         self.im.db_commit()
+    #
+    #   购物车
+    #
+    def parse_shop_cart(self):
+        node = self.node.GetByPath('Documents/AVFSStorage/carts/avfs.sqlite')
+        if node is None:
+            self.log.m_print('no shop carts item cached...')
+            return
+        conn = unity_c37r.create_connection(node.PathWithMountPoint)
+        cmd = sql.SQLiteCommand(conn)
+        cmd.CommandText = '''
+            select filename from AVFS_FIlE_INDEX_TABLE
+        '''
+        reader = cmd.ExecuteReader()
+        r = list()
+        while reader.Read():
+            r.append(unity_c37r.c_sharp_get_string(reader, 0))
+        cmd.Dispose()
+        reader.Close()
+        conn.Close()
+        for f in r:
+            f_node = self.node.GetByPath('Documents/AVFSStorage/carts/files/%s' % f)
+            abs_path = f_node.AbsolutePath
+            if f_node is None:
+                continue
+            try:
+                m_node = BPReader.GetTree(f_node)
+                m_str = unity_c37r.get_btree_node_str(m_node, "body", '')
+                js = json.loads(m_str)
+                obj = js.get('data').get('data')
+                for k in obj.keys():
+                    grp = re.search('itemv2_', k, re.I | re.M)
+                    if grp is not None:
+                        itm = obj.get(k)
+                        p = model_eb.EBProduct()
+                        itm = itm.get('fields')
+                        p.set_value_with_idx(p.account_id, self.master_account)
+                        p.set_value_with_idx(p.url, itm.get('pic'))
+                        p.set_value_with_idx(p.product_id, itm.get('itemId'))
+                        p.set_value_with_idx(p.product_name, itm.get('title'))
+                        p.set_value_with_idx(p.shop_id, itm.get('shopId'))
+                        p.set_value_with_idx(p.source, model_eb.EB_PRODUCT_SHOPCART)
+                        p.set_value_with_idx(p.source_file, abs_path)
+                        its = itm.get('pay')
+                        if its is None:
+                            continue
+                        money_str = itm.get('pay').get('nowTitle')
+                        grp = re.search(u'￥(.*)', money_str, re.I | re.M)
+                        p.set_value_with_idx(p.price, float(grp.group(1)))
+                        self.eb.db_insert_table_product(p.get_value())
+                        continue
+                    grp = re.search('shopv2_', k, re.I | re.M)
+                    if grp is not None:
+                        shop = model_eb.EBShop()
+                        itm = obj.get(k)
+                        shop.set_value_with_idx(shop.account_id, self.master_account)
+                        shop.set_value_with_idx(shop.shop_id, itm.get('id'))
+                        shop.set_value_with_idx(shop.shop_name, itm.get('fields').get('title'))
+                        shop.set_value_with_idx(shop.boss_id, itm.get('fields').get('sellerId'))
+                        shop.set_value_with_idx(shop.boss_nick, itm.get('fields').get('seller'))
+                        shop.set_value_with_idx(shop.source_file, abs_path)
+                        self.eb.db_insert_table_shop(shop.get_value())
+                        continue
+            except:
+                f = open('D:/webs/{}.txt'.format(random.randint(0, 0xffffffff)),'w+')
+                f.write(m_str)
+                f.close()
+                traceback.print_exc()
+                continue
+        self.eb.db_commit()
+
 
 def parse_tb(root, extract_deleted, extract_source):
-    #root = FileSystem.FromLocalDir(r"D:\ios_case\taobao\C0B97359-E334-4838-93F1-A40BC2A5DF0B")
+    root = FileSystem.FromLocalDir(r"D:\ios_case\taobao\C0B97359-E334-4838-93F1-A40BC2A5DF0B")
     try:
         t = Taobao(root, extract_source, extract_deleted)
-        t.search()
-        for a in t.account:
-            t.parse(a)
-            t.parse_search(a)
-        models = model_im.GenerateModel(t.cache + '/C37R').get_models()
+        if t.need_parse:
+            t.search()
+            for a in t.account:
+                t.parse(a)
+                t.parse_search(a)
+                t.parse_prefer_file_cache()
+                t.parse_shop_cart()
+            t.eb.db_insert_table_version(model_eb.EB_VERSION_KEY, model_eb.EB_VERSION_VALUE)
+            t.eb.db_insert_table_version(model_eb.EB_APP_VERSION_KEY, TB_VERSION)
+            t.eb.db_commit()
+            t.eb.sync_im_version()
+        #models = model_im.GenerateModel(t.cache + '/C37R').get_models()
+        models = model_eb.GenerateModel(t.cache + '/C37R').get_models()
         mlm = ModelListMerger()
         pr = ParserResults()
         pr.Categories = DescripCategories.QQ
         pr.Models.AddRange(list(mlm.GetUnique(models)))
         pr.Build("taobao")
     except:
+        traceback.print_exc()
         pr = ParserResults()
     return pr
 
