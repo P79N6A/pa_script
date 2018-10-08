@@ -21,6 +21,7 @@ class SogouMap(object):
         self.extract_source = extract_source
         self.sogoudb = model_map.Map()
         self.db_cache = ds.OpenCachePath("sogouMap")
+        self.tmp_dir = ds.OpenCachePath("tmp")
     
 
     def parse_history_data(self):
@@ -210,7 +211,7 @@ class SogouMap(object):
 
         generate = model_map.Genetate(db_path)   
         tmpresult = generate.get_models()
-        nameValues.SafeAddValue(bcp_gis.NETWORK_APP_MAP_SOGOU,db_path)
+        PA_runtime.save_cache_path(bcp_gis.NETWORK_APP_MAP_SOGOU,db_path, self.tmp_dir)
         return tmpresult
 
     

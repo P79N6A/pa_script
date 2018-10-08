@@ -17,6 +17,7 @@ import model_mail
 import bcp_mail
 
 import shutil
+import hashlib
 import System.Data.SQLite as SQLite
 
 SQL_ASSOCIATE_TABLE_MAIL = '''
@@ -150,8 +151,15 @@ class MailParser(object):
         self.db_cmd = None
         self.mm = MM()
         self.cachepath = ds.OpenCachePath("QQMAIL")
-        self.cachedb = self.cachepath + "\\QQMail.db"
-        self.recoverDB = self.cachepath + '\\QQMailRecover.db'
+        md5_db = hashlib.md5()
+        md5_rdb = hashlib.md5()
+        db_name = 'QQMail'
+        md5_db.update(db_name.encode(encoding = 'utf-8'))
+        rdb_name = 'QQMailRecover'
+        md5_rdb.update(rdb_name.encode(encoding = 'utf-8'))
+        self.cachedb = self.cachepath + "\\" + md5_db.hexdigest() + ".db"
+        self.sourceDB = self.cachepath + '\\QQMailSourceDB'
+        self.recoverDB = self.cachepath + '\\' + md5_rdb.hexdigest() + '.db'
 
     def analyze_account(self, mailPath, deleteFlag):
         '''保存账户数据到中间数据库'''

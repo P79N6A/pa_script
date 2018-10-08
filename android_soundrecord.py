@@ -9,6 +9,7 @@ try:
 except:
     pass
 del clr
+import hashlib
 from model_soundrecord import *
 
 
@@ -20,7 +21,10 @@ class SoundrecordParse(object):
         self.db = None
         self.ms = MS()
         self.cache_path = ds.OpenCachePath("SOUNDRECORD")
-        self.cachedb = self.cache_path + "\\soundrecord.db"
+        md5_db = hashlib.md5()
+        db_name = 'soundrecord'
+        md5_db.update(db_name.encode(encoding = 'utf-8'))
+        self.cachedb = self.cache_path + "\\" + md5_db.hexdigest().upper() + ".db"
         self.ms.db_create(self.cachedb)
 
     def analyze_soundrecord_huawei(self):

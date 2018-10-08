@@ -10,6 +10,7 @@ except:
     pass
 del clr
 import shutil
+import hashlib
 from model_calendar import *
 
 SQL_JOIN_TABLE_CALENDAR = '''select Events.calendar_id, Events._id, Events.title, Events.eventLocation, Events.description, Events.dtstart, 
@@ -22,7 +23,10 @@ class CalendarParser(object):
         self.extractSource = extractSource
         self.db = None
         self.mc = MC()
-        self.db_cache = ds.OpenCachePath("CALENDAR") + '\\calendar.db'
+        md5_db = hashlib.md5()
+        db_name = 'calendar'
+        md5_db.update(db_name.encode(encoding = 'utf-8'))
+        self.db_cache = ds.OpenCachePath("CALENDAR") + '\\' + md5_db.hexdigest().upper() + '.db'
         self.sourceDB = ds.OpenCachePath("CALENDAR") + '\\CalendarSourceDB'
         self.mc.db_create(self.db_cache)
 

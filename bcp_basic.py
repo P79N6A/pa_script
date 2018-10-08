@@ -454,6 +454,37 @@ SQL_INSERT_TABLE_WA_MFORENSICS_011200 = '''
     INSERT INTO WA_MFORENSICS_011100(COLLECT_TARGET_ID,USER_ACTTIME,ACTION_TYPE,DELETE_STATUS,DELETE_TIME)
     VALUES(?, ?, ?, ?, ?)'''
 
+PRIVACYCONFIG_PUBLIC = "0"
+PRIVACYCONFIG_PRIVATE = "1"
+PRIVACYCONFIG_LIMITED = "2"
+PRIVACYCONFIG_OTHER = "9"
+
+DELETE_STATUS_DELETED = "1"
+DELETE_STATUS_INTACT = "0"
+
+PHONE_VALUE_TYPE_PHONENUMBER = "01"
+PHONE_VALUE_TYPE_EMAIL = "02"
+PHONE_VALUE_TYPE_ADDR = "03"
+PHONE_VALUE_TYPE_INSTANT_MSG = "04"
+PHONE_VALUE_TYPE_WEB = "05"
+PHONE_VALUE_TYPE_ANNIVERSARY = "06"
+PHONE_VALUE_TYPE_REMARK = "07"
+PHONE_VALUE_TYPE_GROUP = "08"
+PHONE_VALUE_TYPE_OTHER = "99"
+
+CALL_STATUS_MISSED = "0"
+CALL_STATUS_CONNECTD = "1"
+CALL_STATUS_OTHER = "9"
+
+LOCAL_ACTION_RECEIVE = "01"
+LOCAL_ACTION_SEND = "02"
+LOCAL_ACTION_OTHER = "99"
+
+PRAVACYCONFIG_ENCRYPTED = "1"
+PRACACYCONFIG_UNENCRYPTED = "0"
+
+INTERCEPT_STATUS_TRUE = "1"
+INTERCEPT_STATUS_FALSE = "0"
 
 
 class BasicBcp(object):
@@ -832,7 +863,7 @@ class GenerateBcp(object):
         m = hashlib.md5()
         db_name = 'BCP_Basic'
         m.update(db_name.encode(encoding = 'utf-8'))
-        self.cache_path = bcp_db + '\\' + m.hexdigest() + '.db'
+        self.cache_path = bcp_db + '\\' + m.hexdigest().upper() + '.db'
         self.basic = BasicBcp()
 
     def generate(self):
@@ -873,6 +904,91 @@ class GenerateBcp(object):
             self.db_cmd.Dispose()
         except Exception as e:
             print(e)
+
+    def _generate_basic_info(self):
+        pass
+
+    def _generate_terminal_info(self):
+        pass
+
+    def _generate_mobile_info(self):
+        pass
+
+    def _generate_os_info(self):
+        pass
+
+    def _generate_sim_info(self):
+        try:
+            self.db_cmd = SQLite.SQLiteCommand(self.db)
+            if self.db_cmd is None:
+                return
+            self.db_cmd.CommandText = '''select distinct * from sim'''
+            sr = self.db_cmd.ExecuteReader()
+            while(sr.Read()):
+                if canceller.IsCancellationRequested:
+                    break
+                sim = SIMInfo()
+                sim.COLLECT_TARGET_ID = self.collect_target_id
+                sim.MSISDN            = sr[2]
+                sim.IMSI              = sr[3]
+                sim.CENTER_NUMBER     = sr[5]
+                sim.DELETE_STATUS     = sr[8]
+                sim.ICCID             = sr[4]
+                # sim.SIM_STATE = None
+                self.basic.db_insert_table_sim_info(sim)
+            self.basic.db_commit()
+            self.db_cmd.Dispose()
+        except Exception as e:
+            print(e)
+
+    def _generate_contact_info(self):
+        pass
+
+    def _generate_contact_detail(self):
+        pass
+
+    def _generate_call_record(self):
+        try:
+            self.db_cmd = SQLite.SQLiteCommand(self.db)
+            if self.db_cmd is None:
+                return
+            self.db_cmd.CommandText = '''select distinct * from records'''
+            sr = self.db_cmd.ExecuteReader()
+            while(sr.Read()):
+                if canceller.IsCancellationRequested:
+                    break
+                record = CallRecords()
+                record.COLLECT_TARGET_ID = self.collect_target_id
+                record.RELATIONSHIP_ACCOUNT = sr[1]
+                record.RELATIONSHIP_NAME = sr[5]
+                record.CALL_STATUS = CALL_STATUS_CONNECTD if sr[4] is 1 else CALL_STATUS_MISSED if sr[4] is 3 else CALL_STATUS_OTHER
+                record.LOCAL_ACTION = LOCAL_ACTION_RECEIVE if sr[4] is 1 or sr[4] is 3 else LOCAL_ACTION_SEND if sr[4] is 2 else LOCAL_ACTION_OTHER
+                record.DUAL_TIME = sr[3]
+                record.DELETE_STATUS = DELETE_STATUS_DELETED if sr[12] is 1 else DELETE_STATUS_INTACT
+                self.basic.db_insert_table_call_record(record)
+            self.basic.db_commit()
+            self.db_cmd.Dispose()
+        except Exception as e:
+            print(e)
+
+    def _generate_sms_info(self):
+        pass
+
+    def _generate_mms_info(self):
+        pass
+
+    def _generate_calendar_info(self):
+        pass
+
+    def _generate_sync_account(self):
+        pass
+
+    def _generate_alarm_clock(self):
+        pass
+
+    def _generate_operate_record(self):
+        pass
+
 
     @staticmethod
     def _copy_attachment(mountDir, dir):
