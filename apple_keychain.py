@@ -41,6 +41,7 @@ class KeyChainParser():
         self.root = node
         self.extract_deleted = False
         self.extract_source = extract_source
+        self.app_name = 'Keychain'
         self.params = []
         self.wifiMap = {}
 
@@ -162,7 +163,9 @@ class KeyChainParser():
         for param in self.params:
             keychain = Generic.Keychain()
             keychain.Deleted = DeletedState.Intact
+            keychain.Source.Value = self.app_name
             if param.type == WiFiAcc:
+                keychain.Type.Value = Generic.KeychainType.WIFI
                 id = param.id
                 for name in self.wifiMap.keys():
                     if name == id:
@@ -177,43 +180,72 @@ class KeyChainParser():
                             keychain.CreateTime.Value = wifi['createTime']
                         if 'modifyTime' in wifi.keys():
                             keychain.EditTime.Value = wifi['modifyTime']
-                        keychain.Password.Value = param.password
+                        password = Generic.Password()
+                        password.Account.Value = keychain.Name.Value
+                        password.Data.Value = param.password
+                        keychain.Password.Value = password
             if param.type == AppleID:
+                keychain.Type.Value = Generic.KeychainType.AppleID
                 keychain.Name.Value = param.name + '(' + param.id + ')'
                 keychain.CreateTime.Value = self._get_timestamp(param.createDate)
                 keychain.EditTime.Value = self._get_timestamp(param.modiyDate)
-                keychain.Account.Value = param.password
+                account = Contacts.UserAccount()
+                account.Name.Value = param.password
+                keychain.Account.Value = account
             if param.type == MailAcc:
+                keychain.Type.Value = Generic.KeychainType.EmailAccount
                 keychain.Name.Value = param.name
                 keychain.CreateTime.Value = self._get_timestamp(param.createDate)
                 keychain.EditTime.Value = self._get_timestamp(param.modiyDate)
-                keychain.Account.Value = param.id
-                keychain.Password.Value = param.password
+                account = Contacts.UserAccount()
+                account.Name.Value = param.id
+                account.Password.Value = param.password
+                keychain.Account.Value = account
+                password = Generic.Password()
+                password.Account.Value = param.id
+                password.Data.Value = param.password
+                keychain.Password.Value = password
             if param.type == BrowserPsd:
+                keychain.Type.Value = Generic.KeychainType.BrowserPassword
                 keychain.Name.Value = param.name
                 keychain.CreateTime.Value = self._get_timestamp(param.createDate)
                 keychain.EditTime.Value = self._get_timestamp(param.modiyDate)
-                keychain.Account.Value = param.id
-                keychain.Password.Value = param.password
+                account = Contacts.UserAccount()
+                account.Name.Value = param.id
+                account.Password.Value = param.password
+                keychain.Account.Value = account
+                password = Generic.Password()
+                password.Account.Value = param.id
+                password.Data.Value = param.password
+                keychain.Password.Value = password
                 keychain.Site.Value = param.url
                 keychain.Protocol.Value = param.ptcl
             if param.type == Others:
                 name = param.name
                 id = param.id
                 if '(' not in name:
+                    keychain.Type.Value = Generic.KeychainType.Token
                     keychain.Name.Value = param.name + '(' + param.id + ')'
                     keychain.Token.Value = param.password
                 else:
+                    keychain.Type.Value = Generic.KeychainType.DSID
                     keychain.Name.Value = param.name
                     keychain.DSID.Value = param.id
                 keychain.CreateTime.Value = self._get_timestamp(param.createDate)
                 keychain.EditTime.Value = self._get_timestamp(param.modiyDate)
             if param.type == BackupPsd:
+                keychain.Type.Value = Generic.KeychainType.BackupPassword
                 keychain.Name.Value = param.name
                 keychain.CreateTime.Value = self._get_timestamp(param.createDate)
                 keychain.EditTime.Value = self._get_timestamp(param.modiyDate)
-                keychain.Account.Value = param.id
-                keychain.Password.Value = param.password
+                account = Contacts.UserAccount()
+                account.Name.Value = param.id
+                account.Password.Value = param.password
+                keychain.Account.Value = account
+                password = Generic.Password()
+                password.Account.Value = param.id
+                password.Data.Value = param.password
+                keychain.Password.Value = password
             models.append(keychain)
         return models
 
