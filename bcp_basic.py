@@ -918,7 +918,28 @@ class GenerateBcp(object):
         pass
 
     def _generate_sim_info(self):
-        pass
+        try:
+            self.db_cmd = SQLite.SQLiteCommand(self.db)
+            if self.db_cmd is None:
+                return
+            self.db_cmd.CommandText = '''select distinct * from sim'''
+            sr = self.db_cmd.ExecuteReader()
+            while(sr.Read()):
+                if canceller.IsCancellationRequested:
+                    break
+                sim = SIMInfo()
+                sim.COLLECT_TARGET_ID = self.collect_target_id
+                sim.MSISDN            = sr[2]
+                sim.IMSI              = sr[3]
+                sim.CENTER_NUMBER     = sr[5]
+                sim.DELETE_STATUS     = sr[8]
+                sim.ICCID             = sr[4]
+                # sim.SIM_STATE = None
+                self.basic.db_insert_table_sim_info(sim)
+            self.basic.db_commit()
+            self.db_cmd.Dispose()
+        except Exception as e:
+            print(e)
 
     def _generate_contact_info(self):
         pass
