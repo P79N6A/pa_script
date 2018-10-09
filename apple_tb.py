@@ -580,7 +580,7 @@ class Taobao(object):
 
 
 def parse_tb(root, extract_deleted, extract_source):
-    root = FileSystem.FromLocalDir(r"D:\ios_case\taobao\C0B97359-E334-4838-93F1-A40BC2A5DF0B")
+    #root = FileSystem.FromLocalDir(r"D:\ios_case\taobao\C0B97359-E334-4838-93F1-A40BC2A5DF0B")
     try:
         t = Taobao(root, extract_source, extract_deleted)
         if t.need_parse:
