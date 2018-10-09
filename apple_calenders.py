@@ -302,12 +302,6 @@ def analyze_calender(node, extractDeleted, extractSource):
                 results.append(res)
     db_cmd.Dispose()
     db_cache.Close()
-    bcp_path = r'C:\Users\Admin\Desktop\bcp_path'
-    bcp_db = r'C:\Users\Admin\Desktop\bcp_db'
-    collect_target_id =  '0000001'
-    mountDir = r'C:\Users\Admin\Desktop'
-    g = bcp_basic.GenerateBcp(bcp_path, db_path, bcp_db, collect_target_id, mountDir)
-    g.generate()
     pr = ParserResults()
     pr.Models.AddRange(results)
     pr.Build('系统日历')
