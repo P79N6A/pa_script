@@ -35,71 +35,88 @@ mountDir -- 挂载的位置
 app_lists -- 需要生产bcp数据库应用的集合
 """
 
-caseDir = r"E:\iPhone 6_11.1.2_133217541373990_full(1)_0817\caches"
+# caseDir = r"E:\iPhone 6_11.1.2_133217541373990_full(1)_0817\caches"
 
-def run(target_id, bcp_path, ts_path, mountDir, app_lists):
-    print("export_bcp.py")
-    tmp_dir = caseDir + "\\tmp\\"  # 暂时写死
-    ts_path = "E:\\PNFA"  # 暂时写死
-    for software_type in app_lists:
-        software_path = tmp_dir + software_type
-        if os.path.exists(software_path):
-            
-            # IM类生产bcp数据库
-            if software_type in IM_LIST:
-               path_lists = read_path(software_path)
-                if path_lists:
-                    for path in path_lists:
-                        try:
-                            ts_db = md5(path, ts_path)    
-                            bcp_im.GenerateBcp(bcp_path, mountDir, path, ts_db, target_id, software_type).generate()
-                        except Exception as e:
-                            print(traceback.print_exc())
-            
-            # 地理位置类生产bcp数据库
-            elif software_type in MAP_LIST:
-                path_lists = read_path(software_path)
-                if path_lists:
-                    for path in path_lists:
-                        try:
-                            ts_db = md5(path, ts_path)    
-                            bcp_gis.BuildBCP(path, ts_db, target_id, software_type).genetate()
-                        except Exception as e:
-                            print(traceback.print_exc())
+def get_support_apps(caseDirs):
+    lists = []
+    if caseDirs:
+        for case in caseDirs:
+            path = case + "\\caches\\tmp"
+            if os.path.exists(path):
+                apps = [ f for f in os.listdir(path) if os.path.isfile(os.path.join(path,f))]
+                lists.append(apps)
+            else:
+                return None
+        return lists
+    return None
 
-            # # 浏览器类生产bcp数据库
-            elif software_type in BROWER_LIST:
-                path_lists = read_path(software_path)
-                if path_lists:
-                    for path in path_lists:
-                        try:
-                            ts_db = md5(path, ts_path)    
-                            bcp_browser.GenerateBcp(bcp_path, path, ts_db, target_id, software_type).generate()
-                        except Exception as e:
-                            print(traceback.print_exc())
+def run(target_id, bcp_path, case_path, mountDir, software_type):
+    tmp_dir = case_path + "\\caches\\tmp\\"
+    ts_path = case_path + "\\caches\\tmp"   # bcp数据库生成位置
+    software_path = tmp_dir + software_type
+    if os.path.exists(software_path):
+        
+        # IM类生产bcp数据库
+        if software_type in IM_LIST:
+            path_lists = read_path(software_path)
+            if path_lists:
+                for path in path_lists:
+                    try:
+                        ts_db = md5(path, ts_path)    
+                        bcp_im.GenerateBcp(bcp_path, mountDir, path, ts_db, target_id, software_type).generate()
+                    except Exception as e:
+                        print(traceback.print_exc())
+                return ts_db
 
-            # 邮件类生产bcp数据库
-            elif software_type in MAIL_LIST:
-                path_lists = read_path(software_path)
-                if path_lists:
-                    for path in path_lists:
-                        try:
-                            ts_db = md5(path, ts_path)    
-                            bcp_mail.GenerateBcp(bcp_path, path, ts_db, target_id, software_type, mountDir).generate()
-                        except Exception as e:
-                            print(traceback.print_exc())
+        # 地理位置类生产bcp数据库
+        elif software_type in MAP_LIST:
+            path_lists = read_path(software_path)
+            if path_lists:
+                for path in path_lists:
+                    try:
+                        ts_db = md5(path, ts_path)    
+                        bcp_gis.BuildBCP(path, ts_db, target_id, software_type).genetate()
+                    except Exception as e:
+                        print(traceback.print_exc())
+                return ts_db
 
-            # 微博类生产bcp数据库
-            elif software_type in WEIBO_LIST:
-                path_lists = read_path(software_path)
-                if path_lists:
-                    for path in path_lists:
-                        try:
-                            ts_db = md5(path, ts_path)    
-                            bcp_weibo.GenerateBcp(path, ts_db, target_id, software_type).generate()
-                        except Exception as e:
-                            print(traceback.print_exc())
+        # # 浏览器类生产bcp数据库
+        elif software_type in BROWER_LIST:
+            path_lists = read_path(software_path)
+            if path_lists:
+                for path in path_lists:
+                    try:
+                        ts_db = md5(path, ts_path)    
+                        bcp_browser.GenerateBcp(bcp_path, path, ts_db, target_id, software_type).generate()
+                    except Exception as e:
+                        print(traceback.print_exc())
+                return ts_db
 
+        # 邮件类生产bcp数据库
+        elif software_type in MAIL_LIST:
+            path_lists = read_path(software_path)
+            if path_lists:
+                for path in path_lists:
+                    try:
+                        ts_db = md5(path, ts_path)    
+                        bcp_mail.GenerateBcp(bcp_path, path, ts_db, target_id, software_type, mountDir).generate()
+                    except Exception as e:
+                        print(traceback.print_exc())
+                return ts_db
+
+        # 微博类生产bcp数据库
+        elif software_type in WEIBO_LIST:
+            path_lists = read_path(software_path)
+            if path_lists:
+                for path in path_lists: 
+                    try:
+                        ts_db = md5(path, ts_path)    
+                        bcp_weibo.GenerateBcp(path, ts_db, target_id, software_type).generate()
+                    except Exception as e:
+                        print(traceback.print_exc())
+                return ts_db
+
+    return None
 
 def md5(cache_path, ts_path):
     m = hashlib.md5()   
