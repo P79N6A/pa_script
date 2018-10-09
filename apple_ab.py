@@ -338,12 +338,6 @@ def set_newer_record(results, combined_name, contact):
             first.TimeContacted.Source = second.TimeContacted.Source
 
 def analyze_addressbook(node, extractDeleted, extractSource):
-
-    prog = progress.GetSubProgress('Contacts')
-    if prog == None:
-        prog = TaskProgress('Contacts',DescripCategories.Contacts)
-        progress.AddSubTask(prog)
-    prog.Report(0,'正在分析通讯录')
     pr = ParserResults()
     message='解析通讯录完毕'
 
@@ -372,6 +366,5 @@ def analyze_addressbook(node, extractDeleted, extractSource):
     except Exception,ex:
         traceback.print_exc()
         TraceService.TraceException(ex)
-    prog.Report(100,message)
     pr.Build('通讯录')
     return pr
