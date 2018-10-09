@@ -921,10 +921,48 @@ class GenerateBcp(object):
         pass
 
     def _generate_contact_info(self):
-        pass
+        try:
+            self.db_cmd = SQLite.SQLiteCommand(self.db)
+            if self.db_cmd is None:
+                return
+            self.db_cmd.CommandText = '''select distinct * from contacts'''
+            sr = self.db_cmd.ExecuteReader()
+            while(sr.Read()):
+                if canceller.IsCancellationRequested:
+                    break
+                contactinfo = ContactInfo()
+                contactinfo.COLLECT_TARGET_ID = self.collect_target_id
+                contactinfo.SEQUENCE_NAME = str(sr[0])
+                contactinfo.RELATIONSHIP_NAME = sr[9]
+                a = sr[15]
+                contactinfo.DELETE_STATUS = DELETE_STATUS_DELETED if sr[15] == 1 else DELETE_STATUS_INTACT
+                self.basic.db_insert_table_contact_info(contactinfo)
+            self.basic.db_commit()
+            self.db_cmd.Dispose()
+        except Exception as e:
+            pass
 
     def _generate_contact_detail(self):
-        pass
+        try:
+            self.db_cmd = SQLite.SQLiteCommand(self.db)
+            if self.db_cmd is None:
+                return
+            self.db_cmd.CommandText = '''select distinct * from contacts'''
+            sr = self.db_cmd.ExecuteReader()
+            while(sr.Read()):
+                if canceller.IsCancellationRequested:
+                    break
+                contactdetail = ContactDetail()
+                contactdetail.COLLECT_TARGET_ID = self.collect_target_id
+                contactdetail.SEQUENCE_NAME = sr[0]
+                contactdetail.RELATIONSHIP_ACCOUNT = sr[8]
+                a = sr[15]
+                contactdetail.DELETE_STATUS = DELETE_STATUS_DELETED if sr[15] == 1 else DELETE_STATUS_INTACT
+                self.basic.db_insert_table_contact_detail(contactdetail)
+            self.basic.db_commit()
+            self.db_cmd.Dispose()
+        except Exception as e:
+            pass
 
     def _generate_call_record(self):
         try:
@@ -943,12 +981,12 @@ class GenerateBcp(object):
                 record.CALL_STATUS = CALL_STATUS_CONNECTD if sr[4] is 1 else CALL_STATUS_MISSED if sr[4] is 3 else CALL_STATUS_OTHER
                 record.LOCAL_ACTION = LOCAL_ACTION_RECEIVE if sr[4] is 1 or sr[4] is 3 else LOCAL_ACTION_SEND if sr[4] is 2 else LOCAL_ACTION_OTHER
                 record.DUAL_TIME = sr[3]
-                record.DELETE_STATUS = DELETE_STATUS_DELETED if sr[12] is 1 else DELETE_STATUS_INTACT
+                record.DELETE_STATUS = DELETE_STATUS_DELETED if sr[12] == 1 else DELETE_STATUS_INTACT
                 self.basic.db_insert_table_call_record(record)
             self.basic.db_commit()
             self.db_cmd.Dispose()
         except Exception as e:
-            print(e)
+            pass
 
     def _generate_sms_info(self):
         pass
@@ -972,12 +1010,12 @@ class GenerateBcp(object):
                 calendar.START_TIME = self._get_timestamp(int(sr[5]))
                 calendar.END_TIME = self._get_timestamp(int(sr[7]))
                 calendar.DESCRIPTION = sr[3]
-                calendar.DELETE_STATUS = DELETE_STATUS_DELETED if sr[12] is 1 else DELETE_STATUS_INTACT
+                calendar.DELETE_STATUS = DELETE_STATUS_DELETED if sr[12] == 1 else DELETE_STATUS_INTACT
                 self.basic.db_insert_table_calendar_info(calendar)
             self.basic.db_commit()
             self.db_cmd.Dispose()
         except Exception as e:
-            print(e)
+            pass
 
     def _generate_sync_account(self):
         pass
