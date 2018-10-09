@@ -3,7 +3,11 @@ import os
 import PA_runtime
 from PA_runtime import *
 import clr
-clr.AddReference('System.Data.SQLite')
+try:
+    clr.AddReference('System.Data.SQLite')
+    clr.AddReference('bcp_basic')
+except:
+    pass
 del clr
 import System.Data.SQLite as SQLite
 import hashlib

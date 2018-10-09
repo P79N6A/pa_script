@@ -6,10 +6,14 @@ import time
 from PA_runtime import *
 
 import clr
-clr.AddReference('System.Core')
-clr.AddReference('System.Xml.Linq')
-clr.AddReference('System.Data.SQLite')
-clr.AddReference('bcp_mail')
+try:
+    clr.AddReference('System.Core')
+    clr.AddReference('System.Xml.Linq')
+    clr.AddReference('System.Data.SQLite')
+    clr.AddReference('model_mail')
+    clr.AddReference('bcp_mail')
+except:
+    pass
 del clr
 
 from System.Linq import Enumerable
