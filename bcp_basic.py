@@ -372,7 +372,7 @@ SQL_INSERT_TABLE_WA_MFORENSICS_010800 = '''
 9	删除时间	DELETE_TIME
 '''
 SQL_CREATE_TABLE_WA_MFORENSICS_010900 = '''
-    CREATE TABLE IF NOT EXISTS WA_MFORENSICS_010600(
+    CREATE TABLE IF NOT EXISTS WA_MFORENSICS_010900(
         COLLECT_TARGET_ID TEXT,
         TITLE TEXT,
         START_TIME INTEGER,
@@ -885,7 +885,7 @@ class GenerateBcp(object):
         self._generate_alarm_clock()
         self._generate_operate_record()
         self.db.Close()
-        self.mail.db_close()
+        self.basic.db_close()
 
     def _generate_demo(self):
         try:
@@ -918,28 +918,7 @@ class GenerateBcp(object):
         pass
 
     def _generate_sim_info(self):
-        try:
-            self.db_cmd = SQLite.SQLiteCommand(self.db)
-            if self.db_cmd is None:
-                return
-            self.db_cmd.CommandText = '''select distinct * from sim'''
-            sr = self.db_cmd.ExecuteReader()
-            while(sr.Read()):
-                if canceller.IsCancellationRequested:
-                    break
-                sim = SIMInfo()
-                sim.COLLECT_TARGET_ID = self.collect_target_id
-                sim.MSISDN            = sr[2]
-                sim.IMSI              = sr[3]
-                sim.CENTER_NUMBER     = sr[5]
-                sim.DELETE_STATUS     = sr[8]
-                sim.ICCID             = sr[4]
-                # sim.SIM_STATE = None
-                self.basic.db_insert_table_sim_info(sim)
-            self.basic.db_commit()
-            self.db_cmd.Dispose()
-        except Exception as e:
-            print(e)
+        pass
 
     def _generate_contact_info(self):
         pass
@@ -978,7 +957,27 @@ class GenerateBcp(object):
         pass
 
     def _generate_calendar_info(self):
-        pass
+        try:
+            self.db_cmd = SQLite.SQLiteCommand(self.db)
+            if self.db_cmd is None:
+                return
+            self.db_cmd.CommandText = '''select distinct * from calendar'''
+            sr = self.db_cmd.ExecuteReader()
+            while(sr.Read()):
+                if canceller.IsCancellationRequested:
+                    break
+                calendar = CalendarInfo()
+                calendar.COLLECT_TARGET_ID = self.collect_target_id
+                calendar.TITLE = sr[1]
+                calendar.START_TIME = self._get_timestamp(int(sr[5]))
+                calendar.END_TIME = self._get_timestamp(int(sr[7]))
+                calendar.DESCRIPTION = sr[3]
+                calendar.DELETE_STATUS = DELETE_STATUS_DELETED if sr[12] is 1 else DELETE_STATUS_INTACT
+                self.basic.db_insert_table_calendar_info(calendar)
+            self.basic.db_commit()
+            self.db_cmd.Dispose()
+        except Exception as e:
+            print(e)
 
     def _generate_sync_account(self):
         pass

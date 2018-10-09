@@ -2,6 +2,37 @@
 import os
 import PA_runtime
 from PA_runtime import *
+import clr
+clr.AddReference('System.Data.SQLite')
+del clr
+import System.Data.SQLite as SQLite
+import hashlib
+import bcp_basic
+
+SQL_CREATE_TABLE_CALENDAR = '''
+    CREATE TABLE IF NOT EXISTS calendar(
+        calendar_id INTEGER,
+        title TEXT,
+        latitude TEXT,
+        longitude TEXT,
+        description TEXT,
+        dtstart INTEGER,
+        remind INTEGER,
+        dtend INTEGER,
+        rrule TEXT,
+        interval INTEGER,
+        until INTEGER,
+        source INTEGER,
+        deleted INTEGER,
+        repeated INTEGER
+    )'''
+
+SQL_INSERT_TABLE_CALENDAR = '''
+    INSERT INTO calendar (calendar_id, title, latitude, longitude, description, dtstart, remind, dtend, 
+        rrule, interval, until, source, deleted, repeated) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
+
+SQL_SEARCH_TABLE_CALENDAR = '''select a.ROWID, a.summary, b.latitude, b.longitude, a.description, a.start_date,
+    a.end_date from CalendarItem as a left join Location as b on a.ROWID = b.ROWID'''
 
 def _get_repeat_day(ce, rec_item, rec_recurrence, extractSource, repeat_day_reg = re.compile(r"D=\+?(?P<week>\d)(?P<day>SU|MO|TU|WE|TH|FR|SA)")):
     repeat_day = {
@@ -55,6 +86,22 @@ def analyze_calender(node, extractDeleted, extractSource):
         }
     
     db = SQLiteParser.Database.FromNode(node)
+
+    cachepath = ds.OpenCachePath("Calendar")
+    md5_db = hashlib.md5()
+    db_name = 'calendar'
+    md5_db.update(db_name.encode(encoding = 'utf-8'))
+    db_path = cachepath + "\\" + md5_db.hexdigest().upper() + ".db"
+    
+    if os.path.exists(db_path):
+        os.remove(db_path)
+    db_cache = SQLite.SQLiteConnection('Data Source = {}'.format(db_path))
+    db_cache.Open()
+    db_cmd = SQLite.SQLiteCommand(db_cache)
+    if db_cmd is not None:
+        db_cmd.CommandText = SQL_CREATE_TABLE_CALENDAR
+        db_cmd.ExecuteNonQuery()
+    db_cmd.Dispose()
 
     calendars = {}
     for record in db['Calendar']:
@@ -178,6 +225,10 @@ def analyze_calender(node, extractDeleted, extractSource):
             SQLiteParser.Tools.AddSignatureToTable(ts, 'all_day', SQLiteParser.Tools.SignatureType.Byte, SQLiteParser.Tools.SignatureType.Const0, SQLiteParser.Tools.SignatureType.Const1)
             SQLiteParser.Tools.AddSignatureToTable(ts, 'unique_identifier', SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
         for record in db.ReadTableRecords(ts, extractDeleted, True):
+
+            calendar = (record['ROWID'].Value, record['summary'].Value, None, None, record['description'].Value, int('1' + str(record['start_date'].Value)), None, int('1' + str(record['end_date'].Value)), None, None, None, node.AbsolutePath, 0, 0)
+            db_insert_table(db_cache, SQL_INSERT_TABLE_CALENDAR, calendar)
+            
             res = CalendarEntry()
             res.Deleted = record.Deleted
             if not IsDBNull(record['summary'].Value):
@@ -243,10 +294,28 @@ def analyze_calender(node, extractDeleted, extractSource):
             if 'availability' in record and not IsDBNull(record['availability'].Value):
                 if record['availability'].Value == 1:
                     res.Class.Value = EventClass.Private
-
             if res not in results:        
                 results.append(res)
+    db_cmd.Dispose()
+    db_cache.Close()
+    bcp_path = r'C:\Users\Admin\Desktop\bcp_path'
+    bcp_db = r'C:\Users\Admin\Desktop\bcp_db'
+    collect_target_id =  '0000001'
+    mountDir = r'C:\Users\Admin\Desktop'
+    g = bcp_basic.GenerateBcp(bcp_path, db_path, bcp_db, collect_target_id, mountDir)
+    g.generate()
     pr = ParserResults()
     pr.Models.AddRange(results)
     pr.Build('系统日历')
     return pr
+
+def db_insert_table(db, sql, values):
+    db_cmd = SQLite.SQLiteCommand(db)
+    if db_cmd is not None:
+        db_cmd.CommandText = sql
+        db_cmd.Parameters.Clear()
+        for value in values:
+            param = db_cmd.CreateParameter()
+            param.Value = value
+            db_cmd.Parameters.Add(param)
+        db_cmd.ExecuteNonQuery()
