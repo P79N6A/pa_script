@@ -281,6 +281,8 @@ def analyse_twitter(root, extract_deleted, extract_source):
             t.im.db_insert_table_version(model_im.VERSION_KEY_DB, model_im.VERSION_VALUE_DB)
             t.im.db_insert_table_version(model_im.VERSION_KEY_APP, VERSION_APP_VALUE)
         models = model_im.GenerateModel(t.cache + "/C37R").get_models()
+        #1330005
+        nameValues.SafeAddValue('1330005', t.cache_res)
         mlm = ModelListMerger()
         pr = ParserResults()
         pr.Categories = DescripCategories.QQ

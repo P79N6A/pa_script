@@ -28,6 +28,7 @@ class gaodeMap(object):
         self.extract_source = extract_source
         self.cache = ds.OpenCachePath("gaodeMap")
         self.gaodemap = model_map.Map()
+        self.tmp_dir = ds.OpenCachePath("tmp")
         self.sourcefile = None
 
     def decode_db(self):
@@ -362,7 +363,7 @@ class gaodeMap(object):
         self.entrance()
         generate = model_map.Genetate(db_path)
         tmpresult = generate.get_models()
-        nameValues.SafeAddValue(bcp_gis.NETWORK_APP_MAP_GAODE,db_path)
+        PA_runtime.save_cache_path(bcp_gis.NETWORK_APP_MAP_GAODE,db_path,self.tmp_dir)
         return tmpresult
 
 

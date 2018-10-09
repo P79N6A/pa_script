@@ -199,12 +199,15 @@ class Generate(object):
     def __init__(self, db_cache, node):
         self.db_cache = db_cache
         self.db = None
-        self.cursor = None
+        self.db_cmd = None
+        self.db_trans = None
         self.node = node
 
     def get_models(self):
         models = []
-        self.db = sqlite3.connect(self.db_cache)
+        self.db = SQLite.SQLiteConnection('Data Source = {}'.format(self.db_cache))
+        self.db.Open()
+        self.db_cmd = SQLite.SQLiteCommand(self.db)
         models.extend(self._get_model_media())
         models.extend(self._get_model_thumbnail())
         self.db.close()
@@ -214,82 +217,97 @@ class Generate(object):
     def _get_model_media(self):
         model = []
         try:
-            cursor = self.db.cursor()
-            cursor.execute('select distinct * from media')
-            for row in cursor:
-                media = Common.Media()
-                if row[17] is not None and row[17] is not '':
-                    media.Album.Value = row[17]
-                coordinate = Locations.Coordinate()
-                if row[9] is not None and row[9] is not '':
-                    coordinate.Latitude.Value = row[9]
-                if row[10] is not None and row[10] is not '':
-                    coordinate.Longitude.Value = row[10]
-                media.Position.Value = coordinate
-                if row[5] is not None and row[5] is not '':
-                    media.ModifyDate.Value = self._get_timestamp(row[5])
-                if row[0] is not None and row[0] is not '':
-                    media.ID.Value = str(row[0])
-                if row[14] is not None and row[14] is not '':
-                    media.AlbumArtist.Value = row[14]
-                if row[12] is not None and row[12] is not '':
-                    media.BucketDisplayName.Value = row[12]
-                if row[1] is not None and row[1] is not '':
-                    media.Url.Value = self._transToAbsolutePath(row[1])
-                if row[11] is not None and row[11] is not '':
-                    media.DateTaken.Value = self._get_timestamp(row[11])
-                if row[15] is not None and row[15] is not '':
-                    hours = row[15]/3600
-                    minutes = row[15]-hours*3600
-                    seconds = row[15]-hours*3600-minutes*60
-                    media.Duration.Value = System.TimeSpan(hours, minutes, seconds)
-                if row[7] is not None and row[7] is not '':
-                    media.Title.Value = row[7]
-                if row[2] is not None and row[2] is not '':
-                    media.Size.Value = row[2]
-                if row[6] is not None and row[6] is not '':
-                    media.MimeType.Value = row[6]
-                if row[8] is not None and row[8] is not '':
-                    media.DisplayName.Value = row[8]
-                if row[4] is not None and row[4] is not '':
-                    media.AddDate.Value = self._get_timestamp(row[4])
-                if row[3] is not None and row[3] is not '':
-                    media.Parent.Value = row[3]
-                if row[16] is not None and row[16] is not '':
-                    media.Artist.Value = row[16]
-                if row[18] is not None and row[18] is not '':
-                    media.Location.Value = row[18]
-                if row[19] is not None and row[19] is not '':
-                    media.SourceFile.Value = self._get_source_file(str(row[19]))
-                model.append(media)
+            self.db_cmd.CommandText = '''select distinct * from media where url is not null and mime_type is not null'''
+            sr = self.db_cmd.ExecuteReader()
+            while(sr.Read()):
+                try:
+                    if canceller.IsCancellationRequested:
+                        break
+                    if IsDBNull(sr[6]):
+                        continue
+                    if IsDBNull(sr[1]) or sr[1] is None:
+                        continue
+                    media = Common.Media()
+                    if not IsDBNull(sr[17]) and sr[17] is not '':
+                        media.Album.Value = sr[17]
+                    coordinate = Locations.Coordinate()
+                    if not IsDBNull(sr[9]) and sr[9] is not '':
+                        coordinate.Latitude.Value = sr[9]
+                    if not IsDBNull(sr[10]) and sr[10] is not '':
+                        coordinate.Longitude.Value = sr[10]
+                    media.Position.Value = coordinate
+                    if not IsDBNull(sr[5]) and sr[5] is not '':
+                        media.ModifyDate.Value = self._get_timestamp(sr[5])
+                    if not IsDBNull(sr[0]) and sr[0] is not '':
+                        media.ID.Value = str(sr[0])
+                    if not IsDBNull(sr[14]) and sr[14] is not '':
+                        media.AlbumArtist.Value = sr[14]
+                    if not IsDBNull(sr[12]) and sr[12] is not '':
+                        media.BucketDisplayName.Value = sr[12]
+                    if not IsDBNull(sr[1]) and sr[1] is not '':
+                        media.Url.Value = self._transToAbsolutePath(sr[1])
+                    if not IsDBNull(sr[11]) and sr[11] is not '':
+                        media.DateTaken.Value = self._get_timestamp(sr[11])
+                    if not IsDBNull(sr[15]) and sr[15] is not '':
+                        hours = sr[15]/3600
+                        minutes = sr[15]-hours*3600
+                        seconds = sr[15]-hours*3600-minutes*60
+                        media.Duration.Value = System.TimeSpan(hours, minutes, seconds)
+                    if not IsDBNull(sr[7]) and sr[7] is not '':
+                        media.Title.Value = sr[7]
+                    if not IsDBNull(sr[2]) and sr[2] is not '':
+                        media.Size.Value = sr[2]
+                    if not IsDBNull(sr[6]) and sr[6] is not '':
+                        media.MimeType.Value = sr[6]
+                    if not IsDBNull(sr[8]) and sr[8] is not '':
+                        media.DisplayName.Value = sr[8]
+                    if not IsDBNull(sr[4]) and sr[4] is not '':
+                        media.AddDate.Value = self._get_timestamp(sr[4])
+                    if not IsDBNull(sr[3]) and sr[3] is not '':
+                        media.Parent.Value = sr[3]
+                    if not IsDBNull(sr[16]) and sr[16] is not '':
+                        media.Artist.Value = sr[16]
+                    if not IsDBNull(sr[18]) and sr[18] is not '':
+                        media.Location.Value = sr[18]
+                    if not IsDBNull(sr[19]) and sr[19] is not '':
+                        media.SourceFile.Value = self._get_source_file(str(sr[19]))
+                    model.append(media)
+                except:
+                    continue
+            sr.Close()
         except:
-                pass
+            pass
         return model
 
     def _get_model_thumbnail(self):
         model = []
         try:
-            cursor = self.db.cursor()
-            cursor.execute('select distinct * from thumbnails')
-            for row in cursor:
-                thumbnail = Common.Thumbnail()
-                if row[0] is not None and row[0] is not '':
-                    thumbnail.MediaID.Value = str(row[0])
-                if row[2] is not None and row[2] is not '':
-                    thumbnail.ID.Value = str(row[2])
-                if row[1] is not None and row[1] is not '':
-                    thumbnail.Url.Value = self._transToAbsolutePath(row[1])
-                if row[3] is not None and row[3] is not '':
-                    thumbnail.Width.Value = row[3]
-                if row[5] is not None and row[5] is not '':
-                    thumbnail.Location.Value = row[5]
-                if row[4] is not None and row[4] is not '':
-                    thumbnail.Height.Value = row[4]
-                if row[6] is not None and row[6] is not '':
-                    thumbnail.SourceFile.Value = self._get_source_file(str(row[6]))
-                model.append(thumbnail)
+            self.db_cmd.CommandText = '''select distinct * from thumbnails'''
+            while(sr.Read()):
+                try:
+                    if canceller.IsCancellationRequested:
+                        break
+                    thumbnail = Common.Thumbnail()
+                    if not IsDBNull(sr[0]) and sr[0] is not '':
+                        thumbnail.MediaID.Value = str(sr[0])
+                    if not IsDBNull(sr[2]) and sr[2] is not '':
+                        thumbnail.ID.Value = str(sr[2])
+                    if not IsDBNull(sr[1]) and sr[1] is not '':
+                        thumbnail.Url.Value = self._transToAbsolutePath(sr[1])
+                    if not IsDBNull(sr[3]) and sr[3] is not '':
+                        thumbnail.Width.Value = sr[3]
+                    if not IsDBNull(sr[5]) and sr[5] is not '':
+                        thumbnail.Location.Value = sr[5]
+                    if not IsDBNull(sr[4]) and sr[4] is not '':
+                        thumbnail.Height.Value = sr[4]
+                    if not IsDBNull(sr[6]) and sr[6] is not '':
+                        thumbnail.SourceFile.Value = self._get_source_file(str(sr[6]))
+                    model.append(thumbnail)
+                except:
+                    continue
+            sr.Close()
         except:
-                pass
+            pass
         return model
 
     def _get_source_file(self, source_file):

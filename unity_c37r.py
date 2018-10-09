@@ -7,7 +7,7 @@ import shutil
 import hashlib
 import logging
 import re
-
+from PA.InfraLib.Utils import *
 import sys
 reload(sys)
 
@@ -164,3 +164,23 @@ def correct_isvilid_path(src_node):
         return des_file
     else:
         return src_node.PathWithMountPoint
+
+def get_btree_node_str(b, k, d = ""):
+    if k in b.Children and b.Children[k] is not None:
+        try:
+            return str(b.Children[k].Value)
+        except:
+            return d
+    return d
+
+def get_c_sharp_ts(ts):
+    try:
+        ts = TimeStamp.FromUnixTime(ts, False)
+        if not ts.IsValidFromSmartphone():
+            ts = None
+        return ts
+    except:
+        return None
+
+def get_c_sharp_uri(path):
+    return ConvertHelper.ToUri(path)

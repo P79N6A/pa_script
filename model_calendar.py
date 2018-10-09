@@ -20,7 +20,8 @@ SQL_CREATE_TABLE_CALENDAR = '''
     CREATE TABLE IF NOT EXISTS calendar(
         calendar_id INTEGER,
         title TEXT,
-        location TEXT,
+        latitude TEXT,
+        longitude TEXT,
         description TEXT,
         dtstart INTEGER,
         remind INTEGER,
@@ -34,8 +35,8 @@ SQL_CREATE_TABLE_CALENDAR = '''
     )'''
 
 SQL_INSERT_TABLE_CALENDAR = '''
-    INSERT INTO calendar (calendar_id, title, location, description, dtstart, remind, dtend, 
-        rrule, interval, until, source, deleted, repeated) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
+    INSERT INTO calendar (calendar_id, title, latitude, longitude, description, dtstart, remind, dtend, 
+        rrule, interval, until, source, deleted, repeated) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
 
 
 
@@ -75,7 +76,8 @@ class Calendar(object):
     def __init__(self):
         self.calendar_id = None
         self.title = None
-        self.location = None
+        self.latitude = None
+        self.longitude = None
         self.description = None
         self.dtstart = None
         self.remind = None
@@ -88,7 +90,7 @@ class Calendar(object):
         self.repeated = 0
 
     def get_values(self):
-        return(self.calendar_id, self.title, self.location, self.description, self.dtstart, self.remind, 
+        return(self.calendar_id, self.title, self.latitude, self.longitude, self.description, self.dtstart, self.remind, 
         self.dtend, self.rrule, self.interval, self.until, self.source, self.deleted, self.repeated)
 
 
@@ -116,33 +118,34 @@ class Generate(object):
             if row[1] is not None:
                 cal.Subject.Value = row[1]
             if row[2] is not None:
-                cal.Location.Value = row[2]
+                cal.Location.Value = str(row[2])+','+str(row[3])
             if row[3] is not None:
-                cal.Details.Value = row[3]
-            startDate = TimeStamp.FromUnixTime(int(str(row[4])[0:-3:1]), False) if len(str(row[4])) > 10 else TimeStamp.FromUnixTime(row[4], False) if len(str(row[4])) == 10 else TimeStamp.FromUnixTime(9999999999, False)
+                cal.Details.Value = row[4]
+            startDate = self._get_timestamp(row[5])
             cal.StartDate.Value = startDate
-            reminder = TimeStamp.FromUnixTime(int(str(row[6])[0:-3:1])-row[5]*60, False) if len(str(row[6])) > 10 else TimeStamp.FromUnixTime(row[6]-row[5]*60, False) if len(str(row[6])) == 10 else TimeStamp.FromUnixTime(9999999999, False)
+            reminder = self._get_timestamp(row[6])
             cal.Reminders.Add(reminder)
-            endDate = TimeStamp.FromUnixTime(int(str(row[6])[0:-3:1]), False) if len(str(row[6])) > 10 else TimeStamp.FromUnixTime(row[6], False) if len(str(row[6])) == 10 else TimeStamp.FromUnixTime(9999999999, False)
+            endDate = self._get_timestamp(row[7])
             cal.EndDate.Value = endDate
-            if row[7] is not None:
-                if row[7].find('DAILY')>=0:
+            if row[8] is not None:
+                if row[8].find('DAILY')>=0:
                     repeatRule = Generic.RepeatRule.Daily
-                elif row[7].find('WEEKLY')>=0:
+                elif row[8].find('WEEKLY')>=0:
                     repeatRule = Generic.RepeatRule.Weekly
-                elif row[7].find('MONTHLY')>=0:
+                elif row[8].find('MONTHLY')>=0:
                     repeatRule = Generic.RepeatRule.Monthly
-                elif row[7].find('YEARLY')>=0:
+                elif row[8].find('YEARLY')>=0:
                     repeatRule = Generic.RepeatRule.Yearly
                 else:
                     repeatRule = Generic.RepeatRule.None
                     cal.RepeatRule.Value = repeatRule
-            if row[8] is not None:
+            if row[9] is not None:
                 cal.RepeatInterval.Value = int(re.sub('.*=?', '', row[8]))
             else:
                 cal.RepeatInterval.Value = 1
-            if row[10] is not None:
+            if row[11] is not None:
                 cal.SourceFile.Value = self._get_source_file(str(row[10]))
+            cal.Deleted = self._convert_delete_status(row[12])
             model.append(cal)
         return model
 
@@ -150,4 +153,24 @@ class Generate(object):
         if isinstance(source_file, str):
             return source_file.replace('/', '\\')
         return source_file
+
+    @staticmethod
+    def _get_timestamp(timestamp):
+        try:
+            if isinstance(timestamp, (long, float, str)) and len(str(timestamp)) > 10:
+                timestamp = int(str(timestamp)[:10])
+            if isinstance(timestamp, int) and len(str(timestamp)) == 10:
+                ts = TimeStamp.FromUnixTime(timestamp, False)
+                if not ts.IsValidForSmartphone():
+                    ts = TimeStamp.FromUnixTime(0, False)
+                return ts
+        except:
+            return TimeStamp.FromUnixTime(0, False)
+
+    @staticmethod
+    def _convert_delete_status(status):
+        if status == 0:
+            return DELETE_STATUS_NOT_DELETED
+        else:
+            return DELETE_STATUS_DELETED
 

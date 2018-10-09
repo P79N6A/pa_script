@@ -123,26 +123,13 @@ class DingA(object):
             raise IOError('''can't find correct key! parse exits!''')
         for aid in self.account:
             db_node = self.fs.GetByPath('databases/{}.db'.format(aid))
-            #db_wal_node = self.fs.GetByPath('databases/{}.db-wal'.format(aid))
-            #db_shm_node = self.fs.GetByPath('databases/{}.db-shm'.format(aid))
             if db_node is None:
                 continue
             self.aes_decrypt(db_node, self.cache + '/{}.db'.format(aid), right_key)
-            #if db_wal_node is not None:
-                #self.aes_decrypt(db_wal_node, self.cache + '/{}.db-wal'.format(aid), right_key)
-            #if db_shm_node is not None:
-                #self.aes_decrypt(db_shm_node, self.cache + '/{}.db-shm'.format(aid), right_key)
-            
             chat_node = self.fs.GetByPath('databases/{}.db'.format(md5('{}@dingding'.format(aid))))
-            #chat_wal_node = self.fs.GetByPath('databases/{}.db-wal'.format(md5('{}@dingding'.format(aid))))
-            #chat_shm_node = self.fs.GetByPath('databases/{}.db-shm'.format(md5('{}@dingding'.format(aid))))
             if chat_node is None:
                 continue
             self.aes_decrypt(chat_node, self.cache + '/{}_chat.db'.format(aid), right_key)
-            #if chat_wal_node is not None:
-                #self.aes_decrypt(chat_wal_node, self.cache + '/{}_chat.db-wal'.format(aid), right_key)
-            #if chat_shm_node is not None:
-                #self.aes_decrypt(chat_shm_node, self.cache + '/{}_chat.db-shm'.format(aid), right_key)
         self.m_print('search account and decrypt done!')
     
     def parse(self, aid):

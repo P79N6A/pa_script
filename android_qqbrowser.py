@@ -10,6 +10,7 @@ try:
 except:
     pass
 del clr
+import hashlib
 from model_browser import *
 
 import traceback
@@ -22,7 +23,10 @@ class QQBrowserParse(object):
         self.db = None
         self.mb = MB()
         self.cache_path = ds.OpenCachePath("QQBrowser")
-        self.db_cache = self.cache_path + "\\QQBrowser.db"
+        md5_db = hashlib.md5()
+        db_name = 'QQBrowser'
+        md5_db.update(db_name.encode(encoding = 'utf-8'))
+        self.db_cache = self.cache_path + "\\" + md5_db.hexdigest().upper() + ".db"
         self.mb.db_create(self.db_cache)
 
     def analyze_bookmarks(self):

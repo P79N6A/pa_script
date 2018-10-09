@@ -64,7 +64,6 @@ class CalendarParser(object):
                 canceller.ThrowIfCancellationRequested()
                 calendar.calendar_id = row['calendar_id'].Value if 'calendar_id' in row and not row['calendar_id'].IsDBNull else None
                 calendar.title = repr(row['title'].Value) if 'title' in row and not row['title'].IsDBNull else None
-                calendar.eventLocation = repr(row['eventLocation'].Value) if 'eventLocation' in row and not row['eventLocation'].IsDBNull else None
                 calendar.description = repr(row['description'].Value) if 'description' in row and not row['description'].IsDBNull else None
                 calendar.dtstart = row['dtstart'].Value if 'dtstart' in row and not row['dtstart'].IsDBNull else None
                 calendar.dend = row['dend'].Value if 'dend' in row and not row['dend'].IsDBNull else None

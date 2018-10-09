@@ -528,7 +528,8 @@ class Facebook(object):
 
         generate = model_im.GenerateModel(db_path)
         results = generate.get_models()
-        nameValues.SafeAddValue(bcp_im.CONTACT_ACCOUNT_TYPE_IM_FACEBOOK, db_path)
+        tmp_dir = ds.OpenCachePath("tmp")
+        PA_runtime.save_cache_path(bcp_im.CONTACT_ACCOUNT_TYPE_IM_FACEBOOK, db_path, tmp_dir)
         return results 
 
 

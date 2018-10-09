@@ -17,6 +17,8 @@ import time
 import struct
 import traceback
 import SQLiteParser
+import os
+
 
 from System import *
 from System.IO import *
@@ -96,3 +98,16 @@ def create_apps_dictionary(ds):
 
 def CreateSourceEvent(node,model):
     SourceEvent.CreateSourceEvent(node,model)
+
+
+def save_cache_path(softwore_code, db_path, cache_dir):
+    file_path = cache_dir + "\\" + softwore_code
+    if os.path.exists(file_path):
+        with open(file_path, "r") as f1:
+            files = f1.read()
+            if db_path in files:
+                return
+    with open(file_path, "a+") as f:
+        f.write(db_path+"\n")
+    
+ 

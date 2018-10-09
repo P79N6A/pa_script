@@ -4,38 +4,101 @@ import PA_runtime
 import datetime
 import time
 from PA_runtime import *
-import logging
-import sqlite3
-import re
-import shutil
+
 import clr
-try:
-    clr.AddReference('model_mails')
-except:
-    pass
+clr.AddReference('System.Core')
+clr.AddReference('System.Xml.Linq')
+clr.AddReference('System.Data.SQLite')
+clr.AddReference('bcp_mail')
 del clr
-from model_mails import MM, Mails, Accounts, Contact, MailFolder, Attach, Generate
 
-SQL_ATTACH_TABLE_ACCOUNT1 = """attach database '"""
+from System.Linq import Enumerable
+from model_mail import MM, Account, Mail, Contact, Attachment, Generate
+import model_mail
+import bcp_mail
 
-SQL_ATTACH_TABLE_ACCOUNT2 = """' as 'A';"""
+import shutil
+import hashlib
+import System.Data.SQLite as SQLite
 
-SQL_ASSOCIATE_TABLE_EMAILS = '''select a.id as mailId, a.accountId, a.subject, a.abstract, 
-    a.fromAddr as fromEmail, a.utcReceived as receiveUtc, a.size, b.c1receiver as tos, a.isUnread, 
-    c.email as account_email, c.name as alias, d.name as mail_folder, e.content, f.size as downloadSize, 
-    f.displayname as attachName from QM_MAIL_INFO as a left join QM_MAIL_INFO_FTS_SEARCH_content as b on a.id = b.docid 
-    left join A.AccountInfo as c on a.accountId = c.id left join QM_FOLDER as d on a.folderId = d.id left join QM_MAIL_CONTENT as e 
-    on a.id = e.id left join QM_MAIL_ATTACH as f on a.id = f.mailid'''
+SQL_ASSOCIATE_TABLE_ACCOUNT = '''select id, email, name, pwd from AccountInfo'''
 
-SQL_ASSOCIATE_TABLE_ACCOUNT = '''select id as accountId, name as alias, email as accountEmail from AccountInfo'''
+SQL_ASSOCIATE_TABLE_MAIL = '''select distinct a.id, a.accountId, a.fromAddr, a.fromAddrName, b.c1receiver, a.utcSent, a.subject,
+    a.abstract, c.content, a.isUnread, d.name, a.size from QM_MAIL_INFO as a left join QM_MAIL_INFO_FTS_SEARCH_content as b 
+    on a.id = b.docid left join QM_MAIL_CONTENT as c on a.id = c.id left join QM_FOLDER as d on a.folderId = d.id'''
 
-SQL_ASSOCIATE_TABLE_CONTACT = '''select a.name as contactName, a.address as contactEmail, a.name as contactNick, 
-    b.email as accountEmail from QM_CONTACT as a left join A.AccountInfo as b on a.accountid = b.id'''
+SQL_ASSOCIATE_TABLE_CONTACT = '''select id, accountid, address, name from QM_CONTACT'''
 
-SQL_ASSOCIATE_TABLE_EMAIL_FOLDER = '''select a.name as folderName, b.name as accountNick, b.email as accountEmail from QM_FOLDER as a left join A.AccountInfo as b'''
+SQL_ASSOCIATE_TABLE_ATTACH = '''select id, accountid, mailid, displayname, fileSizeByte, favtime from QM_MAIL_ATTACH'''
 
-SQL_ASSOCIATE_TABLE_ATTACH = '''select b.name as AccountNick, b.email as accountEmail, a.mailsubject as subject, a.favtime as downloadUtc, a.fileSizeByte as downloadSize, 
-    a.mailsenderaddr as fromEmail, a.mailsenderaddr as fromNick, a.displayname as attachName from QM_MAIL_ATTACH as a left join A.AccountInfo as b'''
+SQL_CREATE_TABLE_RECOVER_ACCOUNT = '''CREATE TABLE IF NOT EXISTS AccountInfo(id INTEGER, email TEXT, name TEXT, pwd TEXT)'''
+
+SQL_INSERT_TABLE_RECOVER_ACCOUNT = '''INSERT INTO AccountInfo(id, email, name, pwd) VALUES(?, ?, ?, ?)'''
+
+SQL_CREATE_TABLE_RECOVER_MAILINFO = '''
+    CREATE TABLE IF NOT EXISTS QM_MAIL_INFO(
+    id INTEGER,
+    folderId INTEGER,
+    accountId INTEGER,
+    fromAddr TEXT,
+    fromAddrName TEXT,
+    utcSent INTEGER,
+    subject TEXT,
+    abstract TEXT,
+    isUnread INTEGER,
+    size INTEGER
+    )'''
+
+SQL_INSERT_TABLE_RECOVER_MAILINFO = '''INSERT INTO QM_MAIL_INFO(id, folderId, accountId, fromAddr, fromAddrName, utcSent, subject, abstract, isUnread, size)
+    VALUES(? ,?, ?, ?, ?, ? ,?, ?, ?, ?)'''
+
+SQL_CREATE_TABLE_RECOVER_TOS = '''
+    CREATE TABLE IF NOT EXISTS QM_MAIL_INFO_FTS_SEARCH_content(
+    docid INTEGER,
+    c1receiver TEXT
+    )'''
+
+SQL_INSERT_TABLE_RECOVER_TOS = '''INSERT INTO QM_MAIL_INFO_FTS_SEARCH_content(docid, c1receiver) VALUES(?, ?)'''
+
+SQL_CREATE_TABLE_RECOVER_CONTENT = '''
+    CREATE TABLE IF NOT EXISTS QM_MAIL_CONTENT(
+    id INTEGER,
+    content TEXT
+    )'''
+
+SQL_INSERT_TABLE_RECOVER_CONTENT = '''INSERT INTO QM_MAIL_CONTENT(id, content) VALUES(?, ?)'''
+
+SQL_CREATE_TABLE_RECOVER_FOLDER = '''
+    CREATE TABLE IF NOT EXISTS QM_FOLDER(
+    id INTEGER,
+    name TEXT
+    )'''
+
+SQL_INSERT_TABLE_RECOVER_FOLDER = '''INSERT INTO QM_FOLDER(id, name) VALUES(?, ?)'''
+
+SQL_CREATE_TABLE_RECOVER_CONTACT = '''
+    CREATE TABLE IF NOT EXISTS QM_CONTACT(
+    id INTEGER,
+    accountid INTEGER,
+    address TEXT,
+    name TEXT
+    )'''
+
+SQL_INSERT_TABLE_RECOVER_CONTACT = '''INSERT INTO QM_CONTACT(id, accountid, address, name) VALUES(?, ?, ?, ?)'''
+
+SQL_CREATE_TABLE_RECOVER_ATTACH = '''
+    CREATE TABLE IF NOT EXISTS QM_MAIL_ATTACH(
+    id INTEGER,
+    accountid INTEGER,
+    mailid INTEGER,
+    displayname TEXT,
+    fileSizeByte INTEGER,
+    favtime INTEGER
+    )'''
+
+SQL_INSERT_TABLE_RECOVER_ATTACH = '''INSERT INTO QM_MAIL_ATTACH(id, accountid, mailid, displayname, fileSizeByte, favtime) VALUES(?, ?, ?, ?, ?, ?)'''
+
+VERSION_APP_VALUE = 2
 
 class QQMailParser(object):
     def __init__(self, node, extractDeleted, extractSource):
@@ -43,265 +106,401 @@ class QQMailParser(object):
         self.db = None
         self.mm = MM()
         self.cachepath = ds.OpenCachePath("QQMail")
-        self.cachedb = self.cachepath + "\\QQMail.db"
+        md5_db = hashlib.md5()
+        md5_rdb = hashlib.md5()
+        db_name = 'QQMail'
+        md5_db.update(db_name.encode(encoding = 'utf-8'))
+        rdb_name = 'QQMailRecover'
+        md5_rdb.update(rdb_name.encode(encoding = 'utf-8'))
+        self.cachedb = self.cachepath + "\\" + md5_db.hexdigest().upper() + ".db"
         self.sourceDB = self.cachepath + '\\QQMailSourceDB'
-        self.mm.db_create(self.cachedb)
+        self.recoverDB = self.cachepath + '\\' + md5_rdb.hexdigest().upper() + '.db'
         self.attachDir = os.path.normpath(os.path.join(self.node.Parent.Parent.Parent.Parent.AbsolutePath, 'media/0/Download/QQMail'))
-
-    def analyze_mails(self):
-        mailNode = self.sourceDB + '\\QMMailDB'
-        if mailNode is None:
-            return 
-        self.db = sqlite3.connect(mailNode)
-        SQL_ATTACH_TABLE_ACCOUNT = SQL_ATTACH_TABLE_ACCOUNT1 + self.sourceDB + '\\AccountInfo' + SQL_ATTACH_TABLE_ACCOUNT2
-        if self.db is None:
-            return
-        mails = Mails()
+    
+    def analyze_account(self, accountPath, deleteFlag):
+        '''保存账户数据到中间数据库'''
+        self.db = SQLite.SQLiteConnection('Data Source = {}'.format(accountPath))
+        self.db.Open()
+        self.db_cmd = SQLite.SQLiteCommand(self.db)
         try:
-            cursor = self.db.cursor()
-            cursor.execute(SQL_ATTACH_TABLE_ACCOUNT)
-            cursor.execute(SQL_ASSOCIATE_TABLE_EMAILS)
-            for row in cursor:
-                canceller.ThrowIfCancellationRequested()
-                mails.mailId = row[0]
-                mails.accountId = row[1]
-                mails.subject = row[2]
-                mails.abstract = row[3]
-                mails.fromEmail = row[4]
-                mails.receiveUtc = int(str(row[5])[0:-3:1])
-                mails.size = row[6]
-                mails.tos = row[7]
-                mails.isRead = 1 if row[8] == 0 else 0
-                mails.account_email = row[9]
-                mails.alias = row[10]
-                mails.mail_folder = row[11]
-                mails.content = row[12]
-                mails.downloadSize = row[13]
-                mails.attachName = row[14]
-                mails.attachDir = self.attachDir if row[14] is not None else None
-                self.mm.db_insert_table_mails(mails)
+            if self.db is None:
+                return
+            self.db_cmd.CommandText = SQL_ASSOCIATE_TABLE_ACCOUNT
+            sr = self.db_cmd.ExecuteReader()
+            account = Account()
+            while (sr.Read()):
+                if canceller.IsCancellationRequested:
+                    break
+                account.account_id = sr[0]
+                account.account_user = sr[1]
+                account.account_alias = sr[2]
+                account.account_email = sr[1]
+                account.account_passwd = sr[3]
+                account.source = self.node.AbsolutePath
+                account.deleted = deleteFlag
+                self.mm.db_insert_table_account(account)
             self.mm.db_commit()
-            self.db.close()
+            self.db_cmd.Dispose()
+            self.db.Close()
         except Exception as e:
-            logging.error(e)
+            print(e)
 
-    def decode_recover_mail_table(self):
-        mailsNode = self.node
-        self.db = SQLiteParser.Database.FromNode(mailsNode, canceller)
-        if self.db is None:
-            return
-        ts1 = SQLiteParser.TableSignature('QM_MAIL_INFO')
-        ts2 = SQLiteParser.TableSignature('QM_MAIL_INFO_FTS_SEARCH_content')
-        ts3 = SQLiteParser.TableSignature('QM_FOLDER')
-        ts4 = SQLiteParser.TableSignature('QM_MAIL_CONTENT')
-        ts5 = SQLiteParser.TableSignature('QM_MAIL_ATTACH')
-        pattern = re.compile('[\\x00-\\x08\\x0b-\\x0c\\x0e-\\x1f]')
+    def analyze_mail(self, mailPath, deleteFlag):
+        '''保存邮件数据到中间数据库'''
+        self.db = SQLite.SQLiteConnection('Data Source = {}'.format(mailPath))
+        self.db.Open()
+        self.db_cmd = SQLite.SQLiteCommand(self.db)
         try:
-            mails = Mails()
-            for row in self.db.ReadTableDeletedRecords(ts1, False):
-                canceller.ThrowIfCancellationRequested()
-                mails.mailId = row['id'].Value if 'id' in row else None
-                mails.folderId = row['folderId'].Value if 'folderId' in row else None
-                mails.accountId = row['accountId'].Value if 'accountId' in row else None
-                mails.subject = pattern.sub('', row['subject'].Value) if 'subject' in row else None
-                mails.abstract = pattern.sub('', row['abstract'].Value) if 'abstract' in row else None
-                mails.fromEmail = pattern.sub('', row['fromAddr'].Value) if 'fromAddr' in row else None
-                mails.receiveUtc = row['utcReceived'].Value if 'utcReceived' in row else None
-                mails.size = row['size'].Value if 'size' in row else None
-                mails.isRead = 1 if row['isUnread'].Value == 0 else 0
-                mails.deleted = 1
-                self.mm.db_insert_table_mails(mails)
+            if self.db is None:
+                return
+            self.db_cmd.CommandText = SQL_ASSOCIATE_TABLE_MAIL
+            sr = self.db_cmd.ExecuteReader()
+            mail = Mail()
+            while sr.Read():
+                if canceller.IsCancellationRequested:
+                    break
+                mail.mail_id = sr[0]
+                mail.owner_account_id = sr[1]
+                sendmail = '' if IsDBNull(sr[2]) else sr[2]
+                sendname = '' if IsDBNull(sr[3]) else sr[3]
+                mail.mail_from = sendmail + ' ' + sendname
+                if not IsDBNull(sr[4]) and sr[4] is not None:
+                    mail.mail_to = sr[4]
+                mail.mail_sent_date = sr[5]
+                mail.mail_subject = sr[6]
+                mail.mail_abstract = sr[7]
+                mail.mail_content = sr[8]
+                mail.mail_read_status = 0 if sr[9] is 1 else 0
+                mail.mail_group = sr[10]
+                mail.mail_send_status = 0 if sr[10] is '草稿箱' else 1 if sr[10] is '已发送' else 2
+                mail.mail_size = sr[11]
+                mail.source = self.node.AbsolutePath
+                mail.deleted = deleteFlag
+                self.mm.db_insert_table_mail(mail)
             self.mm.db_commit()
-            mails = Mails()
-            for row in self.db.ReadTableDeletedRecords(ts2, False):
-                canceller.ThrowIfCancellationRequested()
-                mails.mailId = row['docid'].Value if 'docid' in row else None
-                mails.tos = pattern.sub('', row['clreceiver'].Value) if 'clreceiver' in row else None
-                mails.deleted = 1
-                self.mm.db_insert_table_mails(mails)
-            self.mm.db_commit()
-            mails = Mails()
-            for row in self.db.ReadTableDeletedRecords(ts3, False):
-                canceller.ThrowIfCancellationRequested()
-                mails.folderId = row['id'].Value if 'id' in row else None
-                mails.mail_folder = pattern.sub('', row['name'].Value) if 'name' in row else None
-                mails.deleted = 1
-                self.mm.db_insert_table_mails(mails)
-            self.mm.db_commit()
-            mails = Mails()
-            for row in self.db.ReadTableDeletedRecords(ts4, False):
-                canceller.ThrowIfCancellationRequested()
-                mails.mailId = row['id'].Value if 'id' in row else None
-                mails.content = pattern.sub('', row['content'].Value) if 'content' in row else None
-                mails.deleted = 1
-                self.mm.db_insert_table_mails(mails)
-            self.mm.db_commit()
-            mails = Mails()
-            for  row in self.db.ReadTableDeletedRecords(ts5, False):
-                canceller.ThrowIfCancellationRequested()
-                mails.mailId = row['mailid'].Value if 'mailid' in row else None
-                mails.downloadSize = row['size'].Value if 'size' in row else None
-                mails.attachName = pattern.sub('', row['displayname'].Value) if 'displayname' in row else None
-                mails.attachDir = self.attachDir if mails.attachName is not None else None
-                mails.deleted = 1
-                self.mm.db_insert_table_mails(mails)
-            self.mm.db_commit()
+            self.db_cmd.Dispose()
+            self.db.Close()
         except Exception as e:
-            logging.error(e)
-        accountNode = self.node.Parent.GetByPath('/AccountInfo')
-        self.db = SQLiteParser.Database.FromNode(accountNode, canceller)
-        if self.db is None:
-            return
-        ts = SQLiteParser.TableSignature('AccountInfo')
-        try:
-            mails = Mails()
-            for row in self.db.ReadTableDeletedRecords(ts, False):
-                canceller.ThrowIfCancellationRequested()
-                mails.accountId = row['id'].Value if 'id' in row else None
-                mails.account_email = pattern.sub('', row['email'].Value) if 'email' in row else None
-                mails.alias = pattern.sub('', row['name'].Value) if 'name' in row else None
-                mails.deleted = 1
-                self.mm.db_insert_table_mails(mails)
-            self.mm.db_commit()
-        except Exception as e:
-            logging.error(e)
+            print(e)
 
-    def analyze_accounts(self):
-        mailNode = self.sourceDB + '\\AccountInfo'
-        if mailNode is None:
-            return 
-        self.db = sqlite3.connect(mailNode)
-        accounts = Accounts()
+    def analyze_contact(self, mailPath, deleteFlag):
+        '''保存联系人数据到中间数据库'''
+        self.db = SQLite.SQLiteConnection('Data Source = {}'.format(mailPath))
+        self.db.Open()
+        self.db_cmd = SQLite.SQLiteCommand(self.db)
         try:
-            cursor = self.db.cursor()
-            cursor.execute(SQL_ASSOCIATE_TABLE_ACCOUNT)
-            for row in cursor:
-                canceller.ThrowIfCancellationRequested()
-                accounts.accountId = row[0]
-                accounts.alias = row[1]
-                accounts.accountEmail = row[2]
-                self.mm.db_insert_table_account(accounts)
-            self.mm.db_commit()
-            self.db.close()
-        except Exception as e:
-            logging.error(e)
-
-    def analyze_contact(self):
-        mailNode = self.sourceDB + '\\QMMailDB'
-        if mailNode is None:
-            return 
-        self.db = sqlite3.connect(mailNode)
-        contact = Contact()
-        try:
-            cursor  = self.db.cursor()
-            cursor.execute(SQL_ATTACH_TABLE_ACCOUNT1 + self.sourceDB + '\\AccountInfo' + SQL_ATTACH_TABLE_ACCOUNT2)
-            cursor.execute(SQL_ASSOCIATE_TABLE_CONTACT)
-            for row in cursor:
-                canceller.ThrowIfCancellationRequested()
-                contact.contactName = row[0]
-                contact.contactEmail = row[1]
-                contact.contactNick = row[2]
-                contact.accountEmail = row[3]
-                self.mm.db_insert_table_contact(contact)
-            self.mm.db_commit()
-            self.db.close()
-        except Exception as e:
-            logging.error(e)
-
-    def decode_recover_mail_contact(self):
-        mailsNode = self.node
-        self.db = SQLiteParser.Database.FromNode(mailsNode, canceller)
-        if self.db is None:
-            return
-        ts = SQLiteParser.TableSignature('QM_CONTACT')
-        pattern = re.compile('[\\x00-\\x08\\x0b-\\x0c\\x0e-\\x1f]')
-        try:
+            if self.db is None:
+                return
+            self.db_cmd.CommandText = SQL_ASSOCIATE_TABLE_CONTACT
+            sr = self.db_cmd.ExecuteReader()
             contact = Contact()
-            for row in self.db.ReadTableDeletedRecords(ts, False):
-                canceller.ThrowIfCancellationRequested()
-                contact.accountId = row['accountid'].Value if 'accountid' in row else None
-                contact.contactName = pattern.sub('', row['name'].Value) if 'name' in row else None
-                contact.contactEmail = pattern.sub('', row['address'].Value) if 'address' in row else None
-                contact.contactNick = pattern.sub('', row['name'].Value) if 'name' in row else None
-                contact.deleted = 1
+            while sr.Read():
+                if canceller.IsCancellationRequested:
+                    break
+                contact.contact_id = sr[0]
+                contact.owner_account_id = sr[1]
+                contact.contact_user = sr[2]
+                contact.contact_email = sr[2]
+                contact.contact_alias = sr[3]
+                contact.source = self.node.AbsolutePath
+                contact.deleted = deleteFlag
                 self.mm.db_insert_table_contact(contact)
             self.mm.db_commit()
+            self.db_cmd.Dispose()
+            self.db.Close()
         except Exception as e:
-            logging.error(e)
-        accountNode = self.node.Parent.GetByPath('/AccountInfo')
-        self.db = SQLiteParser.Database.FromNode(accountNode, canceller)
-        if self.db is None:
-            return
-        ts = SQLiteParser.TableSignature('AccountInfo')
-        try:
-            contact = Contact()
-            for row in self.db.ReadTableDeletedRecords(ts, False):
-                canceller.ThrowIfCancellationRequested()
-                contact.accountId = row['id'].Value if 'id' in row else None
-                contact.accountEmail = pattern.sub('', row['email'].Value) if 'email' in row else None
-                contact.deleted = 1
-                self.mm.db_insert_table_contact(contact)
-        except Exception as e:
-            logging.error(e)
+            print(e)
 
-    def analyze_email_folder(self):
-        mailNode = self.sourceDB + '\\QMMailDB'
-        if mailNode is None:
-            return 
-        self.db = sqlite3.connect(mailNode)
-        mailFolder = MailFolder()
+    def analyze_attach(self, mailPath, deleteFlag):
+        '''保存附件数据到中间数据库'''
+        self.db = SQLite.SQLiteConnection('Data Source = {}'.format(mailPath))
+        self.db.Open()
+        self.db_cmd = SQLite.SQLiteCommand(self.db)
         try:
-            cursor = self.db.cursor()
-            cursor.execute(SQL_ATTACH_TABLE_ACCOUNT1 + self.sourceDB + '\\AccountInfo' + SQL_ATTACH_TABLE_ACCOUNT2)
-            cursor.execute(SQL_ASSOCIATE_TABLE_EMAIL_FOLDER)
-            for row in cursor:
-                canceller.ThrowIfCancellationRequested()
-                mailFolder.folderName = row[0]
-                mailFolder.accountNick = row[1]
-                mailFolder.accountEmail = row[2]
-                self.mm.db_insert_table_mail_folder(mailFolder)
+            if self.db is None:
+                return
+            self.db_cmd.CommandText = SQL_ASSOCIATE_TABLE_ATTACH
+            sr = self.db_cmd.ExecuteReader()
+            attachment = Attachment()
+            while sr.Read():
+                if canceller.IsCancellationRequested:
+                    break
+                attachment.attachment_id = sr[0]
+                attachment.owner_account_id = sr[1]
+                attachment.mail_id = sr[2]
+                attachment.attachment_name = sr[3]
+                if sr[3] is not None:
+                    attachment.attachment_save_dir = self.attachDir
+                attachment.attachment_size = sr[4]
+                attachment.attachment_download_date = sr[5]
+                attachment.source = self.node.AbsolutePath
+                attachment.deleted = deleteFlag
+                self.mm.db_insert_table_attachment(attachment)
             self.mm.db_commit()
-            self.db.close()
+            self.db_cmd.Dispose()
+            self.db.Close()
         except Exception as e:
-            logging.error(e)
+            print(e)
 
-    def analyze_attach(self):
-        mailNode = self.sourceDB + '\\QMMailDB'
-        if mailNode is None:
-            return 
-        self.db = sqlite3.connect(mailNode)
-        attach = Attach()
+    def read_deleted_table_accountinfo(self):
+        '''恢复账户信息'''
+        self.db = SQLite.SQLiteConnection('Data Source = {}'.format(self.recoverDB))
+        self.db.Open()
+        self.db_cmd = SQLite.SQLiteCommand(self.db)
         try:
-            cursor = self.db.cursor()
-            cursor.execute(SQL_ATTACH_TABLE_ACCOUNT1 + self.sourceDB + '\\AccountInfo' + SQL_ATTACH_TABLE_ACCOUNT2)
-            cursor.execute(SQL_ASSOCIATE_TABLE_ATTACH)
-            for row in cursor:
-                canceller.ThrowIfCancellationRequested()
-                attach.accountNick = row[0]
-                attach.accountEmail = row[1]
-                attach.subject = row[2]
-                attach.downloadUtc = row[3]
-                attach.downloadSize = row[4]
-                attach.fromEmail = row[5]
-                attach.fromNick = row[6]
-                attach.attachName = row[7]
-                attach.attachDir = self.attachDir if row[7] is not None else None
-                self.mm.db_insert_table_attach(attach)
-            self.mm.db_commit()
-            self.db.close()
+            node = self.node.Parent.GetByPath('/AccountInfo')
+            db = SQLiteParser.Database.FromNode(node, canceller)
+            if db is None:
+                return
+            ts = SQLiteParser.TableSignature('AccountInfo')
+            for rec in db.ReadTableDeletedRecords(ts, False):
+                if canceller.IsCancellationRequested:
+                    break
+                param = ()
+                param = param + (rec['id'].Value,)
+                param = param + (rec['email'].Value,)
+                param = param + (rec['name'].Value,)
+                param = param + (rec['pwd'].Value,)
+                self.db_insert_table(SQL_INSERT_TABLE_RECOVER_ACCOUNT, param)
+            self.db_cmd.Dispose()
+            self.db.Close()
         except Exception as e:
-            logging.error(e)
+            print(e)
+
+    def read_deleted_table_mailinfo(self):
+        '''恢复邮件信息'''
+        self.db = SQLite.SQLiteConnection('Data Source = {}'.format(self.recoverDB))
+        self.db.Open()
+        self.db_cmd = SQLite.SQLiteCommand(self.db)
+        try:
+            node = self.node
+            db = SQLiteParser.Database.FromNode(node, canceller)
+            if db is None:
+                return
+            ts = SQLiteParser.TableSignature('QM_MAIL_INFO')
+            for rec in db.ReadTableDeletedRecords(ts, False):
+                if canceller.IsCancellationRequested:
+                    break
+                param = ()
+                param = param + (rec['id'].Value,)
+                param = param + (rec['folderId'].Value,)
+                param = param + (rec['accountId'].Value,)
+                param = param + (rec['fromAddr'].Value,)
+                param = param + (rec['fromAddrName'].Value,)
+                param = param + (rec['utcSent'].Value,)
+                param = param + (rec['subject'].Value,)
+                param = param + (rec['abstract'].Value,)
+                param = param + (rec['isUnread'].Value,)
+                param = param + (rec['size'].Value,)
+                self.db_insert_table(SQL_INSERT_TABLE_RECOVER_MAILINFO, param)
+            self.db_cmd.Dispose()
+            self.db.Close()
+        except Exception as e:
+            print(e)
+
+    def read_deleted_table_mailtos(self):
+        '''恢复收件人信息'''
+        self.db = SQLite.SQLiteConnection('Data Source = {}'.format(self.recoverDB))
+        self.db.Open()
+        self.db_cmd = SQLite.SQLiteCommand(self.db)
+        try:
+            node = self.node
+            db = SQLiteParser.Database.FromNode(node, canceller)
+            if db is None:
+                return
+            ts = SQLiteParser.TableSignature('QM_MAIL_INFO_FTS_SEARCH_content')
+            for rec in db.ReadTableDeletedRecords(ts, False):
+                if canceller.IsCancellationRequested:
+                    break
+                param = ()
+                param = param + (rec['docid'].Value,)
+                param = param + (rec['c1receiver'].Value,)
+                self.db_insert_table(SQL_INSERT_TABLE_RECOVER_TOS, param)
+            self.db_cmd.Dispose()
+            self.db.Close()
+        except Exception as e:
+            print(e)
+
+    def read_deleted_table_mailcontent(self):
+        '''恢复正文数据'''
+        self.db = SQLite.SQLiteConnection('Data Source = {}'.format(self.recoverDB))
+        self.db.Open()
+        self.db_cmd = SQLite.SQLiteCommand(self.db)
+        try:
+            node = self.node
+            db = SQLiteParser.Database.FromNode(node, canceller)
+            if db is None:
+                return
+            ts = SQLiteParser.TableSignature('QM_MAIL_CONTENT')
+            for rec in db.ReadTableDeletedRecords(ts, False):
+                if canceller.IsCancellationRequested:
+                    break
+                param = ()
+                param = param + (rec['id'].Value,)
+                param = param + (rec['content'].Value,)
+                self.db_insert_table(SQL_INSERT_TABLE_RECOVER_CONTENT, param)
+            self.db_cmd.Dispose()
+            self.db.Close()
+        except Exception as e:
+            print(e)
+
+    def read_deleted_table_folder(self):
+        '''恢复邮件分类数据'''
+        self.db = SQLite.SQLiteConnection('Data Source = {}'.format(self.recoverDB))
+        self.db.Open()
+        self.db_cmd = SQLite.SQLiteCommand(self.db)
+        try:
+            node = self.node
+            db = SQLiteParser.Database.FromNode(node, canceller)
+            if db is None:
+                return
+            ts = SQLiteParser.TableSignature('QM_FOLDER')
+            for rec in db.ReadTableDeletedRecords(ts, False):
+                if canceller.IsCancellationRequested:
+                    break
+                param = ()
+                param = param + (rec['id'].Value,)
+                param = param + (rec['name'].Value,)
+                self.db_insert_table(SQL_INSERT_TABLE_RECOVER_FOLDER, param)
+            self.db_cmd.Dispose()
+            self.db.Close()
+        except Exception as e:
+            print(e)
+
+    def read_deleted_table_contact(self):
+        '''恢复联系人数据'''
+        self.db = SQLite.SQLiteConnection('Data Source = {}'.format(self.recoverDB))
+        self.db.Open()
+        self.db_cmd = SQLite.SQLiteCommand(self.db)
+        try:
+            node = self.node
+            db = SQLiteParser.Database.FromNode(node, canceller)
+            if db is None:
+                return
+            ts = SQLiteParser.TableSignature('QM_CONTACT')
+            for rec in db.ReadTableDeletedRecords(ts, False):
+                if canceller.IsCancellationRequested:
+                    break
+                param = ()
+                param = param + (rec['id'].Value,)
+                param = param + (rec['accountid'].Value,)
+                param = param + (rec['address'].Value,)
+                param = param + (rec['name'].Value,)
+                self.db_insert_table(SQL_INSERT_TABLE_RECOVER_CONTACT, param)
+            self.db_cmd.Dispose()
+            self.db.Close()
+        except Exception as e:
+            print(e)
+
+    def read_deleted_table_attach(self):
+        '''恢复附件数据'''
+        self.db = SQLite.SQLiteConnection('Data Source = {}'.format(self.recoverDB))
+        self.db.Open()
+        self.db_cmd = SQLite.SQLiteCommand(self.db)
+        try:
+            node = self.node
+            db = SQLiteParser.Database.FromNode(node, canceller)
+            if db is None:
+                return
+            ts = SQLiteParser.TableSignature('QM_MAIL_ATTACH')
+            for rec in db.ReadTableDeletedRecords(ts, False):
+                if canceller.IsCancellationRequested:
+                    break
+                param = ()
+                param = param + (rec['id'].Value,)
+                param = param + (rec['accountid'].Value,)
+                param = param + (rec['mailid'].Value,)
+                param = param + (rec['displayname'].Value,)
+                param = param + (rec['fileSizeByte'].Value,)
+                param = param + (rec['favtime'].Value,)
+                self.db_insert_table(SQL_INSERT_TABLE_RECOVER_ATTACH, param)
+            self.db_cmd.Dispose()
+            self.db.Close()
+        except Exception as e:
+            print(e)
+
+    def read_deleted_table(self):
+        '''读取删除数据保存到恢复数据库'''
+        self.create_deleted_db()
+        self.read_deleted_table_accountinfo()
+        self.read_deleted_table_mailinfo()
+        self.read_deleted_table_mailtos()
+        self.read_deleted_table_mailcontent()
+        self.read_deleted_table_folder()
+        self.read_deleted_table_contact()
+        self.read_deleted_table_attach()
+
+    def create_deleted_db(self):
+        '''创建恢复数据库'''
+        if os.path.exists(self.recoverDB):
+            os.remove(self.recoverDB)
+        self.db = SQLite.SQLiteConnection('Data Source = {}'.format(self.recoverDB))
+        self.db.Open()
+        self.db_cmd = SQLite.SQLiteCommand(self.db)
+        if self.db_cmd is not None:
+            self.db_cmd.CommandText = SQL_CREATE_TABLE_RECOVER_ACCOUNT
+            self.db_cmd.ExecuteNonQuery()
+            self.db_cmd.CommandText = SQL_CREATE_TABLE_RECOVER_MAILINFO
+            self.db_cmd.ExecuteNonQuery()
+            self.db_cmd.CommandText = SQL_CREATE_TABLE_RECOVER_TOS
+            self.db_cmd.ExecuteNonQuery()
+            self.db_cmd.CommandText = SQL_CREATE_TABLE_RECOVER_CONTENT
+            self.db_cmd.ExecuteNonQuery()
+            self.db_cmd.CommandText = SQL_CREATE_TABLE_RECOVER_FOLDER
+            self.db_cmd.ExecuteNonQuery()
+            self.db_cmd.CommandText = SQL_CREATE_TABLE_RECOVER_CONTACT
+            self.db_cmd.ExecuteNonQuery()
+            self.db_cmd.CommandText = SQL_CREATE_TABLE_RECOVER_ATTACH
+            self.db_cmd.ExecuteNonQuery()
+        self.db_cmd.Dispose()
+        self.db.Close()
+
+    def db_insert_table(self, sql, values):
+        '''插入数据到恢复数据库'''
+        try:
+            self.db_trans = self.db.BeginTransaction()
+            if self.db_cmd is not None:
+                self.db_cmd.CommandText = sql
+                self.db_cmd.Parameters.Clear()
+                for value in values:
+                    param = self.db_cmd.CreateParameter()
+                    param.Value = value
+                    self.db_cmd.Parameters.Add(param)
+                self.db_cmd.ExecuteNonQuery()
+            self.db_trans.Commit()
+        except Exception as e:
+            print(e)
+
+    def analyze_normal_data(self):
+        '''读取普通数据到中间数据库'''
+        accountPath = self.sourceDB + '\\AccountInfo'
+        if accountPath is not None:
+            self.analyze_account(accountPath, 0)
+        mailPath = mailPath = self.sourceDB + '\\QMMailDB'
+        if mailPath is not None:
+            self.analyze_mail(mailPath, 0)
+            self.analyze_contact(mailPath, 0)
+            self.analyze_attach(mailPath, 0)
+
+    def analyze_deleted_data(self):
+        '''读取恢复数据库数据保存到中间数据库'''
+        self.read_deleted_table()
+        self.analyze_account(self.recoverDB, 1)
+        self.analyze_mail(self.recoverDB, 1)
+        self.analyze_contact(self.recoverDB, 1)
+        self.analyze_attach(self.recoverDB, 1)
 
     def parse(self):
-        self._copytocache()
-        self.analyze_mails()
-        self.decode_recover_mail_table()
-        self.analyze_accounts()
-        self.analyze_contact()
-        self.decode_recover_mail_contact()
-        self.analyze_email_folder()
-        self.analyze_attach()
-        self.mm.db_close()
+        if self.mm.need_parse(self.cachedb, VERSION_APP_VALUE):
+            self.mm.db_create(self.cachedb)
+            self._copytocache()
+            self.analyze_normal_data()
+            self.analyze_deleted_data()
+            self.mm.db_insert_table_version(model_mail.VERSION_KEY_DB, model_mail.VERSION_VALUE_DB)
+            self.mm.db_insert_table_version(model_mail.VERSION_KEY_APP, VERSION_APP_VALUE)
+            self.mm.db_commit()
+            self.mm.db_close()
+        nameValues.SafeAddValue(bcp_mail.MAIL_TOOL_TYPE_QQMAIL, self.cachedb)
         generate = Generate(self.cachedb)
         models = generate.get_models()
         return models
@@ -312,8 +511,8 @@ class QQMailParser(object):
         try:
             if not os.path.exists(targetDir):
                 shutil.copytree(sourceDir, targetDir)
-        except Exception:
-            pass
+        except Exception as e:
+            print(e)
 
 def analyze_android_qqmail(node, extractDeleted, extractSource):
     pr = ParserResults()

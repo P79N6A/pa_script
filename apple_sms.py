@@ -191,7 +191,7 @@ def analyze_sms_spotlight(node, extractDeleted, extractSource, existingMessages)
         if c.Messages.Count > 0:
             c.SetTimesByMessages()
             c.SetParticipantsByMessages()
-            results.append(c)    
+            results.append(c)
         
     pr = ParserResults()
     pr.Models.AddRange(results)

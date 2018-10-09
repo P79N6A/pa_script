@@ -11,6 +11,7 @@ try:
 except:
     pass
 del clr
+import hashlib
 from model_media import *
 
 
@@ -23,7 +24,10 @@ class MediaParse(object):
         self.db = None
         self.mm = MM()
         self.cache_path = ds.OpenCachePath("MEDIA")
-        self.db_cache = self.cache_path + "\\media.db"
+        md5_db = hashlib.md5()
+        db_name = 'media'
+        md5_db.update(db_name.encode(encoding = 'utf-8'))
+        self.db_cache = self.cache_path + "\\" + md5_db.hexdigest().upper() + ".db"
         self.mm.db_create(self.db_cache)
 
     def analyze_media(self):

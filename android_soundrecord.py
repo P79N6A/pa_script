@@ -9,7 +9,11 @@ try:
 except:
     pass
 del clr
+import hashlib
 from model_soundrecord import *
+import model_soundrecord
+
+VERSION_APP_VALUE = 1
 
 
 class SoundrecordParse(object):
@@ -20,8 +24,10 @@ class SoundrecordParse(object):
         self.db = None
         self.ms = MS()
         self.cache_path = ds.OpenCachePath("SOUNDRECORD")
-        self.cachedb = self.cache_path + "\\soundrecord.db"
-        self.ms.db_create(self.cachedb)
+        md5_db = hashlib.md5()
+        db_name = 'soundrecord'
+        md5_db.update(db_name.encode(encoding = 'utf-8'))
+        self.cachedb = self.cache_path + "\\" + md5_db.hexdigest().upper() + ".db"
 
     def analyze_soundrecord_huawei(self):
         try:
@@ -82,9 +88,14 @@ class SoundrecordParse(object):
             pass
 
     def parse(self):
-        self.analyze_soundrecord_huawei()
-        self.analyze_soundrecord_xiaomi()
-        self.ms.db_close()
+        if self.ms.need_parse(self.cachedb, VERSION_APP_VALUE):
+            self.ms.db_create(self.cachedb)
+            self.analyze_soundrecord_huawei()
+            self.analyze_soundrecord_xiaomi()
+            self.ms.db_insert_table_version(model_soundrecord.VERSION_KEY_DB, model_soundrecord.VERSION_VALUE_DB)
+            self.ms.db_insert_table_version(model_soundrecord.VERSION_KEY_APP, VERSION_APP_VALUE)
+            self.ms.db_commit()
+            self.ms.db_close()
         generate = Generate(self.cachedb)
         models = generate.get_models()
         return models

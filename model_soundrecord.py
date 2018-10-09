@@ -35,6 +35,20 @@ SQL_INSERT_TABLE_RECORDS = '''
         values(?, ?, ?, ?, ?, ?, ?, ?, ?)
     '''
 
+SQL_CREATE_TABLE_VERSION = '''
+    create table if not exists version(
+        key TEXT primary key,
+        version INT)'''
+
+SQL_INSERT_TABLE_VERSION = '''
+    insert into version(key, version) values(?, ?)'''
+
+VERSION_KEY_DB = 'db'
+VERSION_KEY_APP = 'app'
+
+#中间数据库版本
+VERSION_VALUE_DB = 1
+
 class MS(object):
     def __init__(self):
         self.db = None
@@ -62,10 +76,44 @@ class MS(object):
     def db_create_tables(self):
         if self.cursor is not None:
             self.cursor.execute(SQL_CREATE_TABLE_RECORDS)
+            self.cursor.execute(SQL_CREATE_TABLE_VERSION)
 
     def db_insert_table_records(self, Records):
         if self.cursor is not None:
             self.cursor.execute(SQL_INSERT_TABLE_RECORDS, Records.get_values())
+
+    def db_insert_table_version(self, key, version):
+        if self.cursor is not None:
+            self.cursor.execute(SQL_INSERT_TABLE_VERSION, (key, version))
+
+    @staticmethod
+    def need_parse(cache_db, app_version):
+        if not os.path.exists(cache_db):
+            return True
+        db = sqlite3.connect(cache_db)
+        cursor = db.cursor()
+        sql = 'select key,version from version'
+        row = None
+        db_version_check = False
+        app_version_check = False
+        try:
+            cursor.execute(sql)
+            row = cursor.fetchone()
+        except Exception as e:
+            pass
+
+        while row is not None:
+            if row[0] == VERSION_KEY_DB and row[1] == VERSION_VALUE_DB:
+                db_version_check = True
+            elif row[0] == VERSION_KEY_APP and row[1] == app_version:
+                app_version_check = True
+            row = cursor.fetchone()
+
+        if cursor is not None:
+            cursor.close()
+        if db is not None:
+            db.close()
+        return not (db_version_check and app_version_check)
 
 
 class Records(object):
