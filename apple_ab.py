@@ -152,7 +152,7 @@ def build_contacts(db, images, image_file, extractDeleted, extractSource):
             nameChunks = []
         cnstyle = False
         datas = [first, middle, last]
-        if middle == None or len(middle) == 0:
+        if IsDBNull(middle.Value) or middle.Value == None or len(middle.Value) == 0:
             datas = [last, middle, first]
             cnstyle = True
 
