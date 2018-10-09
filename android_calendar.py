@@ -10,7 +10,6 @@ except:
     pass
 del clr
 import shutil
-import hashlib
 from model_calendar import *
 
 SQL_JOIN_TABLE_CALENDAR = '''select Events.calendar_id, Events._id, Events.title, Events.eventLocation, Events.description, Events.dtstart, 
@@ -23,10 +22,7 @@ class CalendarParser(object):
         self.extractSource = extractSource
         self.db = None
         self.mc = MC()
-        md5_db = hashlib.md5()
-        db_name = 'calendar'
-        md5_db.update(db_name.encode(encoding = 'utf-8'))
-        self.db_cache = ds.OpenCachePath("CALENDAR") + '\\' + md5_db.hexdigest().upper() + '.db'
+        self.db_cache = ds.OpenCachePath("CALENDAR") + '\\calendar.db'
         self.sourceDB = ds.OpenCachePath("CALENDAR") + '\\CalendarSourceDB'
         self.mc.db_create(self.db_cache)
 
@@ -68,7 +64,6 @@ class CalendarParser(object):
                 canceller.ThrowIfCancellationRequested()
                 calendar.calendar_id = row['calendar_id'].Value if 'calendar_id' in row and not row['calendar_id'].IsDBNull else None
                 calendar.title = repr(row['title'].Value) if 'title' in row and not row['title'].IsDBNull else None
-                calendar.eventLocation = repr(row['eventLocation'].Value) if 'eventLocation' in row and not row['eventLocation'].IsDBNull else None
                 calendar.description = repr(row['description'].Value) if 'description' in row and not row['description'].IsDBNull else None
                 calendar.dtstart = row['dtstart'].Value if 'dtstart' in row and not row['dtstart'].IsDBNull else None
                 calendar.dend = row['dend'].Value if 'dend' in row and not row['dend'].IsDBNull else None
