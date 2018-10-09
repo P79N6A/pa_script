@@ -45,7 +45,7 @@ def moveFileto(sourceDir,  targetDir):
 
 def md5(cache_path, node_path):
     m = hashlib.md5()   
-    m.update(node_path)
+    m.update(node_path.encode(encoding = 'utf-8'))
     db_path = cache_path + "\\" + m.hexdigest() + ".db"
     return db_path
 
