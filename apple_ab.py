@@ -3,6 +3,42 @@ import os
 import clr
 import PA_runtime
 from PA_runtime import *
+import hashlib
+import clr
+try:
+    clr.AddReference('System.Data.SQLite')
+    clr.AddReference('bcp_basic')
+except:
+    pass
+del clr
+import System.Data.SQLite as SQLite
+import bcp_basic
+
+SQL_CREATE_TABLE_CONTACT = '''
+    CREATE TABLE IF NOT EXISTS contacts(
+    row_contact_id TEXT,
+    mimetype_id INTEGER,
+    mail TEXT,
+    company TEXT,
+    title TEXT,
+    last_time_contacted INTEGER,
+    last_time_modified INTEGER,
+    times_contacted INTEGER,
+    phone_number TEXT,
+    name TEXT,
+    address TEXT,
+    notes TEXT,
+    telegram TEXT,
+    head_pic TEXT,
+    source TEXT,
+    deleted INTEGER,
+    repeated INTEGER
+    )'''
+
+SQL_INSERT_TABLE_CONTACT = '''
+    INSERT INTO contacts(row_contact_id, mimetype_id, mail, company, title, last_time_contacted, last_time_modified, times_contacted,
+        phone_number, name, address, notes, telegram, head_pic, source, deleted, repeated)
+        VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
 
 ToPhoneCategory = {
     '_$!<MOBILE>!$_': ContactCategory.Mobile,
@@ -152,9 +188,12 @@ def build_contacts(db, images, image_file, extractDeleted, extractSource):
             nameChunks = []
         cnstyle = False
         datas = [first, middle, last]
-        if IsDBNull(middle.Value) or middle.Value == None or len(middle.Value) == 0:
-            datas = [last, middle, first]
-            cnstyle = True
+        try:
+            if middle == None or len(middle) == 0:
+                datas = [last, middle, first]
+                cnstyle = True
+        except:
+            pass
 
         for field in datas:
             if IsDBNull(field.Value):
@@ -362,9 +401,70 @@ def analyze_addressbook(node, extractDeleted, extractSource):
         entries = list(build_contacts(db, images, image_file, extractDeleted, extractSource))
         recent = list(read_recent(db, extractDeleted, extractSource))  
         results = entries + recent
+        generate_mid_db(node, results)
         pr.Models.AddRange(results)
     except Exception,ex:
         traceback.print_exc()
         TraceService.TraceException(ex)
     pr.Build('通讯录')
     return pr
+
+
+def generate_mid_db(node, results):
+    '''创建中间数据库'''
+    #创建数据库
+    cachepath = ds.OpenCachePath("Contacts")
+    md5_db = hashlib.md5()
+    db_name = 'contacts'
+    md5_db.update(db_name.encode(encoding = 'utf-8'))
+    db_path = cachepath + '\\' + md5_db.hexdigest().upper() + '.db'
+    if os.path.exists(db_path):
+        os.remove(db_path)
+    db_cache = SQLite.SQLiteConnection('Data Source = {}'.format(db_path))
+    db_cache.Open()
+    db_cmd = SQLite.SQLiteCommand(db_cache)
+    #创建表
+    if db_cmd is not None:
+        db_cmd.CommandText = SQL_CREATE_TABLE_CONTACT
+        db_cmd.ExecuteNonQuery()
+    db_cmd.Dispose()
+    #提取插入数据
+    i = 0
+    for result in results:
+        i = i + 1
+        id = '0000000000000000000000000000000' + str(i)
+        id = id[-32::1]
+        name = result.Name.Value
+        addr = ''
+        for address in result.Addresses:
+            addr = addr + ',' + address.FullName.Value
+        addr = addr[1::]
+        note = ''
+        for n in result.Notes:
+            note = note + ',' + str(n)
+        note = note[1::]
+        time_contacted = result.TimeContacted.Value
+        time_modified = result.TimeModified.Value
+        times_contacted = result.TimesContacted.Value
+        phone_number = ''
+        for number in result.Entries:
+            phone_number = phone_number + ',' + number.Value.Value
+        phone_number = phone_number[1::]
+        source = node.AbsolutePath
+        deleted = 0 if result.Deleted == DeletedState.Intact else 1 if result.Deleted == DeletedState.Deleted else None
+        repeated = 0
+        param = (id, None, None, None, None, time_contacted, time_modified, times_contacted, phone_number, name, addr, note, None, None, source, deleted, repeated)
+        db_insert_table(db_cache, SQL_INSERT_TABLE_CONTACT, param)
+    db_cmd.Dispose()
+    db_cache.Close()
+
+def db_insert_table(db, sql, values):
+    db_cmd = SQLite.SQLiteCommand(db)
+    if db_cmd is not None:
+        db_cmd.CommandText = sql
+        db_cmd.Parameters.Clear()
+        for value in values:
+            param = db_cmd.CreateParameter()
+            param.Value = value
+            db_cmd.Parameters.Add(param)
+        db_cmd.ExecuteNonQuery()
