@@ -384,6 +384,7 @@ class Taobao(object):
                 self.im.db_close()
                 raise IOError('e')
             m = model_im.Message()
+            m.account_id = ac.uid
             sender = unity_c37r.c_sharp_get_blob(reader, 5).decode('utf-8') #struct.unpack('i', unity_c37r.c_sharp_get_blob(reader, 5))
             reciever = unity_c37r.c_sharp_get_blob(reader, 4).decode('utf-8') #struct.unpack('i', unity_c37r.c_sharp_get_blob(reader, 4))
             try:
@@ -598,9 +599,9 @@ def parse_tb(root, extract_deleted, extract_source):
         models = model_eb.GenerateModel(t.cache + '/C37R').get_models()
         mlm = ModelListMerger()
         pr = ParserResults()
-        pr.Categories = DescripCategories.QQ
+        pr.Categories = DescripCategories.Taobao
         pr.Models.AddRange(list(mlm.GetUnique(models)))
-        pr.Build("taobao")
+        pr.Build("淘宝")
     except:
         traceback.print_exc()
         pr = ParserResults()
