@@ -51,12 +51,11 @@ def execute(node,extracteDeleted):
 
 class RenRenParser():
     def __init__(self, node, extracted_deleted, extract_source):
-        super(RenRenParser, self).__init__()
         self.extract_deleted = False
         self.extract_source = extract_source
         self.root = node 
         self.app_name = 'RenRen'
-        self.im = model_im.IM
+        self.im = model_im.IM()
         self.cache_path = ds.OpenCachePath('RenRen')
         if not os.path.exists(self.cache_path):
             os.makedirs(self.cache_path)
