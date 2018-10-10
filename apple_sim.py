@@ -34,7 +34,8 @@ class SIMParser(object):
 
         self.m_sim = Model_SIM()
         self.cachepath = ds.OpenCachePath("AppleSIM")
-        self.cache_db = self.cachepath + "\\AppleSIM.db"
+        hash_str = hashlib.md5(node.AbsolutePath).hexdigest()
+        self.cache_db = self.cachepath + "\\{}.db".format(hash_str)
         
     def parse(self):
         if DEBUG or self.m_sim.need_parse(self.cache_db, VERSION_APP_VALUE):
