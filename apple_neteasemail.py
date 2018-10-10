@@ -1,20 +1,21 @@
 # coding=utf-8
-import os
 import traceback
+import hashlib
+import re
 
-import PA_runtime
-from PA_runtime import * 
 import clr
 try:
-    clr.AddReference('model_mails')
+    clr.AddReference('model_mail')
     clr.AddReference('bcp_mail')
 except:
     pass
 del clr
-from model_mails import *
+from model_mail import *
 import bcp_mail
 
-import re
+
+DEBUG = True
+DEBUG = False
 
 
 # 邮件内容类型
@@ -23,6 +24,8 @@ CONTENT_TYPE_TEXT = 2  # 纯文本
 # 邮件类型
 MAIL_OUTBOX   = '3'    # 已发送
 MAIL_DRAFTBOX = '2'    # 草稿箱
+
+VERSION_APP_VALUE = 1
 
 
 def execute(node, extract_deleted):
@@ -38,148 +41,235 @@ def analyze_neteasemail(node, extract_deleted, extract_source):
     pr.Build('网易邮箱大师')
     return pr
 
-def exc():
-    """ handle exception """
-    # traceback.print_exc()
-    pass
-
 class NeteaseMailParser(object):
+
     def __init__(self, node, extract_deleted, extract_source):
         self.root = node 
         self.extract_deleted = extract_deleted
         self.extract_source  = extract_source
-
         self.mm = MM()        
         self.cachepath = ds.OpenCachePath("NeteaseMasterMail")
-        self.cachedb   = self.cachepath + "\\NeteaseMasterMail.db"
-        self.mm.db_create(self.cachedb) 
-        self.mm.db_create_table()
-        
+
+        hash_str = hashlib.md5(node.AbsolutePath).hexdigest()
+        self.cache_db = self.cachepath + '\\{}.db'.format(hash_str)
+
         self.accounts = {}
         self.mail_folder = {}
         self.neg_primary_key = 1
 
     def parse(self):
-        self.parse_email(node=self.root.GetByPath("Documents/imail.db"))
-        self.parse_contacts(node=self.root.GetByPath("Documents/contacts.db"))
-        self.parse_todo(node=self.root.GetByPath("Documents/todo.db"))
-        self.mm.db_close()
+        ''' account
+            contact
+            mail
+            attachment
+            search
+            vsersion
+        ''' 
+        if DEBUG or self.mm.need_parse(self.cache_db, VERSION_APP_VALUE):
+            if not self._read_db('Documents/imail.db'):
+                return
+            self.mm.db_create(self.cache_db) 
+            
+            self.pre_parse_mail_box("Documents/imail.db", 'mailBox')
+            self.parse_account("Documents/imail.db", 'account')
+            self.parse_contact("Documents/contacts.db", 'localcontact')
+            self.parse_mail("Documents/imail.db", 'mailAbstract', 'mailContent')
+            self.parse_attachment("Documents/imail.db", 'mailAttachment')
 
-        nameValues.SafeAddValue(bcp_mail.MAIL_TOOL_TYPE_OTHER, self.cachedb)
+            if not canceller.IsCancellationRequested:
+                self.mm.db_insert_table_version(VERSION_KEY_DB, VERSION_VALUE_DB)
+                self.mm.db_insert_table_version(VERSION_KEY_APP, VERSION_APP_VALUE)
+                self.mm.db_commit()
+                
+            self.mm.db_close()
 
-        generate = Generate(self.cachedb)
+        tmp_dir = ds.OpenCachePath('tmp')
+
+        # save_cache_path(bcp_mail.MAIL_TOOL_TYPE_OTHER, self.cache_db, tmp_dir)
+
+        generate = Generate(self.cache_db)
         return generate.get_models()
 
-        
-    def parse_email(self, node):
-        """ 
-            邮件内容 
-        """
-        imail_db = SQLiteParser.Database.FromNode(node,canceller)
-        if imail_db is None:
-            return
-        self.source_imail_db = node.AbsolutePath
+    def pre_parse_mail_box(self, db_path, table_name):
+        ''' imail.db - mailBox
 
-        self.parse_email_account(imail_db)
-        self.parse_email_mailbox(imail_db)
-        self.parse_email_attachment(imail_db)
-        self.parse_email_abstract(imail_db)
-        self.parse_email_content(imail_db)
-        self.parse_email_password(imail_db)
+            RecNo	FieldName	SQLType	Size	 
+            1	mailBoxId	        TEXT
+            2	accountRawId	    INTEGER
+            3	accountRawType	    INTEGER
+            4	name	            TEXT
+            5	type	            INTEGER
+            6	flag	            INTEGER
+            7	selectable	            INTEGER
+            8	uidValid	            INTEGER
+            9	uidFractured        INTEGER
+            10	remindType	            INTEGER
+            11	syncKey	            TEXT
+            12	parentId	            TEXT
+            13	folderType	            INTEGER
+            14	encrypted	            INTEGER
+        '''       
+        if not self._read_db(db_path):
+            return 
+        for rec in self._read_table(table_name):
+            self.mail_folder[rec['mailBoxId'].Value] = rec['name'].Value
 
-    def parse_email_abstract(self, imail_db):
-        """ imail - mailAttachment 邮件主要内容 """
-        SELECT_ATTACH_SQL = '''
-            select attachName, attachDir, downloadSize from attach where mailId={}
-        '''
-        try:
-            for rec in self.my_read_table(db=imail_db, table_name='mailAbstract'):
-                mail = Mails()
-                if IsDBNull(rec['subject'].Value):
-                    continue
-                mail.mailId      = self.convert_primary_key(rec['localId'].Value)
-                mail.mail_folder = self.mail_folder.get(rec['mailBoxId'].Value, None)
-                mail.subject     = rec['subject'].Value
-                mail.abstract    = rec['summary'].Value 
-                mail.accountId   = rec['accountRawId'].Value
-                mail.fromEmail   = self._convert_email_format(rec['mailFrom'].Value) 
-                mail.tos         = self._convert_email_format(rec['mailTos'].Value) 
-                mail.cc          = self._convert_email_format(rec['ccs'].Value) 
-                mail.bcc         = self._convert_email_format(rec['bccs'].Value)
-                mail.isForward   = rec['forwarded'].Value 
-                mail.isRead      = rec['unread'].Value ^ 1 
-                mail.deleted     = rec['deleted'].Value 
-                mail.source      = self.source_imail_db
-                if rec['mailBoxId'].Value == MAIL_OUTBOX:     # 发件箱
-                    mail.sendStatus = 1
-                elif rec['mailBoxId'].Value == MAIL_DRAFTBOX: # 草稿箱
-                    mail.sendStatus = 0
-                mail.receiveUtc   = rec['sentDate'].Value 
-                mail.downloadSize = rec['size'].Value 
-                # 附件
-                if rec['hasAttachments'].Value == 1:
-                    try:
-                        self.mm.db_cmd.CommandText = SELECT_ATTACH_SQL.format(mail.mailId)
-                        rows = self.mm.db_cmd.ExecuteReader()
-                        while rows.Read():
-                            # list, None 以 '' 代替
-                            mail.attachName   = ','.join(map(lambda x: x[0] if x[0] is not None else '', rows))
-                            mail.attachDir    = ','.join(map(lambda x: x[1] if x[1] is not None else '', rows))
-                            mail.downloadSize = ','.join(map(lambda x: x[2] if x[2] is not None else '', rows))
-                    except:
-                        exc()
-                    finally:
-                        rows.Dispose()
-                try:
-                    self.mm.db_insert_table_mails(mail)
-                except:
-                    exc()                
-            self.mm.db_commit()
-        except:
-            exc()
+    def parse_account(self, db_path, table_name):
+        ''' imail.db - account
 
-    def parse_email_account(self, imail_db):
+            RecNo  FieldName  SQLType	
+            1	accountId	    INTEGER
+            2	email	    TEXT
+            3	type	    INTEGER
+            4	deleted	    INTEGER
+        '''       
+        if not self._read_db(db_path):
+            return 
         accounts = {}
-        for rec in self.my_read_table(db=imail_db, table_name='account'):
-            if IsDBNull(rec['email'].Value) or not self._is_email_format(rec['email'].Value):
+        for rec in self._read_table(table_name):
+            if canceller.IsCancellationRequested:
+                return
+            if self._is_empty(rec, 'accountId', 'email') or not self._is_email_format(rec, 'email'):
                 continue
-            reg_str = r'^\w+([-+.]\w+)*@\w+([-.]\w+)*\.\w+([-.]\w+)*$'
-            match_obj = re.match(reg_str, rec['email'].Value)
-            if match_obj is None:
-                continue
-
-            account = Accounts()
-            account.accountId    = rec['accountId'].Value
-            account.accountEmail = rec['email'].Value
-            account.alias        = rec['email'].Value
-            account.deleted      = rec['deleted'].Value
-            account.source       = self.source_imail_db
+            account = Account()
+            account.account_id    = rec['accountId'].Value
+            account.account_user  = rec['email'].Value
+            account.account_email = rec['email'].Value
+            account.account_alias = rec['email'].Value
+            account.deleted       = rec['deleted'].Value
+            account.source        = self.cur_db_source
             if rec['type'].Value == 1 and rec['deleted'].Value == 0:
-                accounts[account.accountId] = {
-                    'email': account.accountEmail,
-                    'alias': account.alias,
+                accounts[account.account_id] = {
+                    'email': account.account_email,
+                    'alias': account.account_alias,
                 }
             try:
                 self.mm.db_insert_table_account(account)
             except:
                 exc()
         self.accounts = accounts
-        self.mm.db_commit()        
+        self.mm.db_commit()  
+    
+    def parse_contact(self, db_path, table_name):
+        ''' contacts.db - localcontact
+            RecNo	FieldName	SQLType	 
+            1	rowid	        INTEGER
+            2	aid	            INTEGER
+            3	name	        TEXT
+            4	initial	            TEXT
+            5	pinyin	            TEXT
+            6	email	            TEXT
+            7	date	            INTEGER
+        '''       
+        if not self._read_db(db_path):
+            return 
+        accounts = {}
+        for rec in self._read_table(table_name):
+            if canceller.IsCancellationRequested:
+                return
+            if self._is_empty(rec, 'aid', 'email') or not self._is_email_format(rec, 'email'):
+                continue
+            contact = Contact()
+            contact.contact_id       = rec['rowid'].Value
+            contact.owner_account_id = rec['aid'].Value
+            contact.contact_user     = rec['name'].Value
+            contact.contact_email    = rec['email'].Value
+            contact.contact_alias    = rec['name'].Value
+            contact.contact_reg_date = rec['date'].Value
+            contact.source           = self.cur_db_source
+            try:
+                self.mm.db_insert_table_contact(contact)
+            except:
+                exc()
+        self.mm.db_commit()  
+    
+    def parse_mail(self, db_path, mailAbstract, mailContent):
+        ''' imail.db - mailAbstract 
 
-    def parse_email_content(self, imail_db):
-        """ 
-            mail - content 
-        """
+            RecNo	FieldName	SQLType	Size	
+            1	localId	            INTEGER
+            2	serverId	            TEXT
+            3	accountRawId	INTEGER			            False		
+            4	accountRawType	            INTEGER
+            5	mailBoxId	            TEXT
+            6	subject	            TEXT
+            7	summary	            TEXT
+            8	sentDate	            INTEGER
+            9	recvDate	            INTEGER
+            10	deleDate	            INTEGER
+            11	mailFrom	            TEXT
+            12	mailTos	            TEXT
+            13	ccs	            TEXT
+            14	bccs	            TEXT
+            15	replyto	            TEXT
+            16	size	            INTEGER
+            17	hasAttachments	            INTEGER
+            18	stared	            INTEGER
+            19	unread	            INTEGER
+            20	deleted	            INTEGER
+            21	replied	            INTEGER
+            22	forwarded	            INTEGER
+            23	sender	            TEXT
+            24	messageId	            TEXT
+            25	conversationId	            TEXT
+            26	referenceIds	            TEXT
+            27	inReplyTo	            TEXT
+            28	wmsvrReferenceInfo	            TEXT
+            29	merchid	            TEXT
+            30	surfaceUrl	            TEXT
+            31	hasHugeAttachments	            INTEGER
+            32	messageClass	            TEXT
+            33	mailHash	            TEXT
+            34	unsub	            TEXT
+            35	needClean	            INTERGER
+            36	xHeaders	            TEXT
+            37	isSentLocalMail	            INTERGER
+            38	scheduled	            INTEGER
+        '''       
+        if not self._read_db(db_path):
+            return 
+        for rec in self._read_table(mailAbstract):
+            if canceller.IsCancellationRequested:
+                return
+            if self._is_empty(rec, 'subject', 'mailFrom', 'mailTos'):
+                continue
+            mail = Mail()
+            mail.mail_id          = self._convert_primary_key(rec['localId'].Value)
+            mail.owner_account_id = rec['accountRawId'].Value
+            mail.mail_from        = self._convert_email_format(rec['mailFrom'].Value)
+            mail.mail_to          = self._convert_email_format(rec['mailTos'].Value)
+            mail.mail_cc          = self._convert_email_format(rec['ccs'].Value)
+            mail.mail_bcc         = self._convert_email_format(rec['bccs'].Value)
+            mail.mail_sent_date   = rec['sentDate'].Value
+            mail.mail_subject     = rec['subject'].Value
+            mail.mail_abstract    = rec['summary'].Value
+            # mail_content
+            mail.mail_read_status = rec['unread'].Value ^ 1
+            mail.mail_group       = self.mail_folder.get(rec['mailBoxId'].Value, None)
+            # mail.mail_save_dir
+            if rec['mailBoxId'].Value == MAIL_OUTBOX:     # '3' 表示已发送
+                mail.mail_send_status = 1
+            elif rec['mailBoxId'].Value == MAIL_DRAFTBOX: # '2' 表示草稿箱
+                mail.mail_send_status = 0
+            # mail.mail_recall_status  = rec['accountRawId'].Value
+
+            mail.deleted = rec['deleted'].Value 
+            mail.source  = self.cur_db_source
+            try:
+                self.mm.db_insert_table_mail(mail)
+            except:
+                exc()
+        self.mm.db_commit()
+
         SQL_UPDATE_EMAIL_CONTENT = '''
-            update mails set content=? where mailId=?
+            update mail set mail_content=? where mail_id=?
         '''
         try:
-            for rec in self.my_read_table(db=imail_db, table_name='mailContent'):
+            for rec in self._read_table(mailContent):
                 if rec['type'].Value == CONTENT_TYPE_TEXT: # 只提取 HTML 格式, 跳过纯文本类型
                     continue
                 elif rec['type'].Value == CONTENT_TYPE_HTML:
                     mailId = rec['mailId'].Value
-                    # mailContent = rec['value'].Value
                     mailContent = re.compile('[\\x00-\\x08\\x0b-\\x0c\\x0e-\\x1f]').sub(' ', rec['value'].Value) 
                     a = (mailContent, mailId)
                     try:
@@ -190,136 +280,80 @@ class NeteaseMailParser(object):
         except:
             exc()        
 
-
-    def parse_email_mailbox(self, imail_db):
-        """ imail - mailBox """
-        for rec in self.my_read_table(db=imail_db, table_name='mailBox'):
-            folder = MailFolder()
-            self.mail_folder[rec['mailBoxId'].Value] = rec['name'].Value
-            folder.folderTtpe   = rec['mailBoxId'].Value
-            folder.folderName   = rec['name'].Value
-            folder.accountEmail = self.accounts[rec['accountRawId'].Value]['email']
-            folder.source       = self.source_imail_db
-            try:
-                self.mm.db_insert_table_mail_folder(folder)
-            except:
-                exc()
-        self.mm.db_commit()
-        
-    def parse_email_attachment(self, imail_db):
-        """ imail - mailAttachment """
-        for rec in self.my_read_table(db=imail_db, table_name='mailAttachment'):
+    def parse_attachment(self, db_path, table_name):
+        ''' imail.db - mailAttachment
+                RecNo	FieldName	SQLType	Size
+                1	attachmentId	            INTEGER
+                2	mailId	            INTEGER	
+                3	rawType	            INTEGER
+                4	contentType	            TEXT
+                5	external	            INTEGER
+                6	partId	            TEXT
+                7	transferEncoding	            TEXT
+                8	contentId	            TEXT
+                9	name	            TEXT
+                10	dispositionName	            TEXT
+                11	size	            INTEGER
+                12	localPath	            TEXT
+                13	wmsvrType	            INTEGER
+                14	wmsvrOwnedInfo	            TEXT
+                15	wmsvrReferenceInfo	            TEXT
+                16	hugeAttachmentInfo	TEXT
+                17	oid	                TEXT
+                18	method	            INTEGER
+                19	fileReference	            TEXT
+                20	contentLocation	            TEXT
+                21	createdate	            INTEGER
+        '''       
+        if not self._read_db(db_path):
+            return 
+        for rec in self._read_table(table_name):
             if canceller.IsCancellationRequested:
                 return
-            if IsDBNull(rec['name'].Value) or IsDBNull(rec['mailId'].Value):
+            if self._is_empty(rec, 'name', 'mailId'):
                 continue
-            attach = Attach()
-            attach.attachName   = rec['name'].Value
-            attach.attachDir    = rec['localPath'].Value
-            attach.attachType   = rec['contentType'].Value
-            attach.downloadUtc  = rec['createdate'].Value
-            attach.downloadSize = rec['size'].Value
-            attach.mailId       = rec['mailId'].Value
-            attach.source       = self.source_imail_db
+            attach = Attachment()
+            attach.attachment_id            = rec['attachmentId'].Value
+            # attach.owner_account_id         = rec['mailId'].Value
+            attach.mail_id                  = rec['mailId'].Value
+            attach.attachment_name          = rec['name'].Value
+            attach.attachment_save_dir      = rec['localPath'].Value
+            attach.attachment_size          = rec['size'].Value
+            attach.attachment_download_date = rec['createdate'].Value
+            attach.source                   = self.cur_db_source
             try:
-                self.mm.db_insert_table_attach(attach)
+                self.mm.db_insert_table_attachment(attach)
             except:
                 exc()
         try:
             self.mm.db_commit()
         except:
             exc()
-            
-    def parse_contacts(self, node):
-        """ 
-            联系人 
-        """
-        try:
-            todo_db = SQLiteParser.Database.FromNode(node,canceller)
-            if todo_db is None:
-                return
-            for rec in self.my_read_table(db=todo_db, table_name='recentcontact'):
-                if canceller.IsCancellationRequested:
-                    return
-                if IsDBNull(rec['name'].Value) or not rec['name'].Value:
-                    continue
-                contact = Contact()
-                contact.contactName  = rec['name'].Value
-                contact.accountId    = rec['aid'].Value
-                contact.contactEmail = rec['email'].Value
-                contact.source       = node.AbsolutePath
-                try:
-                    self.mm.db_insert_table_contact(contact)
-                except:
-                    exc()
-            self.mm.db_commit()
-        except:
-            exc()
 
-    def parse_email_password(self, imail_db):
+    def _read_db(self, db_path):
         """ 
-            mail - password 
-        """
-        SQL_UPDATE_ACCOUNTS_password = '''
-               update accounts set password=? where accountEmail=?
-        ''' 
-        for accountId in self.accounts:
-            table_name = 'accountConfig_{}'.format(accountId)
-            for rec in self.my_read_table(db=imail_db, table_name=table_name):
-                if rec['DBkey'].Value == 'wmsrexc()':
-                    self.mm.db_update(SQL_UPDATE_ACCOUNTS_password, (rec['DBvalue'].Value, 
-                                                                     self.accounts[accountId]['email']))
-                    break
-        try:
-            self.mm.db_commit()
-        except:
-            exc()
-
-    def parse_todo(self, node):
-        """ 
-            待办事项 
-        """
-        try:
-            todo_db = SQLiteParser.Database.FromNode(node,canceller)
-            if todo_db is None:
-                return
-            for rec in self.my_read_table(db=todo_db, table_name='todoList'):
-                if canceller.IsCancellationRequested:
-                    return
-                t = Todo()
-                t.content      = rec['content'].Value
-                t.createdTime  = rec['createdTime'].Value
-                t.reminderTime = rec['reminderTime'].Value
-                t.isdone       = rec['done'].Value
-                t.deleted      = rec['deleted'].Value
-                t.source       = node.AbsolutePath
-
-                try:
-                    self.mm.db_insert_table_todo(t)
-                except:
-                    exc()
-            self.mm.db_commit()
-        except:
-            exc()
-
-    def my_read_table(self, table_name, db_path=None, db=None):
-        """ 
-            读取手机数据库, 参数 db_path, db 二选一
-        :type table_name: str
+            读取手机数据库
         :type db_path: str
-        :type db: SQLiteParser.Database.FromNode(node,canceller)
-        :rtype: db.ReadTableRecords()
+        :rtype: bool                              
         """
-        if db is None:
-            try:
-                node = self.root.GetByPath(db_path)
-                db = SQLiteParser.Database.FromNode(node,canceller)
-                if db is None:
-                    return 
-            except:
-                exc()
-        tb = SQLiteParser.TableSignature(table_name)  
-        return db.ReadTableRecords(tb, self.extract_deleted, True)
+        node = self.root.GetByPath(db_path)
+        self.cur_db = SQLiteParser.Database.FromNode(node, canceller)
+        if self.cur_db is None:
+            return False
+        self.cur_db_source = node.AbsolutePath
+        return True
+
+    def _read_table(self, table_name):
+        """ 
+            读取手机数据库 - 表
+        :type table_name: str
+        :rtype: db.ReadTableRecords()                                       
+        """
+        try:
+            tb = SQLiteParser.TableSignature(table_name)  
+            return self.cur_db.ReadTableRecords(tb, self.extract_deleted, True)
+        except:
+            exc()           
 
     @staticmethod
     def _convert_email_format(name_email):
@@ -349,21 +383,47 @@ class NeteaseMailParser(object):
             return None
 
     @staticmethod
-    def _is_email_format(rec):
-        """ 匹配邮箱地址 """
+    def _is_email_format(rec, key):
+        """ 匹配邮箱地址 
+        :type rec: type: <rec>
+        :type key: str
+        :rtype: bool        
+        """
         try:
-            if IsDBNull(rec) or len(rec.strip()) < 5:
+            if IsDBNull(rec[key].Value) or len(rec[key].Value.strip()) < 5:
                 return False
             reg_str = r'^\w+([-+.]\w+)*@\w+([-.]\w+)*\.\w+([-.]\w+)*$'
-            match_obj = re.match(reg_str, rec)
+            match_obj = re.match(reg_str, rec[key].Value)
             if match_obj is None:
                 return False      
             return True      
         except:
+            print 'match email', rec[key].Value
+            exc()
             return False
 
-    def convert_primary_key(self, mailId):
+    def _convert_primary_key(self, mailId):
         if mailId == 0:
             self.neg_primary_key -= 1
             return self.neg_primary_key
         return mailId
+
+
+    @staticmethod
+    def _is_empty(rec, *args):
+        ''' 过滤 DBNull 空数据, 有一空值就跳过
+        
+        :type rec:   rec
+        :type *args: str
+        :rtype: bool
+        '''
+        for i in args:
+            if IsDBNull(rec[i].Value) or not rec[i].Value:
+                return True
+        return False
+
+def exc():
+    if DEBUG:
+        traceback.print_exc()
+    else:
+        pass       
