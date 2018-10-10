@@ -1,6 +1,4 @@
 # coding=utf-8
-import PA_runtime
-from PA_runtime import *
 import clr
 try:
     clr.AddReference('model_sim')
@@ -9,9 +7,7 @@ except:
 del clr
 from model_sim import *
 
-import time
-import re
-
+VERSION_APP_VALUE = 1
 
 def analyze_sim(node, extract_deleted, extract_source):
     """
@@ -38,19 +34,27 @@ class SIMParser(object):
 
         self.m_sim = Model_SIM()
         self.cachepath = ds.OpenCachePath("AppleSIM")
-        self.cachedb = self.cachepath + "\\AppleSIM.db"
-        self.m_sim.db_create(self.cachedb)
-        self.m_sim.db_create_table()
+        hash_str = hashlib.md5(node.AbsolutePath).hexdigest()
+        self.cache_db = self.cachepath + "\\{}.db".format(hash_str)
         
     def parse(self):
-        # self.db = SQLiteParser.Database.FromNode(self.root,canceller)
-        self.db = SQLiteParser.Database.FromNode(self.root, canceller)
-        if self.db is None:
-            return
-        self.source_db = self.root.AbsolutePath
-        self.parse_siminfo()
-        self.m_sim.db_close()
-        models = GenerateModel(self.cachedb).get_models()
+        if DEBUG or self.m_sim.need_parse(self.cache_db, VERSION_APP_VALUE):
+            self.m_sim.db_create(self.cache_db)
+            # self.db = SQLiteParser.Database.FromNode(self.root,canceller)
+            self.db = SQLiteParser.Database.FromNode(self.root, canceller)
+            if self.db is None:
+                return
+            self.source_db = self.root.AbsolutePath
+
+            self.parse_siminfo()
+            if not canceller.IsCancellationRequested:
+                self.m_sim.db_insert_table_version(VERSION_KEY_DB, VERSION_VALUE_DB)
+                self.m_sim.db_insert_table_version(VERSION_KEY_APP, VERSION_APP_VALUE)
+                self.m_sim.db_commit()
+                        
+            self.m_sim.db_close()
+
+        models = GenerateModel(self.cache_db).get_models()
         return models
 
     def parse_siminfo(self):
@@ -59,9 +63,9 @@ class SIMParser(object):
         RecNo	FieldName	
         1	ROWID	            INTEGER			
         2	subscriber_id	    TEXT			
-        3	subscriber_mdn	            TEXT			
+        3	subscriber_mdn	    TEXT			
         4	tag	                INTEGER			
-        5	last_update_time	            INTEGER			
+        5	last_update_time	INTEGER			
         6	slot_id	            INTEGER			
         """
         for rec in self.my_read_table(table_name='subscriber_info'):
@@ -69,7 +73,7 @@ class SIMParser(object):
                 continue
             sim = SIM()
             sim._id    = rec['ROWID'].Value
-            sim.value  = rec['subscriber_mdn'].Value
+            sim.msisdn  = rec['subscriber_mdn'].Value
             sim.source = self.source_db
             try:
                 self.m_sim.db_insert_table_sim(sim)

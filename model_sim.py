@@ -17,25 +17,45 @@ import System.Data.SQLite as SQLite
 import os
 import sqlite3
 import traceback
+import time
+import re
+import hashlib
 
+DEBUG = True
+DEBUG = False
 
 def exc():
-    pass
-    #traceback.print_exc()
-
+    if DEBUG:
+        traceback.print_exc()
+    else:
+        pass            
 
 VERSION_KEY_DB  = 'db'
 VERSION_VALUE_DB = 1
 
 VERSION_KEY_APP = 'app'
 
+# bcp
+'''
+1    collect_target_id   手机取证采集目标编号
+2    msisdn          	本机号码        MSISDN=CC+DNC+SN，例：86 + 139 + ********
+3    imsi            	SIM卡IMSI       IMSI=MCC+MNC+MSIN
+4    center_number       短信中心号码
+5    delete_status       删除状态
+6    delete_time         删除时间
+7    iccid           	SIM卡ICCID
+8    sim_state           使用状态
+'''
 
 SQL_CREATE_TABLE_SIM = '''
     create table if not exists sim(
         _id        INTEGER PRIMARY KEY AUTOINCREMENT,
         name          TEXT,
-        value         TEXT,
-        extra         TEXT,
+        msisdn        TEXT,
+        imsi          TEXT,
+        iccid         TEXT,
+        center_num    TEXT,
+        is_use        INT,
 
         source        TEXT,
         deleted       INT DEFAULT 0, 
@@ -45,10 +65,12 @@ SQL_CREATE_TABLE_SIM = '''
 SQL_INSERT_TABLE_SIM = '''
     insert into sim(
         name,
-        value,
-        extra,
+        msisdn,
+        imsi,
         source, deleted, repeated) 
-        values(?, ?, ?, ?, ?, ?)
+        values(?, ?, ?, ?, ?, 
+               ?
+            )
     '''
 
 SQL_CREATE_TABLE_VERSION = '''
@@ -168,14 +190,14 @@ class SIM(Column):
     def __init__(self):
         super(SIM, self).__init__()
         self.name = None   # sim 卡运营商名称
-        self.value = None  # 
-        self.extra = None  # 
+        self.msisdn = None  # 
+        self.imsi = None  # 
 
     def get_values(self):
         return (
             self.name,
-            self.value,
-            self.extra,
+            self.msisdn,
+            self.imsi,
             ) + super(SIM, self).get_values()
 
 class GenerateModel(object):
@@ -205,14 +227,17 @@ class GenerateModel(object):
 
     def _get_sim_models(self):
         '''
-        _id        INTEGER AUTOINCREMENT,
+        _id        INTEGER PRIMARY KEY AUTOINCREMENT,
         name          TEXT,
-        value         TEXT,
-        extra         TEXT,
+        msisdn         TEXT,
+        imsi         TEXT,
+        iccid         TEXT,
+        center_num    TEXT,
+        is_use        INT,
 
         source        TEXT,
         deleted       INT DEFAULT 0, 
-        repeated      INT DEFAULT 0)   
+        repeated      INT DEFAULT 0)      
         '''
         models = []
         sql = '''
