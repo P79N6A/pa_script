@@ -23,6 +23,16 @@ import re
 import shutil
 import hashlib
 
+
+DEBUG = True
+DEBUG = False
+
+def exc():
+    if DEBUG:
+        traceback.print_exc()
+    else:
+        pass    
+
 SMS_TYPE_ALL    = 0
 SMS_TYPE_INBOX  = 1
 SMS_TYPE_SENT   = 2
@@ -44,17 +54,7 @@ SMS_TYPE_TO_FOLDER = (
 VERSION_VALUE_DB = 1
 VERSION_KEY_DB  = 'db'
 VERSION_KEY_APP = 'app'
-
-DEBUG = True
-DEBUG = False
-
-def exc():
-    if DEBUG:
-        traceback.print_exc()
-    else:
-        pass            
-
-
+        
 SQL_CREATE_TABLE_SIM_CARDS = '''
     create table if not exists sim_cards(
         sim_id        INTEGER DEFAULT 0,
