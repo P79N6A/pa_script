@@ -14,6 +14,8 @@ import hashlib
 from model_calls import MC, Records, Contact, Generate
 import model_calls
 import sqlite3
+import re
+import time
 
 SQL_TABLE_JOIN_CONTACT = '''
     select e.*, f.mimetype from (select c.*, d.last_time_contacted, d.contact_last_updated_timestamp, d.times_contacted from(
@@ -44,10 +46,11 @@ class CallsParse(object):
             node = self.node.Parent.GetByPath('/calls.db')
             self.db = SQLiteParser.Database.FromNode(node, canceller)
             if self.db is None:
-                node = self.node
+                node = self.node.Parent.GetByPath('/contacts2.db')
                 self.db = SQLiteParser.Database.FromNode(node, canceller)
                 if self.db is None:
-                    raise Exception('解析通话记录出错：无法读取通话记录数据库')
+                    self.analyze_logic_calls()
+                    return
             ts = SQLiteParser.TableSignature('calls')
             records = Records()
             for rec in self.db.ReadTableRecords(ts, self.extractDeleted, True):
@@ -63,7 +66,7 @@ class CallsParse(object):
                 records.mark_type = rec['mark_type'].Value if 'mark_type' in rec else None
                 records.country_code = rec['countryiso'].Value if 'countryiso' in rec else None
                 records.mark_content = rec['mark_content'].Value if 'mark_content' in rec else None
-                records.source = self.node.AbsolutePath
+                records.source = node.AbsolutePath
                 self.mc.db_insert_table_call_records(records)
             self.mc.db_commit()
             records = Records()
@@ -80,20 +83,60 @@ class CallsParse(object):
                 records.mark_type = rec['mark_type'].Value if 'mark_type' in rec else None
                 records.country_code = rec['countryiso'].Value if 'countryiso' in rec else None
                 records.mark_content = rec['mark_content'].Value if 'mark_content' in rec else None
-                records.source = self.node.AbsolutePath
+                records.source = node.AbsolutePath
                 records.deleted = 1
                 self.mc.db_insert_table_call_records(records)
             self.mc.db_commit()
         except Exception as e:
             print(e)
 
+    def analyze_logic_calls(self):
+        try:
+            node = self.node.Parent.GetByPath('/callinfo.db')
+            self.db = SQLiteParser.Database.FromNode(node, canceller)
+            if self.db is None:
+                raise Exception('解析通话记录出错：无法读取通话记录数据库')
+            try:
+                ts = SQLiteParser.TableSignature('Calls')
+            except:
+                return
+            records = Records()
+            id = 0
+            for rec in self.db.ReadTableRecords(ts, self.extractDeleted, True):
+                id += 1
+                canceller.ThrowIfCancellationRequested()
+                records.id = id
+                records.phone_number = rec['number'].Value if 'number' in rec else None
+                records.date = self.transdate(rec['time'].Value) if 'time' in rec else None
+                records.duration = self.transtime(rec['talkTime'].Value) if 'talkTime' in rec else None
+                records.type = rec['callType'].Value if 'callType' in rec else None
+                records.name = rec['name'].Value if 'name' in rec else rec['number'].Value if 'number' in rec else None
+                records.source = node.AbsolutePath
+                self.mc.db_insert_table_call_records(records)
+            self.mc.db_commit()
+        except:
+            pass
+
+    def transtime(self, calltime):
+        minute = re.sub('分.*', '', calltime)
+        second = re.findall('.*分(.*)秒',calltime)[0]
+        duration = int(minute)*60 + int(second)
+        return duration
+
+    def transdate(self, calldate):
+        return time.mktime(time.strptime(calldate,'%Y-%m-%d %H:%M:%S'))
+
     def analyze_call_contacts(self):
         contacts = Contact()
         try:
             contactsNode = self.db_tempo
-            self.db = sqlite3.connect(contactsNode)
+            try:
+                self.db = sqlite3.connect(contactsNode)
+            except:
+                self.analyze_logic_contacts()
+                return
             if self.db is None:
-                raise Exception('解析联系人出错：无法读取联系人数据库')
+                return
             cursor = self.db.cursor()
             cursor.execute(model_calls.SQL_FIND_TABLE_CONTACTS)
             for row in cursor:
@@ -115,19 +158,82 @@ class CallsParse(object):
                 contacts.source = row[14]
                 self.mc.db_insert_table_call_contacts(contacts)
             self.mc.db_commit()
+            self.db.commit()
+            self.db.close()
+        except Exception as e:
+            pass
+
+    def analyze_logic_contacts(self):
+        try:
+            node = self.node.Parent.GetByPath('/contacts.db')
+            self.db = SQLiteParser.Database.FromNode(node, canceller)
+            if self.db is None:
+                raise Exception('解析联系人出错：无法读取联系人数据库')
+            ts = SQLiteParser.TableSignature('AddressBook')
+            id = 0
+            for rec in self.db.ReadTableRecords(ts, self.extractDeleted, True):
+                contacts = Contact()
+                id += 1
+                canceller.ThrowIfCancellationRequested()
+                contacts.id = id
+                homeEmail = ''
+                jobEmail = ''
+                customEmail = ''
+                otherEmail = ''
+                if rec['homeEmails'].Value is not None:
+                    homeEmail = rec['homeEmails'].Value
+                if rec['jobEmails'].Value is not None:
+                    jobEmail = rec['jobEmails'].Value
+                if rec['customEmails'].Value is not None:
+                    customEmail = rec['customEmails'].Value
+                if rec['otherEmails'].Value is not None:
+                    otherEmail = rec['otherEmails'].Value
+                emails = homeEmail + jobEmail + customEmail + otherEmail
+                contacts.mail = emails.replace('][', ',').replace('[', '').replace(']', '').replace('\n', '').replace('\"', '').replace(' ', '')
+                contacts.company = rec['organization'].Value
+                phonenumber = ''
+                homenumber = ''
+                jobnumber = ''
+                othernumber = ''
+                customnumber = ''
+                if rec['phoneNumbers'].Value is not None:
+                    phonenumber = rec['phoneNumbers'].Value
+                if rec['homeNumbers'].Value is not None:
+                    homenumber = rec['homeNumbers'].Value
+                if rec['jobNumbers'].Value is not None:
+                    jobnumber = rec['jobNumbers'].Value
+                if rec['otherNumbers'].Value is not None:
+                    othernumber = rec['otherNumbers'].Value
+                if rec['customNumbers'].Value is not None:
+                    customnumber = rec['customNumbers'].Value
+                numbers = phonenumber + homenumber + jobnumber + othernumber + customnumber
+                contacts.phone_number = numbers.replace('][', ',').replace('[', '').replace(']', '').replace('\n', '').replace('\"', '').replace(' ', '')
+                contacts.name = rec['name'].Value
+                contacts.address = rec['homeStreets'].Value
+                contacts.notes = rec['remark'].Value
+                contacts.head_pic = rec['photoPath'].Value
+                contacts.source = node.AbsolutePath
+                self.mc.db_insert_table_call_contacts(contacts)
+            self.mc.db_commit()
         except Exception as e:
             print(e)
 
     def create_db_tempo(self):
-        if os.path.exists(self.db_tempo):
-            os.remove(self.db_tempo)
-        self.db = sqlite3.connect(self.db_tempo)
-        cursor = self.db.cursor()
-        cursor.execute(model_calls.SQL_CREATE_TABLE_CONTACTS)
+        try:
+            if os.path.exists(self.db_tempo):
+                os.remove(self.db_tempo)
+            self.db = sqlite3.connect(self.db_tempo)
+            cursor = self.db.cursor()
+            cursor.execute(model_calls.SQL_CREATE_TABLE_CONTACTS)
+        except:
+            pass
 
     def insert_contact_tempo(self):
-        self.db = sqlite3.connect(self.db_tempo)
-        self.cursor = self.db.cursor()
+        try:
+            self.db = sqlite3.connect(self.db_tempo)
+            self.cursor = self.db.cursor()
+        except:
+            return
         try:
             contactsNode = self.sourceDB + '\\contacts2.db'
             db = sqlite3.connect(contactsNode)
@@ -153,23 +259,7 @@ class CallsParse(object):
                 telegram = row[3] if self._regularMatch(row[11]) == 9 else None
                 head_pic = row[6] if self._regularMatch(row[11]) == 7 else None
                 source = self.node.AbsolutePath
-                param = ()
-                param = param + (raw_contact_id,)
-                param = param + (mimetype_id,)
-                param = param + (mail,)
-                param = param + (company,)
-                param = param + (title,)
-                param = param + (last_time_contact,)
-                param = param + (last_time_modify,)
-                param = param + (times_contacted,)
-                param = param + (phone_number,)
-                param = param + (name,)
-                param = param + (address,)
-                param = param + (notes,)
-                param = param + (telegram,)
-                param = param + (head_pic,)
-                param = param + (source,)
-                param = param + (0, 0)
+                param = (raw_contact_id, mimetype_id, mail, company, title, last_time_contact, last_time_modify, times_contacted, phone_number, name, address, notes, telegram, head_pic, source, 0, 0)
                 self.cursor.execute(model_calls.SQL_INSERT_TABLE_CONTACTS, param)
             self.db.commit()
             self.cursor.close()
@@ -233,8 +323,7 @@ class CallsParse(object):
         self.insert_contact_tempo()
         self.analyze_call_records()
         self.analyze_call_contacts()
-        self.db.commit()
-        self.db.close()
+        self.mc.db_close()
         generate = Generate(self.cachedb)
         models = generate.get_models()
         return models
@@ -249,20 +338,23 @@ class CallsParse(object):
             pass
 
     def _closewal(self, dbfile):
-        sourceDB = self.node.Parent.PathWithMountPoint + '\\' + dbfile
-        targetDB = self.sourceDB + '\\' + dbfile
-        f = open(sourceDB, 'rb')
-        context = list(f.read())
-        f.close()
-        if os.path.exists(targetDB):
-            os.remove(targetDB)
-        f = open(targetDB, 'ab+')
-        for i,c in enumerate(context):
-            if i == 18 or i == 19:
-                f.write('\x01')
-            else:
-                f.write(c)
-        f.close()
+        try:
+            sourceDB = self.node.Parent.PathWithMountPoint + '\\' + dbfile
+            targetDB = self.sourceDB + '\\' + dbfile
+            f = open(sourceDB, 'rb')
+            context = list(f.read())
+            f.close()
+            if os.path.exists(targetDB):
+                os.remove(targetDB)
+            f = open(targetDB, 'ab+')
+            for i,c in enumerate(context):
+                if i == 18 or i == 19:
+                    f.write('\x01')
+                else:
+                    f.write(c)
+            f.close()
+        except:
+            pass
 
 def analyze_android_calls(node, extractDeleted, extractSource):
     pr = ParserResults()

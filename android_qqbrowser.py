@@ -3,17 +3,22 @@ import os
 import PA_runtime
 import sqlite3
 from PA_runtime import *
-import re
+
 import clr
 try:
     clr.AddReference('model_browser')
 except:
     pass
 del clr
-import hashlib
-from model_browser import *
 
+from model_browser import *
+import model_browser
+
+import re
 import traceback
+import hashlib
+
+VERSION_APP_VALUE = 1
 
 class QQBrowserParse(object):
     def __init__(self, node, extractDeleted, extractSource):
@@ -27,7 +32,6 @@ class QQBrowserParse(object):
         db_name = 'QQBrowser'
         md5_db.update(db_name.encode(encoding = 'utf-8'))
         self.db_cache = self.cache_path + "\\" + md5_db.hexdigest().upper() + ".db"
-        self.mb.db_create(self.db_cache)
 
     def analyze_bookmarks(self):
         bookmark = Bookmark()
@@ -331,15 +335,19 @@ class QQBrowserParse(object):
             pass
 
     def parse(self):
-        self.analyze_accounts()
-        self.analyze_bookmarks()
-        self.analyze_browserecords()
-        self.analyze_cookies()
-        self.analyze_downloadfiles()
-        self.analyze_fileinfo()
-        self.analyze_plugin()
-        self.analyze_search_history()
-        self.mb.db_close()
+        if self.mb.need_parse(self.db_cache, VERSION_APP_VALUE):
+            self.mb.db_create(self.db_cache)
+            self.analyze_accounts()
+            self.analyze_bookmarks()
+            self.analyze_browserecords()
+            self.analyze_cookies()
+            self.analyze_downloadfiles()
+            self.analyze_fileinfo()
+            self.analyze_plugin()
+            self.analyze_search_history()
+            self.mb.db_insert_table_version(model_browser.VERSION_KEY_DB, model_browser.VERSION_VALUE_DB)
+            self.mb.db_insert_table_version(model_browser.VERSION_KEY_APP, VERSION_APP_VALUE)
+            self.mb.db_close()
         generate = Generate(self.db_cache)
         models = generate.get_models()
         return models

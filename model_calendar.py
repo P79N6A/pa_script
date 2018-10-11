@@ -121,12 +121,12 @@ class Generate(object):
                 cal.Location.Value = str(row[2])+','+str(row[3])
             if row[3] is not None:
                 cal.Details.Value = row[4]
-            startDate = self._get_timestamp(row[5])
-            cal.StartDate.Value = startDate
-            reminder = self._get_timestamp(row[6])
-            cal.Reminders.Add(reminder)
-            endDate = self._get_timestamp(row[7])
-            cal.EndDate.Value = endDate
+            if row[5] is not None:
+                startDate = self._get_timestamp(int(row[5]))
+                cal.StartDate.Value = startDate
+            if row[7] is not None:
+                endDate = self._get_timestamp(int(row[7]))
+                cal.EndDate.Value = endDate
             if row[8] is not None:
                 if row[8].find('DAILY')>=0:
                     repeatRule = Generic.RepeatRule.Daily
@@ -145,7 +145,7 @@ class Generate(object):
                 cal.RepeatInterval.Value = 1
             if row[11] is not None:
                 cal.SourceFile.Value = self._get_source_file(str(row[10]))
-            cal.Deleted = self._convert_delete_status(row[12])
+            cal.Deleted = self._convert_deleted_status(row[12])
             model.append(cal)
         return model
 
@@ -166,11 +166,11 @@ class Generate(object):
                 return ts
         except:
             return TimeStamp.FromUnixTime(0, False)
-
+        
     @staticmethod
-    def _convert_delete_status(status):
-        if status == 0:
-            return DELETE_STATUS_NOT_DELETED
+    def _convert_deleted_status(deleted):
+        if deleted is None:
+            return DeletedState.Unknown
         else:
-            return DELETE_STATUS_DELETED
+            return DeletedState.Intact if deleted == 0 else DeletedState.Deleted
 
