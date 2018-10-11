@@ -118,7 +118,7 @@ class SIMParser_no_tar(SIMParser):
     ''' 处理没有 tar 包的案例 '''
 
     def __init__(self, node, extract_deleted, extract_source):
-        super(SIMParse_no_tar, self).__init__(node, extract_deleted, extract_source)
+        super(SIMParser_no_tar, self).__init__(node, extract_deleted, extract_source)
     
     def parse(self):
         node = self.root.GetByPath('sim/sim.db$')
