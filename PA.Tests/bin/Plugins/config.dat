@@ -1313,7 +1313,7 @@
             <string>com.android.providers.telephony/databases$</string>
           </array>
           <key>Category</key>
-          <string>Sms</string>
+          <string>Messages</string>
         </dict>
       </array>
     </dict>
