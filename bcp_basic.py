@@ -951,7 +951,7 @@ class GenerateBcp(object):
             self.basic.db_commit()
             self.db_cmd.Dispose()
         except Exception as e:
-            print(e)
+            pass
 
     def _generate_contact_info(self):
         try:
@@ -1076,7 +1076,7 @@ class GenerateBcp(object):
             self.basic.db_commit()
             self.db_cmd.Dispose()
         except Exception as e:
-            print(e)
+            pass
 
     def _generate_mms_info(self):
         pass
