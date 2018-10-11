@@ -6,6 +6,7 @@ clr.AddReference('System.Core')
 clr.AddReference('System.Xml.Linq')
 try:
     clr.AddReference('model_im')
+    clr.AddReference('bcp_im')
 except:
     pass
 del clr
@@ -21,6 +22,7 @@ import os
 import sqlite3
 import json
 import model_im
+import bcp_im
 import uuid
 import re
 import hashlib
@@ -47,23 +49,23 @@ def analyze_renren(root, extract_deleted, extract_source):
 def execute(node,extracteDeleted):
     return analyze_renren(node, extracteDeleted, False)
 
-class RenRenParser(model_im.IM):
+class RenRenParser():
     def __init__(self, node, extracted_deleted, extract_source):
-        super(RenRenParser, self).__init__()
         self.extract_deleted = False
         self.extract_source = extract_source
         self.root = node 
         self.app_name = 'RenRen'
+        self.im = model_im.IM()
         self.cache_path = ds.OpenCachePath('RenRen')
         if not os.path.exists(self.cache_path):
             os.makedirs(self.cache_path)
         self.cache_db = os.path.join(self.cache_path, 'cache.db')
 
-        nameValues.SafeAddValue('1030046', self.cache_db)
+        nameValues.SafeAddValue(bcp_im.CONTACT_ACCOUNT_TYPE_IM_RENREN, self.cache_db)
 
     def parse(self):
-        if self.need_parse(self.cache_db, VERSION_APP_VALUE):
-            self.db_create(self.cache_db)
+        if self.im.need_parse(self.cache_db, VERSION_APP_VALUE):
+            self.im.db_create(self.cache_db)
             user_list = self.get_user_list()
             for user in user_list:
                 self.contacts = {}
@@ -71,10 +73,10 @@ class RenRenParser(model_im.IM):
                 self.parse_user()
                 self.user = None
                 self.contacts = None
-            self.db_insert_table_version(model_im.VERSION_KEY_DB, model_im.VERSION_VALUE_DB)
-            self.db_insert_table_version(model_im.VERSION_KEY_APP, VERSION_APP_VALUE)
-            self.db_commit()
-            self.db_close()
+            self.im.db_insert_table_version(model_im.VERSION_KEY_DB, model_im.VERSION_VALUE_DB)
+            self.im.db_insert_table_version(model_im.VERSION_KEY_APP, VERSION_APP_VALUE)
+            self.im.db_commit()
+            self.im.db_close()
         models  = self.get_models_from_cache_db()
         return models
 
@@ -116,8 +118,8 @@ class RenRenParser(model_im.IM):
         account.username = self.user
         account.nickname = self.bpreader_node_get_value(root, 'user_name', '')
         account.photo = self.bpreader_node_get_value(root, 'head_url', '')
-        self.db_insert_table_account(account)
-        self.db_commit()
+        self.im.db_insert_table_account(account)
+        self.im.db_commit()
         return True
 
     def get_contacts(self):
@@ -134,7 +136,7 @@ class RenRenParser(model_im.IM):
             SQLiteParser.Tools.AddSignatureToTable(ts, "account_i_d", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
             for rec in subDb.ReadTableRecords(ts, self.extract_deleted):
                 if canceller.IsCancellationRequested:
-                    self.db_close()
+                    self.im.db_close()
                     return
                 contact = {'deleted' : rec.Deleted, 'repeated' : 0}
                 contactid = str(rec['account_i_d'].Value)
@@ -157,7 +159,7 @@ class RenRenParser(model_im.IM):
                 friend.nickname = rec['account_name'].Value
                 friend.photo = rec['account_head_u_r_l'].Value
                 friend.type = model_im.FRIEND_TYPE_FOLLOW
-                self.db_insert_table_friend(friend)
+                self.im.db_insert_table_friend(friend)
                 
         infoDbPath = self.root.GetByPath('/Documents/DB/' + self.user + '/info.sqlite')
         infoDb = SQLiteParser.Database.FromNode(infoDbPath)
@@ -169,7 +171,7 @@ class RenRenParser(model_im.IM):
             SQLiteParser.Tools.AddSignatureToTable(ts_1, "room_id", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
             for rec in infoDb.ReadTableRecords(ts_1, self.extract_deleted):
                 if canceller.IsCancellationRequested:
-                    self.db_close()
+                    self.im.db_close()
                     return
                 contact = {'deleted' : rec.Deleted, 'repeated' : 0}
                 contactid = str(rec['room_id'].Value)
@@ -190,7 +192,7 @@ class RenRenParser(model_im.IM):
                 chatroom.photo = rec['head_url'].Value
                 if IsDBNull(chatroom.photo):
                     chatroom.photo = None
-                self.db_insert_table_chatroom(chatroom)
+                self.im.db_insert_table_chatroom(chatroom)
                     
                 chatroom_members = {}
                 if 'r_s_chat_member_persistence_object' in infoDb.Tables:
@@ -220,7 +222,7 @@ class RenRenParser(model_im.IM):
                         chatroom_member.member_id = member_id
                         chatroom_member.display_name = rec['name'].Value
                         chatroom_member.photo = rec['head_url'].Value
-                        self.db_insert_table_chatroom_member(chatroom_member)
+                        self.im.db_insert_table_chatroom_member(chatroom_member)
 
             chatDbPath = self.root.GetByPath('/Documents/DB/' + self.user + '/chat.sqlite')
             chatDb = SQLiteParser.Database.FromNode(chatDbPath)
@@ -232,7 +234,7 @@ class RenRenParser(model_im.IM):
                 SQLiteParser.Tools.AddSignatureToTable(ts_1, "target_user_id", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
                 for rec in chatDb.ReadTableRecords(ts_1, self.extract_deleted):
                     if canceller.IsCancellationRequested:
-                        self.db_close()
+                        self.im.db_close()
                         return
                     contact = {'deleted' : rec.Deleted, 'repeated' : 0}
                     contactid = str(rec['target_user_id'].Value)
@@ -262,8 +264,8 @@ class RenRenParser(model_im.IM):
                             friend.photo = rec['target_head_url'].Value
                             if IsDBNull(friend.photo):
                                 friend.photo = None
-                            self.db_insert_table_friend(friend)
-        self.db_commit()
+                            self.im.db_insert_table_friend(friend)
+        self.im.db_commit()
         return True
 
     def get_chats(self):
@@ -281,7 +283,7 @@ class RenRenParser(model_im.IM):
                 SQLiteParser.Tools.AddSignatureToTable(ts, "msg_key", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
                 for rec in db.ReadTableRecords(ts, self.extract_deleted):
                     if canceller.IsCancellationRequested:
-                        self.db_close()
+                        self.im.db_close()
                         return
                     if contactid != str(rec['from_user_id'].Value):
                         if contactid != str(rec['to_user_id'].Value):
@@ -308,8 +310,8 @@ class RenRenParser(model_im.IM):
                     message.media_path = self.get_media_path(contactid, message.is_sender, rec['child_node_string'].Value, rec['elements'].Value, 
                                                              message.type, message.send_time, message.deleted, message.repeated)
                     message.msg_id = str(uuid.uuid1()).replace('-', '')
-                    self.db_insert_table_message(message)
-            self.db_commit()
+                    self.im.db_insert_table_message(message)
+            self.im.db_commit()
             return True
 
     def get_media_path(self, contactid, is_sender, xml_string, media_content, type, time, deleted, repeated):

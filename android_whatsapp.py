@@ -8,6 +8,7 @@ clr.AddReference('System.Data.SQLite')
 try:
     clr.AddReference('model_im')
     clr.AddReference("bcp_im")
+    clr.AddReference('unity_c37r')
 except:
     pass
 del clr
@@ -23,6 +24,8 @@ import json
 import model_im
 import bcp_im
 import hashlib
+import unity_c37r
+
 
 def GetString(reader, idx):
     return reader.GetString(idx) if not reader.IsDBNull(idx) else ""
@@ -45,9 +48,10 @@ def moveFileto(sourceDir,  targetDir):
 
 def md5(cache_path, node_path):
     m = hashlib.md5()   
-    m.update(node_path)
+    m.update(node_path.encode(encoding = 'utf-8'))
     db_path = cache_path + "\\" + m.hexdigest() + ".db"
     return db_path
+
 
 VERSION_APP_VALUE = 1
 
@@ -409,8 +413,11 @@ class WhatsApp(object):
                         location = model_im.Location()
                         message.type = 7
                         message.extra_id = str(location.location_id)
-                        location.longitude = GetFloat(reader, 10)
-                        location.latitude = GetFloat(reader, 9)
+                        lat, lng = unity_c37r.gcj2wgs_exact(GetFloat(reader, 9),GetFloat(reader, 10))
+                        if lng:
+                            location.longitude = lng
+                        if lat:
+                            location.latitude = lat
                         try:
                             self.whatsapp.db_insert_table_location(location)
                         except Exception as e:
@@ -522,8 +529,11 @@ class WhatsApp(object):
                         location = model_im.Location()
                         message.type = 7
                         message.extra_id = str(location.location_id)
-                        location.longitude = GetFloat(reader, 10)
-                        location.latitude = GetFloat(reader, 9)
+                        lat, lng = unity_c37r.gcj2wgs_exact(GetFloat(reader, 9),GetFloat(reader, 10))
+                        if lng:
+                            location.longitude = lng
+                        if lat:
+                            location.latitude = lat
                         try:
                             self.whatsapp.db_insert_table_location(location)
                         except Exception as e:

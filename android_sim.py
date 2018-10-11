@@ -1,17 +1,14 @@
 # coding=utf-8
-import PA_runtime
-from PA_runtime import *
 import clr
 try:
     clr.AddReference('model_sim')
 except:
     pass
 del clr
-
 from model_sim import *
 
-import time
-import re
+
+
 
 # app数据库版本
 VERSION_APP_VALUE = 1
@@ -30,7 +27,6 @@ def analyze_sim(node, extract_deleted, extract_source):
     elif node_path.endswith('user_de/0/com.android.providers.telephony/databases'):
         res = SIMParser(node, extract_deleted, extract_source).parse()
 
-
     pr = ParserResults()
     if res is not None:
         pr.Models.AddRange(res)
@@ -38,7 +34,8 @@ def analyze_sim(node, extract_deleted, extract_source):
 
 
 class SIMParser(object):
-    """ \user_de\0\com.android.providers.telephony\databases\telephony.db	"""
+    """ \user_de\0\com.android.providers.telephony\databases\telephony.db """
+
     def __init__(self, node, extract_deleted, extract_source):
 
         self.root = node
@@ -47,10 +44,11 @@ class SIMParser(object):
 
         self.m_sim = Model_SIM()
         self.cachepath = ds.OpenCachePath("AndroidSIM")
-        self.cache_db = self.cachepath + "\\AndroidSIM.db"
+        hash_str = hashlib.md5(node.AbsolutePath).hexdigest()
+        self.cache_db = self.cachepath + "\\{}.db".format(hash_str)
 
     def parse(self):
-        if self.m_sim.need_parse(self.cache_db, VERSION_APP_VALUE):
+        if DEBUG or self.m_sim.need_parse(self.cache_db, VERSION_APP_VALUE):
 
             node = self.root.GetByPath("/telephony.db")
             self.db = SQLiteParser.Database.FromNode(node, canceller)
@@ -72,28 +70,28 @@ class SIMParser(object):
 
     def parse_siminfo(self):
         """ telephony.db - siminfo
-            SIM
-        RecNo	FieldName	SQLType	Size	 
-        1	_id	                INTEGER
-        2	icc_id	                TEXT
-        3	sim_id	                INTEGER			
-        4	display_name	        TEXT
-        5	carrier_name	        TEXT
-        6	name_source	            INTEGER
-        7	color	                INTEGER
-        8	number	                TEXT
-        9	display_number_format	INTEGER
-        10	data_roaming	                INTEGER
-        11	mcc	                INTEGER
-        12	mnc	                INTEGER
+
+            RecNo	FieldName	SQLType	Size	 
+            1	_id	                INTEGER
+            2	icc_id	                TEXT
+            3	sim_id	                INTEGER			
+            4	display_name	        TEXT
+            5	carrier_name	        TEXT
+            6	name_source	            INTEGER
+            7	color	                INTEGER
+            8	number	                TEXT
+            9	display_number_format	INTEGER
+            10	data_roaming	                INTEGER
+            11	mcc	                INTEGER
+            12	mnc	                INTEGER
         """
         for rec in self.my_read_table(table_name='siminfo'):
             if IsDBNull(rec['sim_id'].Value) or IsDBNull(rec['display_name'].Value):
                 continue
             sim = SIM()
             sim.name   = rec['display_name'].Value.replace('CMCC', '中国移动')
-            sim.value  = rec['number'].Value
-            sim.extra  = 'iccid: {}'.format(rec['icc_id'].Value) if rec['icc_id'].Value != '' else None
+            sim.msisdn = rec['number'].Value
+            sim.iccid  = rec['icc_id'].Value
             sim.source = self.source_telephony_db
             try:
                 self.m_sim.db_insert_table_sim(sim)
@@ -124,7 +122,7 @@ class SIMParser_no_tar(SIMParser):
     
     def parse(self):
         node = self.root.GetByPath('sim/sim.db$')
-        self.db = SQLiteParser.Database.FromNode(node,canceller)
+        self.db = SQLiteParser.Database.FromNode(node, canceller)
         if self.db is None:
             return
         self.source_sim_db = node.AbsolutePath
@@ -144,7 +142,7 @@ class SIMParser_no_tar(SIMParser):
                 continue
             sim = SIM()
             sim.name   = rec['displayName'].Value
-            sim.value  = rec['phoneNumber'].Value
+            sim.msisdn = rec['phoneNumber'].Value
             sim.source = self.source_sim_db
             try:
                 self.m_sim.db_insert_table_sim(sim)

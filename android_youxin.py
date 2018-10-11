@@ -7,6 +7,7 @@ clr.AddReference('System.Xml.Linq')
 clr.AddReference('Mono.HttpUtility')
 try:
     clr.AddReference('model_im')
+    clr.AddReference('bcp_im')
 except:
     pass
 del clr
@@ -23,6 +24,7 @@ import os
 import sqlite3
 import json
 import model_im
+import bcp_im
 import uuid
 import time
 import gc
@@ -46,23 +48,23 @@ def analyze_youxin(root, extract_deleted, extract_source):
 def execute(node,extracteDeleted):
     return analyze_renren(node, extracteDeleted, False)
 
-class YouXinParser(model_im.IM):
+class YouXinParser():
     def __init__(self, node, extract_deleted, extract_source):
-        super(YouXinParser, self).__init__()
         self.extract_deleted = False
         self.extract_source = extract_source
         self.root = node
         self.app_name = 'YouXin'
+        self.im = model_im.IM()
         self.cache_path =ds.OpenCachePath('YouXin')
         if not os.path.exists(self.cache_path):
             os.makedirs(self.cache_path)
         self.cache_db = os.path.join(self.cache_path, 'cache.db')
 
-        nameValues.SafeAddValue('1030087', self.cache_db)
+        nameValues.SafeAddValue(bcp_im.CONTACT_ACCOUNT_TYPE_IM_YOUXIN, self.cache_db)
 
     def parse(self):
-        if self.need_parse(self.cache_db, VERSION_APP_VALUE):
-            self.db_create(self.cache_db)
+        if self.im.need_parse(self.cache_db, VERSION_APP_VALUE):
+            self.im.db_create(self.cache_db)
             user_list = self.get_user_list()
             for user in user_list:
                 self.contacts = {}
@@ -70,10 +72,10 @@ class YouXinParser(model_im.IM):
                 self.parse_user()
                 self.user = None
                 self.contacts = None
-            self.db_insert_table_version(model_im.VERSION_KEY_DB, model_im.VERSION_VALUE_DB)
-            self.db_insert_table_version(model_im.VERSION_KEY_APP, VERSION_APP_VALUE)
-            self.db_commit()
-            self.db_close()
+            self.im.db_insert_table_version(model_im.VERSION_KEY_DB, model_im.VERSION_VALUE_DB)
+            self.im.db_insert_table_version(model_im.VERSION_KEY_APP, VERSION_APP_VALUE)
+            self.im.db_commit()
+            self.im.db_close()
         models = self.get_models_from_cache_db()
         return models
 
@@ -110,8 +112,8 @@ class YouXinParser(model_im.IM):
         dbPath = self.root.GetByPath('/databases/' + 'youxin_db_' + self.user)
         db = SQLiteParser.Database.FromNode(dbPath)
         if db is None:
-            self.db_insert_table_account(account)
-            self.db_commit()
+            self.im.db_insert_table_account(account)
+            self.im.db_commit()
             return True
 
         if 'MY_NAME_CARD' in db.Tables:
@@ -125,8 +127,8 @@ class YouXinParser(model_im.IM):
                 account.birthday = rec['BIRTHDAY'].Value
                 account.photo = rec['PHOTO_LOCATION'].Value
 
-        self.db_insert_table_account(account)
-        self.db_commit()
+        self.im.db_insert_table_account(account)
+        self.im.db_commit()
         return True
 
     def get_contacts(self):
@@ -143,7 +145,7 @@ class YouXinParser(model_im.IM):
             SQLiteParser.Tools.AddSignatureToTable(ts, 'UID', SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
             for rec in db.ReadTableRecords(ts, self.extract_deleted):
                 if canceller.IsCancellationRequested:
-                    self.db_close()
+                    self.im.db_close()
                     return
                 friend = model_im.Friend()
                 self.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
@@ -159,14 +161,14 @@ class YouXinParser(model_im.IM):
                     friend.photo = None
                 if friend.friend_id != '':
                     self.contacts[friend.friend_id] = friend
-                self.db_insert_table_friend(friend)
+                self.im.db_insert_table_friend(friend)
 
         if 'PROFILE_TABLE' in db.Tables:
             ts = SQLiteParser.TableSignature('PROFILE_TABLE')
             SQLiteParser.Tools.AddSignatureToTable(ts, 'UID', SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
             for rec in db.ReadTableRecords(ts, self.extract_deleted):
                 if canceller.IsCancellationRequested:
-                    self.db_close()
+                    self.im.db_close()
                     return
                 id = rec['UID'].Value
                 if id == self.user or id in self.contacts.keys():
@@ -188,8 +190,8 @@ class YouXinParser(model_im.IM):
                 if IsDBNull(friend.photo):
                     friend.photo = None
                 self.contacts[id] = friend
-                self.db_insert_table_friend(friend)
-        self.db_commit()
+                self.im.db_insert_table_friend(friend)
+        self.im.db_commit()
         return True
 
     def get_chats(self):
@@ -208,7 +210,7 @@ class YouXinParser(model_im.IM):
             for id in self.contacts.keys():
                 for rec in db.ReadTableRecords(ts, self.extract_deleted):
                     if canceller.IsCancellationRequested:
-                        self.db_close()
+                        self.im.db_close()
                         return
                     if id != rec['uid'].Value:
                         continue
@@ -236,8 +238,8 @@ class YouXinParser(model_im.IM):
                         message.status = model_im.MESSAGE_STATUS_READ if rec['status'].Value == 1 else model_im.MESSAGE_STATUS_UNREAD
                     if message.type == model_im.MESSAGE_CONTENT_TYPE_LOCATION:
                         self.get_location(message.content, message.deleted, message.repeated, message.send_time)
-                    self.db_insert_table_message(message)
-        self.db_commit()
+                    self.im.db_insert_table_message(message)
+        self.im.db_commit()
         return True
 
     def parse_message_type(self, type):
@@ -270,6 +272,6 @@ class YouXinParser(model_im.IM):
         location.address = obj['description']
         location.latitude = obj['latitude']
         location.longitude = obj['longitude']
-        self.db_insert_table_location(location)
-        self.db_commit()
+        self.im.db_insert_table_location(location)
+        self.im.db_commit()
         return True
