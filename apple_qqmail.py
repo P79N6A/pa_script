@@ -595,7 +595,8 @@ class MailParser(object):
             self.mm.db_insert_table_version(model_mail.VERSION_KEY_APP, VERSION_APP_VALUE)
             self.mm.db_commit()
             self.mm.db_close()
-        nameValues.SafeAddValue(bcp_mail.MAIL_TOOL_TYPE_QQMAIL, self.cachedb)
+        temp_dir = ds.OpenCachePath('tmp')
+        PA_runtime.save_cache_path(bcp_mail.MAIL_TOOL_TYPE_QQMAIL, self.cachedb, temp_dir)
         generate = Generate(self.cachedb)
         models = generate.get_models()
         return models
@@ -604,7 +605,7 @@ class MailParser(object):
 def analyze_qqmail(node, extractDeleted, extractSource):
     pr = ParserResults()
     pr.Models.AddRange(MailParser(node, extractDeleted, extractSource).parse())
-    pr.Build('QQMail')
+    pr.Build('QQ邮箱')
     return pr
 
 def execute(node, extractDeleted):

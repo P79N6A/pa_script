@@ -7,12 +7,15 @@ from PA_runtime import *
 import clr
 try:
     clr.AddReference('model_browser')
+    clr.AddReference('bcp_browser')
 except:
     pass
 del clr
 
 from model_browser import *
 import model_browser
+from bcp_browser import *
+import bcp_browser 
 
 import re
 import traceback
@@ -348,6 +351,8 @@ class QQBrowserParse(object):
             self.mb.db_insert_table_version(model_browser.VERSION_KEY_DB, model_browser.VERSION_VALUE_DB)
             self.mb.db_insert_table_version(model_browser.VERSION_KEY_APP, VERSION_APP_VALUE)
             self.mb.db_close()
+        temp_dir = ds.OpenCachePath('tmp')
+        PA_runtime.save_cache_path(bcp_browser.BROWSER_TYPE_QQ, self.db_cache, temp_dir)
         generate = Generate(self.db_cache)
         models = generate.get_models()
         return models
@@ -355,7 +360,7 @@ class QQBrowserParse(object):
 def analyze_android_qqbrowser(node, extractDeleted, extractSource):
     pr = ParserResults()
     pr.Models.AddRange(QQBrowserParse(node, extractDeleted, extractSource).parse())
-    pr.Build('QQBrowser')
+    pr.Build('QQ浏览器')
     return pr
 
 def execute(node, extractDeleted):
