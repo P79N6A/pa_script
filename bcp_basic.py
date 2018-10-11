@@ -918,7 +918,40 @@ class GenerateBcp(object):
         pass
 
     def _generate_sim_info(self):
-        pass
+        '''
+         0   _id           INTEGER PRIMARY KEY AUTOINCREMENT,
+         1   name          TEXT,
+         2   msisdn        TEXT,
+         3   imsi          TEXT,
+         4   iccid         TEXT,
+         5   center_num    TEXT,
+         6   is_use        INT,
+         7   source        TEXT,
+         8   deleted       INT DEFAULT 0, 
+         9   repeated      INT DEFAULT 0
+        '''
+        try:
+            self.db_cmd = SQLite.SQLiteCommand(self.db)
+            if self.db_cmd is None:
+                return
+            self.db_cmd.CommandText = '''select distinct * from sim'''
+            sr = self.db_cmd.ExecuteReader()
+            while(sr.Read()):
+                if canceller.IsCancellationRequested:
+                    break
+                sim = SIMInfo()
+                sim.COLLECT_TARGET_ID = self.collect_target_id
+                sim.MSISDN            = sr[2]
+                sim.IMSI              = sr[3]
+                sim.CENTER_NUMBER     = sr[5]
+                sim.DELETE_STATUS     = DELETE_STATUS_DELETED if sr[8] == 1 else DELETE_STATUS_INTACT
+                sim.ICCID             = sr[4]
+                # sim.SIM_STATE = None
+                self.basic.db_insert_table_sim_info(sim)
+            self.basic.db_commit()
+            self.db_cmd.Dispose()
+        except Exception as e:
+            print(e)
 
     def _generate_contact_info(self):
         try:
@@ -989,7 +1022,61 @@ class GenerateBcp(object):
             pass
 
     def _generate_sms_info(self):
-        pass
+        ''' table - sms
+            0    _id                 TEXT, 
+            1    sim_id              INT,
+            2    sender_phonenumber  TEXT,
+            3    sender_name         TEXT,
+            4    read_status         INT DEFAULT 0,
+            5    type                INT,
+            6    suject              TEXT,
+            7    body                TEXT,
+            8    send_time           INT,
+            9    delivered_date      INT,
+            10    is_sender           INT,
+            11    source              TEXT,
+            12    deleted             INT DEFAULT 0, 
+            13    repeated            INT DEFAULT 0          
+        '''
+        MAIL_TYPE_2_FOLDER = {
+            0: '99', # ALL - 其他
+            1: '01', # INBOX - 收件箱
+            3: '03', # DRAFT - 草稿箱
+            4: '02', # OUTBOX - 发件箱
+        }
+        try:
+            self.db_cmd = SQLite.SQLiteCommand(self.db)
+            if self.db_cmd is None:
+                return
+            self.db_cmd.CommandText = '''select distinct * from sms'''
+            sr = self.db_cmd.ExecuteReader()
+            while(sr.Read()):
+                if canceller.IsCancellationRequested:
+                    break
+                sms = SMSInfo()
+                sms.COLLECT_TARGET_ID = self.collect_target_id
+                # sms.MSISDN
+                sms.RELATIONSHIP_ACCOUNT = sr[2]
+                sms.RELATIONSHIP_NAME    = sr[3]
+                if sr[10] == 1:     # is_sender
+                    sms.LOCAL_ACTION = '02'
+                elif sr[10] == 0:
+                    sms.LOCAL_ACTION = '01'
+                else:
+                    sms.LOCAL_ACTION = '99'
+                sms.MAIL_SEND_TIME   = sr[8]
+                sms.CONTENT          = sr[7]
+                sms.MAIL_VIEW_STATUS = sr[4]
+                sms.MAIL_SAVE_FOLDER = MAIL_TYPE_2_FOLDER.get(sr[5], '99')
+                sms.DELETE_STATUS    = DELETE_STATUS_DELETED if sr[12] == 1 else DELETE_STATUS_INTACT
+                # sms.PRIVACYCONFIG
+                # sms.DELETE_TIME          
+                # sms.INTERCEPT_STATE
+                self.basic.db_insert_table_sms_info(sms)
+            self.basic.db_commit()
+            self.db_cmd.Dispose()
+        except Exception as e:
+            print(e)
 
     def _generate_mms_info(self):
         pass
