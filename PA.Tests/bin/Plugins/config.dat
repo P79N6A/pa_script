@@ -1015,6 +1015,7 @@
           <key>Patterns</key>
           <array>
             <string>/data/im.yixin$</string>
+            <string>/Apps/im.yixin$</string>
           </array>
           <key>Category</key>
           <string>YiXin</string>
