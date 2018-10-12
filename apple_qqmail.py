@@ -176,8 +176,8 @@ class MailParser(object):
                 return
             self.db_cmd.CommandText = SQL_ASSOCIATE_TABLE_ACCOUNT
             sr = self.db_cmd.ExecuteReader()
-            account = Account()
             while (sr.Read()):
+                account = Account()
                 if canceller.IsCancellationRequested:
                     break
                 account.account_id = sr[0]
@@ -203,8 +203,8 @@ class MailParser(object):
                 return
             self.db_cmd.CommandText = SQL_ASSOCIATE_TABLE_MAIL
             sr = self.db_cmd.ExecuteReader()
-            mail = Mail()
             while sr.Read():
+                mail = Mail()
                 if canceller.IsCancellationRequested:
                     break
                 mail.mail_id = sr[0]
@@ -247,8 +247,8 @@ class MailParser(object):
                 return
             self.db_cmd.CommandText = SQL_ASSOCIATE_TABLE_CONTACT
             sr = self.db_cmd.ExecuteReader()
-            contact = Contact()
             while sr.Read():
+                contact = Contact()
                 if canceller.IsCancellationRequested:
                     break
                 contact.contact_id = sr[0]
@@ -278,16 +278,24 @@ class MailParser(object):
                 return
             self.db_cmd.CommandText = SQL_ASSOCIATE_TABLE_ATTACH
             sr = self.db_cmd.ExecuteReader()
-            attachment = Attachment()
             while sr.Read():
+                attachment = Attachment()
                 if canceller.IsCancellationRequested:
                     break
                 attachment.attachment_id = sr[0]
                 attachment.owner_account_id = sr[1]
                 attachment.mail_id = sr[2]
                 attachment.attachment_name = sr[3]
-                if sr[3] is not None:
-                    attachment.attachment_save_dir = self.node.GetByPath("/Documents/attachmentCacheFolder").AbsolutePath + '/' + str(sr[1])
+                if not IsDBNull(sr[0]) and not IsDBNull(sr[3]):
+                    md5_attachname = hashlib.md5()
+                    attach_name = str(sr[0]) + sr[3]
+                    md5_attachname.update(attach_name.encode(encoding = 'utf-8'))
+                    fs = self.node.FileSystem
+                    local_name = md5_attachname.hexdigest()
+                    fileNodes = fs.Search(local_name)
+                    for node in fileNodes:
+                        attachment.attachment_save_dir = node.AbsolutePath
+                        break
                 attachment.attachment_size = sr[4]
                 attachment.attachment_download_date = sr[5]
                 attachment.source = self.node.AbsolutePath
