@@ -45,6 +45,7 @@ def analyze_sms(node, extract_deleted, extract_source):
     if res is not None:
         pr.Models.AddRange(res)
         pr.Build('短信')
+
     return pr
 
 
@@ -57,11 +58,11 @@ class SMSParser(object):
 
         self.m_sms = Model_SMS()
         self.cachepath = ds.OpenCachePath("AndroidSMS")
-        self.cache_db = self.cachepath + "\\AndroidSMS.db"
+        hash_str = hashlib.md5(node.AbsolutePath).hexdigest()
+        self.cache_db = self.cachepath + '\\{}.db'.format(hash_str)
 
     def parse(self):
-        if self.m_sms.need_parse(self.cache_db, VERSION_APP_VALUE):
-            print('node.AbsolutePath:', self.root.AbsolutePath)
+        if DEBUG or self.m_sms.need_parse(self.cache_db, VERSION_APP_VALUE):
             node = self.root.GetByPath("/mmssms.db")
             self.db = SQLiteParser.Database.FromNode(node, canceller)
             if self.db is None:
@@ -228,16 +229,26 @@ class SMSParser_no_tar(SMSParser):
         super(SMSParser_no_tar, self).__init__(node, extract_deleted, extract_source)
     
     def parse(self):
-        self.db = SQLiteParser.Database.FromNode(node,canceller)
-        if self.db is None:
-            return
-        self.source_sms_db = node.AbsolutePath
+        if DEBUG or self.m_sms.need_parse(self.cache_db, VERSION_APP_VALUE):
+            node = self.root
+            self.db = SQLiteParser.Database.FromNode(node, canceller)
+            if self.db is None:
+                return
 
-        self.parse_sms()
+            self.m_sms.db_create(self.cache_db)
+            self.source_sms_db = node.AbsolutePath
+            self.parse_sms()
 
-        self.m_sms.db_close()
-        models = GenerateModel(self.cache_db).get_models()
-        return models    
+            # 数据库填充完毕，请将中间数据库版本和app数据库版本插入数据库，用来检测app是否需要重新解析
+            if not canceller.IsCancellationRequested:
+                self.m_sms.db_insert_table_version(VERSION_KEY_DB, VERSION_VALUE_DB)
+                self.m_sms.db_insert_table_version(VERSION_KEY_APP, VERSION_APP_VALUE)
+                self.m_sms.db_commit()
+            self.m_sms.db_close() 
+
+        models = GenerateModel(self.cache_db, self.cachepath).get_models()
+        return models   
+
 
     def parse_sms(self):
         """ sms/sms.db - SMS

@@ -534,7 +534,7 @@ class Generate(object):
 
     def _get_account_model(self):
         model = []
-        sql = '''select distinct * from account'''
+        sql = '''select distinct * from account where deleted = 0'''
         try:
             self.db_cmd.CommandText = sql
             sr = self.db_cmd.ExecuteReader()
@@ -672,7 +672,8 @@ class Generate(object):
                     attachment.DownloadTime.Value = self._get_timestamp(sr[12])  #附件下载时间
                 if not IsDBNull(sr[13]):
                     attachment.Size.Value = sr[13]  #附件大小
-                email.Attachments.Add(attachment)
+                if not IsDBNull(sr[11]):
+                    email.Attachments.Add(attachment)
                 if not IsDBNull(sr[14]):
                     email.Abstract.Value = sr[14]  #摘要
                 if not IsDBNull(sr[15]):

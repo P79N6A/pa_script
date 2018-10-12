@@ -32,8 +32,8 @@ class NoteParse(object):
             if self.db is None:
                 raise Exception('数据库解析出错')
             ts = SQLiteParser.TableSignature('notes')
-            notes = Notes()
             for rec in self.db.ReadTableRecords(ts, self.extractDeleted, True):
+                notes = Notes()
                 canceller.ThrowIfCancellationRequested()
                 notes.id = rec['_id'].Value if '_id' in rec else None
                 notes.title = rec['title'].Value if 'title' in rec else None
@@ -50,8 +50,8 @@ class NoteParse(object):
                 notes.source = self.node.AbsolutePath
                 self.mn.db_insert_table_notes(notes)
             self.mn.db_commit()
-            notes = Notes()
-            for rec in self.db.ReadTableRecords(ts, self.extractDeleted, True):
+            for rec in self.db.ReadTableDeletedRecords(ts, False):
+                notes = Notes()
                 canceller.ThrowIfCancellationRequested()
                 notes.id = rec['_id'].Value if '_id' in rec else None
                 notes.title = (rec['title'].Value) if 'title' in rec else None
@@ -59,8 +59,9 @@ class NoteParse(object):
                 notes.created = rec['create'].Value if 'create' in rec else None
                 notes.modified = rec['modified'].Value if 'modified' in rec else None
                 notes.has_attachment = rec['has_attachment'].Value if 'has_attachment' in rec else None
-                notes.attach_name = "".join(re.compile(r'<element type="Attachment">(.*?)</element>').findall(rec['html_content'].Value)) if 'html_content' in rec else None
-                notes.html_content = (rec['html_content'].Value) if 'html_content' in rec else None
+                if not IsDBNull(rec['html_content'].Value):
+                    notes.attach_name = "".join(re.compile(r'<element type="Attachment">(.*?)</element>').findall(rec['html_content'].Value)) if 'html_content' in rec else None
+                notes.html_content = rec['html_content'].Value if 'html_content' in rec else None
                 notes.delete_flag = rec['delete_flag'].Value if 'delete_flag' in rec else None
                 notes.has_todo = rec['has_todo'].Value if 'has_todo' in rec else None
                 if notes.has_attachment is not None and notes.has_attachment is not 0:

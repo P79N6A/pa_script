@@ -43,7 +43,7 @@ SQL_INSERT_TABLE_NOTES = '''
     '''
 
 SQL_FIND_TABLE_NOTES = '''
-    select * from notes
+    select distinct * from notes
     '''
 
 
@@ -88,10 +88,12 @@ class Column(object):
         self.repeated = 0
 
     def __setattr__(self, name, value):
-        if not IsDBNull(value):
-            self.__dict__[name] = value
-        else:
+        if IsDBNull(value) or value is '':
             self.__dict__[name] = None
+        else:
+            if isinstance(value, str):
+                value = re.compile('[\\x00-\\x08\\x0b-\\x0c\\x0e-\\x1f]').sub(' ', value)
+            self.__dict__[name] = value
 
     def get_values(self):
         return (self.source, self.deleted, self.repeated)
@@ -150,11 +152,11 @@ class Generate(object):
             if row[10] is not None:
                 note.Body.Value = row[10]
             if row[3] is not None:
-                note.Creation.Value = TimeStamp.FromUnixTime(int(str(row[3])[0:-3:1]), False) if len(str(row[3])) > 10 else TimeStamp.FromUnixTime(row[3], False) if len(str(row[3])) == 10 else TimeStamp.FromUnixTime(0, False)
+                note.Creation.Value = self._get_timestamp(row[3])
             if row[7] is not None:
                 note.Folder.Value = row[7]
             if row[4] is not None:
-                note.Modification.Value = TimeStamp.FromUnixTime(int(str(row[4])[0:-3:1]), False) if len(str(row[4])) > 10 else TimeStamp.FromUnixTime(row[4], False) if len(str(row[4])) == 10 else TimeStamp.FromUnixTime(0, False)
+                note.Modification.Value = self._get_timestamp(row[4])
             if row[1] is not None:
                 note.Title.Value = row[1]
             if row[2] is not None:
@@ -170,3 +172,16 @@ class Generate(object):
         if isinstance(source_file, str):
             return source_file.replace('/', '\\')
         return source_file
+
+    @staticmethod
+    def _get_timestamp(timestamp):
+        try:
+            if isinstance(timestamp, (long, float, str, Int64)) and len(str(timestamp)) > 10:
+                timestamp = int(str(timestamp)[:10])
+            if isinstance(timestamp, (int, Int64)) and len(str(timestamp)) == 10:
+                ts = TimeStamp.FromUnixTime(timestamp, False)
+                if not ts.IsValidForSmartphone():
+                    ts = TimeStamp.FromUnixTime(0, False)
+                return ts
+        except:
+            return TimeStamp.FromUnixTime(0, False)

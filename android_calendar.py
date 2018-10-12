@@ -34,9 +34,14 @@ class CalendarParser(object):
             if self.db is None:
                 return
             cursor = self.db.cursor()
-            cursor.execute(SQL_JOIN_TABLE_CALENDAR)
+            try:
+                cursor.execute(SQL_JOIN_TABLE_CALENDAR)
+            except:
+                self.analyze_logic_calendar()
+                return
             for row in cursor:
-                canceller.ThrowIfCancellationRequested()
+                if canceller.IsCancellationRequested:
+                    break
                 calendar.calendar_id = row[0]
                 calendar.title = row[2]
                 calendar.description = row[4]
@@ -57,14 +62,18 @@ class CalendarParser(object):
         self.db = SQLiteParser.Database.FromNode(self.node, canceller)
         if self.db is None:
             return
-        ts = SQLiteParser.TableSignature('Events')
+        try:
+            ts = SQLiteParser.TableSignature('Events')
+        except:
+            return
         try:
             calendar = Calendar()
             for row in self.db.ReadTableDeletedRecords(ts, False):
-                canceller.ThrowIfCancellationRequested()
+                if canceller.IsCancellationRequested:
+                    break
                 calendar.calendar_id = row['calendar_id'].Value if 'calendar_id' in row and not row['calendar_id'].IsDBNull else None
                 calendar.title = repr(row['title'].Value) if 'title' in row and not row['title'].IsDBNull else None
-                calendar.description = repr(row['description'].Value) if 'description' in row and not row['description'].IsDBNull else None
+                calendar.description = repr(row['description'].Value) if 'description' in row and not row['description'].IsDBNull else None 
                 calendar.dtstart = row['dtstart'].Value if 'dtstart' in row and not row['dtstart'].IsDBNull else None
                 calendar.dend = row['dend'].Value if 'dend' in row and not row['dend'].IsDBNull else None
                 calendar.rrule = self._extractData(row['rrule'].Value,'FREQ') if 'rrule' in row and not row['rrule'].IsDBNull else None
@@ -74,6 +83,33 @@ class CalendarParser(object):
                 calendar.deleted = 1
                 self.mc.db_insert_calendar(calendar)
             self.mc.db_commit()
+        except Exception as e:
+            pass
+
+    def analyze_logic_calendar(self):
+        calendar = Calendar()
+        try:
+            db_source = self.node.PathWithMountPoint
+            self.db = sqlite3.connect(db_source)
+            if self.db is None:
+                return
+            cursor = self.db.cursor()
+            cursor.execute('select distinct * from Calendar')
+            for row in cursor:
+                if canceller.IsCancellationRequested:
+                    break
+                calendar.calendar_id = row[0]
+                calendar.title = row[1]
+                calendar.description = row[3]
+                calendar.dtstart = row[5]
+                calendar.dtend = row[6]
+                calendar.rrule = self._extractData(row[4],'FREQ')
+                calendar.interval = self._extractData(row[4],'INTERVAL')
+                calendar.until = self._extractData(row[4],'UNTIL')
+                calendar.source = self.node.AbsolutePath
+                self.mc.db_insert_calendar(calendar)
+            self.mc.db_commit()
+            self.db.close()
         except Exception as e:
             print(e)
 
@@ -106,7 +142,7 @@ class CalendarParser(object):
 def analyze_android_calendar(node, extractDeleted, extractSource):
     pr = ParserResults()
     pr.Models.AddRange(CalendarParser(node, extractDeleted, extractSource).parse())
-    pr.Build('Calendar')
+    pr.Build('系统日历')
     return pr
 
 def execute(node, extractDeleted):
