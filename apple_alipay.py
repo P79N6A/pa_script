@@ -5,7 +5,7 @@ import clr
 clr.AddReference('System.Core')
 clr.AddReference('System.Xml.Linq')
 try:
-    AddReference('model_im')
+    clr.AddReference('model_im')
 except:
     pass
 del clr
