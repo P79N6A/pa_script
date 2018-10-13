@@ -3,6 +3,8 @@
 import os
 import traceback
 import re
+import hashlib
+
 
 import PA_runtime
 from PA_runtime import *
@@ -35,7 +37,7 @@ def analyze_baidumobile(node, extract_deleted, extract_source):
         android 华为 (data/data/com.baidu.searchbox/)
     """
     pr = ParserResults()
-    cache_db_name = "\\BaiduSearchbox.db"
+    cache_db_name = "BaiduSearchbox"
     res = BaiduMobileParser(node, extract_deleted, extract_source, cache_db_name).parse()
     pr.Models.AddRange(res)
     pr.Build('手机百度')
@@ -46,7 +48,7 @@ def analyze_baidumobile_lite(node, extract_deleted, extract_source):
         android 华为 (data/data/com.baidu.searchbox.lite/)
     """
     pr = ParserResults()
-    cache_db_name = "\\BaiduSearchbox_Lite.db"
+    cache_db_name = "BaiduSearchbox_Lite"
     res = BaiduMobileParser(node, extract_deleted, extract_source, cache_db_name).parse()
     pr.Models.AddRange(res)
     pr.Build('手机百度极速版')
@@ -62,7 +64,9 @@ class BaiduMobileParser(object):
 
         self.mb = MB()
         self.cachepath = ds.OpenCachePath("BaiduMobile")
-        self.cache_db = self.cachepath + cache_db_name 
+
+        hash_str = hashlib.md5(node.AbsolutePath).hexdigest()
+        self.cache_db = self.cachepath + '\\{}_{}.db'.format(cache_db_name, hash_str)
 
         self.uid_list = ['anony']
 
@@ -432,23 +436,25 @@ class BaiduMobileParser(object):
 
     def _convert_2_nodepath(self, raw_path, file_name):
         # raw_path = '/data/user/0/com.baidu.searchbox/files/template/profile.zip'
-
-        fs = self.root.FileSystem
-        if not file_name:
-            raw_path_list = raw_path.split(r'/')
-            file_name = raw_path_list[-1]
-            if  '.' not in file_name:
-                return 
-        # print 'raw_path, file_name', raw_path, file_name
-        _path = None
-        if len(file_name) > 0:
-            # node = fs.Search('com.baidu.searchbox/files/.*?{}$'.format(file_name))
-            node = fs.Search(r'com\.baidu\.searchbox.*?{}$'.format(file_name))
-
-            for i in node:
-                _path = i.AbsolutePath
-                # print 'file_name, _path', file_name, _path
-        return _path
+        try:
+            fs = self.root.FileSystem
+            if not file_name:
+                raw_path_list = raw_path.split(r'/')
+                file_name = raw_path_list[-1]
+                if  '.' not in file_name:
+                    return 
+            # print 'raw_path, file_name', raw_path, file_name
+            _path = None
+            if len(file_name) > 0:
+                node = fs.Search(r'com\.baidu\.searchbox.*?{}$'.format(re.escape(file_name)))
+                for i in node:
+                    _path = i.AbsolutePath
+                    print 'file_name, _path', file_name, _path
+            return _path
+        except:
+            exc()
+            print 'node:', node, 'file_name:', file_name
+            return
 
     @staticmethod
     def _is_empty(rec, *args):

@@ -1,17 +1,16 @@
 # coding=utf-8
 import traceback
 import re
+import hashlib
 
 import clr
 try:
-    clr.AddReference('unity_c37r')
     clr.AddReference('model_mail')
     clr.AddReference('bcp_mail')
 except:
     pass
 del clr
 from model_mail import *
-from unity_c37r import md5
 import bcp_mail
 
 
@@ -54,8 +53,8 @@ class NeteaseMailParser(object):
 
         self.mm = MM()
         self.cachepath = ds.OpenCachePath("NeteaseMasterMail")
-        hash_str = md5(node.AbsolutePath)
-        self.cache_db = self.cachepath + '\\{}'.format(hash_str)
+        hash_str = hashlib.md5(node.AbsolutePath).hexdigest()
+        self.cache_db = self.cachepath + '\\{}.db'.format(hash_str)
 
         self.accounts    = {}
         self.mail_folder = {}
@@ -76,7 +75,10 @@ class NeteaseMailParser(object):
                 self.mm.db_commit()
             self.mm.db_close()
 
-        nameValues.SafeAddValue(bcp_mail.MAIL_TOOL_TYPE_OTHER, self.cache_db)
+
+        tmp_dir = ds.OpenCachePath('tmp')
+        save_cache_path(bcp_mail.MAIL_TOOL_TYPE_OTHER, self.cache_db, tmp_dir)
+ 
         models = Generate(self.cache_db).get_models()
         return models
 

@@ -37,6 +37,9 @@ def analyze_sms(node, extract_deleted, extract_source):
     elif node_path.endswith('com.android.providers.telephony/databases'):
         res = SMSParser(node, extract_deleted, extract_source).parse()
 
+    #for sms in res:
+    #    print 'sms.Body.Value', sms.Body.Value
+
     pr = ParserResults()
     if res is not None:
         pr.Models.AddRange(res)
@@ -57,13 +60,15 @@ class SMSParser(object):
         hash_str = hashlib.md5(node.AbsolutePath).hexdigest()
         self.cache_db = self.cachepath + '\\{}.db'.format(hash_str)
 
+        self.contacts = {}
+
     def parse(self):
         if DEBUG or self.m_sms.need_parse(self.cache_db, VERSION_APP_VALUE):
             node = self.root.GetByPath("/mmssms.db")
             self.db = SQLiteParser.Database.FromNode(node, canceller)
             if self.db is None:
                 return
-
+            
             self.m_sms.db_create(self.cache_db)
             self.source_mmmssms_db = node.AbsolutePath
             self.parse_main()
@@ -133,10 +138,21 @@ class SMSParser(object):
         '''
         contacts = {}
 
-        calls_path = os.path.join(self.cachepath, 'calls.db')
+        # 关联 通讯录  CALLS/F2BB91E8E7436EAA944C378D44066A79.db
+
+
+        BASE_DIR   = os.path.dirname(self.cachepath)
+        calls_path = os.path.join(BASE_DIR, 'CALLS')
+        if not os.listdir(calls_path):
+            print('####### android_sms.py: calls.db 不存在')
+            return 
+
+        for f  in os.listdir(calls_path):
+            if f.endswith('.db'):
+                calls_db_path = os.path.join(calls_path, f)
+
         try:
-            # shutil.copy(raw_calls_path, calls_path)
-            self.calls_db = sqlite3.connect(calls_path)
+            self.calls_db = sqlite3.connect(calls_db_path)
             cursor = self.calls_db.cursor()            
             cursor.execute(''' select * from contacts ''')
             for row in cursor:
@@ -144,6 +160,8 @@ class SMSParser(object):
             self.contacts = contacts
         except:
             exc()
+            print('##### android_sms.py #######: 关联 calls.db 失败')
+            # pass
         finally:
             cursor.close()
             self.calls_db.close()            
@@ -333,7 +351,7 @@ class SMSParser_no_tar(SMSParser):
         for rec in self.my_read_table(table_name='SMS'):
             if canceller.IsCancellationRequested:
                 return            
-            if self.is_empty(rec, 'body', 'phoneNumber') or rec['isMms'].Value == 1:
+            if self._is_empty(rec, 'body', 'phoneNumber') or rec['isMms'].Value == 1:
                 continue
             sms = SMS()
             # sms.sms_id           = rec['_id'].Value
