@@ -979,18 +979,20 @@ class BuildBCP(object):
             return SEXCODE_MALE
         elif value == "1":
             return SEXCODE_FEMALE
-        elif len(value) == 0:
+        elif value is None:
             return SEXCODE_UNKNOWN
+        else:
+            return SEXCODE_OTHER
 
     def _convert_browse_type(self, value):
-        if value is None:
-            return MAP_TYPE_OTHER
-        elif value == "谷歌地图":
+        if value == "谷歌地图":
             return MAP_TYPE_GOOGLE
         elif value == "百度地图":
             return MAP_TYPE_BAIDU
         elif value == "高德地图":
             return MAP_TYPE_GAODE
+        else:
+            return MAP_TYPE_OTHER
         
     def _convert_deleted_type(self, value):
         if value == 0:
