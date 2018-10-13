@@ -1,6 +1,20 @@
 #coding=utf-8
 import os
 import PA_runtime
+import traceback
+import hashlib
+import time
+
+import clr
+try:
+    clr.AddReference('model_browser')
+    clr.AddReference('bcp_browser')
+except:
+    pass
+
+from model_browser import *
+import bcp_browser
+
 from PA_runtime import *
 
 class SafariParser(object):
@@ -344,6 +358,133 @@ def analyze_safari(node, extractDeleted, extractSource):
     """
 
     pr = ParserResults()
-    pr.Models.AddRange(SafariParser(node, extractDeleted, extractSource).parse())
+    res = SafariParser(node, extractDeleted, extractSource).parse()
+
+    # 保存到中间数据库, 导出 BCP 
+    Export2db(node, results_model = res).parse()        
+
+    pr.Models.AddRange(res)
     pr.Build('Safari')
     return pr
+
+
+#################################################
+##                添加中间数据库                 ##
+#################################################
+DEBUG = True
+DEBUG = False
+VERSION_APP_VALUE = 1
+
+def exc():
+    if DEBUG:
+        traceback.print_exc()
+    else:
+        pass
+
+class Export2db(object):
+    def __init__(self, node, results_model):
+        self.mb = MB()
+        self.results_model = results_model
+        self.cachepath = ds.OpenCachePath("Safari")
+        hash_str = hashlib.md5(node.AbsolutePath).hexdigest()
+        self.cache_db = self.cachepath + '\\{}.db'.format(hash_str)
+
+        self.bookmark_id = 0
+
+    def parse(self):
+
+        try:
+            if DEBUG or self.mb.need_parse(self.cache_db, VERSION_APP_VALUE):
+                self.mb.db_create(self.cache_db) 
+                self.parse_model()
+
+                if not canceller.IsCancellationRequested:
+                    self.mb.db_insert_table_version(VERSION_KEY_DB, VERSION_VALUE_DB)
+                    self.mb.db_insert_table_version(VERSION_KEY_APP, VERSION_APP_VALUE)
+                self.mb.db_commit()
+                self.mb.db_close()
+            tmp_dir = ds.OpenCachePath('tmp')
+            save_cache_path(bcp_browser.BROWSER_TYPE_PHONE, self.cache_db, tmp_dir)
+
+        except:
+            exc()
+
+    def parse_model(self):
+        '''  WebBookmark
+                Title
+                Url
+                Path
+                # TimeStamp
+                # Position
+                # PositionAddress 
+                # LastVisited (timestamp)
+                Deleted
+                Source.Value
+
+            VisitedPage
+                Title.Value
+                Url.Value
+                VisitCount.Value
+                LastVisited.Value 
+
+            SearchedItem
+                TimeStamp
+                Value
+
+                # Position
+                # PositionAddress
+                # ItemType
+                # SearchResultCount
+                # OwnerUserID
+                # SearchResults
+        '''
+        for item in self.results_model:
+                if item.I18N == "书签":      # WebBookmark
+                    bookmark = Bookmark()
+                    bookmark.id         = self.bookmark_id
+                    self.bookmark_id += 1
+                    # bookmark.owneruser  = 
+                    # bookmark.time       =
+                    bookmark.title      = item.Title.Value
+                    bookmark.url        = item.Url.Value
+                    bookmark.source     = item.Source.Value
+                    bookmark.deleted    = 0 if item.Deleted == DeletedState.Intact else 1
+                    self.mb.db_insert_table_bookmarks(bookmark)
+
+                elif item.I18N == "浏览记录":    # VisitedPage
+                    browser_record = Browserecord()
+                    # browser_record.id       = 
+                    browser_record.name     = item.Title.Value
+                    browser_record.url      = item.Url.Value
+                    browser_record.datetime = self._convert_2_timestamp(item.LastVisited)
+                    browser_record.source   = item.Source.Value  
+                    browser_record.deleted  = 0 if item.Deleted == DeletedState.Intact else 1
+
+                    self.mb.db_insert_table_browserecords(browser_record)
+
+                elif item.I18N == "搜索项":     # SearchedItem
+                    search_history = SearchHistory()
+                    # search_history.id       = 
+                    search_history.name     = item.Value
+                    # search_history.url      = 
+                    search_history.datetime = self._convert_2_timestamp(item.TimeStamp)
+                    search_history.source   = item.Source.Value
+                    search_history.deleted  = 0 if item.Deleted == DeletedState.Intact else 1
+
+                    self.mb.db_insert_table_searchhistory(search_history)
+
+    @staticmethod
+    def _convert_2_timestamp(_timestamp):
+        ''' _timestamp.Value.Value.LocalDateTime
+            2018/8/15 15:27:20 => 10位 时间戳 1534318040.0
+        '''
+        try:
+            if _timestamp.Value:
+                format_time = _timestamp.Value.Value.LocalDateTime
+                ts = time.strptime(str(format_time), "%Y/%m/%d %H:%M:%S")
+                return time.mktime(ts)
+            return 
+        except:
+            traceback.print_exc()
+            return 
+
