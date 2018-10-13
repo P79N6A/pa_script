@@ -7,12 +7,18 @@ from PA_runtime import *
 import clr
 try:
     clr.AddReference('model_browser')
+    clr.AddReference('bcp_mail')
 except:
     pass
 del clr
 from model_browser import *
+import bcp_mail
 
 import time
+
+
+DEBUG = True
+DEBUG = False
 
 # app数据库版本
 VERSION_APP_VALUE = 1
@@ -56,7 +62,7 @@ class BaiduBrowserParser(object):
             databases/dbbrowser.db
             app_webview_baidu/Cookies
         '''
-        if self.mb.need_parse(self.cache_db, VERSION_APP_VALUE):
+        if DEBUG or self.mb.need_parse(self.cache_db, VERSION_APP_VALUE):
             if not self._read_db('databases/dbbrowser.db'):
                 return  
             self.mb.db_create(self.cache_db)
@@ -74,6 +80,9 @@ class BaiduBrowserParser(object):
                 
             self.mb.db_close()
             
+        tmp_dir = ds.OpenCachePath('tmp')
+        save_cache_path(bcp_mail.MAIL_TOOL_TYPE_OTHER, self.cache_db, tmp_dir)
+
         models = Generate(self.cache_db).get_models()
         return models
 
