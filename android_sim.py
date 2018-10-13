@@ -8,8 +8,6 @@ del clr
 from model_sim import *
 
 
-
-
 # app数据库版本
 VERSION_APP_VALUE = 1
 
