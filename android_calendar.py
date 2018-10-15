@@ -6,11 +6,13 @@ from PA_runtime import *
 import clr
 try:
     clr.AddReference('model_calendar')
+    clr.AddReference('System.Data.SQLite')
 except:
     pass
 del clr
 import shutil
 from model_calendar import *
+import System.Data.SQLite as SQLite
 
 SQL_JOIN_TABLE_CALENDAR = '''select Events.calendar_id, Events._id, Events.title, Events.eventLocation, Events.description, Events.dtstart, 
     Reminders.minutes, Events.dtend, Events.rrule from Events left join Reminders on Events._id = Reminders.event_id'''
@@ -27,34 +29,38 @@ class CalendarParser(object):
         self.mc.db_create(self.db_cache)
 
     def analyze_calendar(self):
-        calendar = Calendar()
         try:
             db_source = self.sourceDB + '\\calendar.db'
-            self.db = sqlite3.connect(db_source)
+            self.db = SQLite.SQLiteConnection('Data Source = {}'.format(db_source))
+            self.db.Open()
+            self.db_cmd = SQLite.SQLiteCommand(self.db)
             if self.db is None:
                 return
-            cursor = self.db.cursor()
             try:
-                cursor.execute(SQL_JOIN_TABLE_CALENDAR)
-            except:
+                self.db_cmd.CommandText = SQL_JOIN_TABLE_CALENDAR
+                sr = self.db_cmd.ExecuteReader()
+            except Exception as e:
+                print(e)
                 self.analyze_logic_calendar()
                 return
-            for row in cursor:
+            while (sr.Read()):
+                calendar = Calendar()
                 if canceller.IsCancellationRequested:
                     break
-                calendar.calendar_id = row[0]
-                calendar.title = row[2]
-                calendar.description = row[4]
-                calendar.dtstart = row[5]
-                calendar.remind = row[6]
-                calendar.dtend = row[7]
-                calendar.rrule = self._extractData(row[8],'FREQ')
-                calendar.interval = self._extractData(row[8],'INTERVAL')
-                calendar.until = self._extractData(row[8],'UNTIL')
+                calendar.calendar_id = sr[0]
+                calendar.title = sr[2]
+                calendar.description = sr[4]
+                calendar.dtstart = sr[5]
+                calendar.remind = sr[6]
+                calendar.dtend = sr[7]
+                if not IsDBNull(sr[8]):
+                    calendar.rrule = self._extractData(sr[8],'FREQ')
+                    calendar.interval = self._extractData(sr[8],'INTERVAL')
+                    calendar.until = self._extractData(sr[8],'UNTIL')
                 calendar.source = self.node.AbsolutePath
                 self.mc.db_insert_calendar(calendar)
             self.mc.db_commit()
-            self.db.close()
+            self.db.Close()
         except Exception as e:
             print(e)
 
@@ -87,25 +93,27 @@ class CalendarParser(object):
             pass
 
     def analyze_logic_calendar(self):
-        calendar = Calendar()
         try:
             db_source = self.node.PathWithMountPoint
-            self.db = sqlite3.connect(db_source)
+            self.db = SQLite.SQLiteConnection('Data Source = {}'.format(db_source))
+            self.db.Open()
+            self.db_cmd = SQLite.SQLiteCommand(self.db)
             if self.db is None:
                 return
-            cursor = self.db.cursor()
-            cursor.execute('select distinct * from Calendar')
-            for row in cursor:
+            self.db_cmd.CommandText = '''select distinct * from Calendar'''
+            sr = self.db_cmd.ExecuteReader()
+            while (sr.Read()):
+                calendar = Calendar()
                 if canceller.IsCancellationRequested:
                     break
-                calendar.calendar_id = row[0]
-                calendar.title = row[1]
-                calendar.description = row[3]
-                calendar.dtstart = row[5]
-                calendar.dtend = row[6]
-                calendar.rrule = self._extractData(row[4],'FREQ')
-                calendar.interval = self._extractData(row[4],'INTERVAL')
-                calendar.until = self._extractData(row[4],'UNTIL')
+                calendar.calendar_id = sr[0]
+                calendar.title = sr[1]
+                calendar.description = sr[3]
+                calendar.dtstart = sr[5]
+                calendar.dtend = sr[6]
+                calendar.rrule = self._extractData(sr[4],'FREQ')
+                calendar.interval = self._extractData(sr[4],'INTERVAL')
+                calendar.until = self._extractData(sr[4],'UNTIL')
                 calendar.source = self.node.AbsolutePath
                 self.mc.db_insert_calendar(calendar)
             self.mc.db_commit()

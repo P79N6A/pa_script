@@ -21,7 +21,7 @@ import re
 import traceback
 import hashlib
 
-VERSION_APP_VALUE = 1
+VERSION_APP_VALUE = 2
 
 class QQBrowserParse(object):
     def __init__(self, node, extractDeleted, extractSource):
@@ -180,7 +180,8 @@ class QQBrowserParse(object):
                     fileinfo.size = rec['SIZE'].Value if 'SIZE' in rec else None
                     if not IsDBNull(rec['MODIFIED_DATE'].Value):
                         fileinfo.modified = self._timeHandler(rec['MODIFIED_DATE'].Value) if 'MODIFIED_DATE' in rec else None
-                    fileinfo.title = pattern.sub('', rec['TITLE'].Value) if 'TITLE' in rec and rec['TITLE'].Value is not '' else None
+                    if not IsDBNull(rec['TITLE'].Value):
+                        fileinfo.title = pattern.sub('', rec['TITLE'].Value) if 'TITLE' in rec and rec['TITLE'].Value is not '' else None
                     fileinfo.source = node.AbsolutePath
                     self.mb.db_insert_table_fileinfos(fileinfo)
                 self.mb.db_commit()

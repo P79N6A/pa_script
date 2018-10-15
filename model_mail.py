@@ -2,9 +2,12 @@
 
 from PA_runtime import *
 import clr
-clr.AddReference('System.Core')
-clr.AddReference('System.Xml.Linq')
-clr.AddReference('System.Data.SQLite')
+try:
+    clr.AddReference('System.Core')
+    clr.AddReference('System.Xml.Linq')
+    clr.AddReference('System.Data.SQLite')
+except:
+    pass
 del clr
 
 from System.IO import MemoryStream

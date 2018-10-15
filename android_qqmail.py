@@ -131,8 +131,8 @@ class QQMailParser(object):
                 return
             self.db_cmd.CommandText = SQL_ASSOCIATE_TABLE_ACCOUNT
             sr = self.db_cmd.ExecuteReader()
-            account = Account()
             while (sr.Read()):
+                account = Account()
                 if canceller.IsCancellationRequested:
                     break
                 account.account_id = sr[0]
