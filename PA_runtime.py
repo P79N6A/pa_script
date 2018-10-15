@@ -19,6 +19,9 @@ import traceback
 import SQLiteParser
 import os
 
+import sys 
+reload(sys)
+sys.setdefaultencoding('utf-8') 
 
 from System import *
 from System.IO import *
