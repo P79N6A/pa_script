@@ -390,19 +390,25 @@ class GenerateBcp(object):
         self.cache_db = cache_db
         self.collect_target_id = collect_target_id
         self.mail_tool_type = mail_tool_type
-        self.cache_path = bcp_db + '\\BCP_MAIL.db'
+        self.cache_path = bcp_db
         self.mail = MailBcp()
+        self.attachpath = self.bcp_path + '\\attachment'
+        os.mkdir(self.attachpath)
+        print('bcp_path:'+bcp_path+' cachedb:'+cache_db+' bcp_db'+bcp_db+' collect_target_id:'+collect_target_id+' mail_tool_type:'+mail_tool_type+' mountDir:'+mountDir)
 
     def generate(self):
-        self.mail.db_create(self.cache_path)
-        self.db = SQLite.SQLiteConnection('Data Source = {}'.format(self.cache_db))
-        self.db.Open()
-        self._generate_account()
-        self._generate_contact()
-        self._generate_mail()
-        self._generate_attachment()
-        self.db.Close()
-        self.mail.db_close()
+        try:
+            self.mail.db_create(self.cache_path)
+            self.db = SQLite.SQLiteConnection('Data Source = {}'.format(self.cache_db))
+            self.db.Open()
+            self._generate_account()
+            self._generate_contact()
+            self._generate_mail()
+            self._generate_attachment()
+            self.db.Close()
+            self.mail.db_close()
+        except Exception as e:
+            print(e)
 
     def _generate_account(self):
         try:
@@ -526,7 +532,8 @@ class GenerateBcp(object):
                 attachment.FILE_NAME = sr[3]
                 attachment.FILE_SIZE = sr[4]
                 attachment.DELETE_STATUS = sr[5]
-                self._copy_attachment(self.mountDir, sr[3])
+                if not IsDBNull(sr[3]):
+                    self._copy_attachment(self.mountDir, sr[3])
                 self.mail.db_insert_table_attachment(attachment)
             self.mail.db_commit()
         except Exception as e:
@@ -535,12 +542,12 @@ class GenerateBcp(object):
     def _copy_attachment(self, mountDir, dir):
         x = mountDir + dir
         sourceDir = x.replace('\\','/')
-        targetDir = self.bcp_path + '\\attachment'
+        targetDir = self.attachpath
         try:
-            if not os.path.exists(targetDir):
-                shutil.copytree(sourceDir, targetDir)
-        except Exception as e:
-            print(e)
+            if os.path.exists(targetDir):
+                shutil.copy(sourceDir, targetDir)
+        except:
+            pass
 
 
     @staticmethod
