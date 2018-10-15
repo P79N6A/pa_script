@@ -118,7 +118,6 @@ class YiXinParser():
             SQLiteParser.Tools.AddSignatureToTable(ts, "id", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
             for rec in db.ReadTableRecords(ts, self.extract_deleted):
                 if canceller.IsCancellationRequested:
-                    self.im.db_close()
                     return
                 contact = {'deleted' : rec.Deleted, 'repeated' : 0}
                 contactid = rec['id'].Value
@@ -177,7 +176,6 @@ class YiXinParser():
                 SQLiteParser.Tools.AddSignatureToTable(ts, "id", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
                 for rec in db.ReadTableRecords(ts, self.extract_deleted):
                     if canceller.IsCancellationRequested:
-                        self.im.db_close()
                         return
                     if contact_id != rec['id'].Value:
                         continue
