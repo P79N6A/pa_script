@@ -353,7 +353,7 @@ class QQBrowserParse(object):
             self.mb.db_insert_table_version(model_browser.VERSION_KEY_APP, VERSION_APP_VALUE)
             self.mb.db_close()
         temp_dir = ds.OpenCachePath('tmp')
-        PA_runtime.save_cache_path(bcp_browser.BROWSER_TYPE_QQ, self.db_cache, temp_dir)
+        PA_runtime.save_cache_path(bcp_browser.NETWORK_APP_QQ, self.db_cache, temp_dir)
         generate = Generate(self.db_cache)
         models = generate.get_models()
         return models
