@@ -40,7 +40,6 @@ class CalendarParser(object):
                 self.db_cmd.CommandText = SQL_JOIN_TABLE_CALENDAR
                 sr = self.db_cmd.ExecuteReader()
             except Exception as e:
-                print(e)
                 self.analyze_logic_calendar()
                 return
             while (sr.Read()):
@@ -65,10 +64,10 @@ class CalendarParser(object):
             print(e)
 
     def decode_recover_calendar_table(self):
-        self.db = SQLiteParser.Database.FromNode(self.node, canceller)
-        if self.db is None:
-            return
         try:
+            self.db = SQLiteParser.Database.FromNode(self.node, canceller)
+            if self.db is None:
+                return
             ts = SQLiteParser.TableSignature('Events')
         except:
             return
@@ -117,7 +116,9 @@ class CalendarParser(object):
                 calendar.source = self.node.AbsolutePath
                 self.mc.db_insert_calendar(calendar)
             self.mc.db_commit()
-            self.db.close()
+            self.db.Close()
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
         except Exception as e:
             print(e)
 
