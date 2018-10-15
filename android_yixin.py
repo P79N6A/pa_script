@@ -134,7 +134,6 @@ class YiXinParser():
             SQLiteParser.Tools.AddSignatureToTable(ts, "uid", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
             for rec in db.ReadTableRecords(ts, self.extract_deleted):
                 if canceller.IsCancellationRequested:
-                    self.im.db_close()
                     return
                 id = rec['uid'].Value
                 if id in self.friends:
@@ -189,7 +188,6 @@ class YiXinParser():
                     SQLiteParser.Tools.AddSignatureToTable(ts, "tid", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
                     for rec in db.ReadTableRecords(ts, self.extract_deleted):
                         if canceller.IsCancellationRequested:
-                            self.im.db_close()
                             return
                         room_id = rec['tid'].Value
                         if chatroom.chatroom_id != room_id:
@@ -217,7 +215,6 @@ class YiXinParser():
             SQLiteParser.Tools.AddSignatureToTable(ts, "uid", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
             for rec in db.ReadTableRecords(ts, self.extract_deleted):
                 if canceller.IsCancellationRequested:
-                    self.im.db_close()
                     return
                 id = rec['uid'].Value
                 if id in self.friends:
@@ -252,7 +249,6 @@ class YiXinParser():
                 SQLiteParser.Tools.AddSignatureToTable(ts, "tid", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
                 for rec in db.ReadTableRecords(ts, self.extract_deleted):
                     if canceller.IsCancellationRequested:
-                        self.im.db_close()
                         return
                     if id != rec['id'].Value:
                         continue
