@@ -202,7 +202,6 @@ class AlipayParser(model_im.IM):
             SQLiteParser.Tools.AddSignatureToTable(ts, 'userID', SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
             for rec in db.ReadTableRecords(ts, self.extract_deleted):
                 if canceller.IsCancellationRequested:
-                    self.db_close()
                     return
                 if rec['userID'].Value == self.user:
                     continue
@@ -362,7 +361,6 @@ class AlipayParser(model_im.IM):
                 
         for id in recentContact.keys():
             if canceller.IsCancellationRequested:
-                self.db_close()
                 return
 
             contact = self.contacts.get(id)
