@@ -186,14 +186,8 @@ def build_contacts(db, images, image_file, extractDeleted, extractSource):
         fullName = []
         if extractSource:
             nameChunks = []
-        cnstyle = False
-        datas = [first, middle, last]
-        try:
-            if middle == None or len(middle) == 0:
-                datas = [last, middle, first]
-                cnstyle = True
-        except:
-            pass
+        cnstyle = True
+        datas = [last, middle, first]
 
         for field in datas:
             if IsDBNull(field.Value):

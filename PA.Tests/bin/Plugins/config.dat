@@ -773,7 +773,7 @@
             <string>com.yixin.yixin</string>
           </array>
           <key>Category</key>
-          <string>YouXin</string>
+          <string>YiXin</string>
         </dict>
       </array>
     </dict>
@@ -1015,6 +1015,7 @@
           <key>Patterns</key>
           <array>
             <string>/data/im.yixin$</string>
+            <string>/Apps/im.yixin$</string>
           </array>
           <key>Category</key>
           <string>YiXin</string>
@@ -1312,7 +1313,7 @@
             <string>com.android.providers.telephony/databases$</string>
           </array>
           <key>Category</key>
-          <string>Sms</string>
+          <string>Messages</string>
         </dict>
       </array>
     </dict>

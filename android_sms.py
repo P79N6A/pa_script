@@ -1,9 +1,5 @@
 # coding=utf-8
-import os
-import re
-
-import PA_runtime
-from PA_runtime import *
+import time
 import clr
 try:
     clr.AddReference('model_sms')
@@ -41,10 +37,14 @@ def analyze_sms(node, extract_deleted, extract_source):
     elif node_path.endswith('com.android.providers.telephony/databases'):
         res = SMSParser(node, extract_deleted, extract_source).parse()
 
+    #for sms in res:
+    #    print 'sms.Body.Value', sms.Body.Value
+
     pr = ParserResults()
     if res is not None:
         pr.Models.AddRange(res)
         pr.Build('短信')
+
     return pr
 
 
@@ -57,16 +57,18 @@ class SMSParser(object):
 
         self.m_sms = Model_SMS()
         self.cachepath = ds.OpenCachePath("AndroidSMS")
-        self.cache_db = self.cachepath + "\\AndroidSMS.db"
+        hash_str = hashlib.md5(node.AbsolutePath).hexdigest()
+        self.cache_db = self.cachepath + '\\{}.db'.format(hash_str)
+
+        self.contacts = {}
 
     def parse(self):
-        if self.m_sms.need_parse(self.cache_db, VERSION_APP_VALUE):
-            print('node.AbsolutePath:', self.root.AbsolutePath)
+        if DEBUG or self.m_sms.need_parse(self.cache_db, VERSION_APP_VALUE):
             node = self.root.GetByPath("/mmssms.db")
             self.db = SQLiteParser.Database.FromNode(node, canceller)
             if self.db is None:
                 return
-
+            
             self.m_sms.db_create(self.cache_db)
             self.source_mmmssms_db = node.AbsolutePath
             self.parse_main()
@@ -82,7 +84,90 @@ class SMSParser(object):
         return models        
 
     def parse_main(self):
-        """
+
+        self.pre_parse_calls()
+        self.parse_sim_cards()
+        self.parse_sms()
+        # self.parse_mms()
+        
+    def parse_sim_cards(self):
+       """ 
+           sms - 短信
+       """
+       try:
+           for rec in self.my_read_table('sim_cards'):
+               if IsDBNull(rec['number'].Value):
+                   continue
+               sim = Sim_cards()
+               sim.sim_id       = rec['sim_id'].Value
+               sim.number       = rec['number'].Value
+               sim.sync_enabled = rec['sync_enabled'].Value
+               sim.source       = self.source_mmmssms_db
+               try:
+                   self.m_sms.db_insert_table_sim_cards(sim)
+               except:
+                   exc()
+           try:
+               self.m_sms.db_commit()
+           except:
+               pass
+       except:
+           pass
+
+    def pre_parse_calls(self):
+        ''' calls.db - contacts
+
+            RecNo	FieldName	
+            0	raw_contact_id	INTEGER
+            1	mimetype_id	INTEGER
+            2	mail	TEXT
+            3	company	TEXT
+            4	title	TEXT
+            5	last_time_contact	INTEGER
+            6	last_time_modify	INTEGER
+            7	times_contacted	INTEGER
+            8	phone_number	TEXT
+            9	name	TEXT
+            10	address	TEXT
+            11	notes	TEXT
+            12	telegram	TEXT
+            13	head_pic	BLOB
+            14	source	TEXT
+            15	deleted	INTEGER
+            16	repeated	INTEGER   
+        '''
+        contacts = {}
+
+        # 关联 通讯录  CALLS/F2BB91E8E7436EAA944C378D44066A79.db
+
+
+        BASE_DIR   = os.path.dirname(self.cachepath)
+        calls_path = os.path.join(BASE_DIR, 'CALLS')
+        if not os.listdir(calls_path):
+            print('####### android_sms.py: calls.db 不存在')
+            return 
+
+        for f  in os.listdir(calls_path):
+            if f.endswith('.db'):
+                calls_db_path = os.path.join(calls_path, f)
+
+        try:
+            self.calls_db = sqlite3.connect(calls_db_path)
+            cursor = self.calls_db.cursor()            
+            cursor.execute(''' select * from contacts ''')
+            for row in cursor:
+                contacts[row[8]] = row[9]
+            self.contacts = contacts
+        except:
+            exc()
+            print('##### android_sms.py #######: 关联 calls.db 失败')
+            # pass
+        finally:
+            cursor.close()
+            self.calls_db.close()            
+
+    def parse_sms(self):
+        """ sms - 短信
         sms
             _id                INTEGER PRIMARY KEY,
             thread_id          INTEGER,
@@ -117,50 +202,18 @@ class SMSParser(object):
             creator            TEXT,
             favorite_date      INTEGER DEFAULT 0
         """
-        self.parse_sim_cards()
-        self.parse_sms()
-        # self.parse_mms()
-        
-    def parse_sim_cards(self):
-       """ 
-           sms - 短信
-       """
-       try:
-           for rec in self.my_read_table('sim_cards'):
-               if IsDBNull(rec['number'].Value):
-                   continue
-               sim = Sim_cards()
-               sim.sim_id       = rec['sim_id'].Value
-               sim.number       = rec['number'].Value
-               sim.sync_enabled = rec['sync_enabled'].Value
-               sim.source       = self.source_mmmssms_db
-               try:
-                   self.m_sms.db_insert_table_sim_cards(sim)
-               except:
-                   exc()
-           try:
-               self.m_sms.db_commit()
-           except:
-               pass
-       except:
-           pass
-
-    def parse_sms(self):
-        """ 
-            sms - 短信
-        """
         for rec in self.my_read_table(table_name='sms'):
             if canceller.IsCancellationRequested:
                 return            
-            if IsDBNull(rec['body'].Value):
+            if self._is_empty(rec, 'body', 'address') or not self._is_num(rec['address'].Value):
                 continue
             sms = SMS()
-            sms.sms_id             = rec['_id'].Value
+            sms._id                = rec['_id'].Value
             sms.sender_phonenumber = rec['address'].Value
-            sms.sms_or_mms         = 'sms'
-            sms.read               = rec['read'].Value
+            sms.sender_name        = self._get_contacts(sms.sender_phonenumber)
+            sms.read_statusd       = rec['read'].Value
             sms.type               = rec['type'].Value    # SMS_TYPE
-            sms.subject            = rec['subject'].Value
+            sms.subject            = rec['subject'].Value 
             sms.body               = rec['body'].Value
             sms.send_time          = rec['date_sent'].Value
             sms.deliverd           = rec['date'].Value
@@ -188,7 +241,6 @@ class SMSParser(object):
             if IsDBNull(rec['address'].Value) or IsDBNull(rec['body'].Value):
                 continue
             sms = Message()
-            sms.sms_or_mms         = 'sms'
             sms.sender_phonenumber = rec['address'].Value
             sms.sms_id             = rec['_id'].Value
             sms.subject            = rec['subject'].Value # decode or what
@@ -219,6 +271,39 @@ class SMSParser(object):
         tb = SQLiteParser.TableSignature(table_name)
         return self.db.ReadTableRecords(tb, self.extract_deleted, True)
 
+    def _get_contacts(self, sender_phonenumber):
+        try:
+            if len(sender_phonenumber) == 11:
+                for i in ('+86', '86'):
+                    name = self.contacts.get(i + sender_phonenumber, None)
+                    if name:
+                        return name
+            return self.contacts.get(sender_phonenumber, None)
+        except:
+            return None
+
+    @staticmethod
+    def _is_empty(rec, *args):
+        ''' 过滤 DBNull, 空数据 
+        
+        :type rec:   rec
+        :type *args: str
+        :rtype: bool
+        '''
+        for i in args:
+            if IsDBNull(rec[i].Value) or rec[i].Value in ('', ' ', None, [], {}):
+                return True
+        return False
+
+    @staticmethod
+    def _is_num(address):
+        try:
+            if isinstance(int(address), (int, long)):
+                return True
+            return False
+        except:
+            return False
+
 
 
 class SMSParser_no_tar(SMSParser):
@@ -228,22 +313,32 @@ class SMSParser_no_tar(SMSParser):
         super(SMSParser_no_tar, self).__init__(node, extract_deleted, extract_source)
     
     def parse(self):
-        self.db = SQLiteParser.Database.FromNode(node,canceller)
-        if self.db is None:
-            return
-        self.source_sms_db = node.AbsolutePath
+        if DEBUG or self.m_sms.need_parse(self.cache_db, VERSION_APP_VALUE):
+            node = self.root
+            self.db = SQLiteParser.Database.FromNode(node, canceller)
+            if self.db is None:
+                return
 
-        self.parse_sms()
+            self.m_sms.db_create(self.cache_db)
+            self.source_sms_db = node.AbsolutePath
+            self.parse_sms()
 
-        self.m_sms.db_close()
-        models = GenerateModel(self.cache_db).get_models()
-        return models    
+            # 数据库填充完毕，请将中间数据库版本和app数据库版本插入数据库，用来检测app是否需要重新解析
+            if not canceller.IsCancellationRequested:
+                self.m_sms.db_insert_table_version(VERSION_KEY_DB, VERSION_VALUE_DB)
+                self.m_sms.db_insert_table_version(VERSION_KEY_APP, VERSION_APP_VALUE)
+                self.m_sms.db_commit()
+            self.m_sms.db_close() 
+
+        models = GenerateModel(self.cache_db, self.cachepath).get_models()
+        return models   
+
 
     def parse_sms(self):
         """ sms/sms.db - SMS
 
         RecNo	FieldName	SQLType
-        1	phoneNumber	            TEXT
+        1	phoneNumber	        TEXT
         2	time	            TEXT
         3	name	            TEXT
         4	shortType	        INTEGER
@@ -256,18 +351,18 @@ class SMSParser_no_tar(SMSParser):
         for rec in self.my_read_table(table_name='SMS'):
             if canceller.IsCancellationRequested:
                 return            
-            if IsDBNull(rec['body'].Value):
+            if self._is_empty(rec, 'body', 'phoneNumber') or rec['isMms'].Value == 1:
                 continue
             sms = SMS()
             # sms.sms_id           = rec['_id'].Value
             sms.sender_phonenumber = rec['phoneNumber'].Value
-            sms.sms_or_mms         = 'sms' if rec['isMms'].Value == 0 else 'mms'
-            sms.read               = rec['shortRead'].Value
+            sms.sender_name        = self.contacts.get(sms.sender_phonenumber, None)
+            sms.read_status        = rec['shortRead'].Value
             sms.type               = SMS_TYPE_INBOX if rec['shortType'].Value == 1 else SMS_TYPE_OUTBOX
             sms.subject            = rec['theme'].Value
             sms.body               = rec['body'].Value.replace('\0', '')
             sms.send_time          = self._convert_2_timestamp(rec['time'].Value)
-            sms.deliverd           = sms.send_time
+            sms.delivered_date     = sms.send_time
             sms.is_sender          = 1 if rec['shortType'].Value == 2 else 0
 
             sms.source             = self.source_sms_db
@@ -289,3 +384,4 @@ class SMSParser_no_tar(SMSParser):
             return time.mktime(ts)
         except:
             return 
+

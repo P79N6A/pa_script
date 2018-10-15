@@ -51,11 +51,12 @@ def get_support_apps(caseDirs):
     return None
 
 def run(target_id, bcp_path, case_path, mountDir, software_type):
-    tmp_dir = case_path + "\\caches\\tmp\\"
+    tmp_dir = case_path + "\\caches\\tmp\\"  
     ts_path = case_path + "\\caches\\tmp"   # bcp数据库生成位置
     software_path = tmp_dir + software_type
     if os.path.exists(software_path):
-        
+        ts_db = None
+        bcp_path_list = []
         # IM类生产bcp数据库
         if software_type in IM_LIST:
             path_lists = read_path(software_path)
@@ -64,9 +65,10 @@ def run(target_id, bcp_path, case_path, mountDir, software_type):
                     try:
                         ts_db = md5(path, ts_path)    
                         bcp_im.GenerateBcp(bcp_path, mountDir, path, ts_db, target_id, software_type).generate()
+                        bcp_path_list.append(ts_db)
                     except Exception as e:
                         print(traceback.print_exc())
-                return ts_db
+                return bcp_path_list
 
         # 地理位置类生产bcp数据库
         elif software_type in MAP_LIST:
@@ -76,9 +78,10 @@ def run(target_id, bcp_path, case_path, mountDir, software_type):
                     try:
                         ts_db = md5(path, ts_path)    
                         bcp_gis.BuildBCP(path, ts_db, target_id, software_type).genetate()
+                        bcp_path_list.append(ts_db)
                     except Exception as e:
                         print(traceback.print_exc())
-                return ts_db
+                return bcp_path_list
 
         # # 浏览器类生产bcp数据库
         elif software_type in BROWER_LIST:
@@ -88,9 +91,10 @@ def run(target_id, bcp_path, case_path, mountDir, software_type):
                     try:
                         ts_db = md5(path, ts_path)    
                         bcp_browser.GenerateBcp(bcp_path, path, ts_db, target_id, software_type).generate()
+                        bcp_path_list.append(ts_db)
                     except Exception as e:
                         print(traceback.print_exc())
-                return ts_db
+                return bcp_path_list
 
         # 邮件类生产bcp数据库
         elif software_type in MAIL_LIST:
@@ -100,9 +104,10 @@ def run(target_id, bcp_path, case_path, mountDir, software_type):
                     try:
                         ts_db = md5(path, ts_path)    
                         bcp_mail.GenerateBcp(bcp_path, path, ts_db, target_id, software_type, mountDir).generate()
+                        bcp_path_list.append(ts_db)
                     except Exception as e:
                         print(traceback.print_exc())
-                return ts_db
+                return bcp_path_list
 
         # 微博类生产bcp数据库
         elif software_type in WEIBO_LIST:
@@ -112,15 +117,16 @@ def run(target_id, bcp_path, case_path, mountDir, software_type):
                     try:
                         ts_db = md5(path, ts_path)    
                         bcp_weibo.GenerateBcp(path, ts_db, target_id, software_type).generate()
+                        bcp_path_list.append(ts_db)
                     except Exception as e:
                         print(traceback.print_exc())
-                return ts_db
+                return bcp_path_list
 
     return None
 
 def md5(cache_path, ts_path):
     m = hashlib.md5()   
-    m.update(cache_path)
+    m.update(cache_path.encode(encoding = 'utf-8'))
     db_path = ts_path + "\\" + m.hexdigest() + ".db"
     if os.path.exists(db_path):
         try:
@@ -138,7 +144,7 @@ def read_path(path):
 
 def func(item):
     if item is not None:
-        item.replace("\n", "")
+        return item.replace("\n", "")
 
     
 
