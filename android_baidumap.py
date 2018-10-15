@@ -99,8 +99,8 @@ class BaiduMap(object):
                     if json_data:
                         if "Fav_Content" in json_data:
                             search_history.keyword = json_data["Fav_Content"]
-                        if "Fav_Extra" in json_data and json["Fav_Extra"]:
-                            search_history.district = json["Fav_Extra"]
+                        if "Fav_Extra" in json_data and json_data["Fav_Extra"]:
+                            search_history.district = json_data["Fav_Extra"]
                         if "Fav_Sync" in json_data:
                             if "cityId" in json_data["Fav_Sync"]:
                                 search_history.adcode = json_data["Fav_Sync"]["cityId"]
