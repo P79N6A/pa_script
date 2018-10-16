@@ -454,10 +454,10 @@ class Taobao(object):
                     # 实际上是属于千牛发送的自动排列的消息内容
                     sub_tp = js.get('template').get('id')
                     sub_string = js.get('template').get('data').get('text')
-                    f = open('D:/webs/{}.xml'.format(random.randint(0, 0xffffffff)), 'w+')
-                    if sub_string is not None:
-                        f.write(sub_string)
-                    f.close()
+                    # f = open('D:/webs/{}.xml'.format(random.randint(0, 0xffffffff)), 'w+')
+                    # if sub_string is not None:
+                    #     f.write(sub_string)
+                    # f.close()
                     if sub_tp == 20002:
                         m.type = model_im.MESSAGE_CONTENT_TYPE_ATTACHMENT
                         deal = model_im.Deal()
@@ -572,9 +572,9 @@ class Taobao(object):
                         self.eb.db_insert_table_shop(shop.get_value())
                         continue
             except:
-                f = open('D:/webs/{}.txt'.format(random.randint(0, 0xffffffff)),'w+')
-                f.write(m_str)
-                f.close()
+                # f = open('D:/webs/{}.txt'.format(random.randint(0, 0xffffffff)),'w+')
+                # f.write(m_str)
+                # f.close()
                 traceback.print_exc()
                 continue
         self.eb.db_commit()
