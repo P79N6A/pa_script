@@ -84,8 +84,7 @@ class NeteaseMailParser(object):
             self.mm.db_close()
 
         tmp_dir = ds.OpenCachePath('tmp')
-
-        # save_cache_path(bcp_mail.MAIL_TOOL_TYPE_OTHER, self.cache_db, tmp_dir)
+        save_cache_path(bcp_mail.MAIL_TOOL_TYPE_OTHER, self.cache_db, tmp_dir)
 
         generate = Generate(self.cache_db)
         return generate.get_models()

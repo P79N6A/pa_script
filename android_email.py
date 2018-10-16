@@ -56,7 +56,7 @@ class EmailParser(object):
         self.cachepath = ds.OpenCachePath("AndroidEmail")
         hash_str = hashlib.md5(node.AbsolutePath).hexdigest()
 
-        self.cache_db = self.cachepath + '\\{}'.format(hash_str)
+        self.cache_db = self.cachepath + '\\{}.db'.format(hash_str)
 
         self.accounts    = {}
         self.mail_folder = {}
@@ -76,7 +76,9 @@ class EmailParser(object):
                 self.mm.db_insert_table_version(VERSION_KEY_APP, VERSION_APP_VALUE)
                 self.mm.db_commit()
             self.mm.db_close()
-        nameValues.SafeAddValue(bcp_mail.MAIL_TOOL_TYPE_PHONE, self.cache_db)
+
+        tmp_dir = ds.OpenCachePath('tmp')
+        PA_runtime.save_cache_path(bcp_mail.MAIL_TOOL_TYPE_PHONE, self.cache_db, tmp_dir)
         models = Generate(self.cache_db).get_models()
         return models
 
