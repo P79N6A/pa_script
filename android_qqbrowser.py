@@ -37,9 +37,9 @@ class QQBrowserParse(object):
         self.db_cache = self.cache_path + "\\" + md5_db.hexdigest().upper() + ".db"
 
     def analyze_bookmarks(self):
-        bookmark = Bookmark()
-        fs = self.node.FileSystem
-        ns = fs.Search(r'/data/com.tencent.mtt/databases/\d+.db$')
+        bookmark = model_browser.Bookmark()
+        fs = self.node.Parent
+        ns = fs.Search(r'/\d+.db$')
         pattern = re.compile('[\\x00-\\x08\\x0b-\\x0c\\x0e-\\x1f]')
         nodes = []
         for n in ns:
@@ -81,7 +81,7 @@ class QQBrowserParse(object):
             print(e)
 
     def analyze_browserecords(self):
-        record = Browserecord()
+        record = model_browser.Browserecord()
         pattern = re.compile('[\\x00-\\x08\\x0b-\\x0c\\x0e-\\x1f]')
         try:
             node = self.node.Parent.GetByPath('/database')
@@ -114,7 +114,7 @@ class QQBrowserParse(object):
             print(e)
 
     def analyze_downloadfiles(self):
-        downloadfile = DownloadFile()
+        downloadfile = model_browser.DownloadFile()
         pattern = re.compile('[\\x00-\\x08\\x0b-\\x0c\\x0e-\\x1f]')
         try:
             node = self.node.Parent.GetByPath('/download_database')
@@ -160,7 +160,7 @@ class QQBrowserParse(object):
             print(e)
 
     def analyze_fileinfo(self):
-        fileinfo = FileInfo()
+        fileinfo = model_browser.FileInfo()
         pattern = re.compile('[\\x00-\\x08\\x0b-\\x0c\\x0e-\\x1f]')
         try:
             node_external = self.node.Parent.GetByPath('/filestore_0000-0000')
@@ -176,7 +176,8 @@ class QQBrowserParse(object):
                     fileinfo.id = rec['FILE_ID'].Value if 'FILE_ID' in rec else None
                     if not IsDBNull(rec['FILE_PATH'].Value):
                         fileinfo.filepath = self._transToAbsolutePath(pattern.sub('', rec['FILE_PATH'].Value)) if 'FILE_PATH' in rec and rec['FILE_PATH'].Value is not '' else None
-                    fileinfo.filename = pattern.sub('', rec['FILE_NAME'].Value) if 'FILE_NAME' in rec and rec['FILE_NAME'].Value is not '' else None
+                    if not IsDBNull(rec['FILE_NAME'].Value):
+                        fileinfo.filename = pattern.sub('', rec['FILE_NAME'].Value) if 'FILE_NAME' in rec and rec['FILE_NAME'].Value is not '' else None
                     fileinfo.size = rec['SIZE'].Value if 'SIZE' in rec else None
                     if not IsDBNull(rec['MODIFIED_DATE'].Value):
                         fileinfo.modified = self._timeHandler(rec['MODIFIED_DATE'].Value) if 'MODIFIED_DATE' in rec else None
@@ -190,9 +191,9 @@ class QQBrowserParse(object):
             print(e)
 
     def analyze_search_history(self):
-        searchHistory = SearchHistory()
-        fs = self.node.FileSystem
-        ns = fs.Search(r'/data/com.tencent.mtt/databases/\d+.db$')
+        searchHistory = model_browser.SearchHistory()
+        fs = self.node.Parent
+        ns = fs.Search(r'/\d+.db$')
         nodes = []
         for n in ns:
             nodes.append(n)
@@ -233,13 +234,16 @@ class QQBrowserParse(object):
             print(e)
 
     def analyze_accounts(self):
-        account = Account()
-        fs = self.node.FileSystem
-        ns = fs.Search(r'/data/com.tencent.mtt/databases/\d+.db$')
-        nodes = []
-        for n in ns:
-            nodes.append(n)
-        nodes.append(self.node)
+        try:
+            account = model_browser.Account()
+            fs = self.node.Parent
+            ns = fs.Search(r'/\d+.db$')
+            nodes = []
+            for n in ns:
+                nodes.append(n)
+            nodes.append(self.node)
+        except Exception as e:
+            traceback.print_exc()
         try:
             for node in nodes:
                 canceller.ThrowIfCancellationRequested()
@@ -253,7 +257,7 @@ class QQBrowserParse(object):
             print(e)
 
     def analyze_plugin(self):
-        plugin = Plugin()
+        plugin = model_browser.Plugin()
         node = self.node.Parent.GetByPath('/plugin_db')
         try:
             self.db = SQLiteParser.Database.FromNode(node, canceller)
@@ -276,7 +280,7 @@ class QQBrowserParse(object):
             print(e)
 
     def analyze_cookies(self):
-        cookie = Cookie()
+        cookie = model_browser.Cookie()
         node = self.node.Parent.Parent.GetByPath('/app_webview/Cookies')
         try:
             self.db = SQLiteParser.Database.FromNode(node, canceller)

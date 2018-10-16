@@ -97,11 +97,13 @@ class BaiduMobileParser(object):
                 self.mb.db_insert_table_version(VERSION_KEY_APP, VERSION_APP_VALUE)
                 self.mb.db_commit()
             self.mb.db_close()
-        models = Generate(self.cache_db).get_models()
-        return models
+
 
         tmp_dir = ds.OpenCachePath('tmp')
-        save_cache_path(bcp_mail.MAIL_TOOL_TYPE_OTHER, self.cache_db, tmp_dir)
+        save_cache_path(bcp_browser.NETWORK_APP_BAIDUMOBILE, self.cache_db, tmp_dir)
+
+        models = Generate(self.cache_db).get_models()
+        return models
 
     def parse_Account(self, db_path, table_name):
         ''' SearchBox - account_userinfo
@@ -126,11 +128,11 @@ class BaiduMobileParser(object):
         for rec in self._read_table(table_name):
             if canceller.IsCancellationRequested:
                 return
-            if self._is_empty(rec, 'uid'):
+            if self._is_empty(rec, 'uid') or rec['uid'].Value in self.uid_list:
                 continue
             account = Account()
             try:
-                account.id        = int(rec['uid'].Value)  # TEXT
+                account.id = int(rec['uid'].Value)  # TEXT
                 self.uid_list.append(rec['uid'].Value)
             except:
                 continue
@@ -357,7 +359,7 @@ class BaiduMobileParser(object):
             if self._is_empty(rec, 'creation_utc'):
                 continue
             cookies = Cookie()
-            cookies.id             = rec['creation_utc'].Value
+            # cookies.id
             cookies.host_key       = rec['host_key'].Value
             cookies.name           = rec['name'].Value
             cookies.value          = rec['value'].Value
@@ -384,19 +386,18 @@ class BaiduMobileParser(object):
         3	query	            TEXT
         4	hit_time	            INTEGER
         5	source	            TEXT
-
         """        
         if not self._read_db(db_path):
             return 
         for rec in self._read_table(table_name):
             if canceller.IsCancellationRequested:
                 return
-            if self._is_empty(rec, 'query'):
+            if self._is_empty(rec, 'intent_key', 'query'):
                 continue
             search_history = SearchHistory()
             search_history.id       = rec['_id'].Value
             search_history.name     = rec['query'].Value
-            search_history.url      = rec['query'].Value
+            # search_history.url      = rec['query'].Value
             search_history.datetime = rec['hit_time'].Value
             search_history.source   = self.cur_db_source
             try:
@@ -446,10 +447,14 @@ class BaiduMobileParser(object):
             # print 'raw_path, file_name', raw_path, file_name
             _path = None
             if len(file_name) > 0:
-                node = fs.Search(r'com\.baidu\.searchbox.*?{}$'.format(re.escape(file_name)))
-                for i in node:
-                    _path = i.AbsolutePath
+                try:
+                    node = fs.Search(r'com\.baidu\.searchbox.*?{}$'.format(re.escape(file_name)))
+                    for i in node:
+                        _path = i.AbsolutePath
+                        print'android_baidumobile.py file_path:', _path
+                except:
                     print 'file_name, _path', file_name, _path
+                    pass
             return _path
         except:
             exc()

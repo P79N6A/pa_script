@@ -2,7 +2,6 @@
 
 from PA_runtime import *
 import clr
-clr.AddReference('System.Core')
 clr.AddReference('System.Xml.Linq')
 clr.AddReference('System.Data.SQLite')
 try:
@@ -11,11 +10,7 @@ except:
     pass
 del clr
 
-from System.IO import MemoryStream
-from System.Text import Encoding
 from System.Xml.Linq import *
-from System.Linq import Enumerable
-from PA.InfraLib.Utils import *
 import System.Data.SQLite as SQLite
 
 import os
@@ -64,7 +59,7 @@ SQL_INSERT_TABLE_WA_MFORENSICS_050100 = '''
              ?)
     '''
 
-# 6.5.2　收藏夹信息(WA_MFORENSICS_050200)
+# 6.5.2　收藏夹信息(WA_MFORENSICS_050200) - browserecords
 SQL_CREATE_TABLE_WA_MFORENSICS_050200 = '''
     CREATE TABLE IF NOT EXISTS WA_MFORENSICS_050200(
         COLLECT_TARGET_ID   TEXT,
@@ -85,13 +80,13 @@ SQL_CREATE_TABLE_WA_MFORENSICS_050200 = '''
 SQL_INSERT_TABLE_WA_MFORENSICS_050200 = '''
     INSERT INTO WA_MFORENSICS_050200(
         COLLECT_TARGET_ID,
+        NETWORK_APP,
         BROWSE_TYPE,
+        DELETE_STATUS,
+        DELETE_TIME,
         NAME,
         URL,
         CREATE_TIME,
-        DELETE_STATUS,
-        DELETE_TIME,
-        NETWORK_APP,
         ACCOUNT_ID,
         ACCOUNT,
         LATEST_MOD_TIME,
@@ -123,13 +118,13 @@ SQL_INSERT_TABLE_WA_MFORENSICS_050300 = '''
     INSERT INTO WA_MFORENSICS_050300(
         COLLECT_TARGET_ID,
         BROWSE_TYPE,
+        NETWORK_APP,
+        DELETE_STATUS,
+        DELETE_TIME,
         WEB_TITLE,
         URL,
         VISIT_TIME,
         VISITS,
-        DELETE_STATUS,
-        DELETE_TIME,
-        NETWORK_APP,
         ACCOUNT_ID,
         ACCOUNT,
         DUAL_TIME
@@ -163,6 +158,9 @@ SQL_INSERT_TABLE_WA_MFORENSICS_050400 = '''
     INSERT INTO WA_MFORENSICS_050400(
         COLLECT_TARGET_ID,
         BROWSE_TYPE,
+        NETWORK_APP,
+        DELETE_STATUS,
+        DELETE_TIME,
         URL,
         KEY_NAME,
         KEY_VALUE,
@@ -170,9 +168,6 @@ SQL_INSERT_TABLE_WA_MFORENSICS_050400 = '''
         EXPIRE_TIME,
         VISIT_TIME,
         VISITS,
-        DELETE_STATUS,
-        DELETE_TIME,
-        NETWORK_APP,
         ACCOUNT_ID,
         ACCOUNT,
         LATEST_MOD_TIME,
@@ -227,6 +222,7 @@ SQL_INSERT_TABLE_WA_MFORENSICS_050500 = '''
     INSERT INTO WA_MFORENSICS_050500(
         COLLECT_TARGET_ID,
         NETWORK_APP,
+
         ACCOUNT_ID,
         ACCOUNT,
         REGIS_NICKNAME,
@@ -258,6 +254,7 @@ SQL_INSERT_TABLE_WA_MFORENSICS_050500 = '''
         ACCOUNT_REG_DATE,
         LAST_LOGIN_TIME,
         LATEST_MOD_TIME,
+
         DELETE_STATUS,
         DELETE_TIME
     ) values(
@@ -284,13 +281,13 @@ SQL_CREATE_TABLE_WA_MFORENSICS_050600 = '''
 SQL_INSERT_TABLE_WA_MFORENSICS_050600 = '''
     INSERT INTO WA_MFORENSICS_050600(
         COLLECT_TARGET_ID,
+        DELETE_STATUS,
+        DELETE_TIME,
         CONTACT_ACCOUNT_TYPE,
         ACCOUNT_ID,
         ACCOUNT,
         CREATE_TIME,
-        KEYWORD,
-        DELETE_STATUS,
-        DELETE_TIME
+        KEYWORD
     ) values(
         ?, ?, ?, ?, ?,
         ?, ?, ? 
@@ -345,7 +342,7 @@ WACODE_0070_03：浏览器类型代码表
     火狐           03100	
     360           03200	
     Chrome        03300	
-    Opera         03400	
+    Opera         03400	NETWORK_APP
     IE            03600	
     遨游           03601	
     腾讯TT         03602	
@@ -358,14 +355,16 @@ WACODE_0070_03：浏览器类型代码表
     天天           03623	
     其他          03999	
 '''
+
+# WACODE_0070_03：浏览器类型代码表
 BROWSER_TYPE_FIREFOX   = '03100'
 BROWSER_TYPE_360       = '03200'
-BROWSER_TYPE_CHROME    = '03200'
-BROWSER_TYPE_OPERA     = '03200'
-BROWSER_TYPE_IE        = '03200'
-BROWSER_TYPE_MAXTHON   = '03200'
-BROWSER_TYPE_TENCENTTT = '03602'
-BROWSER_TYPE_THEWORLD  = '03603'
+BROWSER_TYPE_CHROME    = '03300'
+BROWSER_TYPE_OPERA     = '03400'
+BROWSER_TYPE_IE        = '03600'
+BROWSER_TYPE_MAXTHON   = '03601'
+BROWSER_TYPE_TENCENTTT = '03602'  # 腾讯TT
+BROWSER_TYPE_THEWORLD  = '03603'  # 世界之窗
 BROWSER_TYPE_PHONE     = '03618'
 BROWSER_TYPE_UC        = '03619'
 BROWSER_TYPE_QQ        = '03620'
@@ -374,7 +373,86 @@ BROWSER_TYPE_DOLPHIN   = '03622'
 BROWSER_TYPE_TIANTIAN  = '03623'
 BROWSER_TYPE_OTHER     = '03999'
 
-class IM(object):
+
+# WACODE_0010_54：浏览器信息代码表
+# 代码	代码类型
+NETWORK_APP_BAIDU       = '1560001'	# 百度手机浏览器
+NETWORK_APP_SOGOU       = '1560002'	# 搜狗浏览器
+NETWORK_APP_LIEBAO      = '1560003'	# 猎豹浏览器
+NETWORK_APP_360         = '1560004'	# 360浏览器
+NETWORK_APP_MAXTHON     = '1560005'	# 傲游浏览器
+NETWORK_APP_FIREFOX     = '1560006'	# 火狐浏览器
+NETWORK_APP_OPERA       = '1560007'	# opera欧普拉
+NETWORK_APP_XIAOMI      = '1560008'	# 小米手机浏览器（预装）
+NETWORK_APP_GREENTEA    = '1560009'	# 绿茶浏览器
+NETWORK_APP_MEIZU       = '1560010'	# 魅族浏览器
+NETWORK_APP_QQ          = '1560011'	# QQ浏览器
+NETWORK_APP_HUAWEI      = '1560012'	# 华为浏览器（预装）
+NETWORK_APP_UC          = '1560013'	# UC浏览器
+NETWORK_APP_OPPO        = '1560014'	# OPPO（预装）
+NETWORK_APP_VIVO        = '1560015'	# VIVO手机浏览器（预装）
+NETWORK_APP_2345        = '1560016'	# 2345浏览器
+NETWORK_APP_OTHER       = '1569999'	# 其他
+NETWORK_APP_MERCURY     = '1560017'	# 水星浏览器
+NETWORK_APP_TIANTIAN    = '1560018'	# 天天浏览器
+NETWORK_APP_CHROME      = '1560019'	# Chrome浏览器
+NETWORK_APP_GO          = '1560020'	# GO浏览器
+NETWORK_APP_DOLPHIN     = '1560021'	# 海豚浏览器
+NETWORK_APP_NINESKY     = '1560022'	# 九天浏览器
+NETWORK_APP_LENOVO      = '1560023'	# 联想浏览器（联想手机自带的）
+NETWORK_APP_MAMMOTH     = '1560024'	# 猛犸浏览器
+NETWORK_APP_BAIDUMOBILE = '1560025'	# 手机百度
+
+CONVERT_NETWORT_2_TYPE = {
+    '1560006': '03100', # Firefox
+    '1560004': '03200', # 360
+    '1560019': '03300', # CHROME
+    '1560007': '03400', # opera欧普拉
+    # '1560007': '03400', # IE
+    '1560005': '03601', # MAXTHON 遨游
+    # '1560005': '03601', # 腾讯TT
+    # '1560005': '03601', # 世界之窗 
+    # '1560005': '03618', # PHONE
+    '1560013': '03619', # UC
+    '1560011': '03620', # QQ
+    '1560001': '03621', # 百度
+    '1560021': '03622', # 海豚
+    '1560018': '03623', # 天天
+    '1569999': '03999', # 其他 OTHER
+}
+
+'''
+WACODE_0010_54：浏览器信息代码表
+代码	代码类型
+1560001	百度手机浏览器
+1560002	搜狗浏览器
+1560003	猎豹浏览器
+1560004	360浏览器
+1560005	傲游浏览器
+1560006	火狐浏览器
+1560007	opera欧普拉
+1560008	小米手机浏览器（预装）
+1560009	绿茶浏览器
+1560010	魅族浏览器
+1560011	QQ浏览器
+1560012	华为浏览器（预装）
+1560013	UC浏览器
+1560014	OPPO（预装）
+1560015	VIVO手机浏览器（预装）
+1560016	2345浏览器
+1569999	其他
+1560017	水星浏览器
+1560018	天天浏览器
+1560019	Chrome浏览器
+1560020	GO浏览器
+1560021	海豚浏览器
+1560022	九天浏览器
+1560023	联想浏览器（联想手机自带的）
+1560024	猛犸浏览器
+1560025	手机百度
+'''
+
+class BCP_MB(object):
     def __init__(self):
         self.db = None
         self.db_cmd = None
@@ -384,7 +462,8 @@ class IM(object):
         if os.path.exists(db_path):
             try:
                 os.remove(db_path)
-            except:
+            except Exception as e:
+                print('bcp_mb db remove error', e)
                 exc()
 
         self.db = SQLite.SQLiteConnection('Data Source = {}'.format(db_path))
@@ -466,22 +545,25 @@ class IM(object):
     #     self.db_insert_table(SQL_INSERT_TABLE_WA_MFORENSICS_050700, column.get_values())
 
 class Column(object):
-    def __init__(self, collect_target_id, browse_type):
-        self.collect_target_id = collect_target_id         # 手机取证采集目标编号
-        self.browse_type       = browse_type               # 浏览器类型
-        # self.network_app       = network_app      # 账号类型
-
-        self.delete_status     = DELETE_STATUS_NOT_DELETED # 删除状态
-        self.delete_time       = None                      # 删除时间
+    def __init__(self, collect_target_id, network_app):
+        self.collect_target_id = collect_target_id                # 手机取证采集目标编号
+        self.network_app       = network_app                      # app 类型 7位数字  <str>
+        self.browse_type       = self._convert_type(network_app)  # 浏览器类型 5位数字 <str>
+        self.delete_status     = DELETE_STATUS_NOT_DELETED        # 删除状态
+        self.delete_time       = None                             # 删除时间
 
     def get_values(self):
-        return None
+        return (self.collect_target_id, self.browse_type, self.delete_status, self.delete_time)
+
+    @staticmethod
+    def _convert_type(network_app):
+        return CONVERT_NETWORT_2_TYPE.get(network_app, None)
 
 class Bookmark(Column):
     '''6.5.2　收藏夹信息(WA_MFORENSICS_050200)
         collect_target_id   手机取证采集目标编号
-        browse_type         浏览器类型
         network_app         账号类型
+        browse_type         浏览器类型
         delete_status       删除状态
         delete_time         删除时间
 
@@ -493,18 +575,24 @@ class Bookmark(Column):
         latest_mod_time     最后更新时间
         visits              访问次数
     '''    
-    def __init__(self, collect_target_id, contact_account_type):
-        super(Bookmark, self).__init__(collect_target_id, contact_account_type)
-        self.name            = None            # 名称
-        self.url             = None             # url地址
+    def __init__(self, collect_target_id, network_app):
+        super(Bookmark, self).__init__(collect_target_id, network_app)
+        self.name            = None     # 名称
+        self.url             = None     # url地址
         self.create_time     = None     # 创建时间
-        self.account_id      = None      # 用户id
-        self.account         = None         # 账号
-        self.latest_mod_time = None # 最后更新时间
-        self.visits          = None          # 访问次数
+        self.account_id      = None     # 用户id
+        self.account         = None     # 账号
+        self.latest_mod_time = None     # 最后更新时间
+        self.visits          = None     # 访问次数
 
     def get_values(self):
         return (
+            self.collect_target_id,  
+            self.network_app,        
+            self.browse_type,        
+            self.delete_status,      
+            self.delete_time,        
+
             self.name,            
             self.url,             
             self.create_time,     
@@ -512,26 +600,26 @@ class Bookmark(Column):
             self.account,         
             self.latest_mod_time, 
             self.visits,          
-        ) + super(Bookmark, self).get_values()
+        ) 
 
 class Browserecord(Column):
     '''6.5.3　历史记录信息(WA_MFORENSICS_050300)
         collect_target_id	手机取证采集目标编号
-        browse_type	    浏览器类型
-        network_app	    账号类型
-        delete_status	删除状态
-        delete_time	    删除时间
+        browse_type	        浏览器类型
+        network_app	        账号类型
+        delete_status	    删除状态
+        delete_time	        删除时间
 
-        web_title	    网页标题
-        url	url地址 
-        visit_time	    访问时间
-        visits	        访问次数
-        account_id	    用户id
-        account	        账号
-        dual_time	    访问时长
+        web_title	        网页标题
+        url	url地址     
+        visit_time	        访问时间
+        visits	            访问次数
+        account_id	        用户id
+        account	            账号
+        dual_time	        访问时长
     '''
-    def __init__(self, collect_target_id, contact_account_type):
-        super(Browserecord, self).__init__(collect_target_id, contact_account_type)
+    def __init__(self, collect_target_id, network_app):
+        super(Browserecord, self).__init__(collect_target_id, network_app)
         self.web_title         = None #	网页标题
         self.url               = None #	url地址
         self.visit_time        = None #	访问时间
@@ -542,6 +630,12 @@ class Browserecord(Column):
 
     def get_values(self):
         return (
+                self.collect_target_id,  
+                self.browse_type,        
+                self.network_app,        
+                self.delete_status,      
+                self.delete_time,        
+
                 self.web_title, 
                 self.url,       
                 self.visit_time,
@@ -549,7 +643,7 @@ class Browserecord(Column):
                 self.account_id,
                 self.account,   
                 self.dual_time,             
-            ) + super(Browserecord, self).get_values()        
+            )       
 
 class Cookies(Column):
     ''' 6.5.4　COOKIES信息(WA_MFORENSICS_050400)
@@ -571,8 +665,8 @@ class Cookies(Column):
         latest_mod_time	最后修改时间
         name	名称
     '''
-    def __init__(self, collect_target_id, contact_account_type):
-        super(Cookies, self).__init__(collect_target_id, contact_account_type)
+    def __init__(self, collect_target_id, network_app):
+        super(Cookies, self).__init__(collect_target_id, network_app)
         self.url             = None # url地址
         self.key_name        = None # cookie键名
         self.key_value       = None # cookie键值
@@ -587,6 +681,12 @@ class Cookies(Column):
 
     def get_values(self):
         return (
+            self.collect_target_id,  
+            self.browse_type,        
+            self.network_app,        
+            self.delete_status,      
+            self.delete_time,          
+
             self.url,            
             self.key_name,       
             self.key_value,      
@@ -598,12 +698,11 @@ class Cookies(Column):
             self.account,        
             self.latest_mod_time,
             self.name,           
-            ) + super(Cookies, self).get_values()
+            ) 
 
 class Account(Column):
     '''6.5.5　账号信息(WA_MFORENSICS_050500)
     collect_target_id 手机取证采集目标编号
-
     network_app 账号类型
 
     account_id 用户id 
@@ -641,8 +740,8 @@ class Account(Column):
     delete_status 删除状态	
     delete_time 删除时间	
     '''
-    def __init__(self, collect_target_id, contact_account_type):
-        super(Account, self).__init__(collect_target_id, contact_account_type)
+    def __init__(self, collect_target_id, network_app):
+        super(Account, self).__init__(collect_target_id, network_app)
         self.account_id       = None  # 用户ID
         self.account          = None  # 账号
         self.regis_nickname   = None  # 昵称
@@ -677,6 +776,9 @@ class Account(Column):
 
     def get_values(self):
         return (
+        self.collect_target_id,  
+        self.network_app,   
+        
         self.account_id,
         self.account,
         self.regis_nickname,
@@ -708,7 +810,10 @@ class Account(Column):
         self.account_reg_date,
         self.last_login_time,
         self.latest_mod_time,
-        ) + super(Account, self).get_values()
+
+        self.delete_status,      
+        self.delete_time,      
+        ) 
 
 
 class SearchHistory(Column):
@@ -723,8 +828,8 @@ class SearchHistory(Column):
         create_time	时间
         keyword	关键词
     '''
-    def __init__(self, collect_target_id, contact_account_type):
-        super(SearchHistory, self).__init__(collect_target_id, contact_account_type)
+    def __init__(self, collect_target_id, network_app):
+        super(SearchHistory, self).__init__(collect_target_id, network_app)
         self.contact_account_type = None # 账号类型
         self.account_id           = None # 用户id
         self.account              = None # 账号
@@ -733,49 +838,68 @@ class SearchHistory(Column):
 
     def get_values(self):
         return (
+            self.collect_target_id,  
+            self.delete_status,      
+            self.delete_time,          
+
             self.contact_account_type,
             self.account_id,          
             self.account,             
             self.create_time,         
             self.keyword,             
-            ) + super(SearchHistory, self).get_values()
+            ) 
 
 
 class GenerateBcp(object):
     def __init__(self, 
-                 bcp_path, 
-                 cache_db, 
-                 bcp_db, 
+                #  bcp_path, 
+                 middle_db_path, 
+                 bcp_db_path, 
                  collect_target_id, 
-                 browser_type,      
+                 network_app,      
             ):
-
+        """
+        middle_db: 拷贝自中间数据库
+        bcp_path: caches\\tmp\\ 下 bcp 数据库
+        """
         self.collect_target_id = collect_target_id # 手机取证采集目标编号
-        self.browse_type       = browser_type      # 浏览器类型
+        self.network_app       = network_app      # app类型 network_app
 
-        self.cache_db = cache_db # 中间数据库
-        self.bcp_path = bcp_path
-        self.bcp_db   = bcp_db
-        self.cache_path = os.path.join(self.bcp_path, 'browser')
-        self.im = IM()
+        self.middle_db_path = middle_db_path # 中间数据库
+        self.bcp_db_path   = bcp_db_path   # bcp 的数据库
+        # self.bcp_path = bcp_path # 
+        # self.cache_path = os.path.join(self.bcp_path, 'browser')
+        self.bcp_mb = BCP_MB()
 
     def generate(self):
-        self.im.db_create(self.bcp_db)
-        self.db = sqlite3.connect(self.cache_db)
+        try:
+            self.bcp_mb.db_create(self.bcp_db_path)
+            self.middle_db = sqlite3.connect(self.middle_db_path)
+            # cmd = 'DataSource = {}; ReadOnly = True'.format(self.middle_db_path)
+            # self.middle_db = SQLite.SQLiteConnection(cmd)
+            # self.middle_db.Open()
+            # self.middle_db_cmd = SQLite.SQLiteCommand(self.middle_db)
+        except Exception as e:
+            print('connect middel db error', e)
+
         self._generate_bookmark()
         self._generate_browserecords()
         self._generate_cookies()
         self._generate_account()
-        self._generate_searchhistory()
+        self._generate_searchhistory()  
 
-        self.db.close()
-        self.im.db_close()
+        # self.middle_db_cmd.Dispose()
+        # self.middle_db.Close() 
+
+        self.middle_db.close()
+
+        self.bcp_mb.db_close()
 
     def _generate_bookmark(self):
         if canceller.IsCancellationRequested:
             return
-        cursor = self.db.cursor()
-        sql = ''' select * from bookmark'''
+        cursor = self.middle_db.cursor()
+        SQL = ''' select * from bookmark'''
         '''
         0    id INTEGER,
         1    time INTEGER,
@@ -786,31 +910,43 @@ class GenerateBcp(object):
         6    deleted INTEGER,
         7    repeated INTEGER     
         '''
-        row = None
         try:
-            cursor.execute(sql)
-            row = cursor.fetchone()
-        except:
-            exc()
+            row = None
+            try:
+                cursor.execute(SQL)
+                row = cursor.fetchone()
 
-        while row is not None:
-            if canceller.IsCancellationRequested:
-                break
-            bm = Bookmark(self.collect_target_id, self.browse_type)
-            bm.name          = row[2]
-            bm.url           = row[3]
-            bm.create_time   = row[3]
-            bm.account       = row[4]
-            bm.delete_status = self._convert_delete_status(row[6])
-            self.im.db_insert_table_bookmark(bm)
-            row = curscor.fetchone()
-        self.im.db_commit()
-        cursor.close()
+                # self.middle_db_cmd.CommandText = SQL
+                # row = self.middle_db_cmd.ExecuteReader()
+
+            except Exception as e:
+                print('generate bookmark error', e)
+                print('(self.middle_db_path', self.middle_db_path)
+                exc()
+            while row is not None:
+            # while row.Read():
+                if canceller.IsCancellationRequested:
+                    break
+                bm = Bookmark(self.collect_target_id, self.network_app)
+                bm.name          = row[2]
+                bm.url           = row[3]
+                bm.create_time   = row[1]
+                bm.account       = row[4]
+                bm.delete_status = self._convert_delete_status(row[6])
+                try:
+                    self.bcp_mb.db_insert_table_bookmark(bm)
+                except Exception as e:
+                    print 'insert error', e
+                row = cursor.fetchone()
+            self.bcp_mb.db_commit()
+            cursor.close()
+        except Exception as e:
+            print('generate bookmark error', e)        
 
     def _generate_browserecords(self):
         if canceller.IsCancellationRequested:
             return
-        cursor = self.db.cursor()
+        cursor = self.middle_db.cursor()
         sql = ''' select * from browse_records'''
         '''
         0    id INTEGER,
@@ -826,28 +962,28 @@ class GenerateBcp(object):
         try:
             cursor.execute(sql)
             row = cursor.fetchone()
-        except:
+        except Exception as e:
             exc()
 
         while row is not None:
             if canceller.IsCancellationRequested:
                 break
-            br = Browserecord(self.collect_target_id, self.browse_type)
+            br = Browserecord(self.collect_target_id, self.network_app)
             br.web_title     = row[1]
             br.url           = row[2]
             br.visit_time    = row[3]
              # br.visits       = row[3]
             br.account       = row[4]
             br.delete_status = self._convert_delete_status(row[6])
-            self.im.db_insert_table_browserecords(br)
-            row = curscor.fetchone()
-        self.im.db_commit()
+            self.bcp_mb.db_insert_table_browserecords(br)
+            row = cursor.fetchone()
+        self.bcp_mb.db_commit()
         cursor.close()
 
     def _generate_cookies(self):
         if canceller.IsCancellationRequested:
             return
-        cursor = self.db.cursor()
+        cursor = self.middle_db.cursor()
         sql = ''' select * from cookies'''
         '''
         0    id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -867,13 +1003,13 @@ class GenerateBcp(object):
         try:
             cursor.execute(sql)
             row = cursor.fetchone()
-        except:
+        except Exception as e:
             exc()
 
         while row is not None:
             if canceller.IsCancellationRequested:
                 break
-            cookies = Cookies(self.collect_target_id, self.browse_type)
+            cookies = Cookies(self.collect_target_id, self.network_app)
             cookies.url             = row[1]
             cookies.key_name        = row[2]
             cookies.key_value       = row[3]
@@ -886,15 +1022,15 @@ class GenerateBcp(object):
             cookies.latest_mod_time = row[6]
             cookies.name            = row[2]
             cookies.delete_status   = self._convert_delete_status(row[10])
-            self.im.db_insert_table_cookies(cookies)
-            row = curscor.fetchone()
-        self.im.db_commit()
+            self.bcp_mb.db_insert_table_cookies(cookies)
+            row = cursor.fetchone()
+        self.bcp_mb.db_commit()
         cursor.close()
 
     def _generate_account(self):
         if canceller.IsCancellationRequested:
             return
-        cursor = self.db.cursor()
+        cursor = self.middle_db.cursor()
         sql = ''' select * from account'''
         '''
         0    id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -908,26 +1044,26 @@ class GenerateBcp(object):
         try:
             cursor.execute(sql)
             row = cursor.fetchone()
-        except:
+        except Exception as e:
             exc()
 
         while row is not None:
             if canceller.IsCancellationRequested:
                 break
-            account = Account(self.collect_target_id, self.browse_type)
+            account = Account(self.collect_target_id, self.network_app)
             account.account         = row[1]
             account.regis_nickname  = row[1]
             account.last_login_time = row[2]
             account.delete_status   = self._convert_delete_status(row[4])
-            self.im.db_insert_table_account(account)
-            row = curscor.fetchone()
-        self.im.db_commit()
+            self.bcp_mb.db_insert_table_account(account)
+            row = cursor.fetchone()
+        self.bcp_mb.db_commit()
         cursor.close()
 
     def _generate_searchhistory(self):
         if canceller.IsCancellationRequested:
             return
-        cursor = self.db.cursor()
+        cursor = self.middle_db.cursor()
         sql = ''' select * from search_history'''
         '''
         0    id INTEGER,
@@ -943,20 +1079,20 @@ class GenerateBcp(object):
         try:
             cursor.execute(sql)
             row = cursor.fetchone()
-        except:
+        except Exception as e:
             exc()
 
         while row is not None:
             if canceller.IsCancellationRequested:
                 break
-            sh = SearchHistory(self.collect_target_id, self.browse_type)
+            sh = SearchHistory(self.collect_target_id, self.network_app)
             sh.account       = row[4]
             sh.create_time   = row[3]
             sh.keyword       = row[1]
             sh.delete_status = self._convert_delete_status(row[6])
-            self.im.db_insert_table_searchhistory(sh)
-            row = curscor.fetchone()
-        self.im.db_commit()
+            self.bcp_mb.db_insert_table_searchhistory(sh)
+            row = cursor.fetchone()
+        self.bcp_mb.db_commit()
         cursor.close()
 
     @staticmethod

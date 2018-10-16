@@ -540,13 +540,12 @@ class GenerateBcp(object):
             print(e)
 
     def _copy_attachment(self, mountDir, dir):
-        x = mountDir + dir
-        sourceDir = x.replace('\\','/')
-        targetDir = self.attachpath
+        sourceDir = os.path.normpath(mountDir + dir).replace('\\', '/')
+        targetDir = os.path.normpath(self.attachpath).replace('\\', '/')
         try:
             if os.path.exists(targetDir):
                 shutil.copy(sourceDir, targetDir)
-        except:
+        except Exception as e:
             pass
 
 
