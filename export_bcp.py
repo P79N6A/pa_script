@@ -51,6 +51,8 @@ def get_support_apps(caseDirs):
     return None
 
 def run(target_id, bcp_path, case_path, mountDir, software_type):
+    if mountDir is None:
+        bcp_path = case_path
     tmp_dir = case_path + "\\caches\\tmp\\"  
     ts_path = case_path + "\\caches\\tmp"   # bcp数据库生成位置
     software_path = tmp_dir + software_type
