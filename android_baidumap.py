@@ -91,16 +91,17 @@ class BaiduMap(object):
                     search_history.deleted = 1
                 if "value" in rec and (not rec["value"].IsDBNull):
                     try:
+                        json_data = ""
                         tmp = rec["value"].Value
                         b = bytes(tmp)
                         json_data = json.loads(b.decode("utf-16", errors='ignore'))
                     except Exception as e:
-                        pass
+                        continue
                     if json_data:
                         if "Fav_Content" in json_data:
                             search_history.keyword = json_data["Fav_Content"]
-                        if "Fav_Extra" in json_data and json["Fav_Extra"]:
-                            search_history.district = json["Fav_Extra"]
+                        if "Fav_Extra" in json_data and json_data["Fav_Extra"]:
+                            search_history.district = json_data["Fav_Extra"]
                         if "Fav_Sync" in json_data:
                             if "cityId" in json_data["Fav_Sync"]:
                                 search_history.adcode = json_data["Fav_Sync"]["cityId"]

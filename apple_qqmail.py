@@ -142,7 +142,7 @@ SQL_INSERT_TABLE_RECOVER_MAILATTACH = '''
     INSERT INTO FM_Mail_Attach(attachId, accountId, mailId, name, downloadSize, downloadUtc)
     VALUES(?, ?, ?, ?, ?, ?)'''
 
-VERSION_APP_VALUE = 1
+VERSION_APP_VALUE = 2
 
 
 
@@ -333,7 +333,7 @@ class MailParser(object):
     def read_deleted_table(self):
         '''读取删除数据保存到恢复数据库'''
         self.create_deleted_db()
-        self.read_deleted_table_mailaccount()
+        # self.read_deleted_table_mailaccount()
         self.read_deleted_table_mailinfo()
         self.read_deleted_table_mailcontent()
         self.read_deleted_table_mailfolder()
