@@ -83,17 +83,17 @@ def run(target_id, bcp_path, case_path, mountDir, software_type):
                         print(traceback.print_exc())
                 return bcp_path_list
 
-        # # 浏览器类生产bcp数据库
+        # 浏览器类生产bcp数据库
         elif software_type in BROWER_LIST:
             path_lists = read_path(software_path)
             if path_lists:
                 for path in path_lists:
                     try:
                         ts_db = md5(path, ts_path)    
-                        bcp_browser.GenerateBcp(bcp_path, path, ts_db, target_id, software_type).generate()
+                        bcp_browser.GenerateBcp(path, ts_db, target_id, software_type).generate()
                         bcp_path_list.append(ts_db)
                     except Exception as e:
-                        print(traceback.print_exc())
+                        print('GenerateBcp BROWER_bcp Terror', e)
                 return bcp_path_list
 
         # 邮件类生产bcp数据库
