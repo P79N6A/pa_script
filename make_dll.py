@@ -1,7 +1,7 @@
 import clr
 import os
 
-DIR = "Builds/"
+DIR = "Builds/makes/"
 
 for filename in os.listdir('.'):
     print(filename)
