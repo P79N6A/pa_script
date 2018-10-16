@@ -404,8 +404,7 @@ class Export2db(object):
                 self.mb.db_commit()
                 self.mb.db_close()
             tmp_dir = ds.OpenCachePath('tmp')
-            save_cache_path(bcp_browser.BROWSER_TYPE_PHONE, self.cache_db, tmp_dir)
-
+            save_cache_path(bcp_browser.NETWORK_APP_OTHER, self.cache_db, tmp_dir)
         except:
             exc()
 

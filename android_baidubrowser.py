@@ -3,7 +3,6 @@ import re
 import time
 import hashlib
 
-
 import clr
 try:
     clr.AddReference('model_browser')
@@ -83,7 +82,7 @@ class BaiduBrowserParser(object):
             self.mb.db_close()
             
         tmp_dir = ds.OpenCachePath('tmp')
-        save_cache_path(bcp_mail.MAIL_TOOL_TYPE_OTHER, self.cache_db, tmp_dir)
+        save_cache_path(bcp_browser.NETWORK_APP_BAIDU, self.cache_db, tmp_dir)
 
         models = Generate(self.cache_db).get_models()
         return models
@@ -94,10 +93,10 @@ class BaiduBrowserParser(object):
             RecNo  FieldName
             1	   account_uid	        TEXT
             2	   create_time	        INTEGER
-            3	   date	        INTEGER
+            3	   date	            INTEGER
             4	   edit_cmd	        TEXT
-            5	   edit_time	        INTEGER
-            6	   _id	        INTEGER
+            5	   edit_time	    INTEGER
+            6	   _id	            INTEGER
             7	   parent	        INTEGER
             8	   parent_uuid	        TEXT
             9	   platform	        TEXT
@@ -192,7 +191,7 @@ class BaiduBrowserParser(object):
             if self._is_empty(rec, 'creation_utc'):
                 continue
             cookies = Cookie()
-            cookies.id             = rec['creation_utc'].Value
+            # cookies.id
             cookies.host_key       = rec['host_key'].Value
             cookies.name           = rec['name'].Value
             cookies.value          = rec['value'].Value
@@ -210,6 +209,7 @@ class BaiduBrowserParser(object):
             self.mb.db_commit()
         except:
             exc()
+
     @print_run_time
     def parse_DownloadFile(self, db_path, table_name):
         """
@@ -239,13 +239,16 @@ class BaiduBrowserParser(object):
         if not self._read_db(db_path):
             return 
 
+        auto_id = 1
         for rec in self._read_table(table_name):
+
             if canceller.IsCancellationRequested:
                 return            
             if rec['total'].Value < 1 or not rec['url'].Value.startswith('http://'):
                 continue
             downloads = DownloadFile()
-            downloads.id             = rec['key'].Value
+            downloads.id             = auto_id
+            auto_id += 1
             downloads.url            = rec['url'].Value
             downloads.filename       = rec['filename'].Value
             downloads.filefolderpath = self._convert_2_nodepath(rec['savepath'].Value, downloads.filename)
@@ -346,9 +349,12 @@ class BaiduBrowserParser(object):
 
         _path = None
         if len(file_name) > 0:
-            node = fs.Search(r'com\.baidu\.browser\.apps.*?{}$'.format(re.escape(file_name)))
-            for i in node:
-                _path = i.AbsolutePath
+            try:
+                node = fs.Search(r'com\.baidu\.browser\.apps.*?{}$'.format(re.escape(file_name)))
+                for i in node:
+                    _path = i.AbsolutePath
+            except:
+                pass
                 #print 'file_name, _path', file_name, _path
         # print 'baidu.browser _path', _path
         return _path
