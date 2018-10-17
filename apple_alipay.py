@@ -6,6 +6,7 @@ clr.AddReference('System.Core')
 clr.AddReference('System.Xml.Linq')
 try:
     clr.AddReference('model_im')
+    clr.AddReference('model_eb')
 except:
     pass
 del clr
@@ -23,6 +24,7 @@ import sqlite3
 import json
 import gc
 import model_im
+import model_eb
 import re
 import hashlib
 import base64
@@ -39,7 +41,7 @@ def analyze_alipay(root, extract_deleted, extract_source):
     mlm = ModelListMerger()
 
     pr.Models.AddRange(list(mlm.GetUnique(models)))
-    
+
     pr.Build('支付宝')
     gc.collect()
     return pr
@@ -47,23 +49,21 @@ def analyze_alipay(root, extract_deleted, extract_source):
 def execute(node, extracteDeleted):
     return analyze_alipay(node, extracteDeleted, False)
 
-class AlipayParser(model_im.IM):
+class AlipayParser():
     def __init__(self, node, extract_deleted, extract_source):
-        super(AlipayParser, self).__init__()
         self.root = node
         self.extract_deleted = False
         self.extract_source = extract_source
-        self.app_name = 'Alipay'
-        self.cache_path = ds.OpenCachePath('Alipay')
-        if not os.path.exists(self.cache_path):
-            os.makedirs(self.cache_path)
-        self.cache_db = os.path.join(self.cache_path, 'cache.db')
-
-        nameValues.SafeAddValue('1290007', self.cache_db)
+        self.cache = ds.OpenCachePath('Alipay')
+        self.contacts_models = []
+        self.eb = model_eb.EB(self.cache + '/Alipay', VERSION_APP_VALUE, 'Alipay')
+        self.im = self.eb.im
+        self.need_parse = self.eb.need_parse
+        nameValues.SafeAddValue('1290007', self.cache + '/Alipay')
 
     def parse(self):
-        if self.need_parse(self.cache_db, VERSION_APP_VALUE):
-            self.db_create(self.cache_db)
+        if self.need_parse:
+            self.eb.db_create()
             user_list = self.get_user_list()
             for user in user_list:
                 self.contacts = {}
@@ -71,15 +71,19 @@ class AlipayParser(model_im.IM):
                 self.parse_user()
                 self.user = None
                 self.contacts = None
-            self.db_insert_table_version(model_im.VERSION_KEY_DB, model_im.VERSION_VALUE_DB)
-            self.db_insert_table_version(model_im.VERSION_KEY_APP, VERSION_APP_VALUE)
-            self.db_commit()
-            self.db_close()
+            self.eb.db_insert_table_version(model_eb.EB_VERSION_KEY, model_eb.EB_VERSION_VALUE)
+            self.eb.db_insert_table_version(model_eb.EB_APP_VERSION_KEY, VERSION_APP_VALUE)
+            self.eb.db_commit()
+            self.eb.sync_im_version()
+            self.im.db_close()
+            self.eb.db_close()
         models = self.get_models_from_cache_db()
+        for model in self.contacts_models:
+            models.append(model)
         return models
 
     def get_models_from_cache_db(self):
-        models = model_im.GenerateModel(self.cache_db).get_models()
+        models = model_eb.GenerateModel(self.cache + '/Alipay').get_models()
         return models
 
     def get_user_list(self):
@@ -115,23 +119,26 @@ class AlipayParser(model_im.IM):
     def parse_user(self):
         self.get_user()
         self.get_contacts()
+        self.get_mobile_contacts()
+        self.get_searchs()
         self.get_chats()
+        self.get_deals()
 
     def get_user(self):
         if self.user is None:
             return False
 
         account = model_im.Account()
-        account.source = self.app_name
         account.account_id = self.user
         
         dbPath = self.root.GetByPath('/Documents/Contact/' + self.md5_encode(self.user)[8:24] + '.db')
         db = SQLiteParser.Database.FromNode(dbPath)
         if db is None:
-            self.db_insert_table_account(account)
-            self.db_commit()
-            return False
-
+            self.im.db_insert_table_account(account)
+            self.im.db_commit()
+            return
+        
+        account.source = dbPath.AbsolutePath
         if 'contact_account_list' in db.Tables:
             ts = SQLiteParser.TableSignature('contact_account_list')
             SQLiteParser.Tools.AddSignatureToTable(ts, 'userID', SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
@@ -185,9 +192,8 @@ class AlipayParser(model_im.IM):
                 account.address = rec['showArea'].Value
                 account.age = rec['age'].Value
                 self.name = account.username
-                self.db_insert_table_account(account)
-            self.db_commit()
-            return True
+                self.im.db_insert_table_account(account)
+        self.im.db_commit()
 
     def get_contacts(self):
         if self.user is None:
@@ -196,7 +202,7 @@ class AlipayParser(model_im.IM):
         dbPath = self.root.GetByPath('/Documents/Contact/' + self.md5_encode(self.user)[8:24] + '.db')
         db = SQLiteParser.Database.FromNode(dbPath)
         if db is None:
-            return False
+            return
 
         if 'contact_account_list' in db.Tables:
             ts = SQLiteParser.TableSignature('contact_account_list')
@@ -204,15 +210,16 @@ class AlipayParser(model_im.IM):
             for rec in db.ReadTableRecords(ts, self.extract_deleted):
                 if canceller.IsCancellationRequested:
                     return
+
                 if rec['userID'].Value == self.user:
                     continue
-
-                if not rec['userID'].Value.isdigit():
+                
+                if rec['noAliPay'].Value == 1:
                     continue
 
                 friend = model_im.Friend()
                 friend.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
-                friend.source = self.app_name
+                friend.source = dbPath.AbsolutePath
                 friend.account_id = self.user
                 friend.friend_id = rec['userID'].Value
                 friend.nickname = rec['nickName'].Value
@@ -222,7 +229,6 @@ class AlipayParser(model_im.IM):
                     obj = BPReader.GetTree(memoryRange)
                     if obj is not None:
                         friend.remark = obj.Value
-
                 if 'exposedAlipayAccount' in rec:
                     info = rec['exposedAlipayAccount'].Value
                     if not IsDBNull(info):
@@ -265,7 +271,7 @@ class AlipayParser(model_im.IM):
                 friend.type = model_im.FRIEND_TYPE_FRIEND
                 if friend.friend_id not in self.contacts.keys():
                     self.contacts[friend.friend_id] = friend
-                self.db_insert_table_friend(friend)
+                self.im.db_insert_table_friend(friend)
 
         if 'contact_recent_list' in db.Tables:
             ts = SQLiteParser.TableSignature('contact_recent_list')
@@ -275,7 +281,7 @@ class AlipayParser(model_im.IM):
                     continue
                 friend = model_im.Friend()
                 friend.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
-                friend.source = self.app_name
+                friend.source = dbPath.AbsolutePath
                 friend.account_id = self.user
                 g = re.match('\d{16}', rec['userID'].Value, re.M | re.I)
                 if g is not None:
@@ -286,7 +292,7 @@ class AlipayParser(model_im.IM):
                 friend.type = model_im.FRIEND_TYPE_FOLLOW
                 if friend.friend_id not in self.contacts.keys():
                     self.contacts[friend.friend_id] = friend
-                self.db_insert_table_friend(friend)
+                self.im.db_insert_table_friend(friend)
 
         if 'ap_group_list' in db.Tables:
             ts = SQLiteParser.TableSignature('ap_group_list')
@@ -294,7 +300,7 @@ class AlipayParser(model_im.IM):
             for rec in db.ReadTableRecords(ts, self.extract_deleted):
                 chatroom = model_im.Chatroom()
                 chatroom.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
-                chatroom.source = self.app_name
+                chatroom.source = dbPath.AbsolutePath
                 chatroom.account_id = self.user
                 chatroom.chatroom_id = rec['groupId'].Value
                 chatroom.name = rec['currentDisplayGroupName'].Value
@@ -307,11 +313,10 @@ class AlipayParser(model_im.IM):
                 chatroom.member_count = len(member_id_list)
                 if chatroom.chatroom_id not in self.contacts.keys():
                     self.contacts[chatroom.chatroom_id] = chatroom
-                self.db_insert_table_chatroom(chatroom)
+                self.im.db_insert_table_chatroom(chatroom)
 
                 for member_id in member_id_list:
                     if canceller.IsCancellationRequested:
-                        self.db_close()
                         return
                     chatroom_member = model_im.ChatroomMember()
                     chatroom_member.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
@@ -329,18 +334,61 @@ class AlipayParser(model_im.IM):
                         chatroom_member.address = friend.address
                         chatroom_member.birthday = friend.birthday
                         chatroom_member.signature = friend.signature
-                    self.db_insert_table_chatroom_member(chatroom_member)
-        self.db_commit()
-        return True
+                    self.im.db_insert_table_chatroom_member(chatroom_member)
+        self.im.db_commit()
+
+    def get_searchs(self):
+        if self.user is None:
+            return
+
+        dbPath = self.root.GetByPath('/Documents/APGlobalSearch/' + self.md5_encode(self.user)[8:24] + '.db')
+        db = SQLiteParser.Database.FromNode(dbPath)
+        if db is None:
+            return
+
+        if 'global_search_recent_data' in db.Tables:
+            ts = SQLiteParser.TableSignature('global_search_recent_data')
+            SQLiteParser.Tools.AddSignatureToTable(ts, 'keyword', SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
+            for rec in db.ReadTableRecords(ts, self.extract_deleted):
+                search = model_im.Search()
+                search.deleted = DeletedState.Intact
+                search.source = dbPath.AbsolutePath
+                search.account_id = self.user
+                search.key = rec['keyword'].Value
+                search.create_time = rec['timeStamp'].Value
+                self.im.db_insert_table_search(search)
+        self.im.db_commit()
+
+    def get_mobile_contacts(self):
+        if self.user is None:
+            return
+
+        dbPath = self.root.GetByPath('/Documents/MobileContact/' + self.md5_encode(self.user)[8:24] + '.db')
+        db = SQLiteParser.Database.FromNode(dbPath)
+        if db is None:
+            return
+
+        if 'contact_uploadAddress_list' in db.Tables:
+            ts = SQLiteParser.TableSignature('contact_uploadAddress_list')
+            SQLiteParser.Tools.AddSignatureToTable(ts, 'indexKey', SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
+            for rec in db.ReadTableRecords(ts, self.extract_deleted):
+                contact = Contacts.Contact()
+                contact.Deleted = DeletedState.Intact
+                contact.Source.Value = dbPath.AbsolutePath
+                contact.OwnerUserID.Value = self.user
+                contact.PhoneNumber.Value = rec['phoneNumber'].Value
+                contact.ID.Value = rec['indexKey'].Value
+                contact.FullName.Value = rec['phoneBookName'].Value
+                self.contacts_models.append(contact)
 
     def get_chats(self):
         if self.user is None:
-            return False
+            return
 
         dbPath = self.root.GetByPath('/Documents/Contact/' + self.md5_encode(self.user)[8:24] + '.db')
         db = SQLiteParser.Database.FromNode(dbPath)
         if db is None:
-            return False
+            return
         
         recentContact = {}
         if 'contact_recent_list' in db.Tables:
@@ -372,7 +420,7 @@ class AlipayParser(model_im.IM):
                 dbPath = self.root.GetByPath('/Documents/life/' + self.md5_encode(self.user)[8:24] + '.db')
                 db = SQLiteParser.Database.FromNode(dbPath)
                 if db is None:
-                    return False
+                    return
 
                 if 'LFHomeCardDB' in db.Tables:
                     ts = SQLiteParser.TableSignature('LFHomeCardDB')
@@ -382,7 +430,7 @@ class AlipayParser(model_im.IM):
                             continue
                         message = model_im.Message()
                         message.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
-                        message.source = self.app_name
+                        message.source = dbPath.AbsolutePath
                         message.msg_id = str(uuid.uuid1()).replace('-', '')
                         message.account_id = self.user
                         message.talker_id = contact.friend_id
@@ -394,12 +442,12 @@ class AlipayParser(model_im.IM):
                         message.is_sender = model_im.MESSAGE_TYPE_SEND
                         message.content = '[标题]:' + rec['mSum'].Value
                         message.send_time = rec['msgTime'].Value
-                        self.db_insert_table_message(message)
+                        self.im.db_insert_table_message(message)
             else:
                 dbPath = self.root.GetByPath('/Documents/Chat/' + self.md5_encode(self.user)[8:24] + '.db')
                 db = SQLiteParser.Database.FromNode(dbPath)
                 if db is None:
-                    return False
+                    return
 
                 if recentContact[id]['chatTable'] in db.Tables:
                     ts = SQLiteParser.TableSignature(recentContact[id]['chatTable'])
@@ -407,7 +455,7 @@ class AlipayParser(model_im.IM):
                     for rec in db.ReadTableRecords(ts, self.extract_deleted):
                         message = model_im.Message()
                         message.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
-                        message.source = self.app_name
+                        message.source = dbPath.AbsolutePath
                         message.msg_id = str(uuid.uuid1()).replace('-', '')
                         message.account_id = self.user
                         if recentContact[id]['userType'] == '1':
@@ -438,16 +486,15 @@ class AlipayParser(model_im.IM):
                            message.type == model_im.MESSAGE_CONTENT_TYPE_CONTACT_CARD:
                             message.media_path = self.get_media_path(data, message.type)
                         if message.type == model_im.MESSAGE_CONTENT_TYPE_LOCATION:
-                            message.extra_id = self.get_location(data, rec['link'].Value, message.deleted, message.repeated, message.send_time)
+                            message.extra_id = self.get_location(message.source, data, rec['link'].Value, message.deleted, message.repeated, message.send_time)
                         if message.type == model_im.MESSAGE_CONTENT_TYPE_RED_ENVELPOE or \
                            message.type == model_im.MESSAGE_CONTENT_TYPE_RECEIPT or \
                            message.type == model_im.MESSAGE_CONTENT_TYPE_AA_RECEIPT:
-                            message.extra_id = self.get_deal(data, message.type, message.deleted, message.repeated)
-                        self.db_insert_table_message(message)
-        self.db_commit()
-        return True
+                            message.extra_id = self.get_deal(message.source, data, message.type, message.deleted, message.repeated)
+                        self.im.db_insert_table_message(message)
+        self.im.db_commit()
 
-    def get_deal(self, content, type, deleted, repeated):
+    def get_deal(self, source, content, type, deleted, repeated):
         json_obj = None
         try:
             memoryRange = MemoryRange.FromBytes(self.aes_decode(content))
@@ -459,7 +506,7 @@ class AlipayParser(model_im.IM):
         deal = model_im.Deal()
         deal.deleted = deleted
         deal.repeated = repeated
-        deal.source = self.app_name
+        deal.source = source
         deal.deal_id = str(uuid.uuid1()).replace('-', '')
         if type == model_im.MESSAGE_CONTENT_TYPE_AA_RECEIPT:
             deal.type = model_im.DEAL_TYPE_AA_RECEIPT
@@ -482,8 +529,8 @@ class AlipayParser(model_im.IM):
                 deal.money = g.group(0)
             deal.description = json_obj['m']
             deal.remark = json_obj['appName']
-        self.db_insert_table_deal(deal)
-        self.db_commit()
+        self.im.db_insert_table_deal(deal)
+        self.im.db_commit()
         return deal.deal_id
     
     def get_message_content(self, biz):
@@ -524,16 +571,16 @@ class AlipayParser(model_im.IM):
             return None
 
         if 'apmcache' in db.Tables:
-                ts = SQLiteParser.TableSignature('apmcache')
-                SQLiteParser.Tools.AddSignatureToTable(ts, 'filename', SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
-                for rec in db.ReadTableRecords(ts, self.extract_deleted):
-                    if rec['key'].Value == key or rec['alias_key'].Value == key:
-                        node = self.root.GetByPath('/Library/com.alipay.multimedia/data/')
-                        if node is not None:
-                            return os.path.join(node.AbsolutePath, rec['filename'].Value)
+            ts = SQLiteParser.TableSignature('apmcache')
+            SQLiteParser.Tools.AddSignatureToTable(ts, 'filename', SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
+            for rec in db.ReadTableRecords(ts, self.extract_deleted):
+                if rec['key'].Value == key or rec['alias_key'].Value == key:
+                    node = self.root.GetByPath('/Library/com.alipay.multimedia/data/')
+                    if node is not None:
+                        return os.path.join(node.AbsolutePath, rec['filename'].Value)
         return None
 
-    def get_location(self, content, link, deleted, repeated, time):
+    def get_location(self, source, content, link, deleted, repeated, time):
         json_obj = None
         try:
             memoryRange = MemoryRange.FromBytes(self.aes_decode(content))
@@ -544,7 +591,7 @@ class AlipayParser(model_im.IM):
         location = model_im.Location()
         location.deleted = deleted
         location.repeated = repeated
-        location.source = self.app_name
+        location.source = source
         location.location_id = str(uuid.uuid1()).replace('-', '')
         location.address = json_obj['d']
         g = re.search('&lon=(\d+\.\d+)', link, re.M | re.I)
@@ -554,8 +601,8 @@ class AlipayParser(model_im.IM):
         if g is not None:
             location.latitude = g.group(1)
         location.timestamp = time
-        self.db_insert_table_location(location)
-        self.db_commit()
+        self.im.db_insert_table_location(location)
+        self.im.db_commit()
         return location.location_id
 
     def parse_message_type(self, type):
@@ -581,6 +628,44 @@ class AlipayParser(model_im.IM):
         if type == '105' or msgtype == '125':
             msgtype = model_im.MESSAGE_CONTENT_TYPE_AA_RECEIPT
         return msgtype
+
+    def get_deals(self):
+        if self.user is None:
+            return
+
+        dbPath = self.root.GetByPath('/Documents/Preferences/' + self.md5_encode(self.user)[8:24] + '.db')
+        db = SQLiteParser.Database.FromNode(dbPath)
+        if db is None:
+            return None
+
+        if '__DEFAULTS__' in db.Tables:
+            ts = SQLiteParser.TableSignature('__DEFAULTS__')
+            SQLiteParser.Tools.AddSignatureToTable(ts, 'key', SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
+            for rec in db.ReadTableRecords(ts, self.extract_deleted):
+                if rec['key'].Value != 'BILL_LIST_CACHE_NEW_20000003':
+                    continue
+
+                try:
+                    memoryRange = MemoryRange.FromBytes(rec['data'].Value)
+                    file = 'C:/Users/Admin/Desktop/2003_new.plist'
+                    memoryRange = MemoryRange.CreateFromFile(file)
+                    obj = BPReader.GetTree(memoryRange)
+                    list = obj.Children['list']
+                    for month_obj in list:
+                        recordList = month_obj.Children['recordList']
+                        for record in recordList:
+                            deal = model_im.Deal()
+                            deal.deleted = DeletedState.Intact
+                            deal.source = dbPath.AbsolutePath
+                            deal.account_id = self.user
+                            deal.money = record['money'].Value
+                            deal.description = record['title'].Value
+                            deal.create_time = record['gmtCreate'].Value
+                            deal.remark = record['categoryName'].Value
+                            self.im.db_insert_table_deal(deal)
+                    self.im.db_commit()
+                except:
+                    traceback.print_exc()
 
     @staticmethod
     def aes_decode(text):
