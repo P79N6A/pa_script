@@ -300,7 +300,8 @@ class Andriod_QQParser(object):
                 friend.remark = decode_text(self.imei,SafeGetString(reader,1))
                 friend.nickname = decode_text(self.imei,SafeGetString(reader,2))
                 friend.source  = node.AbsolutePath
-                friend.age = SafeGetInt64(reader,4)               
+                friend.age = SafeGetInt64(reader,4)      
+                friend.type = FRIEND_TYPE_FRIEND
                 m = hashlib.md5()
                 m.update(friend.friend_id)
                 self.friendhash[friend.friend_id] = m.hexdigest().upper()

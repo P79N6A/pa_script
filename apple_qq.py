@@ -375,6 +375,7 @@ class QQParser(object):
                 friend.nickname =self.friendsNickname[k][0]
                 friend.remark = self.friendsNickname[k][1]
                 friend.source = node.AbsolutePath
+                friend.type = FRIEND_TYPE_FRIEND
                 self.im.db_insert_table_friend(friend)
         except:
             pass
