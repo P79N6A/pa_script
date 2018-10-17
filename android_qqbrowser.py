@@ -193,6 +193,7 @@ class QQBrowserParse(object):
 
     def analyze_search_history(self):
         searchHistory = model_browser.SearchHistory()
+        pattern = re.compile('[\\x00-\\x08\\x0b-\\x0c\\x0e-\\x1f]')
         fs = self.node.Parent
         ns = fs.Search(r'/\d+.db$')
         nodes = []
