@@ -132,15 +132,14 @@ class QQParser(object):
         d = node.PathWithMountPoint
         c2ctables = []
         trooptables =[]
-        conn = sqlite3.connect(d)
-        sql = 'select tbl_name from sqlite_master where type ="table" and tbl_name like "tbMap_c2c/_%"escape "/"'
-        cursor = conn.execute(sql)
-        for row in cursor:
-            c2ctables.append(row[0])
-        sql = 'select tbl_name from sqlite_master where type ="table" and tbl_name like "tbMap_troop/_%"escape "/"'
-        cursor = conn.execute(sql)
-        for row in cursor:
-            trooptables.append(row[0])			
+        db = SQLiteParser.Database.FromNode(node,canceller)
+        if db is None:
+            return      
+        for table in db.Tables: 
+            if table.startswith("tbMap_c2c_"):
+               c2ctables.append(table)       
+            if table.startswith("tbMap_troop_"):
+                trooptables.append(table)			
         for table in c2ctables:
             if canceller.IsCancellationRequested:
                 return
@@ -154,21 +153,27 @@ class QQParser(object):
         #chat_id = table[table.rfind('_')+1:]
         node = self.root.GetByPath('/Documents/contents/' + acc_id + '/FTSMsg.db')
         if node is not None:
-            d = node.PathWithMountPoint
-            conn = sqlite3.connect(d)
+            d = node.PathWithMountPoint             
             sql = 'select c1uin,c2time,c3type,c4flag,c7content,c8conversationuin,a.msgId from ' + table  +  ' a,tb_Index_c2cMsg_content b  where a.docid = b.docid'
-            cursor = conn.execute(sql)
-            for row in cursor:
+            datasource = "Data Source =  " + d +";ReadOnly=True"
+            conn = SQLiteConnection(datasource)
+            conn.Open()
+            if(conn is None):
+                return
+            command = SQLiteCommand(conn)                
+            command.CommandText = sql
+            reader = command.ExecuteReader()
+            while reader.Read():
                 try:
                     if canceller.IsCancellationRequested:
                         return
                     msg = Message()
-                    uin = str(row[0])
-                    sendtime = row[1]
-                    msgtype = row[2]
-                    flag = row[3]
-                    content = row[4]
-                    msgid = str(row[6])	
+                    uin = SafeGetString(reader,0)
+                    sendtime = SafeGetInt64(reader,1)
+                    msgtype = SafeGetInt64(reader,2)
+                    flag = SafeGetInt64(reader,3)
+                    content =SafeGetString(reader,4)
+                    msgid = str(SafeGetInt64(reader,6))	
                     msg.account_id = acc_id
                     msg.talker_id = uin
                     msg.deleted = 1
@@ -199,24 +204,30 @@ class QQParser(object):
         group_id = table[table.rfind('_')+1:]
         node = self.root.GetByPath('/Documents/contents/' + acc_id + '/FTSMsg.db')
         if node is not None:
-            d = node.PathWithMountPoint
-            conn = sqlite3.connect(d)
+            d = node.PathWithMountPoint            
             sql = 'select c1uin,c2time,c3type,c4flag,c5nickname,c7content,c8conversationuin,c0msgId from ' + table  +  ' a,tb_Index_TroopMsg_content b  where a.docid = b.docid'
-            cursor = conn.execute(sql)
-            for row in cursor:
+            datasource = "Data Source =  " + d +";ReadOnly=True"
+            conn = SQLiteConnection(datasource)
+            conn.Open()
+            if(conn is None):
+                return
+            command = SQLiteCommand(conn)                
+            command.CommandText = sql
+            reader = command.ExecuteReader()
+            while reader.Read():
                 try:
                     if canceller.IsCancellationRequested:
                         return
                     msg = Message()
-                    uin = str(row[0])
-                    sendtime = row[1]
-                    msgtype = row[2]
-                    flag = row[3]
-                    nickname = row[4]
-                    content= row[5]
-                    msgid = str(row[7])	
+                    uin = SafeGetString(reader,0)
+                    sendtime = SafeGetInt64(reader,1)
+                    msgtype = SafeGetInt64(reader,2)
+                    flag = SafeGetInt64(reader,3)
+                    nickname = SafeGetString(reader,4)
+                    content= SafeGetString(reader,5)
+                    msgid = str(SafeGetInt64(reader,7))
                     msg.account_id = acc_id
-                    msg.talker_id = str(row[6])
+                    msg.talker_id =SafeGetString(reader,6)
                     msg.source = node.AbsolutePath
                     try:					
                         msg.talker_name =  self.troops[group_id].name
@@ -504,15 +515,15 @@ class QQParser(object):
         node = self.root.GetByPath('/Documents/contents/' + acc_id + '/QQ.db')
         if node is None:
             return
-        d = node.PathWithMountPoint
-        conn = sqlite3.connect(d)
-        sql = 'select tbl_name from sqlite_master where type ="table" and tbl_name like "tb_TroopMsg/_%" escape "/"'
-        cursor = conn.execute(sql)
-        for row in cursor:
-            self.troopmsgtables.add(row[0])
+        db = SQLiteParser.Database.FromNode(node,canceller)
+        if db is None:
+            return      
+        for table in db.Tables: 
+            if table.startswith("tb_TroopMsg_"):
+                self.troopmsgtables.add(table)       
         for table in self.troopmsgtables:
             if canceller.IsCancellationRequested:
-                return
+                return     
             self.decode_group_chat_table(acc_id,table)	
     def decode_group_chat_table(self, acc_id, table_name):		
         group_id = table_name[table_name.rfind('_')+1:]
@@ -1152,7 +1163,7 @@ class QQParser(object):
                 if canceller.IsCancellationRequested:
                     return
                 msg = Message()				
-                uin = str(row['c1uin'].Value)
+                uin = (row['c1uin'].Value)
                 sendtime = row['c2time'].Value
                 #something not same
                 flag =row['c3type'].Value
@@ -1160,7 +1171,7 @@ class QQParser(object):
                 content = row['c7content'].Value
                 nickname = row['c5nickName'].Value
                 msgid =str(row['c0msgId'].Value)
-                group_id = str(row['c8conversationUin'].Value)
+                group_id = (row['c8conversationUin'].Value)
                 msg.account_id = acc_id
                 msg.talker_id = group_id
                 msg.source = node.AbsolutePath
