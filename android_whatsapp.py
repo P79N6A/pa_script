@@ -71,8 +71,9 @@ class WhatsApp(object):
 
     def get_account(self):
         account = model_im.Account()
-        account.source = "WhatsApp"
+        # account.source = "WhatsApp"
         account_node =  self.root.GetByPath("/shared_prefs/com.whatsapp_preferences.xml")
+        account.source = account_node.AbsolutePath
         if account_node is None:
             return
         es = []
@@ -98,8 +99,8 @@ class WhatsApp(object):
         try:
             if self.account_id is None:
                 self.account_id = "unknown"
-                account.account_id = self.account_id
-                account.source = "whatsapp:" + self.account_id
+                # account.account_id = self.account_id
+                account.account_id = "whatsapp:" + self.account_id
             if self.account_pushname is None:
                 self.account_pushname = "unknown"
             self.whatsapp.db_insert_table_account(account)
@@ -187,18 +188,23 @@ class WhatsApp(object):
                     friend_id = GetString(reader, 1)
                     if friend_id.find("net") != -1 and friend_id in friends:
                         friend = model_im.Friend()
+                        friend.source = contacts_path.AbsolutePath
                         friend.account_id = self.account_id
                         friend.friend_id = friend_id
                         friend.nickname = GetString(reader, 7)
                         self.contacts_dicts[friend_id] = GetString(reader, 7)
                         friend.telephone = GetString(reader, 5)
                         friend.signature = GetString(reader, 3)
+                        friend.type = model_im.FRIEND_TYPE_FRIEND
                         try:
                             self.whatsapp.db_insert_table_friend(friend)
                         except Exception as e:
                             pass
             else:
+                friend = model_im.Friend()
+                friend.source = contacts_path.AbsolutePath
                 friend.account_id = self.account_id
+                friend.type = model_im.FRIEND_TYPE_FRIEND
                 for i in friends:
                     friend.friend_id = i
                     friend.nickname = "unknown"
@@ -241,7 +247,7 @@ class WhatsApp(object):
                 if canceller.IsCancellationRequested:
                     return
                 chatroom = model_im.Chatroom()
-                chatroom.source = "WhatsApp"
+                chatroom.source = self.source_path.AbsolutePath
                 chatroom.account_id = self.account_id
                 chatroom.chatroom_id = GetString(reader, 0)
                 chatroom.name = GetString(reader, 1)
@@ -268,7 +274,7 @@ class WhatsApp(object):
             reader_fail = cmd.ExecuteReader()
             while reader_fail.Read():
                 chatroom_fail = model_im.Chatroom()
-                chatroom_fail.source = "WhatsApp"
+                chatroom_fail.source = self.source_path.AbsolutePath
                 chatroom_fail.chatroom_id = GetString(reader_fail, 0)
                 chatroom_fail.account_id = self.account_id
                 chatroom_fail.create_time = int(str(GetInt64(reader_fail, 1))[:-3])
@@ -310,7 +316,7 @@ class WhatsApp(object):
                 if GetString(reader, 0).find("broadcast") != -1:
                     continue
                 member = model_im.ChatroomMember()
-                member.source = "WhatsApp"
+                member.source = self.source_path.AbsolutePath
                 groups = GetString(reader, 0)
                 member_id = GetString(reader, 1)
                 if member_id == "":
@@ -351,7 +357,7 @@ class WhatsApp(object):
                 if canceller.IsCancellationRequested:
                     return
                 message = model_im.Message()
-                message.source = "WhatsApp"
+                message.source = self.source_path.AbsolutePath
                 message.talker_type = 1 # 好友聊天
                 message.account_id = self.account_id
                 message.is_sender = GetInt64(reader, 2)
@@ -455,7 +461,7 @@ class WhatsApp(object):
                 if GetString(reader, 0).find("broadcast") != -1:
                     continue
                 message = model_im.Message()
-                message.source = "WhatsApp"
+                message.source = self.source_path.AbsolutePath
                 message.talker_type = 2 # 群聊天
                 message.account_id = self.account_id
                 groups_id = GetString(reader, 0)
@@ -575,7 +581,7 @@ class WhatsApp(object):
                     if feed_id.find("broadcast") == -1:
                         continue
                     feed = model_im.Feed()
-                    feed.source = "WhatsApp"
+                    feed.source = self.source_path.AbsolutePath
                     feed.account_id = self.account_id
                     if GetInt64(reader, 1) == 1:
                         feed.sender_id = self.account_id
@@ -678,6 +684,7 @@ class WhatsApp(object):
                         friends.account_id = self.account_id
                         friends.deleted = 1
                         friends.friend_id = rec[1]
+                        friends.type = model_im.FRIEND_TYPE_FRIEND
                         if rec[3]:
                             friends.signature = rec[3]
                         try:
@@ -692,6 +699,7 @@ class WhatsApp(object):
                     no_name_friends = model_im.Friend()
                     no_name_friends.account_id = self.account_id
                     no_name_friends.friend_id = i
+                    no_name_friends.type = model_im.FRIEND_TYPE_FRIEND
                     try:
                         self.whatsapp.db_insert_table_friend(no_name_friends)
                     except Exception as e:

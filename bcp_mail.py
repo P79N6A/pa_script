@@ -195,6 +195,7 @@ class MailBcp(object):
         self.db_cmd = SQLite.SQLiteCommand(self.db)
         self.db_trans = self.db.BeginTransaction()
         self.db_create_table()
+        print('建表成功')
         self.db_commit()
 
     def db_close(self):
@@ -212,15 +213,18 @@ class MailBcp(object):
         self.db_trans = self.db.BeginTransaction()
 
     def db_create_table(self):
-        if self.db_cmd is not None:
-            self.db_cmd.CommandText = SQL_CREATE_TABLE_WA_MFORENSICS_040100
-            self.db_cmd.ExecuteNonQuery()
-            self.db_cmd.CommandText = SQL_CREATE_TABLE_WA_MFORENSICS_040200
-            self.db_cmd.ExecuteNonQuery()
-            self.db_cmd.CommandText = SQL_CREATE_TABLE_WA_MFORENSICS_040300
-            self.db_cmd.ExecuteNonQuery()
-            self.db_cmd.CommandText = SQL_CREATE_TABLE_WA_MFORENSICS_040400
-            self.db_cmd.ExecuteNonQuery()
+        try:
+            if self.db_cmd is not None:
+                self.db_cmd.CommandText = SQL_CREATE_TABLE_WA_MFORENSICS_040100
+                self.db_cmd.ExecuteNonQuery()
+                self.db_cmd.CommandText = SQL_CREATE_TABLE_WA_MFORENSICS_040200
+                self.db_cmd.ExecuteNonQuery()
+                self.db_cmd.CommandText = SQL_CREATE_TABLE_WA_MFORENSICS_040300
+                self.db_cmd.ExecuteNonQuery()
+                self.db_cmd.CommandText = SQL_CREATE_TABLE_WA_MFORENSICS_040400
+                self.db_cmd.ExecuteNonQuery()
+        except Exception as e:
+            print(e)
     
     def db_insert_table(self, sql, values):
         if self.db_cmd is not None:
@@ -534,19 +538,22 @@ class GenerateBcp(object):
                 attachment.DELETE_STATUS = sr[5]
                 if not IsDBNull(sr[3]):
                     self._copy_attachment(self.mountDir, sr[3])
+                    print('拷贝成功')
                 self.mail.db_insert_table_attachment(attachment)
             self.mail.db_commit()
         except Exception as e:
             print(e)
 
     def _copy_attachment(self, mountDir, dir):
-        x = mountDir + dir
-        sourceDir = x.replace('\\','/')
-        targetDir = self.attachpath
+        sourceDir = os.path.normpath(mountDir + dir).replace('\\', '/')
+        targetDir = os.path.normpath(self.attachpath).replace('\\', '/')
+        print(sourceDir)
+        print(targetDir)
         try:
             if os.path.exists(targetDir):
                 shutil.copy(sourceDir, targetDir)
-        except:
+        except Exception as e:
+            print(e)
             pass
 
 

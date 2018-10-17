@@ -168,7 +168,7 @@ class MailParser(object):
 
     def analyze_account(self, mailPath, deleteFlag):
         '''保存账户数据到中间数据库'''
-        self.db = SQLite.SQLiteConnection('Data Source = {}'.format(mailPath))
+        self.db = SQLite.SQLiteConnection('Data Source = {}; ReadOnly = True'.format(mailPath))
         self.db.Open()
         self.db_cmd = SQLite.SQLiteCommand(self.db)
         try:
@@ -195,7 +195,7 @@ class MailParser(object):
 
     def analyze_mail(self, mailPath, deleteFlag):
         '''保存邮件数据到中间数据库'''
-        self.db = SQLite.SQLiteConnection('Data Source = {}'.format(mailPath))
+        self.db = SQLite.SQLiteConnection('Data Source = {}; ReadOnly = True'.format(mailPath))
         self.db.Open()
         self.db_cmd = SQLite.SQLiteCommand(self.db)
         try:
@@ -239,7 +239,7 @@ class MailParser(object):
 
     def analyze_contact(self, contactPath, deleteFlag):
         """保存联系人数据到中间数据库"""
-        self.db = SQLite.SQLiteConnection('Data Source = {}'.format(contactPath))
+        self.db = SQLite.SQLiteConnection('Data Source = {}; ReadOnly = True'.format(contactPath))
         self.db.Open()
         self.db_cmd = SQLite.SQLiteCommand(self.db)
         try:
@@ -270,7 +270,7 @@ class MailParser(object):
 
     def analyze_attachment(self, mailPath, deleteFlag):
         '''保存附件数据到中间数据库'''
-        self.db = SQLite.SQLiteConnection('Data Source = {}'.format(mailPath))
+        self.db = SQLite.SQLiteConnection('Data Source = {}; ReadOnly = True'.format(mailPath))
         self.db.Open()
         self.db_cmd = SQLite.SQLiteCommand(self.db)
         try:
