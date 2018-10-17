@@ -152,7 +152,7 @@ class SMSParser(object):
 
 
         BASE_DIR   = os.path.dirname(self.cachepath)
-        calls_path = os.path.join(BASE_DIR, 'CALLS')
+        calls_path = os.path.join(BASE_DIR, 'Calls')
 
         try:
             if not os.listdir(calls_path):
