@@ -3,10 +3,13 @@ import time
 import clr
 try:
     clr.AddReference('model_sms')
+    clr.AddReference('bcp_basic')
 except:
     pass
 del clr
 from model_sms import *
+import bcp_basic
+
 
 SMS_TYPE_ALL    = 0
 SMS_TYPE_INBOX  = 1
@@ -44,7 +47,6 @@ def analyze_sms(node, extract_deleted, extract_source):
     if res is not None:
         pr.Models.AddRange(res)
         pr.Build('短信')
-
     return pr
 
 
@@ -79,6 +81,9 @@ class SMSParser(object):
                 self.m_sms.db_insert_table_version(VERSION_KEY_APP, VERSION_APP_VALUE)
                 self.m_sms.db_commit()
             self.m_sms.db_close() 
+
+        tmp_dir = ds.OpenCachePath('tmp')
+        save_cache_path(bcp_basic.BASIC_SMS_INFORMATION, self.cache_db, tmp_dir)
 
         models = GenerateModel(self.cache_db, self.cachepath).get_models()
         return models        
@@ -143,15 +148,16 @@ class SMSParser(object):
 
         BASE_DIR   = os.path.dirname(self.cachepath)
         calls_path = os.path.join(BASE_DIR, 'CALLS')
-        if not os.listdir(calls_path):
-            print('####### android_sms.py: calls.db 不存在')
-            return 
-
-        for f  in os.listdir(calls_path):
-            if f.endswith('.db'):
-                calls_db_path = os.path.join(calls_path, f)
 
         try:
+            if not os.listdir(calls_path):
+                print('####### android_sms.py: calls.db 不存在')
+                return 
+
+            for f  in os.listdir(calls_path):
+                if f.endswith('.db'):
+                    calls_db_path = os.path.join(calls_path, f)
+
             self.calls_db = sqlite3.connect(calls_db_path)
             cursor = self.calls_db.cursor()            
             cursor.execute(''' select * from contacts ''')
