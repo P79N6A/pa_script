@@ -32,8 +32,7 @@ import logging
 from  model_im import *
 import uuid 
 import hashlib
-from bcp_im import *
-
+import bcp_im
 def SafeGetString(reader,i):
     if not reader.IsDBNull(i):
         return reader.GetString(i)
@@ -85,7 +84,7 @@ class QQParser(object):
         self.bcppath = ds.OpenCachePath("tmp") 
         m = hashlib.md5()
         m.update(self.root.AbsolutePath)        
-        self.cachedb =  self.cachepath  + '/' + m.hexdigest().upper() + ".db"     
+        self.cachedb =  self.cachepath  + '/' + m.hexdigest().upper() + ".db"    
         self.VERSION_APP_VALUE = 10000    
     
     def parse(self):        
@@ -126,7 +125,7 @@ class QQParser(object):
             self.im.db_insert_table_version(VERSION_KEY_APP, self.VERSION_APP_VALUE)
             self.im.db_commit()
             self.im.db_close()
-        PAruntime.save_cache_path(bcp_im.CONTACT_ACCOUNT_TYPE_IM_QQ,self.cachedb,self.bcppath)
+        PA_runtime.save_cache_path(bcp_im.CONTACT_ACCOUNT_TYPE_IM_QQ,self.cachedb,self.bcppath)
         gen = GenerateModel(self.cachedb)
         return gen.get_models()
     def decode_fts_messages(self,acc_id):
@@ -374,7 +373,6 @@ class QQParser(object):
                 friend.nickname =self.friendsNickname[k][0]
                 friend.remark = self.friendsNickname[k][1]
                 friend.source = node.AbsolutePath
-                friend.type = FRIEND_TYPE_FRIEND
                 self.im.db_insert_table_friend(friend)
         except:
             pass
