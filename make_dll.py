@@ -15,4 +15,9 @@ for filename in os.listdir('.'):
             continue
         clr.CompileModules(DIR+name+".dll", filename)
 
+print('Make dll completed,start to make encrypt dll ..')
+
+cmd = "co.exe projectfile=E:\\workspace\\git\\PA.Scripts\\scripts.obproj"
+os.system(cmd)
+
     
