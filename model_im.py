@@ -27,6 +27,7 @@ GENDER_NONE = 0
 GENDER_MALE = 1
 GENDER_FEMALE = 2
 
+FRIEND_TYPE_NONE = 0
 FRIEND_TYPE_FRIEND = 1
 FRIEND_TYPE_GROUP_FRIEND = 2
 FRIEND_TYPE_FANS = 3
@@ -527,7 +528,7 @@ class Friend(Column):
         self.nickname = None  # 昵称[TEXT]
         self.remark = None  # 备注[TEXT]
         self.photo = None  # 头像[TEXT]
-        self.type = None  # 类型[INT]
+        self.type = FRIEND_TYPE_NONE  # 类型[INT] FRIEND_TYPE
         self.telephone = None  # 电话[TEXT]
         self.email = None  # 电子邮箱[TEXT]
         self.gender = GENDER_NONE  # 性别[INT]
