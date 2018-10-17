@@ -7,12 +7,14 @@ import clr
 try:
     clr.AddReference('model_map')
     clr.AddReference("bcp_gis")
+    clr.AddReference("unity_c37r")
 except:
     pass
 del clr
 import model_map
 import bcp_gis
 import uuid
+import unity_c37r
 
 
 class TencentMap(object):
@@ -118,10 +120,18 @@ class TencentMap(object):
                     if "address" in json_data:
                         search.address = json_data["address"]
                     if "latLng" in json_data:
-                        if "a" in json_data["latLng"]:
-                            search.pos_x = json_data["latLng"]["a"]
-                        if "b" in json_data["latLng"]:
-                            search.pos_y = json_data["latLng"]["b"]
+                        # if "a" in json_data["latLng"]:
+                        #     search.pos_x = json_data["latLng"]["a"]
+                        # if "b" in json_data["latLng"]:
+                        #     search.pos_y = json_data["latLng"]["b"]
+                        if "a" in json_data["latLng"] and  "b" in json_data["latLng"]:
+                            if str(json_data["latLng"]["b"]).find(".") != -1 and str(json_data["latLng"]["a"]).find(".") != -1:
+                                lat, lng = unity_c37r.gcj2wgs_exact(json_data["latLng"]["a"], json_data["latLng"]["b"])
+                                search.pos_x = lng
+                                search.pos_y = lat
+                            else:
+                                search.pos_x = json_data["latLng"]["a"]
+                                search.pos_y = json_data["latLng"]["b"]
                 if "_last_used" in rec and (not rec["_last_used"].IsDBNull):
                     tmpa = rec["_last_used"].Value
                     tmpb = str(tmpa)[:10]

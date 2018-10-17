@@ -27,15 +27,16 @@ GENDER_NONE = 0
 GENDER_MALE = 1
 GENDER_FEMALE = 2
 
-FRIEND_TYPE_FRIEND = 1
-FRIEND_TYPE_GROUP_FRIEND = 2
-FRIEND_TYPE_FANS = 3
-FRIEND_TYPE_FOLLOW = 4
-FRIEND_TYPE_SPECAIL_FOLLOW = 5
-FRIEND_TYPE_MUTUAL_FOLLOW = 6
-FRIEND_TYPE_RECENT = 7
-FRIEND_TYPE_SUBSCRIBE = 8
-FRIEND_TYPE_STRANGER = 9
+FRIEND_TYPE_NONE = 0  # 未知
+FRIEND_TYPE_FRIEND = 1  # 好友
+FRIEND_TYPE_GROUP_FRIEND = 2  # 群好友
+FRIEND_TYPE_FANS = 3  # 粉丝
+FRIEND_TYPE_FOLLOW = 4  # 关注
+FRIEND_TYPE_SPECAIL_FOLLOW = 5  # 特别关注
+FRIEND_TYPE_MUTUAL_FOLLOW = 6  # 互相关注
+FRIEND_TYPE_RECENT = 7  # 最近
+FRIEND_TYPE_SUBSCRIBE = 8  # 公众号
+FRIEND_TYPE_STRANGER = 9  # 陌生人
 
 CHATROOM_TYPE_NORMAL = 1  # 普通群
 CHATROOM_TYPE_TEMP = 2  # 临时群
@@ -527,7 +528,7 @@ class Friend(Column):
         self.nickname = None  # 昵称[TEXT]
         self.remark = None  # 备注[TEXT]
         self.photo = None  # 头像[TEXT]
-        self.type = None  # 类型[INT]
+        self.type = FRIEND_TYPE_NONE  # 类型[INT] FRIEND_TYPE
         self.telephone = None  # 电话[TEXT]
         self.email = None  # 电子邮箱[TEXT]
         self.gender = GENDER_NONE  # 性别[INT]
