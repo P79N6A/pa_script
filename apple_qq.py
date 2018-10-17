@@ -86,7 +86,6 @@ class QQParser(object):
         m = hashlib.md5()
         m.update(self.root.AbsolutePath)        
         self.cachedb =  self.cachepath  + '/' + m.hexdigest().upper() + ".db"     
-        self.bcpdir = self.cachepath  + '/' + m + ".db"     
         self.VERSION_APP_VALUE = 10000    
     
     def parse(self):        

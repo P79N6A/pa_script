@@ -40,8 +40,13 @@ def analyze_sms(node, extract_deleted, extract_source):
     elif node_path.endswith('com.android.providers.telephony/databases'):
         res = SMSParser(node, extract_deleted, extract_source).parse()
 
-    #for sms in res:
-    #    print 'sms.Body.Value', sms.Body.Value
+    if DEBUG:
+        print('DEBUG sms')
+        if res:
+            for sms in res:
+                print 'sms.Body.Value', sms.Body.Value
+        else:
+            print('res is null')
 
     pr = ParserResults()
     if res is not None:
@@ -66,7 +71,7 @@ class SMSParser(object):
 
     def parse(self):
         if DEBUG or self.m_sms.need_parse(self.cache_db, VERSION_APP_VALUE):
-            node = self.root.GetByPath("/mmssms.db")
+            node = self.root.GetByPath("mmssms.db")
             self.db = SQLiteParser.Database.FromNode(node, canceller)
             if self.db is None:
                 return
@@ -147,17 +152,20 @@ class SMSParser(object):
 
 
         BASE_DIR   = os.path.dirname(self.cachepath)
-        calls_path = os.path.join(BASE_DIR, 'CALLS')
+        calls_path = os.path.join(BASE_DIR, 'Calls')
 
         try:
             if not os.listdir(calls_path):
                 print('####### android_sms.py: calls.db 不存在')
                 return 
-
             for f  in os.listdir(calls_path):
                 if f.endswith('.db'):
                     calls_db_path = os.path.join(calls_path, f)
+        except:
+            print('####### android_sms.py:  关联 calls.db 失败 ')
+            return 
 
+        try:
             self.calls_db = sqlite3.connect(calls_db_path)
             cursor = self.calls_db.cursor()            
             cursor.execute(''' select * from contacts ''')
@@ -310,8 +318,6 @@ class SMSParser(object):
         except:
             return False
 
-
-
 class SMSParser_no_tar(SMSParser):
     ''' 处理逻辑提取, 没有 tar 包的案例 sms/sms.db$ '''
 
@@ -319,6 +325,8 @@ class SMSParser_no_tar(SMSParser):
         super(SMSParser_no_tar, self).__init__(node, extract_deleted, extract_source)
     
     def parse(self):
+        if DEBUG:
+            print('短信: 处理逻辑提取, sms node path:', self.root.AbsolutePath)
         if DEBUG or self.m_sms.need_parse(self.cache_db, VERSION_APP_VALUE):
             node = self.root
             self.db = SQLiteParser.Database.FromNode(node, canceller)

@@ -490,13 +490,17 @@ class Generate(object):
     def __init__(self, db_cache):
         self.db_cache = db_cache
         self.db = None
-        self.cursor = None
         self.owneruser = 'default_user'
+
+        self.db_cmd = None
+        self.db_trans = None
 
     def get_models(self):
         models = []
-        self.db = sqlite3.connect(self.db_cache)
-        self.cursor = self.db.cursor()
+        self.db = SQLite.SQLiteConnection('Data Source = {};ReadOnly=True'.format(self.db_cache))
+        self.db.Open()
+        self.db_cmd = SQLite.SQLiteCommand(self.db)
+
         models.extend(self._get_account_models())
         models.extend(self._get_bookmark_models())
         models.extend(self._get_browse_record_models())
@@ -506,29 +510,31 @@ class Generate(object):
         models.extend(self._get_search_history_models())
         models.extend(self._get_plugin_models())
         models.extend(self._get_cookies_models())
-        self.cursor.close()
-        self.db.close()
+        self.db_cmd.Dispose()
+        self.db.Close()
         return models
 
     def _get_account_models(self):
         model = []
         sql = '''select distinct * from account group by name'''
         try:
-            self.cursor.execute(sql)
-            for row in self.cursor:
+            self.db_cmd.CommandText = sql
+            row = self.db_cmd.ExecuteReader()
+            while(row.Read()):
                 canceller.ThrowIfCancellationRequested()
                 user = Generic.User()
-                if row[0] is not None:
+                if not IsDBNull(row[0]):
                     user.Identifier.Value = str(row[0])
-                if row[1] is not None:
+                if not IsDBNull(row[1]):
                     user.Name.Value = row[1]
-                if row[2] is not None:
+                if not IsDBNull(row[2]):
                     user.TimeLastLogin.Value = self._get_timestamp(row[2])
-                if row[3] not in [None, '']:
+                if not IsDBNull(row[3]) and row[3] not in [None, '']:
                     user.SourceFile.Value = self._get_source_file(row[3])
-                if row[4] is not None:
+                if not IsDBNull(row[4]):
                     user.Deleted = self._convert_deleted_status(row[4])
                 model.append(user)
+            row.Close()
         except Exception as e:
             print(e)
         return model
@@ -537,21 +543,23 @@ class Generate(object):
         model = []
         sql = '''select distinct * from bookmark'''
         try:
-            self.cursor.execute(sql)
-            for row in self.cursor:
+            self.db_cmd.CommandText = sql
+            row = self.db_cmd.ExecuteReader()             
+            while(row.Read()):
                 canceller.ThrowIfCancellationRequested()
                 bookmark = Generic.WebBookmark()
-                if row[1] is not None:
+                if not IsDBNull(row[1]):
                     bookmark.TimeStamp.Value = self._get_timestamp(row[1])
-                if row[2] is not None:
+                if not IsDBNull(row[2]):
                     bookmark.Title.Value = row[2]
-                if row[3] is not None:
+                if not IsDBNull(row[3]):
                     bookmark.Url.Value = row[3]
-                if row[5] not in [None, '']:
+                if not IsDBNull(row[5]) and row[5] not in [None, '']:
                     bookmark.SourceFile.Value = self._get_source_file(row[5])
-                if row[6] is not None:
+                if not IsDBNull(row[6]):
                     bookmark.Deleted = self._convert_deleted_status(row[6])
                 model.append(bookmark)
+            row.Close()
         except Exception as e:
             print(e)
         return model
@@ -560,21 +568,23 @@ class Generate(object):
         model = []
         sql = '''select distinct * from browse_records'''
         try:
-            self.cursor.execute(sql)
-            for row in self.cursor:
+            self.db_cmd.CommandText = sql
+            row = self.db_cmd.ExecuteReader()             
+            while(row.Read()):
                 canceller.ThrowIfCancellationRequested()
                 visited = Generic.VisitedPage()
-                if row[1] is not None:
+                if not IsDBNull(row[1]):
                     visited.Title.Value = row[1]
-                if row[2] is not None:
+                if not IsDBNull(row[2]):
                     visited.Url.Value = row[2]
-                if row[3] is not None:
+                if not IsDBNull(row[3]):
                     visited.LastVisited.Value = self._get_timestamp(row[3])
-                if row[5] not in [None, '']:
+                if not IsDBNull(row[5]) and row[5] not in [None, '']:
                     visited.SourceFile.Value = self._get_source_file(row[5])
-                if row[6] is not None:
+                if not IsDBNull(row[6]):
                     visited.Deleted = self._convert_deleted_status(row[6])
                 model.append(visited)
+            row.Close()
         except Exception as e:
             print(e)
         return model
@@ -583,23 +593,25 @@ class Generate(object):
         model = []
         sql = '''select distinct * from download_files'''
         try:
-            self.cursor.execute(sql)
-            for row in self.cursor:
+            self.db_cmd.CommandText = sql
+            row = self.db_cmd.ExecuteReader()             
+            while(row.Read()):
                 canceller.ThrowIfCancellationRequested()
                 download = Generic.Attachment()
-                if row[1] is not None:
+                if not IsDBNull(row[1]):
                     download.URL.Value = row[1]
-                if row[3] is not None:
+                if not IsDBNull(row[3]):
                     download.Filename.Value = row[3]  #因为下载文件有两个地址（下载地址和本地保存路径，于是把下载地址给了URL，本地地址给了Filename），本地地址用Filename储存时会警告文件名不合法，该问题正在解决
-                if row[4] is not None:
+                if not IsDBNull(row[4]):
                     download.Size.Value = row[4]
-                if row[5] is not None:
+                if not IsDBNull(row[5]):
                     download.DownloadTime.Value = self._get_timestamp(row[5])
-                if row[9] not in [None, '']:
+                if not IsDBNull(row[9]) and row[9] not in [None, '']:
                     download.SourceFile.Value = self._get_source_file(row[9])
                 if row[10] is not None:
                     download.Deleted = self._convert_deleted_status(row[10])
                 model.append(download)
+            row.Close()
         except Exception as e:
             print(e)
         return model
@@ -608,23 +620,25 @@ class Generate(object):
         model = []
         sql = '''select distinct * from file_info'''
         try:
-            self.cursor.execute(sql)
-            for row in self.cursor:
+            self.db_cmd.CommandText = sql
+            row = self.db_cmd.ExecuteReader()             
+            while(row.Read()):
                 canceller.ThrowIfCancellationRequested()
                 browseload = Generic.Attachment()
-                if row[1] is not None:
+                if not IsDBNull(row[1]):
                     browseload.URL.Value = row[1]
-                if row[2] is not None:
+                if not IsDBNull(row[2]):
                     browseload.Filename.Value = row[2]
-                if row[3] is not None:
+                if not IsDBNull(row[3]):
                     browseload.Size.Value = row[3]
-                if row[5] is not None:
+                if not IsDBNull(row[5]):
                     browseload.Title.Value = row[5]
-                if row[6] not in [None, '']:
+                if not IsDBNull(row[6]) and row[6] not in [None, '']:
                     browseload.SourceFile.Value = self._get_source_file(row[6])
-                if row[7] is not None:
+                if not IsDBNull(row[7]):
                     browseload.Deleted = self._convert_deleted_status(row[7])
                 model.append(browseload)
+            row.Close()
         except Exception as e:
             print(e)
         return model
@@ -638,19 +652,22 @@ class Generate(object):
         model = []
         sql = '''select distinct * from search_history'''
         try:
-            self.cursor.execute(sql)
-            for row in self.cursor:
+            self.db_cmd.CommandText = sql
+            row = self.db_cmd.ExecuteReader()             
+            while(row.Read()):
                 canceller.ThrowIfCancellationRequested()
                 search = Generic.Search()
-                if row[2] is not None:
+                if not IsDBNull(row[2]):
                     search.Content.Value = row[2]
-                if row[3] is not None:
+                if not IsDBNull(row[3]):
                     search.Time.Value = self._get_timestamp(row[3])
-                if row[5] not in [None, '']:
+                if not IsDBNull(row[5]) and row[5] not in [None, '']:
                     search.SourceFile.Value = self._get_source_file(row[5])
-                if row[6] is not None:
+                if not IsDBNull(row[6]):
                     search.Deleted = self._convert_deleted_status(row[6])
                 model.append(search)
+            row.Close()
+
         except Exception as e:
             print(e)
         return model
@@ -665,27 +682,29 @@ class Generate(object):
         model = []
         sql = '''select distinct * from cookies'''
         try:
-            self.cursor.execute(sql)
-            for row in self.cursor:
+            self.db_cmd.CommandText = sql
+            row = self.db_cmd.ExecuteReader()             
+            while(row.Read()):
                 canceller.ThrowIfCancellationRequested()
                 cookie = Generic.Cookie()
-                if row[1] is not None:
+                if not IsDBNull(row[1]):
                     cookie.Domain.Value = row[1]
-                if row[2] is not None:
+                if not IsDBNull(row[2]):
                     cookie.Name.Value = row[2]
-                if row[3] is not None:
+                if not IsDBNull(row[3]):
                     cookie.Value.Value = row[3]
-                if row[4] is not None:
+                if not IsDBNull(row[4]):
                     cookie.CreationTime.Value = self._get_timestamp(row[4])
-                if row[5] is not None:
+                if not IsDBNull(row[5]):
                     cookie.Expiry.Value = self._get_timestamp(row[5])
-                if row[6] is not None:
+                if not IsDBNull(row[6]):
                     cookie.LastAccessTime.Value = self._get_timestamp(row[6])
-                if row[7] not in [None, '']:
+                if not IsDBNull(row[7]) and row[7] not in [None, '']:
                     cookie.SourceFile.Value = self._get_source_file(str(row[7]))
-                if row[8] is not None:
+                if not IsDBNull(row[8]):
                     cookie.Deleted = self._convert_deleted_status(row[8])
                 model.append(cookie)
+            row.Close()
         except Exception as e:
             print(e)
         return model
