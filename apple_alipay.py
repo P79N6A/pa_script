@@ -320,7 +320,7 @@ class AlipayParser():
                         return
                     chatroom_member = model_im.ChatroomMember()
                     chatroom_member.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
-                    chatroom_member.source = self.app_name
+                    chatroom_member.source = dbPath.AbsolutePath
                     chatroom_member.account_id = self.user
                     chatroom_member.chatroom_id = chatroom.chatroom_id
                     chatroom_member.member_id = member_id
