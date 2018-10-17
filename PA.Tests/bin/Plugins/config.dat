@@ -1248,7 +1248,7 @@
           <integer>2</integer>
           <key>Patterns</key>
           <array>
-            <string>data/com.netease.mail/databases$</string>
+            <string>com.netease.mail/databases$</string>
           </array>
           <key>Category</key>
           <string>NeteaseMail</string>
