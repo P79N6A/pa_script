@@ -3,6 +3,7 @@ __author__ = "TaoJianping"
 
 from PA_runtime import *
 import clr
+
 clr.AddReference('System.Core')
 clr.AddReference('System.Xml.Linq')
 clr.AddReference('System.Data.SQLite')
@@ -25,9 +26,9 @@ import model_im
 
 # 微博信息
 
-# 4.4.1　微博账号信息(WA_FORENSICS_010401)
-SQL_CREATE_TABLE_WA_FORENSICS_010401 = '''
-    create table if not exists WA_FORENSICS_010401(
+# 4.4.1　微博账号信息(WA_MFORENSICS_030100)
+SQL_CREATE_TABLE_WA_MFORENSICS_030100 = '''
+    create table if not exists WA_MFORENSICS_030100(
         COLLECT_TARGET_ID text,
         CONTACT_ACCOUNT_TYPE text,
         ACCOUNT_ID text,
@@ -67,8 +68,8 @@ SQL_CREATE_TABLE_WA_FORENSICS_010401 = '''
         ACCOUNT_REG_DATE int,
         LAST_LOGIN_TIME int,
         LATEST_MOD_TIME int)'''
-SQL_INSERT_TABLE_WA_FORENSICS_010401 = '''
-    insert into WA_FORENSICS_010401(COLLECT_TARGET_ID, CONTACT_ACCOUNT_TYPE, ACCOUNT_ID, ACCOUNT, 
+SQL_INSERT_TABLE_WA_MFORENSICS_030100 = '''
+    insert into WA_MFORENSICS_030100(COLLECT_TARGET_ID, CONTACT_ACCOUNT_TYPE, ACCOUNT_ID, ACCOUNT, 
             REGIS_NICKNAME, PASSWORD, FANS_COUNTER, FOLLOW_COUNTER, MESSAGE_COUNTER, PREVACY_MESSAGE_COUNTER, INSTALL_TIME, 
             AREA, CITY_CODE, FIXED_PHONE, MSISDN, EMAIL_ACCOUNT, CERTIFICATE_TYPE, 
             CERTIFICATE_CODE, SEXCODE, AGE, POSTAL_ADDRESS, POSTAL_CODE, OCCUPATION_NAME, BLOOD_TYPE, 
@@ -77,9 +78,9 @@ SQL_INSERT_TABLE_WA_FORENSICS_010401 = '''
         values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 
             ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? ,? ,? ,?, ?, ? ,? ,?)'''
 
-# 4.4.2　微博好友信息(WA_FORENSICS_010402)
-SQL_CREATE_TABLE_WA_FORENSICS_010402 = '''
-    create table if not exists WA_FORENSICS_010402(
+# 4.4.2　微博好友信息(WA_MFORENSICS_030200)
+SQL_CREATE_TABLE_WA_MFORENSICS_030200 = '''
+    create table if not exists WA_MFORENSICS_030200(
         COLLECT_TARGET_ID text,
         CONTACT_ACCOUNT_TYPE text,
         ACCOUNT_ID text,
@@ -121,8 +122,8 @@ SQL_CREATE_TABLE_WA_FORENSICS_010402 = '''
         FANS_COUNTER int, 
         FOLLOW_COUNTER int, 
         MESSAGE_COUNTER int)'''
-SQL_INSERT_TABLE_WA_FORENSICS_010402 = '''
-    insert into WA_FORENSICS_010402(COLLECT_TARGET_ID, CONTACT_ACCOUNT_TYPE, ACCOUNT_ID, ACCOUNT, 
+SQL_INSERT_TABLE_WA_MFORENSICS_030200 = '''
+    insert into WA_MFORENSICS_030200(COLLECT_TARGET_ID, CONTACT_ACCOUNT_TYPE, ACCOUNT_ID, ACCOUNT, 
             FRIEND_ID, FRIEND_ACCOUNT, FRIEND_NICKNAME, FRIEND_GROUP, FRIEND_REMARK, URL, WEIBO_FOLLOW_TYPE, 
             AREA, CITY_CODE, FIXED_PHONE, MSISDN, EMAIL_ACCOUNT, CERTIFICATE_TYPE, 
             CERTIFICATE_CODE, SEXCODE, AGE, POSTAL_ADDRESS, POSTAL_CODE, OCCUPATION_NAME, BLOOD_TYPE, 
@@ -133,9 +134,9 @@ SQL_INSERT_TABLE_WA_FORENSICS_010402 = '''
         values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 
             ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? ,? ,? ,?, ?, ?, ?, ? ,? ,? ,?)'''
 
-# 4.4.3　博文信息(WA_FORENSICS_010403)
-SQL_CREATE_TABLE_WA_FORENSICS_010403 = '''
-    create table if not exists WA_FORENSICS_010403(
+# 4.4.3　博文信息(WA_MFORENSICS_030300)
+SQL_CREATE_TABLE_WA_MFORENSICS_030300 = '''
+    create table if not exists WA_MFORENSICS_030300(
         COLLECT_TARGET_ID text,
         CONTACT_ACCOUNT_TYPE text,
         ACCOUNT_ID text,
@@ -162,17 +163,17 @@ SQL_CREATE_TABLE_WA_FORENSICS_010403 = '''
         LONGITUDE text,
         LATITUDE text,
         ABOVE_SEALEVEL text)'''
-SQL_INSERT_TABLE_WA_FORENSICS_010403 = '''
-    insert into WA_FORENSICS_010403(COLLECT_TARGET_ID, CONTACT_ACCOUNT_TYPE, ACCOUNT_ID, ACCOUNT, 
+SQL_INSERT_TABLE_WA_MFORENSICS_030300 = '''
+    insert into WA_MFORENSICS_030300(COLLECT_TARGET_ID, CONTACT_ACCOUNT_TYPE, ACCOUNT_ID, ACCOUNT, 
             FRIEND_ID, FRIEND_ACCOUNT, FRIEND_NICKNAME, WEIBO_MESSAGE_TYPE, MAIL_SEND_TIME, WEIBO_TOPIC, WEIBO_MESSAGE, 
             WEIBO_REPLY_COUNTER, WEIBO_RETWEET_COUNTER, WEIBO_LIKE_COUNTER, MBLOG_ID, RELEVANT_MBLOG_ID, IDROOT_MBLOG_ID, 
             DELETE_STATUS, DELETE_TIME, MAINFILE, MEDIA_TYPE, CITY_CODE, COMPANY_ADDRESS, 
             LONGITUDE, LATITUDE, ABOVE_SEALEVEL) 
         values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
 
-# 4.4.4　私信信息(WA_FORENSICS_010404)
-SQL_CREATE_TABLE_WA_FORENSICS_010404 = '''
-    create table if not exists WA_FORENSICS_010404(
+# 4.4.4　私信信息(WA_MFORENSICS_030400)
+SQL_CREATE_TABLE_WA_MFORENSICS_030400 = '''
+    create table if not exists WA_MFORENSICS_030400(
         COLLECT_TARGET_ID text,
         CONTACT_ACCOUNT_TYPE text,
         ACCOUNT_ID text,
@@ -194,16 +195,16 @@ SQL_CREATE_TABLE_WA_FORENSICS_010404 = '''
         LONGITUDE text,
         LATITUDE text,
         ABOVE_SEALEVEL text)'''
-SQL_INSERT_TABLE_WA_FORENSICS_010404 = '''
-    insert into WA_FORENSICS_010404(COLLECT_TARGET_ID, CONTACT_ACCOUNT_TYPE, ACCOUNT_ID, ACCOUNT, 
+SQL_INSERT_TABLE_WA_MFORENSICS_030400 = '''
+    insert into WA_MFORENSICS_030400(COLLECT_TARGET_ID, CONTACT_ACCOUNT_TYPE, ACCOUNT_ID, ACCOUNT, 
             REGIS_NICKNAME, FRIEND_ID, FRIEND_ACCOUNT, FRIEND_NICKNAME, CONTENT, MAIL_SEND_TIME, LOCAL_ACTION, 
             TALK_ID, DELETE_STATUS, DELETE_TIME, MAINFILE, MEDIA_TYPE, CITY_CODE,
             COMPANY_ADDRESS, LONGITUDE, LATITUDE, ABOVE_SEALEVEL) 
         values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
 
-# 4.4.5　搜索记录信息(WA_FORENSICS_010405)
-SQL_CREATE_TABLE_WA_FORENSICS_010405 = '''
-    create table if not exists WA_FORENSICS_010405(
+# 4.4.5　搜索记录信息(WA_MFORENSICS_030500)
+SQL_CREATE_TABLE_WA_MFORENSICS_030500 = '''
+    create table if not exists WA_MFORENSICS_030500(
         COLLECT_TARGET_ID text,
         CONTACT_ACCOUNT_TYPE text,
         ACCOUNT_ID text,
@@ -212,11 +213,10 @@ SQL_CREATE_TABLE_WA_FORENSICS_010405 = '''
         KEYWORD text, 
         DELETE_STATUS text,
         DELETE_TIME int)'''
-SQL_INSERT_TABLE_WA_FORENSICS_010405 = '''
-    insert into WA_FORENSICS_010405(COLLECT_TARGET_ID, CONTACT_ACCOUNT_TYPE, ACCOUNT_ID, ACCOUNT, 
+SQL_INSERT_TABLE_WA_MFORENSICS_030500 = '''
+    insert into WA_MFORENSICS_030500(COLLECT_TARGET_ID, CONTACT_ACCOUNT_TYPE, ACCOUNT_ID, ACCOUNT, 
             CREATE_TIME, KEYWORD, DELETE_STATUS, DELETE_TIME) 
         values(?, ?, ?, ?, ?, ?, ?, ?)'''
-
 
 # 性别
 SEXCODE_UNKNOWN = 0
@@ -290,15 +290,15 @@ class Weibo(object):
 
     def db_create_table(self):
         if self.db_cmd is not None:
-            self.db_cmd.CommandText = SQL_CREATE_TABLE_WA_FORENSICS_010401
+            self.db_cmd.CommandText = SQL_CREATE_TABLE_WA_MFORENSICS_030100
             self.db_cmd.ExecuteNonQuery()
-            self.db_cmd.CommandText = SQL_CREATE_TABLE_WA_FORENSICS_010402
+            self.db_cmd.CommandText = SQL_CREATE_TABLE_WA_MFORENSICS_030200
             self.db_cmd.ExecuteNonQuery()
-            self.db_cmd.CommandText = SQL_CREATE_TABLE_WA_FORENSICS_010403
+            self.db_cmd.CommandText = SQL_CREATE_TABLE_WA_MFORENSICS_030300
             self.db_cmd.ExecuteNonQuery()
-            self.db_cmd.CommandText = SQL_CREATE_TABLE_WA_FORENSICS_010404
+            self.db_cmd.CommandText = SQL_CREATE_TABLE_WA_MFORENSICS_030400
             self.db_cmd.ExecuteNonQuery()
-            self.db_cmd.CommandText = SQL_CREATE_TABLE_WA_FORENSICS_010405
+            self.db_cmd.CommandText = SQL_CREATE_TABLE_WA_MFORENSICS_030500
             self.db_cmd.ExecuteNonQuery()
 
     def db_insert_table(self, sql, values):
@@ -312,19 +312,19 @@ class Weibo(object):
             self.db_cmd.ExecuteNonQuery()
 
     def db_insert_table_account(self, column):
-        self.db_insert_table(SQL_INSERT_TABLE_WA_FORENSICS_010401, column.get_values())
+        self.db_insert_table(SQL_INSERT_TABLE_WA_MFORENSICS_030100, column.get_values())
 
     def db_insert_table_friends(self, column):
-        self.db_insert_table(SQL_INSERT_TABLE_WA_FORENSICS_010402, column.get_values())
+        self.db_insert_table(SQL_INSERT_TABLE_WA_MFORENSICS_030200, column.get_values())
 
     def db_insert_table_feed(self, column):
-        self.db_insert_table(SQL_INSERT_TABLE_WA_FORENSICS_010403, column.get_values())
+        self.db_insert_table(SQL_INSERT_TABLE_WA_MFORENSICS_030300, column.get_values())
 
     def db_insert_table_message(self, column):
-        self.db_insert_table(SQL_INSERT_TABLE_WA_FORENSICS_010404, column.get_values())
+        self.db_insert_table(SQL_INSERT_TABLE_WA_MFORENSICS_030400, column.get_values())
 
     def db_insert_table_search(self, column):
-        self.db_insert_table(SQL_INSERT_TABLE_WA_FORENSICS_010405, column.get_values())
+        self.db_insert_table(SQL_INSERT_TABLE_WA_MFORENSICS_030500, column.get_values())
 
 
 class Column(object):
@@ -350,27 +350,27 @@ class Account(Column):
         self.message_counter = None  # 本机用户发表的博文数量
         self.prevace_message_counter = None  # 本机用户收发的私信数量
         self.install_time = None  # 安装时间
-        self.area = None 
-        self.city_code = None  
+        self.area = None
+        self.city_code = None
         self.fixed_phone = None  # 固定电话
         self.msisdn = None  # 手机
-        self.email_account = None 
-        self.certificate_type = None 
-        self.certificate_code = None 
-        self.sex_code = None 
-        self.age = None  
-        self.postal_address = None 
-        self.postal_code = None 
-        self.occupation_name = None 
-        self.blood_type = None 
-        self.name = None 
-        self.sign_name = None 
-        self.personal_desc = None 
-        self.reg_city = None  
-        self.graduate_school = None  
-        self.zodiac = None 
-        self.constallation = None  
-        self.birthday = None  
+        self.email_account = None
+        self.certificate_type = None
+        self.certificate_code = None
+        self.sex_code = None
+        self.age = None
+        self.postal_address = None
+        self.postal_code = None
+        self.occupation_name = None
+        self.blood_type = None
+        self.name = None
+        self.sign_name = None
+        self.personal_desc = None
+        self.reg_city = None
+        self.graduate_school = None
+        self.zodiac = None
+        self.constallation = None
+        self.birthday = None
         self.hash_type = None
         self.user_photo = None
         self.account_reg_date = None
@@ -379,40 +379,40 @@ class Account(Column):
 
     def get_values(self):
         return (
-            self.collect_target_id, 
-            self.contact_account_type, 
-            self.account_id, 
+            self.collect_target_id,
+            self.contact_account_type,
+            self.account_id,
             self.account,
-            self.regis_nickname, 
-            self.password, 
-            self.fans_counter, 
-            self.follow_counter, 
+            self.regis_nickname,
+            self.password,
+            self.fans_counter,
+            self.follow_counter,
             self.message_counter,
-            self.prevace_message_counter, 
-            self.install_time, 
-            self.area, 
+            self.prevace_message_counter,
+            self.install_time,
+            self.area,
             self.city_code,
-            self.fixed_phone, 
-            self.msisdn, 
-            self.email_account, 
-            self.certificate_type, 
+            self.fixed_phone,
+            self.msisdn,
+            self.email_account,
+            self.certificate_type,
             self.certificate_code,
-            self.sex_code, 
-            self.age, 
-            self.postal_address, 
-            self.postal_code, 
+            self.sex_code,
+            self.age,
+            self.postal_address,
+            self.postal_code,
             self.occupation_name,
-            self.blood_type, 
-            self.name, 
-            self.sign_name, 
-            self.personal_desc, 
+            self.blood_type,
+            self.name,
+            self.sign_name,
+            self.personal_desc,
             self.reg_city,
             self.graduate_school,
             self.zodiac,
-            self.constallation,  
-            self.birthday,  
-            self.delete_status, 
-            self.delete_time, 
+            self.constallation,
+            self.birthday,
+            self.delete_status,
+            self.delete_time,
             self.hash_type,
             self.user_photo,
             self.account_reg_date,
@@ -431,19 +431,19 @@ class Friends(Column):
         self.friend_remark = None  # 好友备注
         self.url = None  # 好友主页的url
         self.weibo_follow_type = None  # 0未知、1关注人、2粉丝、3相互关注、9其他
-        self.area = None  
-        self.city_code = None 
-        self.fixed_phone = None  
+        self.area = None
+        self.city_code = None
+        self.fixed_phone = None
         self.msisdn = None  # 手机号码
         self.email_account = None
         self.certificate_type = None  # 好友信息里提取的有效身份证件类型
         self.certificate_code = None  # 好友信息里提取的有效身份证件号
         self.sex_code = None  # 性别
-        self.age = None  
+        self.age = None
         self.postal_address = None  # 联系地址
         self.postal_code = None  # 邮政编码
         self.occupation_name = None  # 职业名称
-        self.blood_type = None  
+        self.blood_type = None
         self.name = None  # 真实姓名
         self.sign_name = None  # 个性签名
         self.personal_desc = None  # 个人说明
@@ -464,9 +464,9 @@ class Friends(Column):
 
     def get_values(self):
         return (
-            self.collect_target_id, 
-            self.contact_account_type, 
-            self.account_id, 
+            self.collect_target_id,
+            self.contact_account_type,
+            self.account_id,
             self.account,
             self.friend_id,
             self.friend_account,
@@ -496,8 +496,8 @@ class Friends(Column):
             self.zodiac,
             self.constallation,
             self.birthday,
-            self.delete_status, 
-            self.delete_time, 
+            self.delete_status,
+            self.delete_time,
             self.user_photo,
             self.account_reg_date,
             self.last_login_time,
@@ -514,14 +514,14 @@ class Feed(Column):
         self.friend_id = None  # 发布动态消息的用户ID
         self.friend_account = None  # 发布动态消息的用户账号
         self.friend_nickname = None  # 发布者昵称
-        self.weibo_message_type = None 
+        self.weibo_message_type = None
         self.mail_send_time = None
         self.weibo_topic = None
         self.weibo_message = None
         self.weibo_reply_counter = None  # 回复数
         self.weibo_retweet_counter = None  # 转发数
         self.weibo_like_counter = None  # 点赞数
-        self.mblog_id = None  # 标识一条微博博文的唯一性ID 
+        self.mblog_id = None  # 标识一条微博博文的唯一性ID
         self.relevant_mblog_id = None  # 消息类型为原创时，此项为原创发布的内容；消息类型为转发或评论时，此项为评论内容；消息类型为点赞时，此项为空。
         self.id_root_mblog_id = None  # 转发、评论、点赞时的最原始的原创博文ID，消息类型为原创时此项为空
         self.mainfile = None  # 文件的名称
@@ -534,9 +534,9 @@ class Feed(Column):
 
     def get_values(self):
         return (
-            self.collect_target_id, 
-            self.contact_account_type, 
-            self.account_id, 
+            self.collect_target_id,
+            self.contact_account_type,
+            self.account_id,
             self.account,
             self.friend_id,
             self.friend_account,
@@ -551,8 +551,8 @@ class Feed(Column):
             self.mblog_id,
             self.relevant_mblog_id,
             self.id_root_mblog_id,
-            self.delete_status, 
-            self.delete_time, 
+            self.delete_status,
+            self.delete_time,
             self.mainfile,
             self.media_type,
             self.city_code,
@@ -570,7 +570,7 @@ class Message(Column):
         self.friend_id = None  # 对方用户id
         self.friend_account = None  # 对方账号
         self.friend_nickname = None  # 对方昵称
-        self.content = None 
+        self.content = None
         self.mail_send_time = None
         self.local_action = None  # 标示本机是收方还是发方，01接收方、02发送方、99其他
         self.talk_id = None  # 单条私信的全局唯一性标识ID
@@ -586,9 +586,9 @@ class Message(Column):
 
     def get_values(self):
         return (
-            self.collect_target_id, 
-            self.contact_account_type, 
-            self.account_id, 
+            self.collect_target_id,
+            self.contact_account_type,
+            self.account_id,
             self.account,
             self.regis_nickname,
             self.friend_id,
@@ -598,8 +598,8 @@ class Message(Column):
             self.mail_send_time,
             self.local_action,
             self.talk_id,
-            self.delete_status, 
-            self.delete_time, 
+            self.delete_status,
+            self.delete_time,
             self.mainfile,
             self.media_type,
             self.city_code,
@@ -614,18 +614,18 @@ class Search(Column):
     def __init__(self, collect_target_id, contact_account_type, account_id, account):
         super(Search, self).__init__(collect_target_id, contact_account_type, account_id, account)
         self.create_time = None
-        self.keyword = None 
+        self.keyword = None
 
     def get_values(self):
         return (
-            self.collect_target_id, 
-            self.contact_account_type, 
-            self.account_id, 
+            self.collect_target_id,
+            self.contact_account_type,
+            self.account_id,
             self.account,
             self.create_time,
             self.keyword,
-            self.delete_status, 
-            self.delete_time, 
+            self.delete_status,
+            self.delete_time,
         )
 
 
@@ -666,12 +666,12 @@ class GenerateBcp(object):
             account.regis_nickname = row[1]
             account.password = row[3]
             account.fans_counter = None
-            account.follow_counter = None   
+            account.follow_counter = None
             account.message_counter = self._query_message_number(account.account_id)  # TODO 通过feed表和feed_comment的计算得出结果
             account.prevace_message_counter = None  # TODO 通过message表的计算得出结果
             account.install_time = None
             account.area = row[9]
-            account.city_code = row[11]  # 这个和下面的reg_city做一下比较 
+            account.city_code = row[11]  # 这个和下面的reg_city做一下比较
             account.fixed_phone = None
             account.msisdn = row[5]
             account.email_account = row[6]
@@ -688,8 +688,8 @@ class GenerateBcp(object):
             account.personal_desc = None
             account.reg_city = row[11]
             account.graduate_school = None
-            account.zodiac = None   # TODO 可以根据生日算出来
-            account.constallation = None    # TODO 可以根据生日算出来
+            account.zodiac = None  # TODO 可以根据生日算出来
+            account.constallation = None  # TODO 可以根据生日算出来
             account.birthday = row[13]
             account.delete_status = row[16]
             account.delete_time = None
@@ -1023,7 +1023,6 @@ class GenerateBcp(object):
                 message.above_sealevel = None
                 message.company_address = None
 
-
             self.weibo.db_insert_table_message(message)
             row = cursor.fetchone()
         self.weibo.db_commit()
@@ -1072,28 +1071,31 @@ class GenerateBcp(object):
         try:
             cursor.execute(sql)
             row = cursor.fetchone()
-            return {
-                "account_id": row[0],
-                "nickname": row[1],
-                "username": row[2],
-                "password": row[3],
-                "photo": row[4],
-                "telephone": row[5],
-                "email": row[6],
-                "gender": row[7],
-                "age": row[8],
-                "country": row[9],
-                "province": row[10],
-                "city": row[11],
-                "address": row[12],
-                "birthday": row[13],
-                "signature": row[14],
-                "source": row[15],
-                "deleted": row[16],
-                "repeated": row[17],
-            }
+            if row is not None:
+                return {
+                    "account_id": row[0],
+                    "nickname": row[1],
+                    "username": row[2],
+                    "password": row[3],
+                    "photo": row[4],
+                    "telephone": row[5],
+                    "email": row[6],
+                    "gender": row[7],
+                    "age": row[8],
+                    "country": row[9],
+                    "province": row[10],
+                    "city": row[11],
+                    "address": row[12],
+                    "birthday": row[13],
+                    "signature": row[14],
+                    "source": row[15],
+                    "deleted": row[16],
+                    "repeated": row[17],
+                }
+            else:
+                return None
         except Exception as e:
-            print(e)
+            print("debug =>", e)
             return None
 
     def _query_friend_info(self, friend_id):
@@ -1108,11 +1110,14 @@ class GenerateBcp(object):
         try:
             cursor.execute(sql)
             row = cursor.fetchone()
-            return {
-                "nickname": row[0],
-            }
+            if row is not None:
+                return {
+                    "nickname": row[0],
+                }
+            else:
+                return None
         except Exception as e:
-            print(e)
+            print("debug _query_friend_info =>", e)
             return None
 
     def _query_location_info(self, location_id):
@@ -1130,21 +1135,24 @@ class GenerateBcp(object):
         try:
             cursor.execute(sql)
             row = cursor.fetchone()
-            return {
-                "latitude": row[0],
-                "longitude": row[1],
-                "elevation": row[2],
-                "address": row[3],
-            }
+            if row is not None:
+                return {
+                    "latitude": row[0],
+                    "longitude": row[1],
+                    "elevation": row[2],
+                    "address": row[3],
+                }
+            else:
+                return None
         except Exception as e:
-            print(e)
+            print("debug _query_location_info =>", e)
             return None
 
     def _query_message_number(self, account_id):
         """
         通过account_id拿到这个用户发过的所有的博文，再计算他的数量
-        :param account_id: (str) 
-        :return: (int) 博文的数量 
+        :param account_id: (str)
+        :return: (int) 博文的数量
         """
         cursor = self.db.cursor()
         sql = '''select count(sender_id) 
@@ -1164,7 +1172,7 @@ class GenerateBcp(object):
             return SEXCODE_FEMALE
         else:
             return SEXCODE_OTHER
-            
+
     @staticmethod
     def _convert_delete_status(status):
         if status == 0:
