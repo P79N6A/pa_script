@@ -2,6 +2,7 @@
 import os
 import traceback
 import re
+import hashlib
 
 import PA_runtime
 from PA_runtime import *
@@ -53,8 +54,9 @@ class EmailParser(object):
 
         self.mm = MM()
         self.cachepath = ds.OpenCachePath("AndroidEmail")
-        hash_str = md5(node.AbsolutePath)
-        self.cache_db = self.cachepath + '\\{}'.format(hash_str)
+        hash_str = hashlib.md5(node.AbsolutePath).hexdigest()
+
+        self.cache_db = self.cachepath + '\\{}.db'.format(hash_str)
 
         self.accounts    = {}
         self.mail_folder = {}
@@ -74,10 +76,11 @@ class EmailParser(object):
                 self.mm.db_insert_table_version(VERSION_KEY_APP, VERSION_APP_VALUE)
                 self.mm.db_commit()
             self.mm.db_close()
-        nameValues.SafeAddValue(bcp_mail.MAIL_TOOL_TYPE_PHONE, self.cache_db)
+
+        tmp_dir = ds.OpenCachePath('tmp')
+        PA_runtime.save_cache_path(bcp_mail.MAIL_TOOL_TYPE_PHONE, self.cache_db, tmp_dir)
         models = Generate(self.cache_db).get_models()
         return models
-
 
     def parse_main(self):
         """ android 邮件   
@@ -164,7 +167,7 @@ class EmailParser(object):
             RecNo	FieldName	SQLType	
             1	_id	        integer
             2	displayName	        text
-            3	emailAddress	        text
+            3	emailAddress	    text
             4	syncKey	        text
             5	syncLookback	        integer
             6	syncInterval	        text
@@ -172,7 +175,7 @@ class EmailParser(object):
             8	hostAuthKeySend	        integer
             9	flags	        integer
             10	isDefault	        integer
-            11	compatibilityUuid	        text
+            11	compatibilityUuid	text
             12	senderName	        text
             13	ringtoneUri	        text
             14	protocolVersion	        text
@@ -185,8 +188,8 @@ class EmailParser(object):
             21	pingDuration	        integer
             22	calendarLookback	        integer
             23	peakSyncInterval	        text
-            24	peakSyncStartTimeHour	        integer
-            25	peakSyncStartTimeMinute	        integer
+            24	peakSyncStartTimeHour	    integer
+            25	peakSyncStartTimeMinute	    integer
             26	peakSyncEndTimeHour	        integer
             27	peakSyncEndTimeMinute	        integer
             28	peakSyncDays	        text
@@ -372,12 +375,12 @@ class EmailParser(object):
             if self.is_empty(rec, 'fileName', 'size'):
                 continue
             attach = Attachment()
-            attach.attachment_id            = rec['_id'].Value
-            attach.mail_id                  = rec['messageKey'].Value
-            attach.owner_account_id         = rec['accountKey'].Value
-            attach.attachment_name          = rec['fileName'].Value
-            attach.attachment_save_dir      = rec['contentUri'].Value  # or location?
-            attach.attachment_size          = rec['size'].Value
+            attach.attachment_id       = rec['_id'].Value
+            attach.mail_id             = rec['messageKey'].Value
+            attach.owner_account_id    = rec['accountKey'].Value
+            attach.attachment_name     = rec['fileName'].Value
+            attach.attachment_save_dir = rec['contentUri'].Value  # or location?
+            attach.attachment_size     = rec['size'].Value
 
             try:
                 attach.attachment_download_date = rec['previewTime'].Value

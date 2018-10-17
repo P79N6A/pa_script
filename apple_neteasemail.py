@@ -84,8 +84,7 @@ class NeteaseMailParser(object):
             self.mm.db_close()
 
         tmp_dir = ds.OpenCachePath('tmp')
-
-        # save_cache_path(bcp_mail.MAIL_TOOL_TYPE_OTHER, self.cache_db, tmp_dir)
+        save_cache_path(bcp_mail.MAIL_TOOL_TYPE_OTHER, self.cache_db, tmp_dir)
 
         generate = Generate(self.cache_db)
         return generate.get_models()
@@ -163,7 +162,6 @@ class NeteaseMailParser(object):
         '''       
         if not self._read_db(db_path):
             return 
-        accounts = {}
         for rec in self._read_table(table_name):
             if canceller.IsCancellationRequested:
                 return
@@ -317,7 +315,8 @@ class NeteaseMailParser(object):
             # attach.owner_account_id         = rec['mailId'].Value
             attach.mail_id                  = rec['mailId'].Value
             attach.attachment_name          = rec['name'].Value
-            attach.attachment_save_dir      = rec['localPath'].Value
+            if not self._is_empty(rec, 'localPath') and isinstance(rec['localPath'].Value, str): 
+                attach.attachment_save_dir  = self.root.AbsolutePath + '/' + rec['localPath'].Value
             attach.attachment_size          = rec['size'].Value
             attach.attachment_download_date = rec['createdate'].Value
             attach.source                   = self.cur_db_source

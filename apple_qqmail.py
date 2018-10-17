@@ -142,7 +142,7 @@ SQL_INSERT_TABLE_RECOVER_MAILATTACH = '''
     INSERT INTO FM_Mail_Attach(attachId, accountId, mailId, name, downloadSize, downloadUtc)
     VALUES(?, ?, ?, ?, ?, ?)'''
 
-VERSION_APP_VALUE = 1
+VERSION_APP_VALUE = 2
 
 
 
@@ -168,7 +168,7 @@ class MailParser(object):
 
     def analyze_account(self, mailPath, deleteFlag):
         '''保存账户数据到中间数据库'''
-        self.db = SQLite.SQLiteConnection('Data Source = {}'.format(mailPath))
+        self.db = SQLite.SQLiteConnection('Data Source = {}; ReadOnly = True'.format(mailPath))
         self.db.Open()
         self.db_cmd = SQLite.SQLiteCommand(self.db)
         try:
@@ -176,8 +176,8 @@ class MailParser(object):
                 return
             self.db_cmd.CommandText = SQL_ASSOCIATE_TABLE_ACCOUNT
             sr = self.db_cmd.ExecuteReader()
-            account = Account()
             while (sr.Read()):
+                account = Account()
                 if canceller.IsCancellationRequested:
                     break
                 account.account_id = sr[0]
@@ -195,7 +195,7 @@ class MailParser(object):
 
     def analyze_mail(self, mailPath, deleteFlag):
         '''保存邮件数据到中间数据库'''
-        self.db = SQLite.SQLiteConnection('Data Source = {}'.format(mailPath))
+        self.db = SQLite.SQLiteConnection('Data Source = {}; ReadOnly = True'.format(mailPath))
         self.db.Open()
         self.db_cmd = SQLite.SQLiteCommand(self.db)
         try:
@@ -203,8 +203,8 @@ class MailParser(object):
                 return
             self.db_cmd.CommandText = SQL_ASSOCIATE_TABLE_MAIL
             sr = self.db_cmd.ExecuteReader()
-            mail = Mail()
             while sr.Read():
+                mail = Mail()
                 if canceller.IsCancellationRequested:
                     break
                 mail.mail_id = sr[0]
@@ -239,7 +239,7 @@ class MailParser(object):
 
     def analyze_contact(self, contactPath, deleteFlag):
         """保存联系人数据到中间数据库"""
-        self.db = SQLite.SQLiteConnection('Data Source = {}'.format(contactPath))
+        self.db = SQLite.SQLiteConnection('Data Source = {}; ReadOnly = True'.format(contactPath))
         self.db.Open()
         self.db_cmd = SQLite.SQLiteCommand(self.db)
         try:
@@ -247,8 +247,8 @@ class MailParser(object):
                 return
             self.db_cmd.CommandText = SQL_ASSOCIATE_TABLE_CONTACT
             sr = self.db_cmd.ExecuteReader()
-            contact = Contact()
             while sr.Read():
+                contact = Contact()
                 if canceller.IsCancellationRequested:
                     break
                 contact.contact_id = sr[0]
@@ -270,7 +270,7 @@ class MailParser(object):
 
     def analyze_attachment(self, mailPath, deleteFlag):
         '''保存附件数据到中间数据库'''
-        self.db = SQLite.SQLiteConnection('Data Source = {}'.format(mailPath))
+        self.db = SQLite.SQLiteConnection('Data Source = {}; ReadOnly = True'.format(mailPath))
         self.db.Open()
         self.db_cmd = SQLite.SQLiteCommand(self.db)
         try:
@@ -278,16 +278,24 @@ class MailParser(object):
                 return
             self.db_cmd.CommandText = SQL_ASSOCIATE_TABLE_ATTACH
             sr = self.db_cmd.ExecuteReader()
-            attachment = Attachment()
             while sr.Read():
+                attachment = Attachment()
                 if canceller.IsCancellationRequested:
                     break
                 attachment.attachment_id = sr[0]
                 attachment.owner_account_id = sr[1]
                 attachment.mail_id = sr[2]
                 attachment.attachment_name = sr[3]
-                if sr[3] is not None:
-                    attachment.attachment_save_dir = self.node.GetByPath("/Documents/attachmentCacheFolder").AbsolutePath + '/' + str(sr[1])
+                if not IsDBNull(sr[0]) and not IsDBNull(sr[3]):
+                    md5_attachname = hashlib.md5()
+                    attach_name = str(sr[0]) + sr[3]
+                    md5_attachname.update(attach_name.encode(encoding = 'utf-8'))
+                    fs = self.node.FileSystem
+                    local_name = md5_attachname.hexdigest()
+                    fileNodes = fs.Search(local_name)
+                    for node in fileNodes:
+                        attachment.attachment_save_dir = node.AbsolutePath
+                        break
                 attachment.attachment_size = sr[4]
                 attachment.attachment_download_date = sr[5]
                 attachment.source = self.node.AbsolutePath
@@ -325,7 +333,7 @@ class MailParser(object):
     def read_deleted_table(self):
         '''读取删除数据保存到恢复数据库'''
         self.create_deleted_db()
-        self.read_deleted_table_mailaccount()
+        # self.read_deleted_table_mailaccount()
         self.read_deleted_table_mailinfo()
         self.read_deleted_table_mailcontent()
         self.read_deleted_table_mailfolder()
@@ -595,7 +603,8 @@ class MailParser(object):
             self.mm.db_insert_table_version(model_mail.VERSION_KEY_APP, VERSION_APP_VALUE)
             self.mm.db_commit()
             self.mm.db_close()
-        nameValues.SafeAddValue(bcp_mail.MAIL_TOOL_TYPE_QQMAIL, self.cachedb)
+        temp_dir = ds.OpenCachePath('tmp')
+        PA_runtime.save_cache_path(bcp_mail.MAIL_TOOL_TYPE_QQMAIL, self.cachedb, temp_dir)
         generate = Generate(self.cachedb)
         models = generate.get_models()
         return models
@@ -604,7 +613,7 @@ class MailParser(object):
 def analyze_qqmail(node, extractDeleted, extractSource):
     pr = ParserResults()
     pr.Models.AddRange(MailParser(node, extractDeleted, extractSource).parse())
-    pr.Build('QQMail')
+    pr.Build('QQ邮箱')
     return pr
 
 def execute(node, extractDeleted):

@@ -87,7 +87,7 @@ class WeChatParser(model_im.IM):
         if not os.path.exists(self.cache_path):
             os.makedirs(self.cache_path)
         self.cache_db = os.path.join(self.cache_path, self.user_hash + '.db')
-        nameValues.SafeAddValue(bcp_im.CONTACT_ACCOUNT_TYPE_IM_WECHAT, self.cache_db)
+        save_cache_path(bcp_im.CONTACT_ACCOUNT_TYPE_IM_WECHAT, self.cache_db, ds.OpenCachePath("tmp"))
 
     def parse(self):
         if self.need_parse(self.cache_db, VERSION_APP_VALUE):
@@ -650,70 +650,78 @@ class WeChatParser(model_im.IM):
         self.db_mapping(node.PathWithMountPoint, db_path)
         if not os.path.exists(db_path):
             return False
-        db = sqlite3.connect(db_path)
+        db = SQLite.SQLiteConnection('Data Source = {}'.format(db_path))
         if db is None:
             return False
-        cursor = db.cursor()
+        db.Open()
 
         sql = 'select UsrName,usernameid from fts_username_id'
-        row = None
+        db_cmd = SQLite.SQLiteCommand(sql, db)
+        reader = None
         try:
-            cursor.execute(sql)
-            row = cursor.fetchone()
+            reader = db_cmd.ExecuteReader()
         except Exception as e:
             print(e)
 
-        while row is not None:
-            if canceller.IsCancellationRequested:
-                break
-            username = self._db_column_get_string_value(row[0])
-            id = self._db_column_get_int_value(row[1])
-            if username != '' and id != 0:
-                username_ids[id] = username
-
-            row = cursor.fetchone()
+        if reader is not None:
+            while reader.Read():
+                if canceller.IsCancellationRequested:
+                    break
+                username = self._db_reader_get_string_value(reader, 0)
+                id = self._db_reader_get_int_value(reader, 1)
+                if username != '' and id != 0:
+                    username_ids[id] = username
+            reader.Close()
+            del reader
+        db_cmd.Dispose()
 
         db_tables = []
         sql = 'select name from sqlite_master'
-        row = None
+        db_cmd = SQLite.SQLiteCommand(sql, db)
+        reader = None
         try:
-            cursor.execute(sql)
-            row = cursor.fetchone()
+            reader = db_cmd.ExecuteReader()
         except Exception as e:
             print(e)
 
-        while row is not None:
-            if canceller.IsCancellationRequested:
-                break
-            if row[0].startswith('fts_message_table_') and row[0].endswith('_content'):
-                db_tables.append(row[0])
-            row = cursor.fetchone()
+        if reader is not None:
+            while reader.Read():
+                if canceller.IsCancellationRequested:
+                    break
+                table = self._db_reader_get_string_value(reader, 0)
+                if table.startswith('fts_message_table_') and table.endswith('_content'):
+                    db_tables.append(table)
+            reader.Close()
+            del reader
+        db_cmd.Dispose()
 
         for table in db_tables:
             if canceller.IsCancellationRequested:
                 break
             sql = 'select c0usernameid,c3Message from {}'.format(table)
-            row = None
+            db_cmd = SQLite.SQLiteCommand(sql, db)
+            reader = None
             try:
-                cursor.execute(sql)
-                row = cursor.fetchone()
+                reader = db_cmd.ExecuteReader()
             except Exception as e:
                 print(e)
 
-            while row is not None:
-                if canceller.IsCancellationRequested:
-                    break
-                id = self._db_column_get_int_value(row[0])
-                content = self._db_column_get_string_value(row[1])
-                if id in username_ids:
-                    username = username_ids.get(id)
-                else:
-                    username = id
-                self._parse_user_fts_db_with_value(1, node.AbsolutePath, username, content)
-                row = cursor.fetchone()
-            self.db_commit()
-        cursor.close()
-        db.close()
+            if reader is not None:
+                while reader.Read():
+                    if canceller.IsCancellationRequested:
+                        break
+                    id = self._db_reader_get_int_value(reader, 0)
+                    content = self._db_reader_get_string_value(reader, 1)
+                    if id in username_ids:
+                        username = username_ids.get(id)
+                    else:
+                        username = id
+                    self._parse_user_fts_db_with_value(1, node.AbsolutePath, username, content)
+                self.db_commit()
+                reader.Close()
+                del reader
+            db_cmd.Dispose()
+        db.Close()
         self.db_remove_mapping(db_path)
 
         if self.extract_deleted:
@@ -1221,23 +1229,23 @@ class WeChatParser(model_im.IM):
 
     @staticmethod
     def _db_reader_get_string_value(reader, index, default_value=''):
-        return reader.GetString(idx) if not reader.IsDBNull(idx) else default_value
+        return reader.GetString(index) if not reader.IsDBNull(index) else default_value
 
     @staticmethod
     def _db_reader_get_int_value(reader, index, default_value=0):
-        return reader.GetInt64(idx) if not reader.IsDBNull(idx) else default_value
+        return reader.GetInt64(index) if not reader.IsDBNull(index) else default_value
 
     @staticmethod
     def _db_reader_get_blob_value(reader, index, default_value=None):
-        if not reader.IsDBNull(idx):
+        if not reader.IsDBNull(index):
             try:
-                return bytes(reader.GetValue(idx))
+                return bytes(reader.GetValue(index))
             except Exception as e:
                 return default_value
         else:
             return default_value
 
-        return reader.GetString(idx) if not reader.IsDBNull(idx) else default_value
+        return reader.GetString(index) if not reader.IsDBNull(index) else default_value
 
     @staticmethod
     def _bpreader_node_get_string_value(node, key, default_value='', deleted=0):

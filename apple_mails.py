@@ -1,13 +1,25 @@
 #coding=utf-8
 import os
 import PA_runtime
+import hashlib
+import traceback
+import time
 
 import clr
 clr.AddReference('PA.iPhoneApps')
+try:
+    clr.AddReference('model_mail')
+    clr.AddReference('bcp_mail')
+except:
+    pass
 del clr
 
 from PA_runtime import *
 from PA.iPhoneApps import *
+from model_mail import MM, Account, Contact, Mail, Attachment as model_Attachment
+from model_mail import VERSION_KEY_DB, VERSION_VALUE_DB, VERSION_KEY_APP
+import bcp_mail
+
 
 from urllib import unquote
 from urlparse import urlsplit, uses_netloc
@@ -396,7 +408,7 @@ def read_mail(mail_dir, envelope_db, protected_db, extractDeleted, extractSource
 
             m = message_from_string(data)
             body, attachments = read_from_mime(m, None)
-            add_embedded (emlx_file, attachments, msg)
+            add_embedded(emlx_file, attachments, msg)
             
         else:
             parts = {}
@@ -740,6 +752,140 @@ def analyze_emails(mail_dir, extractDeleted, extractSource):
     else:
         results.extend(read_old_mail(mail_dir, envelope_db, extractDeleted, extractSource))
 
+    # 保存到中间数据库, 导出 BCP 
+    Export2db(mail_dir, results).parse()        
+
     pr.Models.AddRange(results)
-    pr.Build('系统邮件')
     return pr
+
+
+#################################################
+##                添加中间数据库                 ##
+#################################################
+DEBUG = True
+# DEBUG = False
+VERSION_APP_VALUE = 1
+
+def exc():
+    if DEBUG:
+        traceback.print_exc()
+    else:
+        pass
+
+class Export2db(object):
+    def __init__(self, mail_dir, results_model):
+        self.mm = MM()
+        self.results_model = results_model
+        self.cachepath = ds.OpenCachePath("AppleEmail")
+        hash_str = hashlib.md5(mail_dir.AbsolutePath).hexdigest()
+        self.cache_db = self.cachepath + '\\{}.db'.format(hash_str)
+
+        self.account_list = {}            
+        self.auto_mail_id = 1
+        self.account_id = 0           
+
+    def parse(self):
+
+        try:
+            if DEBUG or self.mm.need_parse(self.cache_db, VERSION_APP_VALUE):
+                self.mm.db_create(self.cache_db) 
+                self.parse_model()
+                if not canceller.IsCancellationRequested:
+                    self.mm.db_insert_table_version(VERSION_KEY_DB, VERSION_VALUE_DB)
+                    self.mm.db_insert_table_version(VERSION_KEY_APP, VERSION_APP_VALUE)
+                self.mm.db_commit()
+                self.mm.db_close()
+            tmp_dir = ds.OpenCachePath('tmp')
+            save_cache_path(bcp_mail.MAIL_TOOL_TYPE_PHONE, self.cache_db, tmp_dir)
+        except:
+            exc()
+        
+    def parse_model(self):
+        ''' PA Models email  
+                Abstract
+
+                Account
+                Attachments
+                    Owner
+                        Account
+                Bcc
+                Cc (To: 123@qq.com cici)
+                Folder
+                From ({From: pangu_x02@163.com pangu_x02  })
+                OwnerUser
+                OwnerUserID
+                Size
+                Subject
+                TimeStamp
+                To
+                Deleted
+        '''
+        for email in self.results_model:
+            account_user = email.Account.Value
+            if account_user not in self.account_list and account_user != 'Default':
+                self.account_id += 1
+                self.account_list[account_user] = self.account_id
+            mail = Mail()
+            mail.mail_id = self.auto_mail_id
+            self.auto_mail_id += 1
+            mail.owner_account_id = self.account_id
+            mail.mail_group       = email.Folder.Value
+            mail.mail_subject     = email.Subject.Value
+            mail.mail_abstract    = email.Abstract.Value
+            mail.mail_content     = email.Body.Value
+            if email.From.Value.Identifier.Value and email.From.Value.Name.Value:
+                mail.mail_from = email.From.Value.Identifier.Value + ' ' + email.From.Value.Name.Value 
+            mail.mail_to          = self._handle_mutimodel(email.To)
+            mail.mail_cc          = self._handle_mutimodel(email.Cc)
+            mail.mail_bcc         = self._handle_mutimodel(email.Bcc)
+            mail.mail_sent_date   = self._convert_2_timestamp(email.TimeStamp)
+            # status_dict = {
+            #     0: MessageStatus.Unread,
+            #     1: MessageStatus.Read
+            # }
+            for k, v in status_dict.items():
+                if email.Status.Value ==  v:
+                    mail.mail_read_status = k
+            mail.source  = email.Source.Value
+            mail.deleted = 0 if email.Deleted == DeletedState.Intact else 1
+            self.mm.db_insert_table_mail(mail)
+
+            for Attachment in  email.Attachments:
+                attach = model_Attachment()
+                attach.mail_id             = mail.mail_id
+                attach.owner_account_id    = self.account_id
+                attach.attachment_name     = Attachment.Filename.Value
+                attach.attachment_save_dir = Attachment.URL.Value
+                attach.attachment_size     = Attachment.Size.Value
+                self.mm.db_insert_table_attachment(attach)
+
+        for k, v in self.account_list.items():
+            account = Account()
+            account.account_id    = v
+            account.account_email = k 
+            account.account_user  = k      
+            self.mm.db_insert_table_account(account)        
+
+    def _handle_mutimodel(self, model):
+        ''' mutimodel party '''
+        res = ''
+        for m in model:
+            if m.Identifier.Value and m.Name.Value:
+                res += m.Identifier.Value + ' ' + m.Name.Value + ' '
+        return res.rstrip() if res else None
+
+    @staticmethod
+    def _convert_2_timestamp(email_timestamp):
+        ''' email.TimeStamp.Value.Value.LocalDateTime
+            2018/8/15 15:27:20 => 10位 时间戳 1534318040.0
+        '''
+        try:
+            if email_timestamp.Value:
+                format_time = email_timestamp.Value.Value.LocalDateTime
+                ts = time.strptime(str(format_time), "%Y/%m/%d %H:%M:%S")
+                return time.mktime(ts)
+            return 
+        except:
+            traceback.print_exc()
+            return     
+

@@ -195,6 +195,7 @@ class MailBcp(object):
         self.db_cmd = SQLite.SQLiteCommand(self.db)
         self.db_trans = self.db.BeginTransaction()
         self.db_create_table()
+        print('建表成功')
         self.db_commit()
 
     def db_close(self):
@@ -212,15 +213,18 @@ class MailBcp(object):
         self.db_trans = self.db.BeginTransaction()
 
     def db_create_table(self):
-        if self.db_cmd is not None:
-            self.db_cmd.CommandText = SQL_CREATE_TABLE_WA_MFORENSICS_040100
-            self.db_cmd.ExecuteNonQuery()
-            self.db_cmd.CommandText = SQL_CREATE_TABLE_WA_MFORENSICS_040200
-            self.db_cmd.ExecuteNonQuery()
-            self.db_cmd.CommandText = SQL_CREATE_TABLE_WA_MFORENSICS_040300
-            self.db_cmd.ExecuteNonQuery()
-            self.db_cmd.CommandText = SQL_CREATE_TABLE_WA_MFORENSICS_040400
-            self.db_cmd.ExecuteNonQuery()
+        try:
+            if self.db_cmd is not None:
+                self.db_cmd.CommandText = SQL_CREATE_TABLE_WA_MFORENSICS_040100
+                self.db_cmd.ExecuteNonQuery()
+                self.db_cmd.CommandText = SQL_CREATE_TABLE_WA_MFORENSICS_040200
+                self.db_cmd.ExecuteNonQuery()
+                self.db_cmd.CommandText = SQL_CREATE_TABLE_WA_MFORENSICS_040300
+                self.db_cmd.ExecuteNonQuery()
+                self.db_cmd.CommandText = SQL_CREATE_TABLE_WA_MFORENSICS_040400
+                self.db_cmd.ExecuteNonQuery()
+        except Exception as e:
+            print(e)
     
     def db_insert_table(self, sql, values):
         if self.db_cmd is not None:
@@ -390,19 +394,25 @@ class GenerateBcp(object):
         self.cache_db = cache_db
         self.collect_target_id = collect_target_id
         self.mail_tool_type = mail_tool_type
-        self.cache_path = bcp_db + '\\BCP_MAIL.db'
+        self.cache_path = bcp_db
         self.mail = MailBcp()
+        self.attachpath = self.bcp_path + '\\attachment'
+        os.mkdir(self.attachpath)
+        print('bcp_path:'+bcp_path+' cachedb:'+cache_db+' bcp_db'+bcp_db+' collect_target_id:'+collect_target_id+' mail_tool_type:'+mail_tool_type+' mountDir:'+mountDir)
 
     def generate(self):
-        self.mail.db_create(self.cache_path)
-        self.db = SQLite.SQLiteConnection('Data Source = {}'.format(self.cache_db))
-        self.db.Open()
-        self._generate_account()
-        self._generate_contact()
-        self._generate_mail()
-        self._generate_attachment()
-        self.db.Close()
-        self.mail.db_close()
+        try:
+            self.mail.db_create(self.cache_path)
+            self.db = SQLite.SQLiteConnection('Data Source = {}'.format(self.cache_db))
+            self.db.Open()
+            self._generate_account()
+            self._generate_contact()
+            self._generate_mail()
+            self._generate_attachment()
+            self.db.Close()
+            self.mail.db_close()
+        except Exception as e:
+            print(e)
 
     def _generate_account(self):
         try:
@@ -526,21 +536,25 @@ class GenerateBcp(object):
                 attachment.FILE_NAME = sr[3]
                 attachment.FILE_SIZE = sr[4]
                 attachment.DELETE_STATUS = sr[5]
-                self._copy_attachment(self.mountDir, sr[3])
+                if not IsDBNull(sr[3]):
+                    self._copy_attachment(self.mountDir, sr[3])
+                    print('拷贝成功')
                 self.mail.db_insert_table_attachment(attachment)
             self.mail.db_commit()
         except Exception as e:
             print(e)
 
     def _copy_attachment(self, mountDir, dir):
-        x = mountDir + dir
-        sourceDir = x.replace('\\','/')
-        targetDir = self.bcp_path + '\\attachment'
+        sourceDir = os.path.normpath(mountDir + dir).replace('\\', '/')
+        targetDir = os.path.normpath(self.attachpath).replace('\\', '/')
+        print(sourceDir)
+        print(targetDir)
         try:
-            if not os.path.exists(targetDir):
-                shutil.copytree(sourceDir, targetDir)
+            if os.path.exists(targetDir):
+                shutil.copy(sourceDir, targetDir)
         except Exception as e:
             print(e)
+            pass
 
 
     @staticmethod

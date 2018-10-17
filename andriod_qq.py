@@ -175,12 +175,12 @@ class Andriod_QQParser(object):
                     '''
                 except Exception as e:
                     print (e)
-        if canceller.IsCancellationRequested:
-            return
-        self.im.db_insert_table_version(VERSION_KEY_DB, VERSION_VALUE_DB)
-        self.im.db_insert_table_version(VERSION_KEY_APP, self.VERSION_APP_VALUE)
-        self.im.db_commit()
-        self.im.db_close()
+            if canceller.IsCancellationRequested:
+                return
+            self.im.db_insert_table_version(VERSION_KEY_DB, VERSION_VALUE_DB)
+            self.im.db_insert_table_version(VERSION_KEY_APP, self.VERSION_APP_VALUE)
+            self.im.db_commit()
+            self.im.db_close()
         PAruntime.save_cache_path(bcp_im.CONTACT_ACCOUNT_TYPE_IM_QQ,self.cachedb,self.bcppath)
         gen = GenerateModel(self.cachedb)        
         return gen.get_models()

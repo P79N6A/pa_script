@@ -384,6 +384,7 @@ class Taobao(object):
                 self.im.db_close()
                 raise IOError('e')
             m = model_im.Message()
+            m.account_id = ac.uid
             sender = unity_c37r.c_sharp_get_blob(reader, 5).decode('utf-8') #struct.unpack('i', unity_c37r.c_sharp_get_blob(reader, 5))
             reciever = unity_c37r.c_sharp_get_blob(reader, 4).decode('utf-8') #struct.unpack('i', unity_c37r.c_sharp_get_blob(reader, 4))
             try:
@@ -453,10 +454,10 @@ class Taobao(object):
                     # 实际上是属于千牛发送的自动排列的消息内容
                     sub_tp = js.get('template').get('id')
                     sub_string = js.get('template').get('data').get('text')
-                    f = open('D:/webs/{}.xml'.format(random.randint(0, 0xffffffff)), 'w+')
-                    if sub_string is not None:
-                        f.write(sub_string)
-                    f.close()
+                    # f = open('D:/webs/{}.xml'.format(random.randint(0, 0xffffffff)), 'w+')
+                    # if sub_string is not None:
+                    #     f.write(sub_string)
+                    # f.close()
                     if sub_tp == 20002:
                         m.type = model_im.MESSAGE_CONTENT_TYPE_ATTACHMENT
                         deal = model_im.Deal()
@@ -571,9 +572,9 @@ class Taobao(object):
                         self.eb.db_insert_table_shop(shop.get_value())
                         continue
             except:
-                f = open('D:/webs/{}.txt'.format(random.randint(0, 0xffffffff)),'w+')
-                f.write(m_str)
-                f.close()
+                # f = open('D:/webs/{}.txt'.format(random.randint(0, 0xffffffff)),'w+')
+                # f.write(m_str)
+                # f.close()
                 traceback.print_exc()
                 continue
         self.eb.db_commit()
@@ -598,9 +599,9 @@ def parse_tb(root, extract_deleted, extract_source):
         models = model_eb.GenerateModel(t.cache + '/C37R').get_models()
         mlm = ModelListMerger()
         pr = ParserResults()
-        pr.Categories = DescripCategories.QQ
+        pr.Categories = DescripCategories.Taobao
         pr.Models.AddRange(list(mlm.GetUnique(models)))
-        pr.Build("taobao")
+        pr.Build("淘宝")
     except:
         traceback.print_exc()
         pr = ParserResults()

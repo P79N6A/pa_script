@@ -1,18 +1,22 @@
 # coding=utf-8
-import os
 import re
+import time
+import hashlib
 
-import PA_runtime
-from PA_runtime import *
 import clr
 try:
     clr.AddReference('model_browser')
+    clr.AddReference('bcp_browser')
 except:
     pass
 del clr
 from model_browser import *
+import bcp_browser
 
-import time
+
+DEBUG = True
+DEBUG = False
+
 
 # app数据库版本
 VERSION_APP_VALUE = 1
@@ -25,8 +29,10 @@ def print_run_time(func):
     return wrapper
 
 def exc():
-    pass
-    # traceback.print_exc()
+    if DEBUG:
+        traceback.print_exc()
+    else:
+        pass       
 
 def analyze_baidubrowser(node, extract_deleted, extract_source):
     """
@@ -49,14 +55,15 @@ class BaiduBrowserParser(object):
 
         self.mb = MB()
         self.cachepath = ds.OpenCachePath("BaiduBrowser")
-        self.cache_db = self.cachepath + "\\BaiduBrowser.db"
+        hash_str = hashlib.md5(node.AbsolutePath).hexdigest()
+        self.cache_db = self.cachepath + '\\{}.db'.format(hash_str)
 
     def parse(self):
         '''
             databases/dbbrowser.db
             app_webview_baidu/Cookies
         '''
-        if self.mb.need_parse(self.cache_db, VERSION_APP_VALUE):
+        if DEBUG or self.mb.need_parse(self.cache_db, VERSION_APP_VALUE):
             if not self._read_db('databases/dbbrowser.db'):
                 return  
             self.mb.db_create(self.cache_db)
@@ -74,6 +81,9 @@ class BaiduBrowserParser(object):
                 
             self.mb.db_close()
             
+        tmp_dir = ds.OpenCachePath('tmp')
+        save_cache_path(bcp_browser.NETWORK_APP_BAIDU, self.cache_db, tmp_dir)
+
         models = Generate(self.cache_db).get_models()
         return models
 
@@ -83,17 +93,17 @@ class BaiduBrowserParser(object):
             RecNo  FieldName
             1	   account_uid	        TEXT
             2	   create_time	        INTEGER
-            3	   date	        INTEGER
+            3	   date	            INTEGER
             4	   edit_cmd	        TEXT
-            5	   edit_time	        INTEGER
-            6	   _id	        INTEGER
+            5	   edit_time	    INTEGER
+            6	   _id	            INTEGER
             7	   parent	        INTEGER
             8	   parent_uuid	        TEXT
             9	   platform	        TEXT
             10	   position	        INTEGER
             11	   reserve	        TEXT
-            12	   sync_time	        INTEGER
-            13	   sync_uuid	        TEXT
+            12	   sync_time	    INTEGER
+            13	   sync_uuid	    TEXT
             14	   title	        TEXT
             15	   type	        INTEGER
             16	   url	        TEXT
@@ -102,7 +112,7 @@ class BaiduBrowserParser(object):
         if not self._read_db(db_path):
             return 
         for rec in self._read_table(table_name):
-            if IsDBNull(rec['url'].Value) or IsDBNull(rec['url'].Value):
+            if self._is_empty(rec, 'url', 'title'):
                 continue
             bookmark = Bookmark()
             bookmark.id         = rec['_id'].Value
@@ -138,7 +148,7 @@ class BaiduBrowserParser(object):
         for rec in self._read_table(table_name):
             if canceller.IsCancellationRequested:
                 return            
-            if IsDBNull(rec['url'].Value):
+            if self._is_empty(rec, 'url'):
                 continue
             browser_record = Browserecord()
             browser_record.id       = rec['_id'].Value
@@ -178,10 +188,10 @@ class BaiduBrowserParser(object):
         for rec in self._read_table(table_name):
             if canceller.IsCancellationRequested:
                 return
-            if IsDBNull(rec['creation_utc'].Value):
+            if self._is_empty(rec, 'creation_utc'):
                 continue
             cookies = Cookie()
-            cookies.id             = rec['creation_utc'].Value
+            # cookies.id
             cookies.host_key       = rec['host_key'].Value
             cookies.name           = rec['name'].Value
             cookies.value          = rec['value'].Value
@@ -199,6 +209,7 @@ class BaiduBrowserParser(object):
             self.mb.db_commit()
         except:
             exc()
+
     @print_run_time
     def parse_DownloadFile(self, db_path, table_name):
         """
@@ -224,17 +235,20 @@ class BaiduBrowserParser(object):
             16	type	            TEXT
             17	url	                TEXT
         """        
-        print 'table_name:', self.root.AbsolutePath
+        # print 'table_name:', self.root.AbsolutePath
         if not self._read_db(db_path):
             return 
 
+        auto_id = 1
         for rec in self._read_table(table_name):
+
             if canceller.IsCancellationRequested:
                 return            
             if rec['total'].Value < 1 or not rec['url'].Value.startswith('http://'):
                 continue
             downloads = DownloadFile()
-            downloads.id             = rec['key'].Value
+            downloads.id             = auto_id
+            auto_id += 1
             downloads.url            = rec['url'].Value
             downloads.filename       = rec['filename'].Value
             downloads.filefolderpath = self._convert_2_nodepath(rec['savepath'].Value, downloads.filename)
@@ -270,7 +284,7 @@ class BaiduBrowserParser(object):
         for rec in self._read_table(table_name):       
             if canceller.IsCancellationRequested:
                 return                 
-            if IsDBNull(rec['url'].Value) or IsDBNull(rec['url'].Value):
+            if self._is_empty(rec, 'url', 'title'):
                 continue
             search_history = SearchHistory()
             search_history.id       = rec['_id'].Value
@@ -294,7 +308,7 @@ class BaiduBrowserParser(object):
         :rtype: bool                              
         """
         node = self.root.GetByPath(db_path)
-        self.cur_db = SQLiteParser.Database.FromNode(node,canceller)
+        self.cur_db = SQLiteParser.Database.FromNode(node, canceller)
         if self.cur_db is None:
             return False
         self.cur_db_source = node.AbsolutePath
@@ -322,22 +336,39 @@ class BaiduBrowserParser(object):
         if not file_name:
             raw_path_list = raw_path.split(r'/')
             file_name = raw_path_list[-1]
-        # if  '.' not in file_name:
-        #     return 
-        # else:
-        #     print os.path.join(hwwz_pattern, file_name)
+        if  '.' not in file_name:
+            return 
+        else:
+            #print os.path.join(hwwz_pattern, file_name)
 
-        #     if os.path.isfile(os.path.join(hwwz_pattern, file_name)):
-        #         print os.path.join(hwwz_pattern, file_name)
-        #         return os.path.join(hwwz_pattern, file_name)
+            if os.path.isfile(os.path.join(hwwz_pattern, file_name)):
+                # print os.path.join(hwwz_pattern, file_name)
+                return os.path.join(hwwz_pattern, file_name)
                 
         # print 'raw_path, file_name', raw_path, file_name
 
         _path = None
         if len(file_name) > 0:
-            node = fs.Search(r'com\.baidu\.browser\.apps.*?{}$'.format(file_name))
-            for i in node:
-                _path = i.AbsolutePath
+            try:
+                node = fs.Search(r'com\.baidu\.browser\.apps.*?{}$'.format(re.escape(file_name)))
+                for i in node:
+                    _path = i.AbsolutePath
+            except:
+                pass
                 #print 'file_name, _path', file_name, _path
         # print 'baidu.browser _path', _path
         return _path
+
+
+    @staticmethod
+    def _is_empty(rec, *args):
+        ''' 过滤 DBNull, 空数据 
+        
+        :type rec:   rec
+        :type *args: str
+        :rtype: bool
+        '''
+        for i in args:
+            if IsDBNull(rec[i].Value) or rec[i].Value in ('', ' ', None, [], {}):
+                return True
+        return False

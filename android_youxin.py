@@ -50,12 +50,11 @@ def execute(node,extracteDeleted):
 
 class YouXinParser():
     def __init__(self, node, extract_deleted, extract_source):
-        super(YouXinParser, self).__init__()
         self.extract_deleted = False
         self.extract_source = extract_source
         self.root = node
         self.app_name = 'YouXin'
-        self.im = model_im.IM
+        self.im = model_im.IM()
         self.cache_path =ds.OpenCachePath('YouXin')
         if not os.path.exists(self.cache_path):
             os.makedirs(self.cache_path)
@@ -146,7 +145,6 @@ class YouXinParser():
             SQLiteParser.Tools.AddSignatureToTable(ts, 'UID', SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
             for rec in db.ReadTableRecords(ts, self.extract_deleted):
                 if canceller.IsCancellationRequested:
-                    self.im.db_close()
                     return
                 friend = model_im.Friend()
                 self.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
@@ -169,7 +167,6 @@ class YouXinParser():
             SQLiteParser.Tools.AddSignatureToTable(ts, 'UID', SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
             for rec in db.ReadTableRecords(ts, self.extract_deleted):
                 if canceller.IsCancellationRequested:
-                    self.im.db_close()
                     return
                 id = rec['UID'].Value
                 if id == self.user or id in self.contacts.keys():
@@ -211,7 +208,6 @@ class YouXinParser():
             for id in self.contacts.keys():
                 for rec in db.ReadTableRecords(ts, self.extract_deleted):
                     if canceller.IsCancellationRequested:
-                        self.im.db_close()
                         return
                     if id != rec['uid'].Value:
                         continue

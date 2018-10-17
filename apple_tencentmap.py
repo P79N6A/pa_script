@@ -122,7 +122,10 @@ class TencentMap(object):
             favorite_search.sourceFile = favorites_address_node.AbsolutePath
             favorite_search.item_type = 1
             for rs in json_data.get("fav_list"):
-                favorite_search.keyword = rs.get("name").decode("utf-8")
+                try:
+                    favorite_search.keyword = rs.get("name").decode("utf-8")
+                except Exception as e:
+                    favorite_search.keyword = rs.get("name")
                 if "last_edit_time" in rs:
                     favorite_search.create_time = rs.get("last_edit_time")
                 if "pointx" in rs.get("content"):
@@ -130,7 +133,10 @@ class TencentMap(object):
                 if "pointy" in rs.get("content"):
                     favorite_search.pos_y = rs.get("content").get("pointy")
                 if "addr" in rs.get("content"):
-                    favorite_search.address = rs.get("content").get("addr").decode("utf-8")
+                    try:
+                        favorite_search.address = rs.get("content").get("addr").decode("utf-8")
+                    except Exception as e:
+                        favorite_search.address = rs.get("content").get("addr")
                 try:
                     self.tencentMap.db_insert_table_search(favorite_search)
                 except Exception as e:

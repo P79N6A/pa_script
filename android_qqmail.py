@@ -102,7 +102,7 @@ SQL_CREATE_TABLE_RECOVER_ATTACH = '''
 
 SQL_INSERT_TABLE_RECOVER_ATTACH = '''INSERT INTO QM_MAIL_ATTACH(id, accountid, mailid, displayname, fileSizeByte, favtime) VALUES(?, ?, ?, ?, ?, ?)'''
 
-VERSION_APP_VALUE = 2
+VERSION_APP_VALUE = 1
 
 class QQMailParser(object):
     def __init__(self, node, extractDeleted, extractSource):
@@ -119,7 +119,7 @@ class QQMailParser(object):
         self.cachedb = self.cachepath + "\\" + md5_db.hexdigest().upper() + ".db"
         self.sourceDB = self.cachepath + '\\QQMailSourceDB'
         self.recoverDB = self.cachepath + '\\' + md5_rdb.hexdigest().upper() + '.db'
-        self.attachDir = os.path.normpath(os.path.join(self.node.Parent.Parent.Parent.Parent.AbsolutePath, 'media/0/Download/QQMail'))
+        self.attachDir = None
     
     def analyze_account(self, accountPath, deleteFlag):
         '''保存账户数据到中间数据库'''
@@ -131,8 +131,8 @@ class QQMailParser(object):
                 return
             self.db_cmd.CommandText = SQL_ASSOCIATE_TABLE_ACCOUNT
             sr = self.db_cmd.ExecuteReader()
-            account = Account()
             while (sr.Read()):
+                account = Account()
                 if canceller.IsCancellationRequested:
                     break
                 account.account_id = sr[0]
@@ -234,7 +234,12 @@ class QQMailParser(object):
                 attachment.mail_id = sr[2]
                 attachment.attachment_name = sr[3]
                 if sr[3] is not None:
-                    attachment.attachment_save_dir = self.attachDir
+                    self.attachDir = os.path.normpath(os.path.join('/Download/QQMail', sr[3])).replace('\\', '/')
+                    fs = self.node.FileSystem
+                    attachNodes = fs.Search(self.attachDir + '$')
+                    for attachNode in attachNodes:
+                        attachment.attachment_save_dir = attachNode.AbsolutePath
+                        break
                 attachment.attachment_size = sr[4]
                 attachment.attachment_download_date = sr[5]
                 attachment.source = self.node.AbsolutePath
@@ -426,7 +431,7 @@ class QQMailParser(object):
     def read_deleted_table(self):
         '''读取删除数据保存到恢复数据库'''
         self.create_deleted_db()
-        self.read_deleted_table_accountinfo()
+        # self.read_deleted_table_accountinfo()
         self.read_deleted_table_mailinfo()
         self.read_deleted_table_mailtos()
         self.read_deleted_table_mailcontent()
@@ -504,7 +509,8 @@ class QQMailParser(object):
             self.mm.db_insert_table_version(model_mail.VERSION_KEY_APP, VERSION_APP_VALUE)
             self.mm.db_commit()
             self.mm.db_close()
-        nameValues.SafeAddValue(bcp_mail.MAIL_TOOL_TYPE_QQMAIL, self.cachedb)
+        temp_dir = ds.OpenCachePath('tmp')
+        PA_runtime.save_cache_path(bcp_mail.MAIL_TOOL_TYPE_QQMAIL, self.cachedb, temp_dir)
         generate = Generate(self.cachedb)
         models = generate.get_models()
         return models
@@ -521,7 +527,7 @@ class QQMailParser(object):
 def analyze_android_qqmail(node, extractDeleted, extractSource):
     pr = ParserResults()
     pr.Models.AddRange(QQMailParser(node, extractDeleted, extractSource).parse())
-    pr.Build('QQMail')
+    pr.Build('QQ邮箱')
     return pr
 
 def execute(node, extractDeleted):

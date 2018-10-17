@@ -90,7 +90,11 @@ class Model_SIM(object):
 
     def db_create(self, db_path):
         if os.path.exists(db_path):
-            os.remove(db_path)
+            try:
+                os.remove(db_path)
+            except:
+                print('db_path:', db_path)
+                exc()
 
         self.db = SQLite.SQLiteConnection('Data Source = {}'.format(db_path))
         self.db.Open()
@@ -227,17 +231,16 @@ class GenerateModel(object):
 
     def _get_sim_models(self):
         '''
-        _id        INTEGER PRIMARY KEY AUTOINCREMENT,
-        name          TEXT,
-        msisdn         TEXT,
-        imsi         TEXT,
-        iccid         TEXT,
-        center_num    TEXT,
-        is_use        INT,
-
-        source        TEXT,
-        deleted       INT DEFAULT 0, 
-        repeated      INT DEFAULT 0)      
+         0   _id        INTEGER PRIMARY KEY AUTOINCREMENT,
+         1   name          TEXT,
+         2   msisdn         TEXT,
+         3   imsi         TEXT,
+         4   iccid         TEXT,
+         5   center_num    TEXT,
+         6   is_use        INT,
+         7   source        TEXT,
+         8   deleted       INT DEFAULT 0, 
+         9   repeated      INT DEFAULT 0
         '''
         models = []
         sql = '''
@@ -255,7 +258,7 @@ class GenerateModel(object):
             sim = Calls.SIMData()
             # if row[0] is not None:
             #     sim.Name.Value = row[0]
-            if row[1] in range(7):
+            if row[1] is not None:
                 sim.Name.Value = row[1]
             if row[2] is not None:
                 sim.Value.Value = row[2]

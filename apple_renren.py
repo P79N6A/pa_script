@@ -51,12 +51,11 @@ def execute(node,extracteDeleted):
 
 class RenRenParser():
     def __init__(self, node, extracted_deleted, extract_source):
-        super(RenRenParser, self).__init__()
         self.extract_deleted = False
         self.extract_source = extract_source
         self.root = node 
         self.app_name = 'RenRen'
-        self.im = model_im.IM
+        self.im = model_im.IM()
         self.cache_path = ds.OpenCachePath('RenRen')
         if not os.path.exists(self.cache_path):
             os.makedirs(self.cache_path)
@@ -137,7 +136,6 @@ class RenRenParser():
             SQLiteParser.Tools.AddSignatureToTable(ts, "account_i_d", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
             for rec in subDb.ReadTableRecords(ts, self.extract_deleted):
                 if canceller.IsCancellationRequested:
-                    self.im.db_close()
                     return
                 contact = {'deleted' : rec.Deleted, 'repeated' : 0}
                 contactid = str(rec['account_i_d'].Value)
@@ -172,7 +170,6 @@ class RenRenParser():
             SQLiteParser.Tools.AddSignatureToTable(ts_1, "room_id", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
             for rec in infoDb.ReadTableRecords(ts_1, self.extract_deleted):
                 if canceller.IsCancellationRequested:
-                    self.im.db_close()
                     return
                 contact = {'deleted' : rec.Deleted, 'repeated' : 0}
                 contactid = str(rec['room_id'].Value)
@@ -201,7 +198,6 @@ class RenRenParser():
                     SQLiteParser.Tools.AddSignatureToTable(ts_2, "user_id", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
                     for rec in infoDb.ReadTableRecords(ts_2, self.extract_deleted):
                         if canceller.IsCancellationRequested:
-                            self.db_close()
                             return
                         room_id = str(rec['room_id'].Value)
                         if room_id != chatroom.chatroom_id:
@@ -235,7 +231,6 @@ class RenRenParser():
                 SQLiteParser.Tools.AddSignatureToTable(ts_1, "target_user_id", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
                 for rec in chatDb.ReadTableRecords(ts_1, self.extract_deleted):
                     if canceller.IsCancellationRequested:
-                        self.im.db_close()
                         return
                     contact = {'deleted' : rec.Deleted, 'repeated' : 0}
                     contactid = str(rec['target_user_id'].Value)
@@ -284,7 +279,6 @@ class RenRenParser():
                 SQLiteParser.Tools.AddSignatureToTable(ts, "msg_key", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
                 for rec in db.ReadTableRecords(ts, self.extract_deleted):
                     if canceller.IsCancellationRequested:
-                        self.im.db_close()
                         return
                     if contactid != str(rec['from_user_id'].Value):
                         if contactid != str(rec['to_user_id'].Value):

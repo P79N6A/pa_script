@@ -773,7 +773,7 @@
             <string>com.yixin.yixin</string>
           </array>
           <key>Category</key>
-          <string>YouXin</string>
+          <string>YiXin</string>
         </dict>
       </array>
     </dict>
@@ -1015,6 +1015,7 @@
           <key>Patterns</key>
           <array>
             <string>/data/im.yixin$</string>
+            <string>/Apps/im.yixin$</string>
           </array>
           <key>Category</key>
           <string>YiXin</string>
@@ -1099,7 +1100,8 @@
           <integer>2</integer>
           <key>Patterns</key>
           <array>
-            <string>/com.tencent.androidqqmail/databases/QMMailDB$</string>
+            <string>/data/com.tencent.androidqqmail/databases/QMMailDB$</string>
+            <string>/Apps/com.tencent.androidqqmail/databases/QMMailDB$</string>
           </array>
           <key>Category</key>
           <string>QQMail</string>
@@ -1119,7 +1121,8 @@
           <integer>2</integer>
           <key>Patterns</key>
           <array>
-            <string>/com.tencent.mtt/databases/default_user.db$</string>
+            <string>/data/com.tencent.mtt/databases/default_user.db$</string>
+            <string>/Apps/com.tencent.mtt/databases/default_user.db$</string>
           </array>
           <key>Category</key>
           <string>QQBrowser</string>
@@ -1139,7 +1142,8 @@
           <integer>2</integer>
           <key>Patterns</key>
           <array>
-            <string>/com.android.providers.calendar/databases/calendar.db$</string>
+            <string>/data/com.android.providers.calendar/databases/calendar.db$</string>
+            <string>/calendar/event.db$</string>
           </array>
           <key>Category</key>
           <string>Calenders</string>
@@ -1159,7 +1163,9 @@
           <integer>2</integer>
           <key>Patterns</key>
           <array>
-            <string>/com.android.providers.contacts/databases/contacts2.db$</string>
+            <string>/data/com.android.providers.contacts/databases/contacts2.db$</string>
+            <string>/calls/callinfo.db$</string>
+            <string>/contacts/contacts.db$</string>
           </array>
           <key>Category</key>
           <string>Calls</string>
@@ -1179,7 +1185,8 @@
           <integer>2</integer>
           <key>Patterns</key>
           <array>
-            <string>/com.example.android.notepad/databases/note_pad.db$</string>
+            <string>/data/com.example.android.notepad/databases/note_pad.db$</string>
+            <string>/Apps/com.example.android.notepad/databases/note_pad.db$</string>
           </array>
           <key>Category</key>
           <string>Notes</string>
@@ -1199,7 +1206,8 @@
           <integer>2</integer>
           <key>Patterns</key>
           <array>
-            <string>/com.android.soundrecorder/databases/record.*.db$</string>
+            <string>/data/com.android.soundrecorder/databases/record.*.db$</string>
+            <string>/Apps/com.android.soundrecorder/databases/record.*.db$</string>
           </array>
           <key>Category</key>
           <string>Notes</string>
@@ -1219,7 +1227,8 @@
           <integer>2</integer>
           <key>Patterns</key>
           <array>
-            <string>/com.android.providers.media/databases/internal.db$</string>
+            <string>/data/com.android.providers.media/databases/internal.db$</string>
+            <string>/Apps/com.android.providers.media/databases/internal.db$</string>
           </array>
           <key>Category</key>
           <string>Notes</string>
@@ -1239,7 +1248,7 @@
           <integer>2</integer>
           <key>Patterns</key>
           <array>
-            <string>data/com.netease.mail/databases$</string>
+            <string>com.netease.mail/databases/mmail$</string>
           </array>
           <key>Category</key>
           <string>NeteaseMail</string>
@@ -1304,7 +1313,7 @@
             <string>com.android.providers.telephony/databases$</string>
           </array>
           <key>Category</key>
-          <string>Sms</string>
+          <string>Messages</string>
         </dict>
       </array>
     </dict>

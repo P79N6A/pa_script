@@ -3,17 +3,25 @@ import os
 import PA_runtime
 import sqlite3
 from PA_runtime import *
-import re
+
 import clr
 try:
     clr.AddReference('model_browser')
+    clr.AddReference('bcp_browser')
 except:
     pass
 del clr
-import hashlib
-from model_browser import *
 
+from model_browser import *
+import model_browser
+from bcp_browser import *
+import bcp_browser 
+
+import re
 import traceback
+import hashlib
+
+VERSION_APP_VALUE = 1
 
 class QQBrowserParse(object):
     def __init__(self, node, extractDeleted, extractSource):
@@ -27,12 +35,11 @@ class QQBrowserParse(object):
         db_name = 'QQBrowser'
         md5_db.update(db_name.encode(encoding = 'utf-8'))
         self.db_cache = self.cache_path + "\\" + md5_db.hexdigest().upper() + ".db"
-        self.mb.db_create(self.db_cache)
 
     def analyze_bookmarks(self):
-        bookmark = Bookmark()
-        fs = self.node.FileSystem
-        ns = fs.Search(r'/data/com.tencent.mtt/databases/\d+.db$')
+        bookmark = model_browser.Bookmark()
+        fs = self.node.Parent
+        ns = fs.Search(r'/\d+.db$')
         pattern = re.compile('[\\x00-\\x08\\x0b-\\x0c\\x0e-\\x1f]')
         nodes = []
         for n in ns:
@@ -40,7 +47,7 @@ class QQBrowserParse(object):
         nodes.append(self.node)
         try:
             for node in nodes:
-                self.db = SQLiteParser.Database.FromNode(self.node, canceller)
+                self.db = SQLiteParser.Database.FromNode(node, canceller)
                 if self.db is None:
                     return 
                 ts = SQLiteParser.TableSignature('mtt_bookmarks')
@@ -74,7 +81,7 @@ class QQBrowserParse(object):
             print(e)
 
     def analyze_browserecords(self):
-        record = Browserecord()
+        record = model_browser.Browserecord()
         pattern = re.compile('[\\x00-\\x08\\x0b-\\x0c\\x0e-\\x1f]')
         try:
             node = self.node.Parent.GetByPath('/database')
@@ -90,6 +97,7 @@ class QQBrowserParse(object):
                 if not IsDBNull(rec['DATETIME'].Value):
                     record.datetime = self._timeHandler(rec['DATETIME'].Value) if 'DATETIME' in rec else None
                 self.source = node.AbsolutePath
+                self.mb.db_insert_table_browserecords(record)
             self.mb.db_commit()
             for row in self.db.ReadTableDeletedRecords(ts, False):
                 canceller.ThrowIfCancellationRequested()
@@ -107,7 +115,7 @@ class QQBrowserParse(object):
             print(e)
 
     def analyze_downloadfiles(self):
-        downloadfile = DownloadFile()
+        downloadfile = model_browser.DownloadFile()
         pattern = re.compile('[\\x00-\\x08\\x0b-\\x0c\\x0e-\\x1f]')
         try:
             node = self.node.Parent.GetByPath('/download_database')
@@ -153,7 +161,7 @@ class QQBrowserParse(object):
             print(e)
 
     def analyze_fileinfo(self):
-        fileinfo = FileInfo()
+        fileinfo = model_browser.FileInfo()
         pattern = re.compile('[\\x00-\\x08\\x0b-\\x0c\\x0e-\\x1f]')
         try:
             node_external = self.node.Parent.GetByPath('/filestore_0000-0000')
@@ -169,11 +177,13 @@ class QQBrowserParse(object):
                     fileinfo.id = rec['FILE_ID'].Value if 'FILE_ID' in rec else None
                     if not IsDBNull(rec['FILE_PATH'].Value):
                         fileinfo.filepath = self._transToAbsolutePath(pattern.sub('', rec['FILE_PATH'].Value)) if 'FILE_PATH' in rec and rec['FILE_PATH'].Value is not '' else None
-                    fileinfo.filename = pattern.sub('', rec['FILE_NAME'].Value) if 'FILE_NAME' in rec and rec['FILE_NAME'].Value is not '' else None
+                    if not IsDBNull(rec['FILE_NAME'].Value):
+                        fileinfo.filename = pattern.sub('', rec['FILE_NAME'].Value) if 'FILE_NAME' in rec and rec['FILE_NAME'].Value is not '' else None
                     fileinfo.size = rec['SIZE'].Value if 'SIZE' in rec else None
                     if not IsDBNull(rec['MODIFIED_DATE'].Value):
                         fileinfo.modified = self._timeHandler(rec['MODIFIED_DATE'].Value) if 'MODIFIED_DATE' in rec else None
-                    fileinfo.title = pattern.sub('', rec['TITLE'].Value) if 'TITLE' in rec and rec['TITLE'].Value is not '' else None
+                    if not IsDBNull(rec['TITLE'].Value):
+                        fileinfo.title = pattern.sub('', rec['TITLE'].Value) if 'TITLE' in rec and rec['TITLE'].Value is not '' else None
                     fileinfo.source = node.AbsolutePath
                     self.mb.db_insert_table_fileinfos(fileinfo)
                 self.mb.db_commit()
@@ -182,9 +192,9 @@ class QQBrowserParse(object):
             print(e)
 
     def analyze_search_history(self):
-        searchHistory = SearchHistory()
-        fs = self.node.FileSystem
-        ns = fs.Search(r'/data/com.tencent.mtt/databases/\d+.db$')
+        searchHistory = model_browser.SearchHistory()
+        fs = self.node.Parent
+        ns = fs.Search(r'/\d+.db$')
         nodes = []
         for n in ns:
             nodes.append(n)
@@ -225,13 +235,16 @@ class QQBrowserParse(object):
             print(e)
 
     def analyze_accounts(self):
-        account = Account()
-        fs = self.node.FileSystem
-        ns = fs.Search(r'/data/com.tencent.mtt/databases/\d+.db$')
-        nodes = []
-        for n in ns:
-            nodes.append(n)
-        nodes.append(self.node)
+        try:
+            account = model_browser.Account()
+            fs = self.node.Parent
+            ns = fs.Search(r'/\d+.db$')
+            nodes = []
+            for n in ns:
+                nodes.append(n)
+            nodes.append(self.node)
+        except Exception as e:
+            traceback.print_exc()
         try:
             for node in nodes:
                 canceller.ThrowIfCancellationRequested()
@@ -245,7 +258,7 @@ class QQBrowserParse(object):
             print(e)
 
     def analyze_plugin(self):
-        plugin = Plugin()
+        plugin = model_browser.Plugin()
         node = self.node.Parent.GetByPath('/plugin_db')
         try:
             self.db = SQLiteParser.Database.FromNode(node, canceller)
@@ -268,7 +281,7 @@ class QQBrowserParse(object):
             print(e)
 
     def analyze_cookies(self):
-        cookie = Cookie()
+        cookie = model_browser.Cookie()
         node = self.node.Parent.Parent.GetByPath('/app_webview/Cookies')
         try:
             self.db = SQLiteParser.Database.FromNode(node, canceller)
@@ -331,15 +344,22 @@ class QQBrowserParse(object):
             pass
 
     def parse(self):
-        self.analyze_accounts()
-        self.analyze_bookmarks()
-        self.analyze_browserecords()
-        self.analyze_cookies()
-        self.analyze_downloadfiles()
-        self.analyze_fileinfo()
-        self.analyze_plugin()
-        self.analyze_search_history()
-        self.mb.db_close()
+        if self.mb.need_parse(self.db_cache, VERSION_APP_VALUE):
+            self.mb.db_create(self.db_cache)
+            self.analyze_accounts()
+            self.analyze_bookmarks()
+            self.analyze_browserecords()
+            self.analyze_cookies()
+            self.analyze_downloadfiles()
+            self.analyze_fileinfo()
+            self.analyze_plugin()
+            self.analyze_search_history()
+            self.mb.db_insert_table_version(model_browser.VERSION_KEY_DB, model_browser.VERSION_VALUE_DB)
+            self.mb.db_insert_table_version(model_browser.VERSION_KEY_APP, VERSION_APP_VALUE)
+            self.mb.db_commit()
+            self.mb.db_close()
+        temp_dir = ds.OpenCachePath('tmp')
+        PA_runtime.save_cache_path(bcp_browser.NETWORK_APP_QQ, self.db_cache, temp_dir)
         generate = Generate(self.db_cache)
         models = generate.get_models()
         return models
@@ -347,7 +367,7 @@ class QQBrowserParse(object):
 def analyze_android_qqbrowser(node, extractDeleted, extractSource):
     pr = ParserResults()
     pr.Models.AddRange(QQBrowserParse(node, extractDeleted, extractSource).parse())
-    pr.Build('QQBrowser')
+    pr.Build('QQ浏览器')
     return pr
 
 def execute(node, extractDeleted):

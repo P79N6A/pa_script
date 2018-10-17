@@ -33,6 +33,7 @@ from  model_im import *
 import uuid 
 import hashlib
 from bcp_im import *
+
 def SafeGetString(reader,i):
     if not reader.IsDBNull(i):
         return reader.GetString(i)
@@ -126,7 +127,7 @@ class QQParser(object):
             self.im.db_insert_table_version(VERSION_KEY_APP, self.VERSION_APP_VALUE)
             self.im.db_commit()
             self.im.db_close()
-            PAruntime.save_cache_path(bcp_im.CONTACT_ACCOUNT_TYPE_IM_QQ,self.cachedb,self.bcppath)
+        PAruntime.save_cache_path(bcp_im.CONTACT_ACCOUNT_TYPE_IM_QQ,self.cachedb,self.bcppath)
         gen = GenerateModel(self.cachedb)
         return gen.get_models()
     def decode_fts_messages(self,acc_id):

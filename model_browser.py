@@ -112,7 +112,7 @@ SQL_INSERT_TABLE_BROWSERECORDS = '''
     '''
 
 SQL_CREATE_TABLE_ACCOUNTS = '''
-    CREATE TABLE IF NOT EXISTS accounts(
+    CREATE TABLE IF NOT EXISTS account(
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT,
         logindate INTEGER,
@@ -122,7 +122,7 @@ SQL_CREATE_TABLE_ACCOUNTS = '''
     )'''
 
 SQL_INSERT_TABLE_ACCOUNTS = '''
-    INSERT INTO accounts(id, name, logindate, source, deleted, repeated) values(? ,? ,? ,? ,? ,?)
+    INSERT INTO account(id, name, logindate, source, deleted, repeated) values(? ,? ,? ,? ,? ,?)
     '''
 
 SQL_CREATE_TABLE_FILEINFO = '''
@@ -201,7 +201,7 @@ class MB(object):
             try:
                 os.remove(db_path)
             except Exception as e:
-                print('model_im db_create() remove %s error: %s' % (db_path, e))
+                print('model_browser db_create() remove %s error: %s' % (db_path, e))
                 
         self.db = SQLite.SQLiteConnection('Data Source = {}'.format(db_path))
         self.db.Open()
@@ -229,7 +229,7 @@ class MB(object):
         try:
             os.remove(db_path)
         except Exception as e:
-            print('model_im db_create() remove %s error: %s' % (db_path, e))
+            print('model_browser db_create() remove %s error: %s' % (db_path, e))
 
     def db_create_table(self):
         if self.db_cmd is not None:
@@ -512,7 +512,7 @@ class Generate(object):
 
     def _get_account_models(self):
         model = []
-        sql = '''select distinct * from accounts group by name'''
+        sql = '''select distinct * from account group by name'''
         try:
             self.cursor.execute(sql)
             for row in self.cursor:
@@ -645,7 +645,7 @@ class Generate(object):
                 if row[2] is not None:
                     search.Content.Value = row[2]
                 if row[3] is not None:
-                    search.DateTime.Value = self._get_timestamp(row[3])
+                    search.Time.Value = self._get_timestamp(row[3])
                 if row[5] not in [None, '']:
                     search.SourceFile.Value = self._get_source_file(row[5])
                 if row[6] is not None:

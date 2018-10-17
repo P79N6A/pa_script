@@ -46,12 +46,11 @@ def execute(node,extracteDeleted):
 
 class YiXinParser():
     def __init__(self, node, extract_deleted, extract_source):
-        super(YiXinParser, self).__init__()
         self.extract_deleted = False
         self.extract_source = extract_source
         self.root = node
         self.app_name = 'YiXin'
-        self.im = model_im.IM
+        self.im = model_im.IM()
         self.cache_path = ds.OpenCachePath('YiXin')
         if not os.path.exists(self.cache_path):
             os.makedirs(self.cache_path)
@@ -135,7 +134,6 @@ class YiXinParser():
             SQLiteParser.Tools.AddSignatureToTable(ts, "uid", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
             for rec in db.ReadTableRecords(ts, self.extract_deleted):
                 if canceller.IsCancellationRequested:
-                    self.im.db_close()
                     return
                 id = rec['uid'].Value
                 if id in self.friends:
@@ -190,7 +188,6 @@ class YiXinParser():
                     SQLiteParser.Tools.AddSignatureToTable(ts, "tid", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
                     for rec in db.ReadTableRecords(ts, self.extract_deleted):
                         if canceller.IsCancellationRequested:
-                            self.im.db_close()
                             return
                         room_id = rec['tid'].Value
                         if chatroom.chatroom_id != room_id:
@@ -218,7 +215,6 @@ class YiXinParser():
             SQLiteParser.Tools.AddSignatureToTable(ts, "uid", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
             for rec in db.ReadTableRecords(ts, self.extract_deleted):
                 if canceller.IsCancellationRequested:
-                    self.im.db_close()
                     return
                 id = rec['uid'].Value
                 if id in self.friends:
@@ -253,7 +249,6 @@ class YiXinParser():
                 SQLiteParser.Tools.AddSignatureToTable(ts, "tid", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
                 for rec in db.ReadTableRecords(ts, self.extract_deleted):
                     if canceller.IsCancellationRequested:
-                        self.im.db_close()
                         return
                     if id != rec['id'].Value:
                         continue

@@ -165,10 +165,13 @@ class Generate(object):
             if row[4] is not None:
                 r.TimeStamp.Value = TimeStamp.FromUnixTime(int(str(row[4])[0:10:1]), False) if len(str(row[4])) > 10 else TimeStamp.FromUnixTime(row[4], False) if len(str(row[4])) == 10 else TimeStamp.FromUnixTime(0, False)
             if row[5] is not None:
-                hours = row[5]/3600
-                minutes = row[5]-hours*3600
-                seconds = row[5]-hours*3600-minutes*60
-                r.Duration.Value = System.TimeSpan(hours, minutes, seconds)
+                try:
+                    hours = int(row[5])/3600
+                    minutes = int(row[5])-hours*3600
+                    seconds = int(row[5])-hours*3600-minutes*60
+                    r.Duration.Value = System.TimeSpan(hours, minutes, seconds)
+                except:
+                    pass
             r.Type.Value = Generic.RecordingType.Audio
             model.append(r)
         self.cursor.close()

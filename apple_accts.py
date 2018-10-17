@@ -41,6 +41,7 @@ def analyze_accounts(node, extracteDeleted, extractSource):
 
     pr = ParserResults()
     pr.Models.AddRange(results)
+    pr.Build('系统账号')
     return pr
 
 """
