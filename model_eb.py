@@ -497,3 +497,603 @@ class GenerateModel(object):
         reader.Close()
         #self.ccmd.Dispose()
         return models
+#
+# 拷文件。。。
+#
+# WACODE_0010_24
+WA_CODE_DANGDANG = 1220001
+WA_CODE_TMAIL = 1220002
+WA_CODE_JINGDONG = 1220005
+WA_CODE_SUNING = 1220006
+WA_CODE_TAOBAO = 1220007
+WA_CODE_NB1 = 1220008
+WA_CODE_PAIPAI = 1220009
+WA_CODE_JUMEI = 1220013
+WA_CODE_NUOMI = 1220014
+WA_CODE_MEITUAN = 1220040
+WA_CODE_DAZHONG = 1220050
+WA_CODE_XIANYU = 1220069
+WA_CODE_WANHUI = 1220077
+
+
+TBL_BCP_CREATE_ACCOUNT = '''
+    create table if not exists WA_MFORENSICS_070100(COLLECT_TARGET_ID text,
+                                                    NETWORK_APP text,
+                                                    ACCOUNT_ID text,
+                                                    ACCOUNT text,
+                                                    REGIS_NICKNAME text,
+                                                    PASSWORD text,
+                                                    INSTALL_TIME int,
+                                                    AREA text,
+                                                    CITY_CODE text,
+                                                    FIXED_PHONE text,
+                                                    MSISDN text,
+                                                    EMAIL_ACCOUNT text,
+                                                    CERTIFICATE_TYPE text,
+                                                    CERTIFICATE_CODE text,
+                                                    SEXCODE text,
+                                                    AGE int,
+                                                    POSTAL_ADDRESS text,
+                                                    POSTAL_CODE text,
+                                                    OCCUPATION_NAME text,
+                                                    BLOOD_TYPE text,
+                                                    NAME text,
+                                                    SIGN_NAME text,
+                                                    PERSONAL_DESC text,
+                                                    REG_CITY text,
+                                                    GRADUATESCHOOL text,
+                                                    ZODIAC text,
+                                                    CONSTALLATION text,
+                                                    BIRTHDAY text,
+                                                    DELETE_STATUS text,
+                                                    DELETE_TIME int,
+                                                    REG_ACCOUNT_TYPE text,
+                                                    HASH_TYPE text,
+                                                    USER_PHOTO text,
+                                                    ACCOUNT_REG_DATE int,
+                                                    LAST_LOGIN_TIME int,
+                                                    LATEST_MOD_TIME int,
+                                                    REMAIN_SUM int
+)
+'''
+
+TBL_BCP_INSERT_ACCOUNT = '''
+    insert into WA_MFORENSICS_070100 values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+'''
+
+TBL_BCP_CREATE_SHOP = '''
+    create table if not exists WA_MFORENSICS_070300(COLLECT_TARGET_ID text,
+                                                    NETWORK_APP text,
+                                                    ACCOUNT_ID text,
+                                                    ACCOUNT text,
+                                                    SHOP_ID text,
+                                                    SHOP_NAME text,
+                                                    FRIEND_ID text,
+                                                    FRIEND_ACCOUNT text,
+                                                    FRIEND_NICKNAME text,
+                                                    DELETE_STATUS text,
+                                                    DELETE_TIME int,
+                                                    REG_ACCOUNT_TYPE text
+)
+'''
+
+TBL_BCP_INSERT_SHOP = '''
+    insert into WA_MFORENSICS_070300 values(?,?,?,?,?,?,?,?,?,?,?,?)
+'''
+
+TBL_BCP_CREATE_PRODUCT = '''
+    create table if not exists WA_MFORENSICS_070200(COLLECT_TARGET_ID text,
+                                                    NETWORK_APP text,
+                                                    ACCOUNT_ID text,
+                                                    ACCOUNT text,
+                                                    MATERIALS_SOURCE text,
+                                                    OS_PRODUCT_ID text,
+                                                    MATERIALS_NAME text,
+                                                    CREATE_TIME int,
+                                                    MONEY int,
+                                                    URL text,
+                                                    EXTRACT_DESC text,
+                                                    BUYCOUNT int,
+                                                    DELETE_STATUS text,
+                                                    DELETE_TIME int,
+                                                    REG_ACCOUNT_TYPE text,
+                                                    SHOP_ID text
+)
+'''
+
+TBL_BCP_INSERT_PRODUCT = '''
+    insert into WA_MFORENSICS_070200 values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+'''
+
+TBL_BCP_CREATE_DEAL = '''
+    create table if not exists WA_MFORENSICS_070400(COLLECT_TARGET_ID text,
+                                                    NETWORK_APP text,
+                                                    ACCOUNT_ID text,
+                                                    ACCOUNT text,
+                                                    REGIS_NICKNAME text,
+                                                    FRIEND_ID text,
+                                                    FRIEND_ACCOUNT text,
+                                                    FRIEND_NICKNAME text,
+                                                    LOCAL_ACTION text,
+                                                    BUSINESS_TIME int,
+                                                    MONEY int,
+                                                    DEAL_STATUS text,
+                                                    RELAFULLDESC text,
+                                                    TALK_ID text,
+                                                    DELETE_STATUS text,
+                                                    DELETE_TIME int,
+                                                    REG_ACCOUNT_TYPE text,
+                                                    CURRENCY_TYPE text,
+                                                    CONTACT_ACCOUNT_TYPE text,
+                                                    PAY_ACCOUNT_ID text,
+                                                    PAY_ACCOUNT text,
+                                                    NAME text,
+                                                    CITY_CODE text,
+                                                    COMPANY_ADDRESS text,
+                                                    LONGITUDE text,
+                                                    LATITUDE text,
+                                                    ABOVE_SEALEVEL text,
+                                                    RECEIVER_NAME text,
+                                                    RECEIVER_PHONE text
+)
+'''
+
+TBL_BCP_INSERT_DEAL = '''
+    insert into WA_MFORENSICS_070400(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+'''
+
+TBL_BCP_CREATE_VERSION = '''
+    create table if not exists tb_version(vkey text, vvalue int)
+'''
+
+TBL_BCP_INSERT_VERSION = '''
+    insert into tb_version values(?,?)
+'''
+
+TBL_BCP_CREATE_SEARCH = '''
+    create table if not exists WA_MFORENSICS_070500(COLLECT_TARGET_ID text,
+                                                    NETWORK_APP text,
+                                                    ACCOUNT_ID text,
+                                                    ACCOUNT text,
+                                                    CREATE_TIME text,
+                                                    KEYWORD text,
+                                                    DELETE_STATUS text,
+                                                    DELETE_TIME int,
+                                                    REG_ACCOUNT_TYPE text
+)
+'''
+
+TBL_BCP_INSERT_SEARCH = '''
+    insert into WA_MFORENSICS_070500 values(?,?,?,?,?,?,?,?,?,?)
+'''
+
+TBL_BCP_CREATE_CARD = '''
+    create table if not exists WA_MFORENSICS_070600(COLLECT_TARGET_ID text,
+                                                    REG_ACCOUNT_TYPE text,
+                                                    ACCOUNT_ID text,
+                                                    ACCOUNT text,
+                                                    BANK_ACCOUNT_NUM text,
+                                                    NAME text,
+                                                    DELETE_STATUS text,
+                                                    DELETE_TIME int
+)
+'''
+
+TBL_BCP_INSERT_CARD = '''
+    insert into WA_MFORENSICS_070600 values(?,?,?,?,?,?,?,?,?)
+'''
+
+class BasicCol(object):
+    def __init__(self):
+        self.colltection_target_id = 0
+        self.app_code = 1
+        self.account_id = 2
+        self.account = 3
+        self.idx = 3
+        self.res = list()
+    
+    def get_values(self):
+        return self.res
+    
+    def set_value_with_idx(self, idx, val):
+        if idx >= len(self.res):
+            return
+        self.res[idx] = val
+
+class AccountInfo(BasicCol):
+    def __init__(self):
+        super(AccountInfo, self).__init__()
+        #self.account = 3
+        self.nick = 4
+        self.password = 5
+        self.install_time = 6
+        self.country_code = 7
+        self.city_cide = 8
+        self.telephone = 9
+        self.mobile = 10
+        self.email = 11
+        self.certification_type = 12
+        self.certification_code = 13
+        self.sex_code = 14
+        self.age = 15
+        self.address = 16
+        self.post_code = 17
+        self.career = 18
+        self.blood_type = 19
+        self.real_name = 20
+        self.signature = 21
+        self.description = 22
+        self.city = 23
+        self.zodiac = 24
+        self.constallation = 25
+        self.graduation = 26
+        self.birth = 27
+        self.delete_status = 28
+        self.delete_time = 29
+        self.account_type = 30
+        self.hash_type = 31
+        self.photo = 32
+        self.reg_time = 33
+        self.login_time = 34
+        self.last_update = 35
+        self.remain_sum = 36
+        self.res = [None] * 37
+
+class ProductInfo(BasicCol):
+    def __init__(self):
+        super(ProductInfo, self).__init__()
+        self.source = 4
+        self.product_id = 5
+        self.product_name = 6
+        self.create_time = 7
+        self.price = 8
+        self.url = 9
+        self.description = 10
+        self.sell_count = 11
+        self.delete_status = 12
+        self.delete_time = 13
+        self.account_type = 14
+        self.shop_id = 15
+        self.res = [None] * 16
+
+class ShopInfo(BasicCol):
+    def __init__(self):
+        super(ShopInfo, self).__init__()
+        idx = self.idx
+        idx += 1
+        self.shop_id = idx
+        idx += 1
+        self.shop_name = idx
+        idx += 1
+        self.boss_id = idx
+        idx += 1
+        self.boss_account = idx
+        idx += 1
+        self.boss_nick = idx
+        idx += 1
+        self.delete_status = idx
+        idx += 1
+        self.delete_time = idx
+        idx += 1
+        self.account_type = idx
+        idx += 1
+        if idx != 12:
+            raise IOError('you failed!')
+        self.idx = idx
+        self.res = [None] * idx
+
+class DealInfo(BasicCol):
+    def __init__(self):
+        super(DealInfo, self).__init__()
+        idx = self.idx
+        idx += 1
+        self.account_nick = idx
+        idx += 1
+        self.friend_id = idx
+        idx += 1
+        self.friend_account = idx
+        idx += 1
+        self.friend_nick = idx
+        idx += 1
+        self.is_sender = idx
+        idx += 1
+        self.time = idx
+        idx += 1
+        self.money = idx
+        idx += 1
+        self.deal_status = idx
+        idx += 1
+        self.description = idx
+        idx += 1
+        self.deal_id = idx
+        idx += 1
+        self.delete_status = idx
+        idx += 1
+        self.delete_time = idx
+        idx += 1
+        self.account_type = idx
+        idx += 1
+        self.coin_type = idx
+        idx += 1
+        self.pay_tool = idx
+        idx += 1
+        self.pay_account_id = idx
+        idx += 1
+        self.pay_account = idx
+        idx += 1
+        self.pay_real_name = idx
+        idx += 1
+        self.address_name = idx
+        idx += 1
+        self.address = idx
+        idx += 1
+        self.longtitude = idx 
+        idx += 1
+        self.latitude = idx
+        idx += 1
+        self.attitude = idx
+        idx += 1
+        self.reciever_name = idx
+        idx += 1
+        self.reciever_phone = idx
+        idx += 1
+        if idx != 29:
+            raise IOError('you failed')
+        self.idx = idx
+        self.res = [None] * self.idx
+    
+class SearchInfo(BasicCol):
+    def __init__(self):
+        super(SearchInfo, self).__init__()
+        self.create_time = 4
+        self.key_word = 5
+        self.delete_status = 6
+        self.delete_time = 7
+        self.account_type = 8
+        self.res = [None] * 9
+
+class CardInfo(BasicCol):
+    def __init__(self):
+        super(CardInfo, self).__init__()
+        self.card_number = 4
+        self.real_name = 5
+        self.res = [None] * 6
+# the same as im
+EB_BCP_VERION = 1
+EB_BCP_VERSION_KEY = 'bcp_version'
+
+class EBBCP(object):
+    def __init__(self, bcp_path, mount_path, cache_db, bcp_db, collect_target_id, contact_account_type):
+        res = EBBCP.before_check(bcp_path, bcp_db)
+        self.need_generate = True
+        if res is True:
+            if os.path.exists(os.path.join(bcp_path, bcp_db)):
+                os.remove(os.path.join(bcp_path, bcp_db))
+        else:
+            self.need_generate = False
+        self.bcp_path = bcp_path
+        self.cache_db = cache_db
+        self.db = unity_c37r.create_connection(os.path.join(bcp_path, bcp_db), False)
+        self.cache_path = os.path.join(bcp_path, contact_account_type)
+        if not os.path.exists(self.cache_path):
+            os.mkdir(self.cache_path)
+        self.cmd = sql.SQLiteCommand(self.db)
+        self.event = None
+        self.colltection_target_id = collect_target_id
+        self.app_code = contact_account_type
+        self.mnt = mount_path
+        if self.need_generate:
+            self.create_tables()
+            self.begin_event()
+
+    @staticmethod
+    def before_check(bcp_path, bcp_db):
+        r_bcp_db = os.path.join(bcp_path, bcp_db)
+        if not os.path.exists(r_bcp_db):
+            return True
+        try:
+            conn = unity_c37r.create_connection(r_bcp_db)
+            cmd = sql.SQLiteCommand(conn)
+            cmd.CommandText = '''
+                select * from tb_version where vkey = '{}'
+            '''.format(EB_VERSION_KEY)
+            reader = cmd.ExecuteReader()
+            if reader.Read():
+                value = unity_c37r.c_sharp_get_long(reader, 0)
+                reader.Close()
+                cmd.Dispose()
+                conn.Close()
+                if value != EB_VERSION_VALUE:
+                    return True
+                else:
+                    return False
+            else:
+                reader.Close()
+                cmd.Dispose()
+                conn.Close()
+                return True
+        except:
+            traceback.print_exc()
+            reader.Close()
+            cmd.Dispose()
+            conn.Close()
+            return False
+
+    def create_tables(self):
+        self.cmd.CommandText = TBL_BCP_CREATE_ACCOUNT
+        self.cmd.ExecuteNonQuery()
+        self.cmd.CommandText = TBL_BCP_CREATE_DEAL
+        self.cmd.ExecuteNonQuery()
+        self.cmd.CommandText = TBL_BCP_CREATE_PRODUCT
+        self.cmd.ExecuteNonQuery()
+        self.cmd.CommandText = TBL_BCP_CREATE_SHOP
+        self.cmd.ExecuteNonQuery()
+        self.cmd.CommandText = TBL_BCP_CREATE_VERSION
+        self.cmd.ExecuteNonQuery()
+        self.cmd.CommandText = TBL_BCP_CREATE_CARD
+        self.cmd.ExecuteNonQuery()
+        self.cmd.CommandText = TBL_BCP_CREATE_SEARCH
+        self.cmd.ExecuteNonQuery()
+    
+    def begin_event(self):
+        if self.event is not None:
+            self.event = self.db.BeginTransaction()
+    
+    
+    def db_commit(self):
+        if not self.event is None:
+            self.event.Commit()
+        self.begin_event()
+    
+    def db_close(self):
+        self.cmd.Dispose()
+        self.db.Close()
+
+    def generate_bcp(self):
+        if not self.need_generate:
+            return
+        self.begin_event()
+        self.generate_bcp_account()
+        self.generate_product_bcp()
+        self.generate_shop_bcp()
+        self.generate_deal_bcp()
+        self.db_commit()
+
+    def generate_bcp_account(self):
+        conn = unity_c37r.create_connection(self.cache_db + '.IM')
+        cmds = sql.SQLiteCommand(conn)
+        cmds.CommandText = '''
+            select * from account
+        '''
+        reader = cmds.ExecuteReader()
+        while reader.Read():
+            a = AccountInfo()
+            #a.colltection_target_id = self.colltection_target_id
+            a.set_value_with_idx(a.colltection_target_id, self.colltection_target_id)
+            a.set_value_with_idx(a.app_code, self.app_code)
+            a.set_value_with_idx(a.account_id, unity_c37r.c_sharp_get_string(reader, 0))
+            a.set_value_with_idx(a.nick, unity_c37r.c_sharp_get_string(reader, 1))
+            a.set_value_with_idx(a.account, unity_c37r.c_sharp_get_string(reader, 2))
+            a.set_value_with_idx(a.password, unity_c37r.c_sharp_get_string(reader, 3))
+            pic = unity_c37r.c_sharp_get_string(reader, 4)
+            pic = os.path.join(self.mnt, pic)
+            if os.path.exists(pic):
+                #a.set_value_with_idx(os.path.join(self.app_code, ))
+                ppath,pname = os.path.split(pic)
+                a.set_value_with_idx(self.app_code + '/' + pname)
+                pass # copy file...
+            a.set_value_with_idx(a.telephone, unity_c37r.c_sharp_get_string(reader, 5))
+            gender = unity_c37r.c_sharp_get_long(reader, 6)
+            rg = '0'
+            if gender == 0:
+                rg = '0'
+            elif gender == 1:
+                rg = '1'
+            elif gender == 2:
+                rg = '2'
+            elif gender == 9:
+                rg = '9'
+            a.set_value_with_idx(a.sex_code, rg)
+            a.set_value_with_idx(a.age, unity_c37r.c_sharp_get_long(reader, 7))
+            #a.set_value_with_idx(a.country_code, unity_c37r.c_sharp_get_string(reader, 8)) # NOT SUPPORT RIGHT NOW!!!!
+            a.set_value_with_idx(a.city, unity_c37r.c_sharp_get_string(reader, 9))
+            #a.set_value_with_idx(a.signature, unity_c37r.c_sharp_get_string(reader, ))
+            a.set_value_with_idx(a.address, unity_c37r.c_sharp_get_string(reader, 12))
+            a.set_value_with_idx(a.birth, unity_c37r.c_sharp_get_string(reader, 13))
+            a.set_value_with_idx(a.signature, unity_c37r.c_sharp_get_string(reader, 14))
+            d = unity_c37r.c_sharp_get_string(reader, 15)
+            a.set_value_with_idx(a.signature, d)
+            # not support delete time
+            unity_c37r.execute_query(self.cmd, TBL_BCP_INSERT_ACCOUNT, a.get_values())
+        self.db_commit()
+        reader.Close()
+        cmds.Dispose()
+        conn.Close()
+    
+    #
+    # BCP DOES NOT CONTAIN THIS TABLE
+    #
+    def generate_friend_bcp(self):
+        pass
+
+    #
+    # BCP DOES NOT CONTAIN THIS TABLE
+    #
+    def generate_message_bcp(self):
+        pass
+    
+    def generate_deal_bcp(self):
+        conn = unity_c37r.create_connection(self.cache_db + '.IM')
+        cmds  = sql.SQLiteCommand(conn)
+        cmds.CommandText = '''
+            select * from deal
+        '''
+        reader = cmds.ExecuteReader()
+        res = dict()
+        while reader.Read():
+            deal = DealInfo()
+            deal.set_value_with_idx(deal.deal_id, unity_c37r.c_sharp_get_string(reader, 0))
+            deal.set_value_with_idx(deal.money, unity_c37r.c_sharp_get_long(reader, 2))
+            deal.set_value_with_idx(deal.description, unity_c37r.c_sharp_get_string(reader, 3))
+            t = unity_c37r.c_sharp_get_long(reader, 6)
+            if t != 0:
+                deal.set_value_with_idx(deal.time, t)
+            pass
+            unity_c37r.execute_query(self.cmd, TBL_DEAL_INSERT, deal.get_values())
+            # status... not supported right now
+            # type ... not suppoted right now
+        reader.Close()
+        cmds.Dispose()
+        conn.Close()
+    
+    def generate_product_bcp(self):
+        conn = unity_c37r.create_connection(self.cache_db)
+        cmds = sql.SQLiteCommand(conn)
+        cmds.CommandText = '''
+            select * from tb_product
+        '''
+        reader = cmds.ExecuteReader()
+        while reader.Read():
+            pdt = ProductInfo()
+            pdt.set_value_with_idx(pdt.app_code, self.app_code)
+            pdt.set_value_with_idx(pdt.colltection_target_id, self.colltection_target_id)
+            pdt.set_value_with_idx(pdt.account_id, unity_c37r.c_sharp_get_string(reader, 0))
+            tp = unity_c37r.c_sharp_get_string(reader, 1)
+            pdt.set_value_with_idx(pdt.source, '0%s' %tp)
+            pdt.set_value_with_idx(pdt.product_id, unity_c37r.c_sharp_get_string(reader, 2))
+            pdt.set_value_with_idx(pdt.product_name, unity_c37r.c_sharp_get_string(reader, 3))
+            pdt.set_value_with_idx(pdt.price, unity_c37r.c_sharp_get_string(reader, 4))
+            t = unity_c37r.c_sharp_get_long(reader, 5)
+            if t is not 0:
+                pdt.set_value_with_idx(pdt.create_time, t)
+            pdt.set_value_with_idx(pdt.description, unity_c37r.c_sharp_get_string(reader, 6))
+            pdt.set_value_with_idx(pdt.url, unity_c37r.c_sharp_get_string(reader, 7))
+            pdt.set_value_with_idx(pdt.shop_id, unity_c37r.c_sharp_get_string(reader, 8))
+            pdt.set_value_with_idx(pdt.delete_status, unity_c37r.c_sharp_get_long(reader, 9))
+            unity_c37r.execute_query(self.cmd, TBL_BCP_INSERT_PRODUCT, pdt.get_values())
+        reader.Close()
+        cmds.Dispose()
+        conn.Close()
+    
+    def generate_shop_bcp(self):
+        conn = unity_c37r.create_connection(self.cache_db)
+        cmds = sql.SQLiteCommand(conn)
+        cmds.CommandText = '''
+            select * from tb_shop
+        '''
+        reader = cmds.ExecuteReader()
+        while reader.Read():
+            s = ShopInfo()
+            s.set_value_with_idx(s.colltection_target_id, self.colltection_target_id)
+            s.set_value_with_idx(s.app_code, self.app_code)
+            s.set_value_with_idx(s.account_id, unity_c37r.c_sharp_get_string(reader, 0))
+            s.set_value_with_idx(s.shop_id, unity_c37r.c_sharp_get_string(reader, 1))
+            s.set_value_with_idx(s.shop_name, unity_c37r.c_sharp_get_string(reader, 2))
+            s.set_value_with_idx(s.boss_id, unity_c37r.c_sharp_get_string(reader, 3))
+            s.set_value_with_idx(s.boss_account, unity_c37r.c_sharp_get_string(reader, 4))
+            s.set_value_with_idx(s.boss_nick, unity_c37r.c_sharp_get_string(reader, 5))
+            s.set_value_with_idx(s.delete_status, unity_c37r.c_sharp_get_long(reader, 6))
+            unity_c37r.execute_query(self.cmd, TBL_BCP_INSERT_SHOP, s.get_values())
+        reader.Close()
+        cmds.Dispose()
+        conn.Close()
