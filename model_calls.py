@@ -219,7 +219,7 @@ class Generate(object):
             if row[11] is not None:
                 c.SourceFile.Value = self._get_source_file(str(row[11]))
             if row[12] is not None:
-                c.Deleted = self._convert_deleted_status(str(row[12]))
+                c.Deleted = self._convert_deleted_status(row[12])
             model.append(c)
         self.cursor.close()
         self.cursor = None
@@ -256,7 +256,7 @@ class Generate(object):
             if row[14] is not None:
                 contact.SourceFile.Value = self._get_source_file(str(row[14]))
             if row[15] is not None:
-                contact.Deleted = self._convert_deleted_status(str(row[15]))
+                contact.Deleted = self._convert_deleted_status(row[15])
             model.append(contact)
         self.cursor.close()
         self.cursor = None
