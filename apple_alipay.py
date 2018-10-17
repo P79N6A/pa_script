@@ -231,8 +231,7 @@ class AlipayParser():
                         friend.remark = obj.Value
                 exposedAccount = rec['exposedAlipayAccount'].Value
                 if not IsDBNull(exposedAccount):
-                    info = Text.ASCIIEncoding.ASCII.GetString(exposedAccount)
-                    str = Text.ASCIIEncoding.ASCII.GetString(info)
+                    str = Text.ASCIIEncoding.ASCII.GetString(exposedAccount)
                     g = re.match('.cn', str, re.M | re.I)
                     if g is not None:
                         friend.email = g.group(0)
