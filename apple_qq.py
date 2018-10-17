@@ -8,12 +8,14 @@ import sys
 clr.AddReference('System.Web')
 clr.AddReference('System.Core')
 clr.AddReference('System.Xml.Linq')
+clr.AddReference('System.Data.SQLite')
 try:
     clr.AddReference('model_im')
     clr.AddReference('QQFriendNickName')
 except:
     pass
 del clr
+from System.Data.SQLite import *
 import System
 from System.IO import MemoryStream
 from System.Text import Encoding
@@ -24,12 +26,42 @@ from PA_runtime import *
 from QQFriendNickName import *
 from PA.InfraLib.Utils import PList
 from PA.InfraLib.Extensions import PlistHelper
-#from System.Collections.Generic import *
+
 from collections import defaultdict
 import logging
 from  model_im import *
 import uuid 
 import hashlib
+def SafeGetString(reader,i):
+    if not reader.IsDBNull(i):
+        return reader.GetString(i)
+    else:
+        return ""
+
+def SafeGetInt64(reader,i):
+    if not reader.IsDBNull(i):
+        return reader.GetInt64(i)
+    else:
+        return 0
+def SafeGetDouble(reader,i):
+    if not reader.IsDBNull(i):
+        return reader.GetDouble(i)
+    else:
+        return 0
+
+def SafeGetBlob(reader,i):
+    if not reader.IsDBNull(i):
+        obj = reader.GetValue(i)
+        return obj #byte[]
+    else:
+        return None
+
+def SafeGetValue(reader,i):
+    if not reader.IsDBNull(i):
+        obj = reader.GetValue(i)
+        return obj 
+    else:
+        return None
 class QQParser(object):
     def __init__(self, app_root_dir, extract_deleted, extract_source):
         self.root = app_root_dir
@@ -83,8 +115,8 @@ class QQParser(object):
                     self.decode_recover_friend_messages(acc_id)
                     self.decode_recover_group_messages(acc_id)
                     self.decode_recover_fts_messages(acc_id)					
-                except:
-                    pass
+                except Exception as e:
+                    print(e)
             if canceller.IsCancellationRequested:
                 return
             self.im.db_insert_table_version(VERSION_KEY_DB, VERSION_VALUE_DB)
@@ -346,8 +378,8 @@ class QQParser(object):
                         v = data.Value
                         g.chatroom_id = data.Key
                         g.account_id = acc_id
-                        g.name = NextStepExts.SafeGetString(v,"name","")
-                        g.notice = NextStepExts.SafeGetString(v,"memo","") #v["memo"].ToString()
+                        g.name = v["name"].ToString()
+                        g.notice = v["memo"].ToString()
                         g.source = node.AbsolutePath
                         self.troops[g.chatroom_id] = g
                     except:
@@ -486,22 +518,28 @@ class QQParser(object):
         group_id = table_name[table_name.rfind('_')+1:]
         node = self.root.GetByPath('/Documents/contents/' + acc_id + '/QQ.db')
         if node is not None:
-            d = node.PathWithMountPoint
-            conn = sqlite3.connect(d)
+            d = node.PathWithMountPoint            
             sql = 'select senduin ,msgtime, sMsgtype,read,strmsg,msgid,nickname,picurl from  ' + table_name + ' order by msgtime'
-            cursor = conn.execute(sql)
-            for row in cursor:
+            datasource = "Data Source =  " + d +";ReadOnly=True"
+            conn = SQLiteConnection(datasource)
+            conn.Open()
+            if(conn is None):
+                return
+            command = SQLiteCommand(conn)                
+            command.CommandText = sql
+            reader = command.ExecuteReader()
+            while reader.Read():
                 try:
                     if canceller.IsCancellationRequested:
                         return
-                    uin = str(row[0])
-                    sendtime = row[1]
-                    msgtype = row[2]
-                    bread = row[3]
-                    content = row[4]
-                    msgid = str(row[5])	
-                    nickname = 	row[6]		
-                    picUrl = row[7]
+                    uin = SafeGetString(reader,0)
+                    sendtime = int(SafeGetDouble(reader,1))
+                    msgtype =SafeGetInt64(reader2)
+                    bread = SafeGetInt64(reader,3)
+                    content =SafeGetString(reader,4)
+                    msgid = str( SafeGetInt64(reader,5))	
+                    nickname = SafeGetString(reader,6)
+                    picUrl = SafeGetString(reader,7)
                     msg = Message()
                     msg.account_id = acc_id
                     msg.talker_id = group_id
@@ -565,21 +603,27 @@ class QQParser(object):
         node = self.root.GetByPath('/Documents/contents/' + acc_id + '/QQ.db')
         if node is not None:
             d = node.PathWithMountPoint
-            conn = sqlite3.connect(d)
             sql = 'select uin,time,type,read,content,msgId,flag,picUrl from ' + table_name + ' order by time'
-            cursor = conn.execute(sql)
-            for row in cursor:
+            datasource = "Data Source =  " + d +";ReadOnly=True"
+            conn = SQLiteConnection(datasource)
+            conn.Open()
+            if(conn is None):
+                return
+            command = SQLiteCommand(conn)                
+            command.CommandText = sql
+            reader = command.ExecuteReader()
+            while reader.Read():
                 try:
                     if canceller.IsCancellationRequested:
-                        return
-                    uin = str(row[0])
-                    sendtime = row[1]
-                    msgtype = row[2]
-                    bread = row[3]
-                    content = row[4]
-                    msgid = str(row[5])
-                    flag = row[6]
-                    picUrl = row[7]
+                        return                    
+                    uin = SafeGetString(reader,0)   
+                    sendtime = int(SafeGetDouble(reader,1))
+                    msgtype = SafeGetInt64(reader,2)
+                    bread = SafeGetInt64(reader,3)
+                    content =SafeGetString(reader,4)
+                    msgid = str(SafeGetInt64(reader,5))
+                    flag = SafeGetInt64(reader,6)
+                    picUrl = SafeGetString(reader,7)
                     msg = Message()
                     msg.account_id = acc_id
                     msg.talker_id = uin
@@ -637,9 +681,12 @@ class QQParser(object):
                     if(msg.type not in types):	
                         msg.type = MESSAGE_CONTENT_TYPE_SYSTEM
                     self.im.db_insert_table_message(msg)
-                except:
-                    pass
-            self.im.db_commit()			
+                except Exception as e:
+                    print(e)
+        self.im.db_commit()		
+        reader.Close()
+        command.Dispose()		
+        conn.Close()   	
         return
     def get_video_attachment(self ,acc_id,picUrl):
         try:			
