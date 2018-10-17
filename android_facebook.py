@@ -99,7 +99,7 @@ class Facebook(object):
                     rec_id = rec["user_key"].Value
                     if rec_id == self.account_id:
                         account = model_im.Account()
-                        account.source = "Facebook"
+                        account.source = friends_node.AbsolutePath
                         if rec.Deleted == DeletedState.Deleted:
                             account.deleted = 1
                         account.account_id = self.account_id
@@ -122,7 +122,7 @@ class Facebook(object):
                         friend = model_im.Friend()
                         friend.account_id = self.account_id
                         friend.friend_id = rec_id
-                        friend.source = "Facebook"
+                        friend.source = friends_node.AbsolutePath
                         if rec.Deleted == DeletedState.Deleted:
                             friend.deleted = 1
                         if "name" in rec and (not rec["name"].IsDBNull):
@@ -161,9 +161,8 @@ class Facebook(object):
                 if canceller.IsCancellationRequested:
                     return
                 message = model_im.Message()
-                message.source = "Facebook"
+                message.source = friends_chat.AbsolutePath
                 message.account_id = self.account_id
-                message.source = "Facebook"
                 send_info = GetString(reader, 2) if GetString(reader, 2) else None
                 msg_type = GetInt64(reader, 6) if GetInt64(reader, 6) else None 
                 if send_info:
@@ -255,7 +254,7 @@ class Facebook(object):
                 if canceller.IsCancellationRequested:
                     return
                 message = model_im.Message()
-                message.source = "Facebook"
+                message.source = groups_chat.AbsolutePath
                 message.account_id = self.account_id
                 send_info = GetString(reader, 2) if GetString(reader, 2) else None
                 msg_type = GetInt64(reader, 6) if GetInt64(reader, 6) else None 

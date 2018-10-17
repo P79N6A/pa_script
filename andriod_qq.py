@@ -32,6 +32,7 @@ import uuid
 from QQ_struct import tencent_struct
 #just msgdata
 import json
+from bcp_im import *
 
 def SafeGetString(reader,i):
     if not reader.IsDBNull(i):
@@ -96,11 +97,14 @@ def readVarInt(data):
             if((j & 0x80) == 0):
                 return l
             i = i + 7
-def analyze_andriod_qq(root, extract_deleted, extract_source):	
-    pr = ParserResults()
-    pr.Models.AddRange(Andriod_QQParser(root, extract_deleted, extract_source).parse())
-    pr.Build('QQ')
-    return pr
+def analyze_andriod_qq(root, extract_deleted, extract_source):
+    try:
+        pr = ParserResults()
+        pr.Models.AddRange(Andriod_QQParser(root, extract_deleted, extract_source).parse())
+        pr.Build('QQ')
+        return pr
+    except:
+        pass
 
 class Andriod_QQParser(object):
     def __init__(self, app_root_dir, extract_deleted, extract_source):
@@ -124,6 +128,7 @@ class Andriod_QQParser(object):
         self.troops = collections.defaultdict(Chatroom)
         self.im = IM()
         self.cachepath = ds.OpenCachePath("QQ")
+        self.bcppath = ds.OpenCachePath("tmp") 
         m = hashlib.md5()
         m.update(self.root.AbsolutePath)        
         self.cachedb =  self.cachepath  + '/' + m.hexdigest().upper() + ".db"     
@@ -170,12 +175,13 @@ class Andriod_QQParser(object):
                     '''
                 except Exception as e:
                     print (e)
-        if canceller.IsCancellationRequested:
-            return
-        self.im.db_insert_table_version(VERSION_KEY_DB, VERSION_VALUE_DB)
-        self.im.db_insert_table_version(VERSION_KEY_APP, self.VERSION_APP_VALUE)
-        self.im.db_commit()
-        self.im.db_close()			
+            if canceller.IsCancellationRequested:
+                return
+            self.im.db_insert_table_version(VERSION_KEY_DB, VERSION_VALUE_DB)
+            self.im.db_insert_table_version(VERSION_KEY_APP, self.VERSION_APP_VALUE)
+            self.im.db_commit()
+            self.im.db_close()
+        PAruntime.save_cache_path(bcp_im.CONTACT_ACCOUNT_TYPE_IM_QQ,self.cachedb,self.bcppath)
         gen = GenerateModel(self.cachedb)        
         return gen.get_models()
     def decode_accounttables(self,acc_id):
