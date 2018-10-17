@@ -36,7 +36,9 @@ def analyze_yixin(root, extract_deleted, extract_source):
     mlm = ModelListMerger()
 
     pr.Models.AddRange(list(mlm.GetUnique(models)))
+    
     pr.Build('易信')
+
     gc.collect()
     return pr
     
