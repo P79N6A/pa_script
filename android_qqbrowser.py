@@ -21,7 +21,7 @@ import re
 import traceback
 import hashlib
 
-VERSION_APP_VALUE = 2
+VERSION_APP_VALUE = 1
 
 class QQBrowserParse(object):
     def __init__(self, node, extractDeleted, extractSource):
@@ -47,7 +47,7 @@ class QQBrowserParse(object):
         nodes.append(self.node)
         try:
             for node in nodes:
-                self.db = SQLiteParser.Database.FromNode(self.node, canceller)
+                self.db = SQLiteParser.Database.FromNode(node, canceller)
                 if self.db is None:
                     return 
                 ts = SQLiteParser.TableSignature('mtt_bookmarks')
@@ -97,6 +97,7 @@ class QQBrowserParse(object):
                 if not IsDBNull(rec['DATETIME'].Value):
                     record.datetime = self._timeHandler(rec['DATETIME'].Value) if 'DATETIME' in rec else None
                 self.source = node.AbsolutePath
+                self.mb.db_insert_table_browserecords(record)
             self.mb.db_commit()
             for row in self.db.ReadTableDeletedRecords(ts, False):
                 canceller.ThrowIfCancellationRequested()
@@ -355,6 +356,7 @@ class QQBrowserParse(object):
             self.analyze_search_history()
             self.mb.db_insert_table_version(model_browser.VERSION_KEY_DB, model_browser.VERSION_VALUE_DB)
             self.mb.db_insert_table_version(model_browser.VERSION_KEY_APP, VERSION_APP_VALUE)
+            self.mb.db_commit()
             self.mb.db_close()
         temp_dir = ds.OpenCachePath('tmp')
         PA_runtime.save_cache_path(bcp_browser.NETWORK_APP_QQ, self.db_cache, temp_dir)
