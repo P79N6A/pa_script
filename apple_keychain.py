@@ -17,6 +17,7 @@ from PA.InfraLib.Extensions import PlistHelper
 import gc
 import base64
 import time, datetime
+import uuid
 
 WiFiAcc      = 1
 AppleID      = 2
@@ -35,21 +36,22 @@ class Param():
         self.password = password
         self.url = url
         self.ptcl = ptcl
+        self.extra_id = str(uuid.uuid1()).replace('-', '')
 
 class KeyChainParser():
     def __init__(self, node, extract_deleted, extract_source):
         self.root = node
         self.extract_deleted = False
         self.extract_source = extract_source
-        self.app_name = 'Keychain'
         self.params = []
         self.wifiMap = {}
+        self.models = []
 
     def parse(self):
         self.analyze_wifi_plist()
         self.analyze_keychain_plist()
-
-        return self.get_models()
+        self.get_models()
+        return self.models
 
     def analyze_wifi_plist(self):
         nodes = list(self.root.FileSystem.Search("/SystemConfiguration/com\.apple\.wifi\.plist$"))
@@ -144,26 +146,61 @@ class KeyChainParser():
                             'com.apple.ProtectedCloudStorage' : Others, \
                             'BackupAgent' : BackupPsd \
                             }
+
+                        extra_id = None
                         for key in srvKey:
                             if key in tempData.keys():
                                 for name in srvValue.keys():
                                     if '*' in name:
                                         if name.replace('*', '') in tempData.keys():
-                                            self.getData(tempData, srvValue[name], tempData[key])
+                                            extra_id = self.getData(tempData, srvValue[name], tempData.get(key, ''))
                                     else:
-                                        if tempData[key] == name:
-                                            self.getData(tempData, srvValue[name], tempData[key])
+                                        if tempData.get(key, '') == name:
+                                            extra_id = self.getData(tempData, srvValue[name], tempData.get(key, ''))
+
                         for name in srvValue.keys():
-                            if key_0 in srvValue.keys():
-                                self.getData(tempData, '', tempData[key])
+                            if name.find(key_0) != -1:
+                                extra_id = self.getData(tempData, '')
+
+                        keychainProfile = Generic.KeychainProfile()
+                        keychainProfile.Deleted = DeletedState.Intact
+                        keychainProfile.Source.Value = self.root.AbsolutePath
+                        keychainProfile.KeychainID.Value = extra_id
+                        for key in tempData.keys():
+                            if key_0 == 'cert' or key_0 == 'certificates':
+                                keychainProfile.Type.Value = Generic.KeychainProfileType.Certificates
+                            elif key_0 == 'genp' or key_0 == 'GenericPassword':
+                                keychainProfile.Type.Value = Generic.KeychainProfileType.GenericPassword
+                            elif key_0 == 'inet' or key_0 == 'InternetPassword':
+                                keychainProfile.Type.Value = Generic.KeychainProfileType.InternetPasswords
+                            elif key_0 == 'keys' or key_0 == 'Keys':
+                                keychainProfile.Type.Value = Generic.KeychainProfileType.Keys
+                            elif key_0 == 'idnt':
+                                keychainProfile.Type.Value = Generic.KeychainProfileType.Identities
+
+                            if key == 'cdat' or key == 'Create Date':
+                                cdat = tempData.get(key, '').replace('/', '-')
+                                if '-' not in cdat:
+                                    cdat = cdat[0:4] + '-' + cdat[4:6] + '-' + cdat[6:8] + ' ' + cdat[8:10] + ':' + cdat[10:12]+ ':' + cdat[12:14]
+                                keychainProfile.CreateDate.Value = self._get_timestamp(cdat)
+                            elif key == 'mdat' or key == 'Modify Date':
+                                mdat = tempData.get(key, '').replace('/', '-')
+                                if '-' not in mdat:
+                                    mdat = mdat[0:4] + '-' + mdat[4:6] + '-' + mdat[6:8] + ' ' + mdat[8:10] + ':' + mdat[10:12] + ':' + mdat[12:14]
+                                keychainProfile.ModifyDate.Value = self._get_timestamp(mdat)
+                            else:
+                                key_value = KeyValueModel()
+                                key_value.Key.Value = key
+                                key_value.Value.Value = tempData.get(key, '')
+                                keychainProfile.Entities.Add(key_value)
+                        self.models.append(keychainProfile)
 
     def get_models(self):
-        models = []
-
         for param in self.params:
             keychain = Generic.Keychain()
             keychain.Deleted = DeletedState.Intact
-            keychain.Source.Value = self.app_name
+            keychain.Source.Value = self.root.AbsolutePath
+            keychain.ProfileID.Value = param.extra_id
             if param.type == WiFiAcc:
                 keychain.Type.Value = Generic.KeychainType.WIFI
                 id = param.id
@@ -246,8 +283,7 @@ class KeyChainParser():
                 password.Account.Value = param.id
                 password.Data.Value = param.password
                 keychain.Password.Value = password
-            models.append(keychain)
-        return models
+            self.models.append(keychain)
 
     def getData(self, tempData, t, name):
         url = None
@@ -261,18 +297,18 @@ class KeyChainParser():
         if name == 'com.apple.cfnetwork':
             if 'class' not in tempData.keys():
                 return False
-            cls_name = tempData['class']
+            cls_name = tempData.get('class',  '')
             if cls_name != 'inet':
                 return False
             if 'atyp' not in tempData.keys():
                 return False
-            atyp_name = tempData['atyp']
+            atyp_name = tempData.get('atyp',  '')
             if 'srvr' not in tempData.keys():
                 return False
-            srvr_name = tempData['srvr']
+            srvr_name = tempData.get('srvr',  '')
             if 'ptcl' not in tempData.keys():
                 return False
-            ptcl_name = tempData['ptcl']
+            ptcl_name = tempData.get('ptcl',  '')
             if not IsDBNull(ptcl_name):
                 if ptcl_name == 'http':
                     url = 'http://' + srvr_name
@@ -287,21 +323,21 @@ class KeyChainParser():
             accKey = ['Account', 'acct']
             for key in accKey:
                 if key in tempData.keys():
-                    account = tempData[key]
+                    account = tempData.get(key,  '')
             lablKey = ['Label', 'labl']
             for key in lablKey:
                 if key in tempData.keys():
-                    labl = tempData[key]
+                    labl = tempData.get(key,  '')
         elif name == 'com.apple.ProtectedCloudStorage':
             dsid = None
             genaKey = ['gena', 'srvr']
             for key in genaKey:
                 if key in tempData.keys():
-                    dsid = tempData[key]
+                    dsid = tempData.get(key,  '')
             accKey = ['Account', 'acct']
             for key in accKey:
                 if key in tempData.keys():
-                    account = tempData[key]
+                    account = tempData.get(key,  '')
             if dsid is not None:
                 name2 = dsid + ' (' + account + ')'
                 account = dsid
@@ -309,13 +345,13 @@ class KeyChainParser():
             accKey = ['Account', 'acct', 'Label', 'labl', 'srvr']
             for key in accKey:
                 if key in tempData.keys():
-                    account = tempData[key]
+                    account = tempData.get(key,  '')
 
         if name != 'com.apple.ProtectedCloudStorage':
             dataKey = ['Keychain Data', 'v_Data']
             for key in dataKey:
                 if key in tempData.keys():
-                    password = tempData[key]
+                    password = tempData.get(key,  '')
                     if '<plist' in password:
                         map = PlistHelper.ReadPlist(Encoding.ASCII.GetBytes(password))
                         if map is not None and str(type(map)) == "<type 'NSDictionary'>":
@@ -330,26 +366,29 @@ class KeyChainParser():
         cdatKey = ['Create Date', 'cdat']
         for key in cdatKey:
             if key in tempData.keys():
-                cdat = tempData[key]
+                cdat = tempData.get(key,  '')
                 if '/' in cdat:
-                    cdat = tempData[key].replace('/', '-')
+                    cdat = tempData.get(key,  '').replace('/', '-')
                 else:
                     cdat = cdat[0:4] + '-' + cdat[4:6] + '-' + cdat[6:8] + ' ' + cdat[8:10] + ':' + cdat[10:12]+ ':' + cdat[12:14]
 
         mdatKey = ['Modify Date', 'mdat']
         for key in mdatKey:
             if key in tempData.keys():
-                mdat = tempData[key]
+                mdat = tempData.get(key,  '')
                 if '/' in mdat:
-                    mdat = tempData[key].replace('/', '-')
+                    mdat = tempData.get(key,  '').replace('/', '-')
                 else:
                     mdat = mdat[0:4] + '-' + mdat[4:6] + '-' + mdat[6:8] + ' ' + mdat[8:10] + ':' + mdat[10:12] + ':' + mdat[12:14]
 
+        param = None
         if name == 'com.apple.cfnetwork':
-            self.params.append(Param(t, account if labl is None else labl, cdat, mdat, account, password, url, ptcl_name))
+            param = Param(t, account if labl is None else labl, cdat, mdat, account, password, url, ptcl_name)
+            self.params.append(param)
         else:
-            self.params.append(Param(t, account if name2 is None else name2, cdat, mdat, account, password))
-        return True
+            param = Param(t, account if name2 is None else name2, cdat, mdat, account, password)
+            self.params.append(param)
+        return param.extra_id
 
     @staticmethod
     def _get_timestamp(str):
