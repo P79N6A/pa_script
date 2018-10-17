@@ -100,6 +100,7 @@ class YiXinParser():
 
         account = model_im.Account()
         account.account_id = self.user
+        account.username = self.user
         self.im.db_insert_table_account(account)
         self.im.db_commit()
         return True
