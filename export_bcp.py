@@ -8,6 +8,7 @@ try:
     clr.AddReference('bcp_weibo')
     clr.AddReference('bcp_browser')
     clr.AddReference('bcp_basic')
+    clr.AddReference('model_eb')
 except:
     pass
 del clr
@@ -20,6 +21,7 @@ import bcp_basic
 import hashlib
 import os
 import traceback
+import model_eb
 
 IM_LIST     = ['1030001','1030027','1030028','1030035','1030036','1030038','1030043','1030044','1030045','1030046','1030047','1030048','1030049','1030050','1030051','1030052','1030053','1039999']
 WEIBO_LIST  = ['1330001','1330002','1330003','1330004','1330005','1330006','1339999']
@@ -27,7 +29,7 @@ MAP_LIST    = ['1440001','1440002','1440003','1440004','1440005','1449999','1440
 MAIL_LIST   = ['01001','01002','01003','01004','01005','01006','01007','01999']
 BROWER_LIST = ['1560001','1560002','1560003','1560004','1560005','1560006','1560007','1560008','1560009','1560010','1560011','1560012','1560013','1560014','1560015','1560016','1569999','1560017','1560018','1560019','1560020','1560021','1560022','1560023','1560024','1560025']
 BASIC_LIST  = ["01","02","03","04","05","06","07","08","09","10","11","12","13","14"]
-
+EC_LIST = ["1220007", "1220069", "1220005", "1220002", "1290007"]
 """
 bcp_path -- 文件拷贝的路径
 ts_path -- bcp数据库暂存的目录
@@ -64,13 +66,24 @@ def run(target_id, bcp_path, case_path, mountDir, software_type):
             if path_lists:
                 for path in path_lists:
                     try:
-                        ts_db = md5(path, ts_path)    
+                        ts_db = md5(path, ts_path)  
                         bcp_im.GenerateBcp(bcp_path, mountDir, path, ts_db, target_id, software_type).generate()
                         bcp_path_list.append(ts_db)
                     except Exception as e:
                         print(traceback.print_exc())
                 return bcp_path_list
-
+        if software_type in EC_LIST:
+            path_lists = read_path(software_path)
+            if path_lists:
+                for path in path_lists:
+                    try:
+                        ts_db = md5(path, ts_path)
+                        bcp = model_eb.EBBCP(bcp_path, mountDir, path, ts_db, target_id, software_type)
+                        bcp.generate_bcp()
+                        bcp_path_list.append(ts_db)
+                    except:
+                        traceback.print_exc()
+                return bcp_path_list
         # 地理位置类生成bcp数据库
         elif software_type in MAP_LIST:
             path_lists = read_path(software_path)
