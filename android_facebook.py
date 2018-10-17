@@ -123,6 +123,7 @@ class Facebook(object):
                         friend.account_id = self.account_id
                         friend.friend_id = rec_id
                         friend.source = friends_node.AbsolutePath
+                        friend.type = model_im.FRIEND_TYPE_FRIEND
                         if rec.Deleted == DeletedState.Deleted:
                             friend.deleted = 1
                         if "name" in rec and (not rec["name"].IsDBNull):
