@@ -529,7 +529,7 @@ class Generate(object):
                     user.Name.Value = row[1]
                 if not IsDBNull(row[2]):
                     user.TimeLastLogin.Value = self._get_timestamp(row[2])
-                if not IsDBNull(row[3]) or row[3] not in [None, '']:
+                if not IsDBNull(row[3]) and row[3] not in [None, '']:
                     user.SourceFile.Value = self._get_source_file(row[3])
                 if not IsDBNull(row[4]):
                     user.Deleted = self._convert_deleted_status(row[4])
@@ -554,7 +554,7 @@ class Generate(object):
                     bookmark.Title.Value = row[2]
                 if not IsDBNull(row[3]):
                     bookmark.Url.Value = row[3]
-                if not IsDBNull(row[5]) or row[5] not in [None, '']:
+                if not IsDBNull(row[5]) and row[5] not in [None, '']:
                     bookmark.SourceFile.Value = self._get_source_file(row[5])
                 if not IsDBNull(row[6]):
                     bookmark.Deleted = self._convert_deleted_status(row[6])
@@ -579,7 +579,7 @@ class Generate(object):
                     visited.Url.Value = row[2]
                 if not IsDBNull(row[3]):
                     visited.LastVisited.Value = self._get_timestamp(row[3])
-                if not IsDBNull(row[5]) or row[5] not in [None, '']:
+                if not IsDBNull(row[5]) and row[5] not in [None, '']:
                     visited.SourceFile.Value = self._get_source_file(row[5])
                 if not IsDBNull(row[6]):
                     visited.Deleted = self._convert_deleted_status(row[6])
@@ -606,7 +606,7 @@ class Generate(object):
                     download.Size.Value = row[4]
                 if not IsDBNull(row[5]):
                     download.DownloadTime.Value = self._get_timestamp(row[5])
-                if not IsDBNull(row[9]) or row[9] not in [None, '']:
+                if not IsDBNull(row[9]) and row[9] not in [None, '']:
                     download.SourceFile.Value = self._get_source_file(row[9])
                 if row[10] is not None:
                     download.Deleted = self._convert_deleted_status(row[10])
@@ -633,7 +633,7 @@ class Generate(object):
                     browseload.Size.Value = row[3]
                 if not IsDBNull(row[5]):
                     browseload.Title.Value = row[5]
-                if not IsDBNull(row[6]) or row[6] not in [None, '']:
+                if not IsDBNull(row[6]) and row[6] not in [None, '']:
                     browseload.SourceFile.Value = self._get_source_file(row[6])
                 if not IsDBNull(row[7]):
                     browseload.Deleted = self._convert_deleted_status(row[7])
@@ -661,7 +661,7 @@ class Generate(object):
                     search.Content.Value = row[2]
                 if not IsDBNull(row[3]):
                     search.Time.Value = self._get_timestamp(row[3])
-                if not IsDBNull(row[5]) or row[5] not in [None, '']:
+                if not IsDBNull(row[5]) and row[5] not in [None, '']:
                     search.SourceFile.Value = self._get_source_file(row[5])
                 if not IsDBNull(row[6]):
                     search.Deleted = self._convert_deleted_status(row[6])
@@ -699,7 +699,7 @@ class Generate(object):
                     cookie.Expiry.Value = self._get_timestamp(row[5])
                 if not IsDBNull(row[6]):
                     cookie.LastAccessTime.Value = self._get_timestamp(row[6])
-                if not IsDBNull(row[7]) or row[7] not in [None, '']:
+                if not IsDBNull(row[7]) and row[7] not in [None, '']:
                     cookie.SourceFile.Value = self._get_source_file(str(row[7]))
                 if not IsDBNull(row[8]):
                     cookie.Deleted = self._convert_deleted_status(row[8])
