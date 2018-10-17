@@ -54,7 +54,6 @@ class YouXinParser():
         self.extract_deleted = False
         self.extract_source = extract_source
         self.root = node
-        self.app_name = 'YouXin'
         self.im = model_im.IM()
         self.cache_path =ds.OpenCachePath('YouXin')
         if not os.path.exists(self.cache_path):
@@ -103,7 +102,6 @@ class YouXinParser():
             return False
 
         account = model_im.Account()
-        account.source = self.app_name
         account.account_id = self.user
          
         dbPath = self.root.GetByPath('/Documents/' + self.user + '/StrangePersonInfo.Sqlite3')
@@ -111,6 +109,7 @@ class YouXinParser():
         if db is None:
             return False
 
+        account.source = dbPath.AbsolutePath
         if 'StrangePhonePersonInfo' in db.Tables:
             ts = SQLiteParser.TableSignature('tatnlinelistusers')
             SQLiteParser.Tools.AddSignatureToTable(ts, "[uid]", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
