@@ -53,7 +53,6 @@ class YouXinParser():
         self.extract_deleted = False
         self.extract_source = extract_source
         self.root = node
-        self.app_name = 'YouXin'
         self.im = model_im.IM()
         self.cache_path =ds.OpenCachePath('YouXin')
         if not os.path.exists(self.cache_path):
@@ -106,7 +105,6 @@ class YouXinParser():
             return False
 
         account = model_im.Account()
-        account.source = self.app_name
         account.account_id = self.user
 
         dbPath = self.root.GetByPath('/databases/' + 'youxin_db_' + self.user)
@@ -116,6 +114,7 @@ class YouXinParser():
             self.im.db_commit()
             return True
 
+        account.source = dbPath.AbsolutePath
         if 'MY_NAME_CARD' in db.Tables:
             ts = SQLiteParser.TableSignature('MY_NAME_CARD')
             SQLiteParser.Tools.AddSignatureToTable(ts, 'UID', SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
@@ -148,7 +147,7 @@ class YouXinParser():
                     return
                 friend = model_im.Friend()
                 self.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
-                friend.source = self.app_name
+                friend.source = dbPath.AbsolutePath
                 friend.account_id = self.user
                 friend.friend_id = rec['UID'].Value
                 friend.nickname = rec['NAME'].Value
@@ -173,7 +172,7 @@ class YouXinParser():
                     continue
                 friend = model_im.Friend()
                 self.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
-                friend.source = self.app_name
+                friend.source = dbPath.AbsolutePath
                 friend.account_id = self.user
                 friend.friend_id = id
                 friend.nickname = rec['NAME'].Value
@@ -216,7 +215,7 @@ class YouXinParser():
 
                     message = model_im.Message()
                     message.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
-                    message.source = self.app_name
+                    message.source = dbPath.AbsolutePath
                     message.account_id = self.user
                     message.talker_id = id
                     message.talker_name = friend.nickname

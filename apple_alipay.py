@@ -188,7 +188,7 @@ class AlipayParser():
                             str = obj.Value
                             g = re.match('\d{3}\D{6}\d{2}', str, re.M | re.I)
                             if g is not None:
-                                friend.telephone = g.group(0)
+                                account.telephone = g.group(0)
                 account.address = rec['showArea'].Value
                 account.age = rec['age'].Value
                 self.name = account.username
@@ -231,8 +231,7 @@ class AlipayParser():
                         friend.remark = obj.Value
                 exposedAccount = rec['exposedAlipayAccount'].Value
                 if not IsDBNull(exposedAccount):
-                    info = Text.ASCIIEncoding.ASCII.GetString(exposedAccount)
-                    str = Text.ASCIIEncoding.ASCII.GetString(info)
+                    str = Text.ASCIIEncoding.ASCII.GetString(exposedAccount)
                     g = re.match('.cn', str, re.M | re.I)
                     if g is not None:
                         friend.email = g.group(0)

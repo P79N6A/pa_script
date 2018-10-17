@@ -54,7 +54,6 @@ class RenRenParser():
         self.extract_deleted = False
         self.extract_source = extract_source
         self.root = node 
-        self.app_name = 'RenRen'
         self.im = model_im.IM()
         self.cache_path = ds.OpenCachePath('RenRen')
         if not os.path.exists(self.cache_path):
@@ -113,7 +112,7 @@ class RenRenParser():
             return
 
         account = model_im.Account()
-        account.source = self.app_name
+        account.source = node.AbsolutePath
         account.account_id = self.user
         account.username = self.user
         account.nickname = self.bpreader_node_get_value(root, 'user_name', '')
@@ -152,7 +151,7 @@ class RenRenParser():
                 friend = model_im.Friend()
                 friend.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
                 friend.repeated = contact.get('repeated', 0)
-                friend.source = self.app_name
+                friend.source = subDbPath.AbsolutePath
                 friend.account_id = self.user
                 friend.friend_id = contactid
                 friend.nickname = rec['account_name'].Value
@@ -183,7 +182,7 @@ class RenRenParser():
                 chatroom = model_im.Chatroom()
                 chatroom.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
                 chatroom.repeated = contact.get('repeated', 0)
-                chatroom.source = self.app_name
+                chatroom.source = infoDb.AbsolutePath
                 chatroom.account_id = self.user
                 chatroom.chatroom_id = contactid
                 chatroom.name = rec['room_name'].Value
@@ -213,7 +212,7 @@ class RenRenParser():
                         chatroom_member = model_im.ChatroomMember()
                         chatroom_member.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
                         chatroom.repeated = member.get('repeated', 0)
-                        chatroom_member.source = self.app_name
+                        chatroom_member.source = infoDb.AbsolutePath
                         chatroom_member.account_id = self.user
                         chatroom_member.chatroom_id = room_id
                         chatroom_member.member_id = member_id
@@ -244,7 +243,7 @@ class RenRenParser():
                     friend = model_im.Friend()
                     friend.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
                     friend.repeated = contact.get('repeated', 0)
-                    friend.source = self.app_name
+                    friend.source = chatDbPath.AbsolutePath
                     friend.type = model_im.FRIEND_TYPE_FRIEND
                     friend.account_id = self.user
                     friend.friend_id = contactid
@@ -288,7 +287,7 @@ class RenRenParser():
 
                     message = model_im.Message()
                     message.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
-                    message.source = self.app_name
+                    message.source = dbPath.AbsolutePath
                     message.account_id = self.user
                     message.is_sender = model_im.MESSAGE_TYPE_SEND if rec['from_user_id'].Value == self.user else model_im.MESSAGE_TYPE_RECEIVE
                     message.talker_id = contactid

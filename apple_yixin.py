@@ -50,7 +50,6 @@ class YiXinParser():
         self.extract_deleted = False
         self.extract_source = extract_source
         self.root = node
-        self.app_name = 'YiXin'
         self.im = model_im.IM()
         self.cache_path = ds.OpenCachePath('YiXin')
         if not os.path.exists(self.cache_path):
@@ -100,8 +99,8 @@ class YiXinParser():
             return False
 
         account = model_im.Account()
-        account.source = self.app_name
         account.account_id = self.user
+        account.username = self.user
         self.im.db_insert_table_account(account)
         self.im.db_commit()
         return True
@@ -133,7 +132,7 @@ class YiXinParser():
                     friend = model_im.Friend()
                     friend.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
                     friend.repeated = contact.get('repeated', 0)
-                    friend.source = self.app_name
+                    friend.source = dbPath.AbsolutePath
 
                     friend.account_id = self.user
                     friend.friend_id = contactid
@@ -144,7 +143,7 @@ class YiXinParser():
                     chatroom = model_im.Chatroom()
                     chatroom.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
                     chatroom.repeated = contact.get('repeated', 0)
-                    chatroom.source = self.app_name
+                    chatroom.source = dbPath.AbsolutePath
 
                     chatroom.account_id = self.user
                     chatroom.chatroom_id = contactid
@@ -154,7 +153,7 @@ class YiXinParser():
                     friend = model_im.Friend()
                     friend.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
                     friend.repeated = contact.get('repeated', 0)
-                    friend.source = self.app_name
+                    friend.source = dbPath.AbsolutePath
 
                     friend.account_id = self.user
                     friend.friend_id = contactid
@@ -185,7 +184,7 @@ class YiXinParser():
                     message = model_im.Message()
                     message.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
                     message.repeated = contact.get('repeated', 0)
-                    message.source = self.app_name
+                    message.source = dbPath.AbsolutePath
 
                     message.msg_id = rec['uuid'].Value.replace('-', '')
                     message.account_id = self.user
@@ -205,15 +204,15 @@ class YiXinParser():
                         message.talker_type = model_im.CHAT_TYPE_OFFICIAL
                     message.media_path = self.parse_message_content(message.content, message.type)
                     if message.type == model_im.MESSAGE_CONTENT_TYPE_LOCATION:
-                        message.location = self.get_location(message.content, message.send_time, message.deleted, message.repeated)
+                        message.location = self.get_location(message.source, message.content, message.send_time, message.deleted, message.repeated)
                     self.im.db_insert_table_message(message)
         self.im.db_commit()
         return True
 
-    def get_location(self, content, time, deleted, repeated):
+    def get_location(self, source, content, time, deleted, repeated):
         object = json.loads(content)
         location = model_im.Location()
-        location.source = self.app_name
+        location.source = source
         location.deleted = deleted
         location.repeated = repeated
         location.latitude = object['location'].split(',')[0]

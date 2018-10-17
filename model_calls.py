@@ -218,6 +218,8 @@ class Generate(object):
             c.Parties.Add(party)
             if row[11] is not None:
                 c.SourceFile.Value = self._get_source_file(str(row[11]))
+            if row[12] is not None:
+                c.Deleted = self._convert_deleted_status(row[12])
             model.append(c)
         self.cursor.close()
         self.cursor = None
@@ -253,17 +255,21 @@ class Generate(object):
                     contact.Entries.Add(entry)
             if row[14] is not None:
                 contact.SourceFile.Value = self._get_source_file(str(row[14]))
+            if row[15] is not None:
+                contact.Deleted = self._convert_deleted_status(row[15])
             model.append(contact)
         self.cursor.close()
         self.cursor = None
         return model
 
-    def _get_source_file(self, source_file):
+    @staticmethod
+    def _get_source_file(source_file):
         if isinstance(source_file, str):
             return source_file.replace('/', '\\')
         return source_file
 
-    def _get_timestamp(self, timestamp):
+    @staticmethod
+    def _get_timestamp(timestamp):
         try:
             if isinstance(timestamp, (long, float, str)) and len(str(timestamp)) > 10:
                 timestamp = int(str(timestamp)[:10])
@@ -274,3 +280,10 @@ class Generate(object):
                 return ts
         except:
             return None
+
+    @staticmethod
+    def _convert_deleted_status(deleted):
+        if deleted is None:
+            return DeletedState.Unknown
+        else:
+            return DeletedState.Intact if deleted == 0 else DeletedState.Deleted
