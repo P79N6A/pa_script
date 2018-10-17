@@ -195,6 +195,7 @@ class WhatsApp(object):
                         self.contacts_dicts[friend_id] = GetString(reader, 7)
                         friend.telephone = GetString(reader, 5)
                         friend.signature = GetString(reader, 3)
+                        friend.type = model_im.FRIEND_TYPE_FRIEND
                         try:
                             self.whatsapp.db_insert_table_friend(friend)
                         except Exception as e:
@@ -203,6 +204,7 @@ class WhatsApp(object):
                 friend = model_im.Friend()
                 friend.source = contacts_path.AbsolutePath
                 friend.account_id = self.account_id
+                friend.type = model_im.FRIEND_TYPE_FRIEND
                 for i in friends:
                     friend.friend_id = i
                     friend.nickname = "unknown"
@@ -682,6 +684,7 @@ class WhatsApp(object):
                         friends.account_id = self.account_id
                         friends.deleted = 1
                         friends.friend_id = rec[1]
+                        friends.type = model_im.FRIEND_TYPE_FRIEND
                         if rec[3]:
                             friends.signature = rec[3]
                         try:
@@ -696,6 +699,7 @@ class WhatsApp(object):
                     no_name_friends = model_im.Friend()
                     no_name_friends.account_id = self.account_id
                     no_name_friends.friend_id = i
+                    no_name_friends.type = model_im.FRIEND_TYPE_FRIEND
                     try:
                         self.whatsapp.db_insert_table_friend(no_name_friends)
                     except Exception as e:

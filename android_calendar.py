@@ -15,7 +15,7 @@ from model_calendar import *
 import System.Data.SQLite as SQLite
 
 SQL_JOIN_TABLE_CALENDAR = '''select Events.calendar_id, Events._id, Events.title, Events.eventLocation, Events.description, Events.dtstart, 
-    Reminders.minutes, Events.dtend, Events.rrule from Events left join Reminders on Events._id = Reminders.event_id'''
+    Reminders.minutes, Events.dtend, Events.rrule, Calendars.calendar_displayName from Events left join Reminders on Events._id = Reminders.event_id left join Calendars on Events.calendar_id = Calendars._id'''
 
 class CalendarParser(object):
     def __init__(self, node, extractDeleted, extractSource):
@@ -57,6 +57,7 @@ class CalendarParser(object):
                     calendar.interval = self._extractData(sr[8],'INTERVAL')
                     calendar.until = self._extractData(sr[8],'UNTIL')
                 calendar.source = self.node.AbsolutePath
+                calendar.calendar_displayName = sr[9]
                 self.mc.db_insert_calendar(calendar)
             self.mc.db_commit()
             self.db.Close()
@@ -77,8 +78,8 @@ class CalendarParser(object):
                 if canceller.IsCancellationRequested:
                     break
                 calendar.calendar_id = row['calendar_id'].Value if 'calendar_id' in row and not row['calendar_id'].IsDBNull else None
-                calendar.title = repr(row['title'].Value) if 'title' in row and not row['title'].IsDBNull else None
-                calendar.description = repr(row['description'].Value) if 'description' in row and not row['description'].IsDBNull else None 
+                calendar.title = row['title'].Value if 'title' in row and not row['title'].IsDBNull else None
+                calendar.description = row['description'].Value if 'description' in row and not row['description'].IsDBNull else None 
                 calendar.dtstart = row['dtstart'].Value if 'dtstart' in row and not row['dtstart'].IsDBNull else None
                 calendar.dend = row['dend'].Value if 'dend' in row and not row['dend'].IsDBNull else None
                 calendar.rrule = self._extractData(row['rrule'].Value,'FREQ') if 'rrule' in row and not row['rrule'].IsDBNull else None
