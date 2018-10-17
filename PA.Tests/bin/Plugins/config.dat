@@ -1164,6 +1164,7 @@
           <key>Patterns</key>
           <array>
             <string>/data/com.android.providers.contacts/databases/contacts2.db$</string>
+            <string>/0/com.android.providers.contacts/databases/contacts2.db$</string>
             <string>/calls/callinfo.db$</string>
             <string>/contacts/contacts.db$</string>
           </array>

@@ -2,7 +2,6 @@
 import os
 import PA_runtime
 import datetime
-import time
 from PA_runtime import *
 import clr
 try:
@@ -16,6 +15,7 @@ import model_calls
 import sqlite3
 import re
 import time
+import shutil
 
 SQL_TABLE_JOIN_CONTACT = '''
     select e.*, f.mimetype from (select c.*, d.last_time_contacted, d.contact_last_updated_timestamp, d.times_contacted from(
@@ -32,7 +32,7 @@ class CallsParse(object):
         self.extractSource = extractSource
         self.db = None
         self.mc = MC()
-        self.cache_path = ds.OpenCachePath("CALLS")
+        self.cache_path = ds.OpenCachePath("Calls")
         md5_db = hashlib.md5()
         db_name = 'calls'
         md5_db.update(db_name.encode(encoding = 'utf-8'))
@@ -46,11 +46,14 @@ class CallsParse(object):
             node = self.node.Parent.GetByPath('/calls.db')
             self.db = SQLiteParser.Database.FromNode(node, canceller)
             if self.db is None:
-                node = self.node.Parent.GetByPath('/contacts2.db')
+                node = self.node.Parent.GetByPath('/calllog.db')
                 self.db = SQLiteParser.Database.FromNode(node, canceller)
                 if self.db is None:
-                    self.analyze_logic_calls()
-                    return
+                    node = self.node.Parent.GetByPath('/contacts2.db')
+                    self.db = SQLiteParser.Database.FromNode(node, canceller)
+                    if self.db is None:
+                        self.analyze_logic_calls()
+                        return
             ts = SQLiteParser.TableSignature('calls')
             records = Records()
             for rec in self.db.ReadTableRecords(ts, self.extractDeleted, True):
@@ -335,7 +338,7 @@ class CallsParse(object):
             if not os.path.exists(targetDir):
                 shutil.copytree(sourceDir, targetDir)
         except Exception:
-            pass
+            traceback.print_exc()
 
     def _closewal(self, dbfile):
         try:

@@ -34,6 +34,7 @@ SQL_CREATE_TABLE_CALENDAR = '''
         rrule TEXT,
         interval INTEGER,
         until INTEGER,
+        calendar_displayName TEXT,
         source INTEGER,
         deleted INTEGER,
         repeated INTEGER
@@ -41,7 +42,7 @@ SQL_CREATE_TABLE_CALENDAR = '''
 
 SQL_INSERT_TABLE_CALENDAR = '''
     INSERT INTO calendar (calendar_id, title, latitude, longitude, description, dtstart, remind, dtend, 
-        rrule, interval, until, source, deleted, repeated) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
+        rrule, interval, until, calendar_displayName, source, deleted, repeated) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
 
 
 
@@ -114,6 +115,7 @@ class Calendar(object):
         self.rrule = None
         self.interval = None
         self.until = None
+        self.calendar_displayName = None
         self.source = ''
         self.deleted = 0
         self.repeated = 0
@@ -128,7 +130,7 @@ class Calendar(object):
 
     def get_values(self):
         return(self.calendar_id, self.title, self.latitude, self.longitude, self.description, self.dtstart, self.remind, 
-        self.dtend, self.rrule, self.interval, self.until, self.source, self.deleted, self.repeated)
+        self.dtend, self.rrule, self.interval, self.until, self.calendar_displayName, self.source, self.deleted, self.repeated)
 
 
 class Generate(object):
@@ -158,8 +160,8 @@ class Generate(object):
                 if canceller.IsCancellationRequested:
                     break
                 cal = Generic.CalendarEntry()
-                if not IsDBNull(sr[0]):
-                    cal.Category.Value = str(sr[0])
+                if not IsDBNull(sr[11]):
+                    cal.Category.Value = str(sr[11])
                 if not IsDBNull(sr[1]):
                     cal.Subject.Value = sr[1]
                 if not IsDBNull(sr[2]):
@@ -189,9 +191,10 @@ class Generate(object):
                         cal.RepeatInterval.Value = int(re.sub('.*=', '', sr[9]))
                 else:
                     cal.RepeatInterval.Value = 1
-                if not IsDBNull(sr[10]):
-                    cal.SourceFile.Value = self._get_source_file(str(sr[10]))
-                cal.Deleted = self._convert_deleted_status(sr[12])
+                if not IsDBNull(sr[12]):
+                    cal.SourceFile.Value = self._get_source_file(str(sr[12]))
+                if not IsDBNull(sr[13]):
+                    cal.Deleted = self._convert_deleted_status(sr[13])
                 model.append(cal)
             sr.Close()
         except Exception as e:
