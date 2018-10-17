@@ -153,15 +153,15 @@ class AlipayParser():
                     if obj is not None:
                         account.username = obj.Value
                 account.nickname = rec['nickName'].Value
-                if 'exposedAlipayAccount' in rec:
-                    info = Text.ASCIIEncoding.ASCII.GetString(rec['exposedAlipayAccount'].Value)
-                    if info is not None:
-                        g = re.match('.cn', info, re.M | re.I)
-                        if g is not None:
-                            account.email = g.group(0)
-                        g = re.match('.com', info, re.M | re.I)
-                        if g is not None:
-                            account.email = g.group(0)
+                exposedAccount = rec['exposedAlipayAccount'].Value
+                if not IsDBNull(exposedAccount):
+                    info = Text.ASCIIEncoding.ASCII.GetString(exposedAccount)
+                    g = re.match('.cn', info, re.M | re.I)
+                    if g is not None:
+                        account.email = g.group(0)
+                    g = re.match('.com', info, re.M | re.I)
+                    if g is not None:
+                        account.email = g.group(0)
                 if IsDBNull(account.email):
                     tmp = self.aes_decode(rec['account'].Value)
                     if tmp is not None:
@@ -229,16 +229,16 @@ class AlipayParser():
                     obj = BPReader.GetTree(memoryRange)
                     if obj is not None:
                         friend.remark = obj.Value
-                if 'exposedAlipayAccount' in rec:
-                    info = rec['exposedAlipayAccount'].Value
-                    if not IsDBNull(info):
-                        str = Text.ASCIIEncoding.ASCII.GetString(info)
-                        g = re.match('.cn', str, re.M | re.I)
-                        if g is not None:
-                            friend.email = g.group(0)
-                        g = re.match('.com', str, re.M | re.I)
-                        if g is not None:
-                            friend.email = g.group(0)
+                exposedAccount = rec['exposedAlipayAccount'].Value
+                if not IsDBNull(exposedAccount):
+                    info = Text.ASCIIEncoding.ASCII.GetString(exposedAccount)
+                    str = Text.ASCIIEncoding.ASCII.GetString(info)
+                    g = re.match('.cn', str, re.M | re.I)
+                    if g is not None:
+                        friend.email = g.group(0)
+                    g = re.match('.com', str, re.M | re.I)
+                    if g is not None:
+                        friend.email = g.group(0)
                 if IsDBNull(friend.email):
                     tmp = self.aes_decode(rec['account'].Value)
                     if tmp is not None:
