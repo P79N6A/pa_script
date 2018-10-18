@@ -1153,7 +1153,7 @@
 
     <dict>
       <key>Module</key>
-      <string>android_call</string>
+      <string>android_contact</string>
       <key>Runners</key>
       <array>
         <dict>
@@ -1164,9 +1164,30 @@
           <key>Patterns</key>
           <array>
             <string>/data/com.android.providers.contacts/databases/contacts2.db$</string>
-            <string>/0/com.android.providers.contacts/databases/contacts2.db$</string>
-            <string>/calls/callinfo.db$</string>
+            <string>/user_de/0/com.android.providers.contacts/databases/contacts2.db$</string>
             <string>/contacts/contacts.db$</string>
+          </array>
+          <key>Category</key>
+          <string>Contacts</string>
+        </dict>
+      </array>
+    </dict>
+
+    <dict>
+      <key>Module</key>
+      <string>android_callrecord</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_android_calls</string>
+          <key>RunnerType</key>
+          <integer>2</integer>
+          <key>Patterns</key>
+          <array>
+            <string>/data/com.android.providers.contacts/databases/contacts2.db$</string>
+            <string>/user_de/0/com.android.providers.contacts/databases/contacts2.db$</string>
+            <string>/calls/callinfo.db$</string>
           </array>
           <key>Category</key>
           <string>Calls</string>
