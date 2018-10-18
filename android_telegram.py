@@ -67,10 +67,10 @@ class TelegramDecodeHelper(object):
         :return: dict
         """
         try:
-            res = DecoderReader.readData(byte_data, 1)
-            user_info = json.loads(res)
-            return user_info
+            user = DecoderReader.decodeUser(byte_data)
+            return user
         except Exception as e:
+            print(e)
             return None
 
     @staticmethod
@@ -81,10 +81,10 @@ class TelegramDecodeHelper(object):
         :return: dict
         """
         try:
-            res = DecoderReader.readData(byte_data, 2)
-            message_info = json.loads(res)
-            return message_info
+            res = DecoderReader.decodeMessage(byte_data)
+            return res
         except Exception as e:
+            print(e)
             return None
 
     @staticmethod
@@ -92,12 +92,11 @@ class TelegramDecodeHelper(object):
         """
         解析userconfing.xml文件中的对象的字符串
         :param user_str: (str)
-        :return: dict
+        :return:
         """
         try:
-            res = DecoderReader.decodeUser(user_str)
-            message_info = json.loads(res)
-            return message_info
+            account = DecoderReader.decodeAccount(user_str)
+            return account
         except Exception as e:
             print(e)
             return None
@@ -113,7 +112,8 @@ class Telegram(object):
         self.account_db_path = None
         self.cache_db = self.__get_cache_db()
         self.model_col = model_im.IM()
-        self.model_col.db_create(self.cache_db)
+        if self.root.GetByPath(r"/cache4.db"):
+            self.model_col.db_create(self.cache_db)
 
     def __get_cache_db(self):
         """获取中间数据库的db路径"""
@@ -190,10 +190,12 @@ class Telegram(object):
         if not account_info:
             return
         account = model_im.Account()
-        account.account_id = account_info.get("id")
-        account.username = account_info.get("first_name") + " " + account_info.get("last_name")
-        account.telephone = account_info.get('phone')
-        account.deleted = 0 if account_info.get('deleted') is False else 1
+        account.account_id = account_info.id
+        first_name = account_info.first_name if account_info.first_name else ""
+        last_name = account_info.last_name if account_info.last_name else ""
+        account.username = first_name + " " + last_name
+        account.telephone = account_info.phone
+        account.deleted = 0 if account_info.deleted is False else 1
         account.source = self.root.GetByPath(self.account_db_path).PathWithMountPoint
 
         self.account = account.account_id
@@ -219,9 +221,11 @@ class Telegram(object):
                 friend.source = self.root.GetByPath(self.account_db_path).PathWithMountPoint
                 friend_info = TelegramDecodeHelper.decode_user(GetBlob(reader, 3))
                 if friend_info:
-                    friend.deleted = 0 if friend_info.get('deleted') is False else 1
-                    friend.telephone = friend_info.get('phone')
-                    friend.nickname = friend_info.get('first_name', "") + " " + friend_info.get('last_name', "")
+                    friend.deleted = 0 if friend_info.deleted is False else 1
+                    friend.telephone = friend_info.phone
+                    first_name = friend_info.first_name if friend_info.first_name else ""
+                    last_name = friend_info.last_name if friend_info.last_name else ""
+                    friend.nickname = first_name + " " + last_name
                 self.model_col.db_insert_table_friend(friend)
             except Exception as e:
                 print(e)
@@ -261,14 +265,15 @@ class Telegram(object):
                 # 下面的这些通过TelegramDecoder解码
                 message_info = TelegramDecodeHelper.decode_message(GetBlob(reader, 6))
                 if message_info:
-                    message.sender_id = message_info.get('from_id')
+                    message.sender_id = message_info.from_id
                     message.is_sender = 1 if self.account == message.sender_id else 0
                     sender_info = self.__query_user_info(message.sender_id)
                     if sender_info is not None:
-                        message.sender_name = sender_info.get("first_name", "") + " " + sender_info.get("last_name", "")
-                    message.content = message_info.get('message')
-                    message.status = MESSAGE_STATUS_READ if message_info.get(
-                        'unread') is False else MESSAGE_STATUS_UNREAD
+                        first_name = sender_info.first_name if sender_info.first_name else ""
+                        last_name = sender_info.last_name if sender_info.last_name else ""
+                        message.sender_name = first_name + " " + last_name
+                    message.content = message_info.message
+                    message.status = MESSAGE_STATUS_READ if message_info.unread is False else MESSAGE_STATUS_UNREAD
                 self.model_col.db_insert_table_message(message)
             except Exception as e:
                 print(e)
@@ -322,10 +327,11 @@ class Telegram(object):
                 chatroom_member.source = self.root.GetByPath(self.account_db_path).PathWithMountPoint
                 user_info = TelegramDecodeHelper.decode_user(GetBlob(reader, 4))
                 if user_info:
-                    chatroom_member.deleted = 0 if user_info.get('deleted') is False else 1
-                    chatroom_member.telephone = user_info.get('phone')
-                    chatroom_member.display_name = user_info.get('first_name', "") + " " + user_info.get('last_name',
-                                                                                                         "")
+                    chatroom_member.deleted = 0 if user_info.deleted is False else 1
+                    chatroom_member.telephone = user_info.phone
+                    first_name = user_info.first_name if user_info.first_name else ""
+                    last_name = user_info.last_name if user_info.last_name else ""
+                    chatroom_member.display_name = first_name + " " + last_name
                 self.model_col.db_insert_table_chatroom_member(chatroom_member)
             except Exception as e:
                 print(e)
@@ -372,6 +378,8 @@ class Telegram(object):
             return
         table = 'messages'
         ts = SQLiteParser.TableSignature(table)
+        SQLiteParser.Tools.AddSignatureToTable(ts, "data", SQLiteParser.FieldType.Text,
+                                               SQLiteParser.FieldConstraints.NotNull)
         for rec in db.ReadTableDeletedRecords(ts, False):
             if canceller.IsCancellationRequested:
                 return
@@ -384,17 +392,20 @@ class Telegram(object):
                 message.source = self.root.GetByPath(self.account_db_path).PathWithMountPoint
                 talker_info = self.__query_user_info(message.talker_id)
                 if talker_info is not None:
-                    message.talker_name = talker_info.get("first_name", "") + " " + talker_info.get("last_name", "")
+                    first_name = talker_info.first_name if talker_info.first_name else ""
+                    last_name = talker_info.last_name if talker_info.last_name else ""
+                    message.talker_name = first_name + " " + last_name
                 # 下面的这些通过TelegramDecoder解码
                 message_info = TelegramDecodeHelper.decode_message(rec["data"].Value)
                 if message_info:
-                    message.sender_id = message_info.get('from_id')
+                    message.sender_id = message_info.from_id
                     sender_info = self.__query_user_info(message.sender_id)
                     if sender_info is not None:
-                        message.sender_name = sender_info.get("first_name", "") + " " + sender_info.get("last_name", "")
-                    message.content = message_info.get('message')
-                    message.status = MESSAGE_STATUS_READ if message_info.get(
-                        'unread') is False else MESSAGE_STATUS_UNREAD
+                        first_name = sender_info.first_name if sender_info.first_name else ""
+                        last_name = sender_info.last_name if sender_info.last_name else ""
+                        message.sender_name = first_name + " " + last_name
+                    message.content = message_info.message
+                    message.status = MESSAGE_STATUS_READ if message_info.unread is False else MESSAGE_STATUS_UNREAD
                 self.model_col.db_insert_table_message(message)
             except Exception as e:
                 print("error happen", e)
@@ -409,8 +420,8 @@ class Telegram(object):
             return
         table = 'users'
         ts = SQLiteParser.TableSignature(table)
-        # SQLiteParser.Tools.AddSignatureToTable(ts, "uid", SQLiteParser.FieldType.Int,
-        #                                        SQLiteParser.FieldConstraints.NotNull)
+        SQLiteParser.Tools.AddSignatureToTable(ts, "uid", SQLiteParser.FieldType.Int,
+                                               SQLiteParser.FieldConstraints.NotNull)
         for rec in db.ReadTableDeletedRecords(ts, False):
             if canceller.IsCancellationRequested:
                 return
@@ -425,9 +436,11 @@ class Telegram(object):
                 friend.friend_id = rec['uid'].Value
                 friend_info = TelegramDecodeHelper.decode_user(data)
                 if friend_info is not None:
-                    friend.deleted = 0 if friend_info.get('deleted') is False else 1
-                    friend.telephone = friend_info.get('phone')
-                    friend.nickname = friend_info.get('first_name', "") + " " + friend_info.get('last_name', "")
+                    friend.deleted = 0 if friend_info.deleted is False else 1
+                    friend.telephone = friend_info.phone
+                    first_name = friend_info.first_name if friend_info.first_name else ""
+                    last_name = friend_info.last_name if friend_info.last_name else ""
+                    friend.nickname = first_name + " " + last_name
                 self.model_col.db_insert_table_friend(friend)
 
             except Exception as e:
@@ -479,10 +492,11 @@ class Telegram(object):
                 chatroom_member_data = rec['data'].Value
                 if chatroom_member_data:
                     user_info = TelegramDecodeHelper.decode_user(chatroom_member_data)
-                    chatroom_member.deleted = 0 if user_info.get('deleted') is False else 1
-                    chatroom_member.telephone = user_info.get('phone')
-                    chatroom_member.display_name = user_info.get('first_name', "") + " " + user_info.get('last_name',
-                                                                                                         "")
+                    chatroom_member.deleted = 0 if user_info.deleted is False else 1
+                    chatroom_member.telephone = user_info.phone
+                    first_name = user_info.first_name if user_info.first_name else ""
+                    last_name = user_info.last_name if user_info.last_name else ""
+                    chatroom_member.display_name = first_name + " " + last_name
                 self.model_col.db_insert_table_chatroom_member(chatroom_member)
             except Exception as e:
                 print("error happen", e)
