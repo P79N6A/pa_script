@@ -99,7 +99,7 @@ class YouXinParser():
 
     def get_user(self):
         if self.user is None:
-            return False
+            return
 
         account = model_im.Account()
         account.account_id = self.user
@@ -107,7 +107,7 @@ class YouXinParser():
         dbPath = self.root.GetByPath('/Documents/' + self.user + '/StrangePersonInfo.Sqlite3')
         db = SQLiteParser.Database.FromNode(dbPath)
         if db is None:
-            return False
+            return
 
         account.source = dbPath.AbsolutePath
         if 'StrangePhonePersonInfo' in db.Tables:
@@ -128,16 +128,15 @@ class YouXinParser():
 
         self.im.db_insert_table_account(account)
         self.im.db_commit()
-        return True
 
     def get_contacts(self):
         if self.user is None:
-            return False
+            return
 
         dbPath = self.root.GetByPath('/Documents/' + self.user + '/uxin_users.cache')
         db = SQLiteParser.Database.FromNode(dbPath)
         if db is None:
-            return False
+            return
 
         if 't_uxin_user' in db.Tables:
             ts = SQLiteParser.TableSignature('t_uxin_user')
@@ -162,7 +161,7 @@ class YouXinParser():
         dbPath = self.root.GetByPath('/Documents/' + self.user + '/StrangePersonInfo.Sqlite3')
         db = SQLiteParser.Database.FromNode(dbPath)
         if db is None:
-            return False
+            return
 
         if 'StrangePhonePersonInfo' in db.Tables:
             ts = SQLiteParser.TableSignature('tatnlinelistusers')
@@ -189,16 +188,15 @@ class YouXinParser():
                 self.contacts[friend.friend_id] = friend
                 self.im.db_insert_table_friend(friend)
         self.im.db_commit()
-        return True
 
     def get_chats(self):
         if self.user is None:
-            return False
+            return
 
         dbPath = self.root.GetByPath('/Documents/' + self.user + '/IMDataNew.Sqlite3')
         db = SQLiteParser.Database.FromNode(dbPath)
         if db is None:
-            return False
+            return
 
         if 'NewIMMessageInfo' in db.Tables:
             for contact_id in self.contacts.keys():
@@ -232,7 +230,7 @@ class YouXinParser():
         dbPath = self.root.GetByPath('/Documents/' + self.user + '/callHistoryRecord.Sqlite3')
         db = SQLiteParser.Database.FromNode(dbPath)
         if db is None:
-            return False
+            return
 
         if 'call' in db.Tables:
             for contact_id in self.contacts.keys():
@@ -268,7 +266,6 @@ class YouXinParser():
                             message.content = "[语音]通话时长" + rec['[calltime]'].Value
                     self.im.db_insert_table_message(message)
         self.im.db_commit()
-        return True
 
     def get_location(self, content, time, deleted, repeated):
         obj = json.loads(content)
