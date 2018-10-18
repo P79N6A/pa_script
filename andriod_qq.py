@@ -32,7 +32,7 @@ import uuid
 from QQ_struct import tencent_struct
 #just msgdata
 import json
-from bcp_im import *
+import bcp_im
 
 def SafeGetString(reader,i):
     if not reader.IsDBNull(i):
@@ -181,7 +181,7 @@ class Andriod_QQParser(object):
             self.im.db_insert_table_version(VERSION_KEY_APP, self.VERSION_APP_VALUE)
             self.im.db_commit()
             self.im.db_close()
-        PAruntime.save_cache_path(bcp_im.CONTACT_ACCOUNT_TYPE_IM_QQ,self.cachedb,self.bcppath)
+        PA_runtime.save_cache_path(bcp_im.CONTACT_ACCOUNT_TYPE_IM_QQ,self.cachedb,self.bcppath)
         gen = GenerateModel(self.cachedb)        
         return gen.get_models()
     def decode_accounttables(self,acc_id):

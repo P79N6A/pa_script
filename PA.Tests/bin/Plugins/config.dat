@@ -1353,7 +1353,6 @@
           <key>Patterns</key>
           <array>
             <string>com.baidu.browser.apps/databases/dbbrowser.db$</string>
-            <string>data/data/com.baidu.browser.apps/databases/dbbrowser.db$</string>
           </array>
           <key>Category</key>
           <string>BaiduBrowser</string>

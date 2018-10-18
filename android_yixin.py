@@ -49,7 +49,6 @@ class YiXinParser():
         self.extract_deleted = False
         self.extract_source = extract_source
         self.root = node
-        self.app_name = 'YiXin'
         self.im = model_im.IM()
         self.cache_path = ds.OpenCachePath('YiXin')
         if not os.path.exists(self.cache_path):
@@ -98,7 +97,6 @@ class YiXinParser():
             return False
 
         account = model_im.Account()
-        account.source = self.app_name
         account.account_id = self.user
 
         dbPath = self.root.GetByPath(self.user + '/main.db')
@@ -108,6 +106,7 @@ class YiXinParser():
             self.im.db_commit()
             return False
 
+        account.source = dbPath.AbsolutePath
         if 'yixin_contact' in db.Tables:
             ts = SQLiteParser.TableSignature('yixin_contact')
             SQLiteParser.Tools.AddSignatureToTable(ts, "uid", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
@@ -257,7 +256,7 @@ class YiXinParser():
                     
                     message = model_im.Message()
                     message.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
-                    message.source = self.app_name
+                    message.source = dbPath.AbsolutePath
                     message.account_id = self.user
                     message.talker_id = id
                     message.talker_type = model_im.CHAT_TYPE_FRIEND if id in self.friends.keys() else model_im.CHAT_TYPE_GROUP
@@ -271,7 +270,7 @@ class YiXinParser():
                     message.content = rec['content'].Value
                     media_path = self.get_media_path(rec['attachstr'].Value, message.type)
                     if message.type == model_im.MESSAGE_CONTENT_TYPE_LOCATION:
-                        self.get_location(message.content, rec['attachstr'].Value, message.deleted, message.repeated, message.send_time)
+                        self.get_location(message.source, message.content, rec['attachstr'].Value, message.deleted, message.repeated, message.send_time)
                     self.im.db_insert_table_message(message)
         self.im.db_commit()
         return True
@@ -318,11 +317,11 @@ class YiXinParser():
 
         return media_path
 
-    def get_location(self, content, attachstr, deleted, repeated, time):
+    def get_location(self, source, content, attachstr, deleted, repeated, time):
         location = model_im.Location()
         location.deleted = deleted
         location.repeated = repeated
-        location.source = self.app_name
+        location.source = source
         location.account_id = self.user
         location.timestamp = time
         location.latitude = content.split(',')[0]
