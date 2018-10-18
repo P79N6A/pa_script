@@ -1380,6 +1380,26 @@
       </array>
     </dict>  
 
+	<dict>
+      <key>Module</key>
+      <string>android_jd</string>
+      <key>Runners</key>
+      <array>
+		<dict>
+          <key>EntryPoint</key>
+		  <string>parse_jd</string>
+          <key>RunnerType</key>
+          <integer>2</integer>
+          <key>Patterns</key>
+          <array>
+            <string>com.jingdong.app.mall$</string>
+          </array>
+          <key>Category</key>
+          <string>Jingdong</string>
+        </dict>
+      </array>
+    </dict>  
+
     <dict>
       <key>Module</key>
       <string>android_baidumobile</string>
