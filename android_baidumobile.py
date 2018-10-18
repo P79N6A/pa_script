@@ -23,7 +23,7 @@ VERSION_APP_VALUE = 1
 
 
 DEBUG = True
-DEBUG = False
+# DEBUG = False
 
 
 def exc():
@@ -139,6 +139,8 @@ class BaiduMobileParser(object):
             # account.name    = rec[''].Value
             #account.logindate = rec['date'].Value
             account.source    = self.cur_db_source
+            account.deleted = 1 if rec.IsDeleted else 0
+
             try:
                 self.mb.db_insert_table_accounts(account)
             except:
@@ -181,7 +183,7 @@ class BaiduMobileParser(object):
         for rec in self._read_table(table_name):
             if canceller.IsCancellationRequested:
                 return
-            if rec['datatype'].Value == '2' or self._is_empty(rec, 'url'):
+            if rec['datatype'].Value == '2' or not self._is_url(rec, 'url'):
                 continue # datatype==2 是文件夹
             bookmark = Bookmark()
             bookmark.id         = rec['_id'].Value
@@ -190,6 +192,7 @@ class BaiduMobileParser(object):
             bookmark.title      = rec['title'].Value
             bookmark.url        = rec['url'].Value
             bookmark.source     = self.cur_db_source
+            bookmark.deleted    = 1 if rec.IsDeleted else 0           
             try:
                 self.mb.db_insert_table_bookmarks(bookmark)
             except:
@@ -241,7 +244,7 @@ class BaiduMobileParser(object):
         for rec in self._read_table(table_name):
             if canceller.IsCancellationRequested:
                 return
-            if self._is_empty(rec, 'title', 'url'):
+            if self._is_empty(rec, 'title', 'url') or not self._is_url(rec, 'url'):
                 continue
             browser_record = Browserecord()
             browser_record.id        = rec['_id'].Value
@@ -250,6 +253,7 @@ class BaiduMobileParser(object):
             browser_record.datetime  = rec['createtime'].Value
             # browser_record.owneruser = rec['date'].Value
             browser_record.source    = self.cur_db_source
+            browser_record.deleted   = 1 if rec.IsDeleted else 0         
             try:
                 self.mb.db_insert_table_browserecords(browser_record)
             except:
@@ -310,7 +314,7 @@ class BaiduMobileParser(object):
         for rec in self._read_table(table_name): 
             if canceller.IsCancellationRequested:
                 return   
-            if self._is_empty(rec, 'uri') or rec['total_bytes'].Value <= 0:
+            if self._is_empty(rec, 'uri', 'title') or not self._is_url(rec, 'uri'):
                 continue
             downloads = DownloadFile()
             downloads.id             = rec['_id'].Value
@@ -322,7 +326,7 @@ class BaiduMobileParser(object):
             downloads.donedate       = rec['lastmod'].Value
             # downloads.costtime       = downloads.donedate - downloads.createdate # 毫秒
             # downloads.owneruser      = rec['name'].Value
-            downloads.deleted        = rec['deleted'].Value
+            downloads.deleted = 1 if rec.IsDeleted else rec['deleted'].Value       
             downloads.source = self.cur_db_source
             try:
                 self.mb.db_insert_table_downloadfiles(downloads)
@@ -369,6 +373,7 @@ class BaiduMobileParser(object):
             cookies.hasexipred     = rec['has_expires'].Value
             # cookies.owneruser      = rec['owneruser'].Value
             cookies.source         = self.cur_db_source
+            cookies.deleted = 1 if rec.IsDeleted else 0            
             try:
                 self.mb.db_insert_table_cookies(cookies)
             except:
@@ -400,6 +405,7 @@ class BaiduMobileParser(object):
             # search_history.url      = rec['query'].Value
             search_history.datetime = rec['hit_time'].Value
             search_history.source   = self.cur_db_source
+            search_history.deleted = 1 if rec.IsDeleted else 0       
             try:
                 self.mb.db_insert_table_searchhistory(search_history)
             except:
@@ -442,8 +448,6 @@ class BaiduMobileParser(object):
             if not file_name:
                 raw_path_list = raw_path.split(r'/')
                 file_name = raw_path_list[-1]
-                if  '.' not in file_name:
-                    return 
             # print 'raw_path, file_name', raw_path, file_name
             _path = None
             if len(file_name) > 0:
@@ -451,15 +455,14 @@ class BaiduMobileParser(object):
                     node = fs.Search(r'com\.baidu\.searchbox.*?{}$'.format(re.escape(file_name)))
                     for i in node:
                         _path = i.AbsolutePath
-                        print'android_baidumobile.py file_path:', _path
                 except:
-                    print 'file_name, _path', file_name, _path
+                    # print 'file_name, _path', file_name, _path
                     pass
-            return _path
+            return _path if _path else file_name
         except:
             exc()
             print 'node:', node, 'file_name:', file_name
-            return
+            return file_name
 
     @staticmethod
     def _is_empty(rec, *args):
@@ -473,3 +476,27 @@ class BaiduMobileParser(object):
             if IsDBNull(rec[i].Value) or rec[i].Value in ('', ' ', None, [], {}):
                 return True
         return False
+
+    @staticmethod
+    def _is_url(rec, *args):
+        ''' 匹配 URL IP
+
+        严格匹配
+        :type rec:   rec
+        :type *args: str
+        :rtype: bool
+        '''
+        URL_PATTERN = r'((http|ftp|https)://)(([a-zA-Z0-9\._-]+\.[a-zA-Z]{2,6})|([0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}))(:[0-9]{1,4})*(/[a-zA-Z0-9\&%_\./-~-]*)?'
+        IP_PATTERN = r'^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$'
+
+        for i in args:
+            try:
+                match_url = re.match(URL_PATTERN, rec[i].Value)
+                match_ip  = re.match(IP_PATTERN, rec[i].Value)
+                
+                if not match_url and not match_ip:
+                    return False
+            except:
+                exc()
+                return False  
+        return True

@@ -135,7 +135,7 @@ class NeteaseMailParser(object):
             account.account_user  = rec['email'].Value
             account.account_email = rec['email'].Value
             account.account_alias = rec['email'].Value
-            account.deleted       = rec['deleted'].Value
+            account.deleted       = 1 if rec.IsDeleted else rec['deleted'].Value
             account.source        = self.cur_db_source
             if rec['type'].Value == 1 and rec['deleted'].Value == 0:
                 accounts[account.account_id] = {
@@ -175,6 +175,7 @@ class NeteaseMailParser(object):
             contact.contact_alias    = rec['name'].Value
             contact.contact_reg_date = rec['date'].Value
             contact.source           = self.cur_db_source
+            contact.deleted          = 1 if rec.IsDeleted else 0
             try:
                 self.mm.db_insert_table_contact(contact)
             except:
@@ -250,8 +251,7 @@ class NeteaseMailParser(object):
             elif rec['mailBoxId'].Value == MAIL_DRAFTBOX: # '2' 表示草稿箱
                 mail.mail_send_status = 0
             # mail.mail_recall_status  = rec['accountRawId'].Value
-
-            mail.deleted = rec['deleted'].Value 
+            mail.deleted          = 1 if rec.IsDeleted else rec['deleted'].Value 
             mail.source  = self.cur_db_source
             try:
                 self.mm.db_insert_table_mail(mail)
@@ -320,6 +320,7 @@ class NeteaseMailParser(object):
             attach.attachment_size          = rec['size'].Value
             attach.attachment_download_date = rec['createdate'].Value
             attach.source                   = self.cur_db_source
+            attach.deleted                  = 1 if rec.IsDeleted else 0
             try:
                 self.mm.db_insert_table_attachment(attach)
             except:

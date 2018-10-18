@@ -114,8 +114,7 @@ class SMSParser(object):
                 sim.number       = rec['number'].Value
                 sim.sync_enabled = rec['sync_enabled'].Value
                 sim.source       = self.source_mmmssms_db
-                if rec.IsDeleted:
-                    sim.deleted = 1                      
+                sim.deleted      = 1 if rec.IsDeleted else 0                  
                 try:
                     self.m_sms.db_insert_table_sim_cards(sim)
                 except:
@@ -239,8 +238,7 @@ class SMSParser(object):
                 sms.deleted        = rec['deleted'].Value
             except:
                 pass    
-            if rec.IsDeleted:
-                sms.deleted = 1                
+            sms.deleted = 1 if rec.IsDeleted or sms.deleted else 0         
             sms.source = self.source_mmmssms_db
             try:
                 self.m_sms.db_insert_table_sms(sms)
@@ -351,7 +349,6 @@ class SMSParser_no_tar(SMSParser):
         models = GenerateModel(self.cache_db, self.cachepath).get_models()
         return models   
 
-
     def parse_sms(self):
         """ sms/sms.db - SMS
 
@@ -383,8 +380,7 @@ class SMSParser_no_tar(SMSParser):
             sms.delivered_date     = sms.send_time
             sms.is_sender          = 1 if rec['shortType'].Value == 2 else 0
             sms.source             = self.source_sms_db
-            sms.deleted = 1 if rec.IsDeleted else 0               
-          
+            sms.deleted            = 1 if rec.IsDeleted else 0               
             try:
                 self.m_sms.db_insert_table_sms(sms)
             except:
