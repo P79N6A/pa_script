@@ -6,13 +6,14 @@ from PA_runtime import *
 import clr
 try:
     clr.AddReference('model_contact')
+    clr.AddReference('System.Data.SQLite')
 except:
     pass
 del clr
 import hashlib
 from model_contact import MC, Contact, Generate
 import model_contact
-import sqlite3
+import System.Data.SQLite as SQLite
 import re
 import time
 import shutil
@@ -31,6 +32,7 @@ class CallsParse(object):
         self.extractDeleted = False
         self.extractSource = extractSource
         self.db = None
+        self.db_cmd = None
         self.mc = MC()
         self.cache_path = ds.OpenCachePath("Contact")
         md5_db = hashlib.md5()
@@ -41,41 +43,44 @@ class CallsParse(object):
         self.db_tempo = self.sourceDB + '\\db_tempo.db'
 
     def analyze_call_contacts(self):
-        contacts = Contact()
         try:
             contactsNode = self.db_tempo
-            try:
-                self.db = sqlite3.connect(contactsNode)
-            except:
-                return
+            self.db = SQLite.SQLiteConnection('Data Source = {}'.format(contactsNode))
+            self.db.Open()
+            self.db_cmd = SQLite.SQLiteCommand(self.db)
+        except:
+            return
+        try:
             if self.db is None:
                 return
-            cursor = self.db.cursor()
-            cursor.execute(model_contact.SQL_FIND_TABLE_CONTACTS)
-            for row in cursor:
-                canceller.ThrowIfCancellationRequested()
-                contacts.raw_contact_id = row[0]
-                contacts.mimetype_id = row[1]
-                contacts.mail = row[2]
-                contacts.company = row[3]
-                contacts.title = row[4]
-                contacts.last_time_contact = row[5]
-                contacts.last_time_modify = row[6]
-                contacts.times_contacted = row[7]
-                contacts.phone_number = row[8]
-                contacts.name = row[9]
-                contacts.address = row[10]
-                contacts.notes = row[11]
-                contacts.telegram = row[12]
-                contacts.head_pic = row[13]
-                contacts.source = row[14]
+            self.db_cmd.CommandText = model_contact.SQL_FIND_TABLE_CONTACTS
+            sr = self.db_cmd.ExecuteReader()
+            while (sr.Read()):
+                contacts = Contact()
+                if canceller.IsCancellationRequested:
+                    break
+                contacts.raw_contact_id = sr[0]
+                contacts.mimetype_id = sr[1]
+                contacts.mail = sr[2]
+                contacts.company = sr[3]
+                contacts.title = sr[4]
+                contacts.last_time_contact = sr[5]
+                contacts.last_time_modify = sr[6]
+                contacts.times_contacted = sr[7]
+                contacts.phone_number = sr[8]
+                contacts.name = sr[9]
+                contacts.address = sr[10]
+                contacts.notes = sr[11]
+                contacts.telegram = sr[12]
+                contacts.head_pic = sr[13]
+                contacts.source = sr[14]
                 self.mc.db_insert_table_call_contacts(contacts)
             self.mc.db_commit()
-            self.db.commit()
-            self.db.close()
+            self.db_cmd.Dispose()
+            self.db.Close()
         except Exception as e:
-            pass
-
+            print(e)
+        
     def analyze_logic_contacts(self):
         try:
             node = self.node.Parent.GetByPath('/contacts.db')
@@ -87,7 +92,53 @@ class CallsParse(object):
             for rec in self.db.ReadTableRecords(ts, self.extractDeleted, True):
                 contacts = Contact()
                 id += 1
-                canceller.ThrowIfCancellationRequested()
+                if canceller.IsCancellationRequested:
+                    break
+                contacts.id = id
+                homeEmail = ''
+                jobEmail = ''
+                customEmail = ''
+                otherEmail = ''
+                if rec['homeEmails'].Value is not None:
+                    homeEmail = rec['homeEmails'].Value
+                if rec['jobEmails'].Value is not None:
+                    jobEmail = rec['jobEmails'].Value
+                if rec['customEmails'].Value is not None:
+                    customEmail = rec['customEmails'].Value
+                if rec['otherEmails'].Value is not None:
+                    otherEmail = rec['otherEmails'].Value
+                emails = homeEmail + jobEmail + customEmail + otherEmail
+                contacts.mail = emails.replace('][', ',').replace('[', '').replace(']', '').replace('\n', '').replace('\"', '').replace(' ', '')
+                contacts.company = rec['organization'].Value
+                phonenumber = ''
+                homenumber = ''
+                jobnumber = ''
+                othernumber = ''
+                customnumber = ''
+                if rec['phoneNumbers'].Value is not None:
+                    phonenumber = rec['phoneNumbers'].Value
+                if rec['homeNumbers'].Value is not None:
+                    homenumber = rec['homeNumbers'].Value
+                if rec['jobNumbers'].Value is not None:
+                    jobnumber = rec['jobNumbers'].Value
+                if rec['otherNumbers'].Value is not None:
+                    othernumber = rec['otherNumbers'].Value
+                if rec['customNumbers'].Value is not None:
+                    customnumber = rec['customNumbers'].Value
+                numbers = phonenumber + homenumber + jobnumber + othernumber + customnumber
+                contacts.phone_number = numbers.replace('][', ',').replace('[', '').replace(']', '').replace('\n', '').replace('\"', '').replace(' ', '')
+                contacts.name = rec['name'].Value
+                contacts.address = rec['homeStreets'].Value
+                contacts.notes = rec['remark'].Value
+                contacts.head_pic = rec['photoPath'].Value
+                contacts.source = node.AbsolutePath
+                self.mc.db_insert_table_call_contacts(contacts)
+            self.mc.db_commit()
+            for rec in self.db.ReadTableDeletedRecords(ts, False):
+                contacts = Contact()
+                id += 1
+                if canceller.IsCancellationRequested:
+                    break
                 contacts.id = id
                 homeEmail = ''
                 jobEmail = ''
@@ -135,68 +186,73 @@ class CallsParse(object):
         try:
             if os.path.exists(self.db_tempo):
                 os.remove(self.db_tempo)
-            self.db = sqlite3.connect(self.db_tempo)
-            cursor = self.db.cursor()
-            cursor.execute(model_contact.SQL_CREATE_TABLE_CONTACTS)
-            self.db.commit()
+            self.db = SQLite.SQLiteConnection('Data Source = {}'.format(self.db_tempo))
+            self.db.Open()
+            self.db_cmd = SQLite.SQLiteCommand(self.db)
+            self.db_cmd.CommandText = model_contact.SQL_CREATE_TABLE_CONTACTS
+            self.db_cmd.ExecuteNonQuery()
+            self.db_cmd.Dispose()
+            self.db.Close()
         except:
             pass
 
     def insert_contact_tempo(self):
         try:
-            self.db = sqlite3.connect(self.db_tempo)
-            self.cursor = self.db.cursor()
+            self.db = SQLite.SQLiteConnection('Data Source = {}'.format(self.db_tempo))
+            self.db.Open()
+            self.db_cmd = SQLite.SQLiteCommand(self.db)
         except:
             return
         try:
             contactsNode = self.sourceDB + '\\contacts2.db'
-            db = sqlite3.connect(contactsNode)
+            db = SQLite.SQLiteConnection('Data Source = {}'.format(contactsNode))
+            db.Open()
+            db_cmd = SQLite.SQLiteCommand(db)
             if db is None:
                 return
-            cursor = db.cursor()
             try:
-                cursor.execute(SQL_TABLE_JOIN_CONTACT)
+                db_cmd.CommandText = SQL_TABLE_JOIN_CONTACT
+                db_cmd.ExecuteNonQuery()
+                sr = db_cmd.ExecuteReader()
             except:
                 self.analyze_logic_contacts()
                 return
-            for row in cursor:
+            while(sr.Read()):
                 if canceller.IsCancellationRequested:
                     break
-                raw_contact_id = row[7]
-                mimetype_id = row[1]
-                if row[11] is not None:
-                    mail = row[2] if self._regularMatch(row[11]) == 1 else None
-                if row[11] is not None:    
-                    company = row[2] if self._regularMatch(row[11]) == 2 else None
-                if row[11] is not None:
-                    title = row[5] if self._regularMatch(row[11]) == 2 else None
-                last_time_contact = row[8]
-                last_time_modify = row[9]
-                times_contacted = row[10]
-                if row[11] is not None:
-                    phone_number = row[5] if self._regularMatch(row[11]) == 3 else row[4] if (self._regularMatch(row[11]) == 8 or self._regularMatch(row[11]) == 9 or self._regularMatch(row[11]) == 10) else None
-                if row[11] is not None:
-                    name = row[2] if self._regularMatch(row[11]) == 4 else None
-                if row[11] is not None:                    
-                    address = row[2] if self._regularMatch(row[11]) == 5 else None
-                if row[11] is not None:    
-                    notes = row[2] if self._regularMatch(row[11]) == 6 else raw[3] if (self._regularMatch(row[11]) == 8 or self._regularMatch(row[11]) == 10) else None
-                if row[11] is not None:
-                    telegram = row[3] if self._regularMatch(row[11]) == 9 else None
-                if row[11] is not None:
-                    head_pic = row[6] if self._regularMatch(row[11]) == 7 else None
+                raw_contact_id = sr[7]
+                mimetype_id = sr[1]
+                if not IsDBNull(sr[11]):
+                    mail = sr[2] if self._regularMatch(sr[11]) == 1 else None
+                if not IsDBNull(sr[11]):    
+                    company = sr[2] if self._regularMatch(sr[11]) == 2 else None
+                if not IsDBNull(sr[11]):
+                    title = sr[5] if self._regularMatch(sr[11]) == 2 else None
+                last_time_contact = sr[8]
+                last_time_modify = sr[9]
+                times_contacted = sr[10]
+                if not IsDBNull(sr[11]):
+                    phone_number = sr[5] if self._regularMatch(sr[11]) == 3 else sr[4] if (self._regularMatch(sr[11]) == 8 or self._regularMatch(sr[11]) == 9 or self._regularMatch(sr[11]) == 10) else None
+                if not IsDBNull(sr[11]):
+                    name = sr[2] if self._regularMatch(sr[11]) == 4 else None
+                if not IsDBNull(sr[11]):                    
+                    address = sr[2] if self._regularMatch(sr[11]) == 5 else None
+                if not IsDBNull(sr[11]):    
+                    notes = sr[2] if self._regularMatch(sr[11]) == 6 else raw[3] if (self._regularMatch(sr[11]) == 8 or self._regularMatch(sr[11]) == 10) else None
+                if not IsDBNull(sr[11]):
+                    telegram = sr[3] if self._regularMatch(sr[11]) == 9 else None
+                if not IsDBNull(sr[11]):
+                    head_pic = sr[6] if self._regularMatch(sr[11]) == 7 else None
                 source = self.node.AbsolutePath
                 param = (raw_contact_id, mimetype_id, mail, company, title, last_time_contact, last_time_modify, times_contacted, phone_number, name, address, notes, telegram, head_pic, source, 0, 0)
-                self.cursor.execute(model_contact.SQL_INSERT_TABLE_CONTACTS, param)
-            self.db.commit()
-            self.cursor.close()
-            self.db.close()
+                self.db_insert_table(model_contact.SQL_INSERT_TABLE_CONTACTS, param)
+            self.db_cmd.Dispose()
+            self.db.Close()
         except Exception as e:
             traceback.print_exc()
 
     def db_insert_table(self, sql, values):
         try:
-            self.db_trans = self.db.BeginTransaction()
             if self.db_cmd is not None:
                 self.db_cmd.CommandText = sql
                 self.db_cmd.Parameters.Clear()
@@ -205,7 +261,6 @@ class CallsParse(object):
                     param.Value = value
                     self.db_cmd.Parameters.Add(param)
                 self.db_cmd.ExecuteNonQuery()
-            self.db_trans.Commit()
         except Exception as e:
             print(e)
 

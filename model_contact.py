@@ -2,8 +2,12 @@
 
 from PA_runtime import *
 import clr
-clr.AddReference('System.Core')
-clr.AddReference('System.Xml.Linq')
+try:
+    clr.AddReference('System.Core')
+    clr.AddReference('System.Xml.Linq')
+    clr.AddReference('System.Data.SQLite')
+except:
+    pass
 del clr
 
 from System.IO import MemoryStream
@@ -14,7 +18,7 @@ from System.Xml.XPath import Extensions as XPathExtensions
 
 import os
 import System
-import sqlite3
+import System.Data.SQLite as SQLite
 
 SQL_CREATE_TABLE_CONTACTS = '''
     CREATE TABLE IF NOT EXISTS contacts(
@@ -56,33 +60,55 @@ class MC(object):
         self.cursor = None
 
     def db_create(self,db_path):
-        if os.path.exists(db_path):
-            os.remove(db_path)
-        self.db = sqlite3.connect(db_path)
-        self.cursor = self.db.cursor()
-        self.db_create_tables()
+        self.db_remove(db_path)
+        self.db = SQLite.SQLiteConnection('Data Source = {}'.format(db_path))
+        self.db.Open()
+        self.db_cmd = SQLite.SQLiteCommand(self.db)
+        self.db_trans = self.db.BeginTransaction()
+        self.db_create_table()
         self.db_commit()
 
     def db_commit(self):
-        if self.db is not None:
-            self.db.commit()
-
+        if self.db_trans is not None:
+            self.db_trans.Commit()
+        self.db_trans = self.db.BeginTransaction()
+            
     def db_close(self):
-        if self.cursor is not None:
-            self.cursor.close()
-            self.cursor = None
+        self.db_trans = None
+        if self.db_cmd is not None:
+            self.db_cmd.Dispose()
+            self.db_cmd = None
         if self.db is not None:
-            self.db.close()
+            self.db.Close()
             self.db = None
 
-    def db_create_tables(self):
-        if self.cursor is not None:
-            self.cursor.execute(SQL_CREATE_TABLE_CONTACTS)
+    def db_remove(self, db_path):
+        try:
+            if os.path.exists(db_path):
+                os.remove(db_path)
+        except Exception as e:
+            print("model_mail db_create() remove %s error:%s"%(db_path, e))
 
-    def db_insert_table_call_contacts(self, Contacts):
-        if self.cursor is not None:
-            self.cursor.execute(SQL_INSERT_TABLE_CONTACTS, Contacts.get_values())
+    def db_create_table(self):
+        if self.db_cmd is not None:
+            self.db_cmd.CommandText = SQL_CREATE_TABLE_CONTACTS
+            self.db_cmd.ExecuteNonQuery()
 
+    def db_insert_table(self, sql, values):
+        try:
+            if self.db_cmd is not None:
+                self.db_cmd.CommandText = sql
+                self.db_cmd.Parameters.Clear()
+                for value in values:
+                    param = self.db_cmd.CreateParameter()
+                    param.Value = value
+                    self.db_cmd.Parameters.Add(param)
+                self.db_cmd.ExecuteNonQuery()
+        except Exception as e:
+            print(e)
+
+    def db_insert_table_call_contacts(self, Column):
+        self.db_insert_table(SQL_INSERT_TABLE_CONTACTS, Column.get_values())
 
 class Column(object):
     def __init__(self):
@@ -128,52 +154,57 @@ class Generate(object):
     def __init__(self, db_cache):
         self.db_cache = db_cache
         self.db = None
-        self.cursor = None
+        self.db_cmd = None
 
     def get_models(self):
         models = []
-        self.db = sqlite3.connect(self.db_cache)
+        self.db = SQLite.SQLiteConnection('Data Source = {}'.format(self.db_cache))
+        self.db.Open()
+        self.db_cmd = SQLite.SQLiteCommand(self.db)
         models.extend(self._get_model_contacts())
-        self.db.close()
-        self.db = None
+        self.db_cmd.Dispose()
+        self.db.Close()
         return models
 
     def _get_model_contacts(self):
         model = []
-        self.cursor = self.db.cursor()
-        self.cursor.execute('select distinct * from contacts')
-        for row in self.cursor:
-            contact = Contacts.Contact()
-            if row[10] is not None:
-                addresses = row[10].split(',')
-                for a in range(len(addresses)):
-                    addr = Contacts.StreetAddress()
-                    addr.FullName.Value = addresses[a]
-                    contact.Addresses.Add(addr)
-            if row[9] is not None:
-                contact.Name.Value = row[9]
-            if row[10] is not None:
-                contact.Notes.Add(row[11])
-            if row[5] is not None:
-                contact.TimeContacted.Value = self._get_timestamp(row[5])
-            if row[6] is not None:
-                contact.TimeModified.Value = self._get_timestamp(row[6])
-            if row[7] is not None:
-                contact.TimesContacted.Value = row[7]
-            if row[8] is not None:
-                phone = row[8].split(',')
-                for e in range(len(phone)):
-                    entry = Contacts.ContactEntry()
-                    entry.Value.Value = phone[e]
-                    contact.Entries.Add(entry)
-            if row[14] is not None:
-                contact.SourceFile.Value = self._get_source_file(str(row[14]))
-            if row[15] is not None:
-                contact.Deleted = self._convert_deleted_status(row[15])
-            model.append(contact)
-        self.cursor.close()
-        self.cursor = None
-        return model
+        sql = '''select distinct * from contacts'''
+        try:
+            self.db_cmd.CommandText = sql
+            sr = self.db_cmd.ExecuteReader()
+            while(sr.Read()):
+                contact = Contacts.Contact()
+                if not IsDBNull(sr[10]):
+                    addresses = sr[10].split(',')
+                    for a in range(len(addresses)):
+                        addr = Contacts.StreetAddress()
+                        addr.FullName.Value = addresses[a]
+                        contact.Addresses.Add(addr)
+                if not IsDBNull(sr[9]):
+                    contact.Name.Value = sr[9]
+                if not IsDBNull(sr[11]):
+                    contact.Notes.Add(sr[11])
+                if not IsDBNull(sr[5]):
+                    contact.TimeContacted.Value = self._get_timestamp(sr[5])
+                if not IsDBNull(sr[6]):
+                    contact.TimeModified.Value = self._get_timestamp(sr[6])
+                if not IsDBNull(sr[7]):
+                    contact.TimesContacted.Value = sr[7]
+                if not IsDBNull(sr[8]):
+                    phone = sr[8].split(',')
+                    for e in range(len(phone)):
+                        entry = Contacts.ContactEntry()
+                        entry.Value.Value = phone[e]
+                        contact.Entries.Add(entry)
+                if not IsDBNull(sr[14]):
+                    contact.SourceFile.Value = self._get_source_file(str(sr[14]))
+                if not IsDBNull(sr[15]):
+                    contact.Deleted = self._convert_deleted_status(sr[15])
+                model.append(contact)
+            sr.Close()
+            return model
+        except Exception as e:
+            print(e)
 
     @staticmethod
     def _get_source_file(source_file):
