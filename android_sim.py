@@ -2,10 +2,12 @@
 import clr
 try:
     clr.AddReference('model_sim')
+    clr.AddReference('bcp_basic')
 except:
     pass
 del clr
 from model_sim import *
+import bcp_basic
 
 
 # app数据库版本
@@ -62,6 +64,10 @@ class SIMParser(object):
                 self.m_sim.db_commit()
             self.m_sim.db_close() 
 
+         
+        tmp_dir = ds.OpenCachePath('tmp')
+        save_cache_path(bcp_basic.BASIC_SIM_INFORMATION, self.cache_db, tmp_dir)
+
         models = GenerateModel(self.cache_db).get_models()
         return models
 
@@ -86,10 +92,11 @@ class SIMParser(object):
             if IsDBNull(rec['sim_id'].Value) or IsDBNull(rec['display_name'].Value):
                 continue
             sim = SIM()
-            sim.name   = rec['display_name'].Value.replace('CMCC', '中国移动')
-            sim.msisdn = rec['number'].Value
-            sim.iccid  = rec['icc_id'].Value
-            sim.source = self.source_telephony_db
+            sim.name    = rec['display_name'].Value.replace('CMCC', '中国移动')
+            sim.msisdn  = rec['number'].Value
+            sim.iccid   = rec['icc_id'].Value
+            sim.source  = self.source_telephony_db
+            sim.deleted = 1 if rec.IsDeleted else 0
             try:
                 self.m_sim.db_insert_table_sim(sim)
             except:

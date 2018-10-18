@@ -212,6 +212,7 @@ class EmailParser(object):
             account.account_email = rec['emailAddress'].Value
             account.account_user  = rec['emailAddress'].Value
             account.source        = self.cur_db_source
+            account.deleted       = 1 if rec.IsDeleted else 0          
             self.accounts[account.account_id] = {
                 'email': account.account_email,
                 'name' : account.account_alias,
@@ -292,7 +293,8 @@ class EmailParser(object):
                     mail.mail_send_status = 1
                 elif self.mail_folder.get(rec['mailboxKey'].Value, {}).get('name', None) == '草稿箱':
                     mail.mail_send_status = 0
-                mail.source = self.cur_db_source
+                mail.source  = self.cur_db_source
+                mail.deleted = 1 if rec.IsDeleted else 0               
                 self.mm.db_insert_table_mail(mail)
 
             self.mm.db_commit()
@@ -381,7 +383,7 @@ class EmailParser(object):
             attach.attachment_name     = rec['fileName'].Value
             attach.attachment_save_dir = rec['contentUri'].Value  # or location?
             attach.attachment_size     = rec['size'].Value
-
+            attach.deleted = 1 if rec.IsDeleted else 0               
             try:
                 attach.attachment_download_date = rec['previewTime'].Value
                 attach.deleted                  = rec['isDeleted'].Value
@@ -433,6 +435,7 @@ class EmailParser(object):
                 contact.contact_email       = rec['email'].Value
                 contact.contact_last_modify = rec['timeStamp'].Value
                 contact.source              = self.cur_db_source
+                contact.deleted             = 1 if rec.IsDeleted else 0               
                 try:
                     self.mm.db_insert_table_contact(contact)
                 except:

@@ -46,7 +46,7 @@ class NeteaseMailParser(object):
         网易邮箱大师    
     """
     def __init__(self, node, extract_deleted, extract_source):
-        ''' data/com.netease.mail/databases/mmail$ '''
+        '''pattern: com.netease.mail/databases/mmail$ '''
         self.root = node.Parent
         self.extract_deleted = extract_deleted
         self.extract_source = extract_source
@@ -62,6 +62,7 @@ class NeteaseMailParser(object):
         self.neg_primary_key = 1
 
     def parse(self):
+
         if DEBUG or self.mm.need_parse(self.cache_db, VERSION_APP_VALUE):
             if not self._read_db('mmail'):
                 return
@@ -137,7 +138,7 @@ class NeteaseMailParser(object):
             account.account_user = rec['mailAddress'].Value 
             account.account_email = rec['mailAddress'].Value 
             account.account_alias = rec['mailAddress'].Value 
-            account.deleted      = rec['isDeleted'].Value 
+            account.deleted = 1 if rec.IsDeleted else rec['isDeleted'].Value               
             account.source       = self.cur_db_source
             if rec['protocolType'].Value == 1 and rec['isDeleted'].Value == 0:
                 self.accounts[account.account_id] = {
@@ -192,7 +193,7 @@ class NeteaseMailParser(object):
             contact.contact_user     = self._parse_contacts(rec['email'].Value)
             contact.contact_email    = self._parse_contacts(rec['email'].Value)
             contact.contact_alias    = self._parse_contacts(rec['name'].Value)
-            contact.deleted          = rec['isDeleted'].Value
+            contact.deleted = 1 if rec.IsDeleted else rec['isDeleted'].Value               
             contact.source           = self.cur_db_source
             try:
                 self.mm.db_insert_table_contact(contact)
@@ -259,7 +260,7 @@ class NeteaseMailParser(object):
             mail.mail_sent_date   = rec['sendDate'].Value
             mail.mail_size        = rec['mailSize'].Value
             mail.mail_content     = rec['htmlContent'].Value
-            mail.deleted          = rec['isDeleted'].Value
+            mail.deleted = 1 if rec.IsDeleted else rec['isDeleted'].Value               
             mail.source           = self.cur_db_source
             if rec['mailboxKey'].Value == MAIL_OUTBOX:      # 已发送
                 mail.sendStatus = 1
@@ -308,6 +309,7 @@ class NeteaseMailParser(object):
             attach.attachment_size          = rec['size'].Value
             attach.mail_id                  = rec['messageId'].Value
             attach.source                   = self.cur_db_source
+            attach.deleted = 1 if rec.IsDeleted else 0             
             try:
                 self.mm.db_insert_table_attachment(attach)
             except:

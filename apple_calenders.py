@@ -229,10 +229,13 @@ def analyze_calender(node, extractDeleted, extractSource):
             SQLiteParser.Tools.AddSignatureToTable(ts, 'all_day', SQLiteParser.Tools.SignatureType.Byte, SQLiteParser.Tools.SignatureType.Const0, SQLiteParser.Tools.SignatureType.Const1)
             SQLiteParser.Tools.AddSignatureToTable(ts, 'unique_identifier', SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
         for record in db.ReadTableRecords(ts, extractDeleted, True):
-
-            calendar = (record['ROWID'].Value, record['summary'].Value, None, None, record['description'].Value, int('1' + str(record['start_date'].Value)), None, int('1' + str(record['end_date'].Value)), None, None, None, node.AbsolutePath, 0, 0)
-            db_insert_table(db_cache, SQL_INSERT_TABLE_CALENDAR, calendar)
-            
+            try:
+                start_date = int('1' + str(record['start_date'].Value)) if isinstance(record['start_date'].Value, int) else None
+                end_date = int('1' + str(record['end_date'].Value)) if isinstance(record['end_date'].Value, int) else None
+                calendar = (record['ROWID'].Value, record['summary'].Value, None, None, record['description'].Value, start_date, None, end_date, None, None, None, node.AbsolutePath, 0, 0)
+                db_insert_table(db_cache, SQL_INSERT_TABLE_CALENDAR, calendar)
+            except:
+                pass
             res = CalendarEntry()
             res.Deleted = record.Deleted
             if not IsDBNull(record['summary'].Value):
