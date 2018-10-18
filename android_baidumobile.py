@@ -23,7 +23,7 @@ VERSION_APP_VALUE = 1
 
 
 DEBUG = True
-# DEBUG = False
+DEBUG = False
 
 
 def exc():

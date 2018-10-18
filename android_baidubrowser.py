@@ -15,7 +15,7 @@ import bcp_browser
 
 
 DEBUG = True
-# DEBUG = False
+DEBUG = False
 
 
 # app数据库版本
