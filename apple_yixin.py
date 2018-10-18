@@ -157,7 +157,7 @@ class YiXinParser():
 
                     friend.account_id = self.user
                     friend.friend_id = contactid
-                    friend.type = model_im.FRIEND_TYPE_FOLLOW
+                    friend.type = model_im.FRIEND_TYPE_SUBSCRIBE
                     self.im.db_insert_table_friend(friend)
             self.im.db_commit()
         return True
