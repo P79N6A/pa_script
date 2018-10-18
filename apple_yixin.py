@@ -96,23 +96,22 @@ class YiXinParser():
 
     def get_user(self):
         if self.user is None:
-            return False
+            return
 
         account = model_im.Account()
         account.account_id = self.user
         account.username = self.user
         self.im.db_insert_table_account(account)
         self.im.db_commit()
-        return True
 
     def get_contacts(self):
         if self.user is None:
-            return False
+            return
         
         dbPath = self.root.GetByPath('/Documents/' + self.user + '/msg2.db')
         db = SQLiteParser.Database.FromNode(dbPath)
         if db is None:
-            return False
+            return
 
         if 'msglog' in db.Tables:
             ts = SQLiteParser.TableSignature('msglog')
@@ -160,17 +159,16 @@ class YiXinParser():
                     friend.type = model_im.FRIEND_TYPE_SUBSCRIBE
                     self.im.db_insert_table_friend(friend)
             self.im.db_commit()
-        return True
 
     def get_chats(self):
         if self.user is None:
-            return False
+            return
         
         for contact_id in self.contacts.keys():
             dbPath = self.root.GetByPath('/Documents/' + self.user + '/msg2.db')
             db = SQLiteParser.Database.FromNode(dbPath)
             if not db:
-                return False
+                return
         
             if 'msglog' in db.Tables:
                 ts = SQLiteParser.TableSignature('msglog')
@@ -207,7 +205,6 @@ class YiXinParser():
                         message.location = self.get_location(message.source, message.content, message.send_time, message.deleted, message.repeated)
                     self.im.db_insert_table_message(message)
         self.im.db_commit()
-        return True
 
     def get_location(self, source, content, time, deleted, repeated):
         object = json.loads(content)

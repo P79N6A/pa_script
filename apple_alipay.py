@@ -126,7 +126,7 @@ class AlipayParser():
 
     def get_user(self):
         if self.user is None:
-            return False
+            return
 
         account = model_im.Account()
         account.account_id = self.user
@@ -197,7 +197,7 @@ class AlipayParser():
 
     def get_contacts(self):
         if self.user is None:
-            return False
+            return
 
         dbPath = self.root.GetByPath('/Documents/Contact/' + self.md5_encode(self.user)[8:24] + '.db')
         db = SQLiteParser.Database.FromNode(dbPath)
