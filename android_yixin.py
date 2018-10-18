@@ -94,7 +94,7 @@ class YiXinParser():
 
     def get_user(self):
         if self.user is None:
-            return False
+            return
 
         account = model_im.Account()
         account.account_id = self.user
@@ -104,7 +104,7 @@ class YiXinParser():
         if db is None:
             self.im.db_insert_table_account(account)
             self.im.db_commit()
-            return False
+            return
 
         account.source = dbPath.AbsolutePath
         if 'yixin_contact' in db.Tables:
@@ -117,16 +117,15 @@ class YiXinParser():
                 account.gender = 2 if rec['gender'].Value == 0 else 1
         self.im.db_insert_table_account(account)
         self.im.db_commit()
-        return True
 
     def get_contacts(self):
         if self.user is None:
-            return False
+            return
 
         dbPath = self.root.GetByPath(self.user + '/main.db')
         db = SQLiteParser.Database.FromNode(dbPath)
         if db is None:
-            return False
+            return
 
         if 'yixin_contact' in db.Tables:
             ts = SQLiteParser.TableSignature('yixin_contact')
@@ -231,16 +230,15 @@ class YiXinParser():
                 friend.type = model_im.FRIEND_TYPE_FOLLOW
                 self.im.db_insert_table_friend(friend)
         self.im.db_commit()
-        return True
                         
     def get_chats(self):
         if self.user is None:
-            return False
+            return
 
         dbPath = self.root.GetByPath(self.user + '/msg.db')
         db = SQLiteParser.Database.FromNode(dbPath)
         if db is None:
-            return False
+            return
 
         for id in self.friends.keys() or self.chatrooms.keys():
             if 'msghistory' in db.Tables:
@@ -270,10 +268,9 @@ class YiXinParser():
                     message.content = rec['content'].Value
                     media_path = self.get_media_path(rec['attachstr'].Value, message.type)
                     if message.type == model_im.MESSAGE_CONTENT_TYPE_LOCATION:
-                        self.get_location(message.source, message.content, rec['attachstr'].Value, message.deleted, message.repeated, message.send_time)
+                        message.extra_id = self.get_location(message.source, message.content, rec['attachstr'].Value, message.deleted, message.repeated, message.send_time)
                     self.im.db_insert_table_message(message)
         self.im.db_commit()
-        return True
 
     def parse_message_type(self, type):
         msgtype = model_im.MESSAGE_CONTENT_TYPE_TEXT
@@ -314,7 +311,6 @@ class YiXinParser():
                 key = obj['key']
                 filepath = key[0:1] + '/' + key[2:3] + '/' + key + '.mp4'
                 media_path = os.path.join(node.AbsolutePath, filepath)
-
         return media_path
 
     def get_location(self, source, content, attachstr, deleted, repeated, time):
@@ -333,4 +329,4 @@ class YiXinParser():
             traceback.print_exc()
         self.im.db_insert_table_location(location)
         self.im.db_commit()
-        return True
+        return location.location_id
