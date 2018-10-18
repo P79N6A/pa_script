@@ -268,3 +268,28 @@ def gcj2wgs_exact(gcjLat, gcjLng):
         else:
             mLng = wgsLng
     return wgsLat, wgsLng
+
+def create_connection_safe(src_db_node, ro = True):
+    try:
+        src_db = src_db_node.PathWithMountPoint
+        cmd = 'DataSource = {}; ReadOnly = {}'
+        if ro:
+            cmd = cmd.format(src_db, "True")
+        else:
+            cmd = cmd.format(src_db, "False")
+        conn = sql.SQLiteConnection(cmd)
+        conn.Open()
+        return conn
+    except IOError: # 如果出现diskio error,说明文件访问存在问题，这里将其映射到 cache实际目录下
+        cache = ds.OpenCachePath('C37R')
+        hash_code = md5(src_db)
+        data = src_db_node.Data
+        sz = src_db_node.Size
+        f = open(cache + '/' + hash_code, 'wb+')
+        f.write((bytes(data.read(sz)))
+        f.close()
+        cmd = cmd.format(cache + '/' + hash_code, False)
+        conn = sql.SQLiteConnection(cmd)
+        conn.Open()
+        return conn
+
