@@ -12,7 +12,6 @@ del clr
 import hashlib
 from model_callrecord import MC, Records, Generate
 import model_callrecord
-import sqlite3
 import time
 import shutil
 
@@ -23,6 +22,7 @@ class CallsParse(object):
         self.extractDeleted = False
         self.extractSource = extractSource
         self.db = None
+        self.db_cmd = None
         self.mc = MC()
         self.cache_path = ds.OpenCachePath("CallRecord")
         md5_db = hashlib.md5()
