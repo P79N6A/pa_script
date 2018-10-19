@@ -451,6 +451,10 @@ def generate_mid_db(node, results):
         db_insert_table(db_cache, SQL_INSERT_TABLE_CONTACT, param)
     db_cmd.Dispose()
     db_cache.Close()
+    #bcp entry
+    print('-'*15 + 'enter bcp' + '-'*15)
+    temp_dir = ds.OpenCachePath('tmp')
+    PA_runtime.save_cache_path(bcp_basic.BASIC_RECORD_INFORMATION, db_path, temp_dir)
 
 def db_insert_table(db, sql, values):
     db_cmd = SQLite.SQLiteCommand(db)

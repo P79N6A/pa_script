@@ -875,10 +875,7 @@ class GenerateBcp(object):
         self.bcp_path = bcp_path
         self.cache_db = cache_db
         self.collect_target_id = collect_target_id
-        m = hashlib.md5()
-        db_name = 'BCP_Basic'
-        m.update(db_name.encode(encoding = 'utf-8'))
-        self.cache_path = bcp_db + '\\' + m.hexdigest().upper() + '.db'
+        self.cache_path = bcp_db
         self.basic = BasicBcp()
 
     def generate(self):
@@ -1108,11 +1105,16 @@ class GenerateBcp(object):
                     break
                 calendar = CalendarInfo()
                 calendar.COLLECT_TARGET_ID = self.collect_target_id
-                calendar.TITLE = sr[1]
-                calendar.START_TIME = self._get_timestamp(int(sr[5]))
-                calendar.END_TIME = self._get_timestamp(int(sr[7]))
-                calendar.DESCRIPTION = sr[3]
-                calendar.DELETE_STATUS = DELETE_STATUS_DELETED if sr[12] == 1 else DELETE_STATUS_INTACT
+                if not IsDBNull(sr[1]):
+                    calendar.TITLE = sr[1]
+                if not IsDBNull(sr[5]):
+                    calendar.START_TIME = self._get_timestamp(int(sr[5]))
+                if not IsDBNull(sr[7]):
+                    calendar.END_TIME = self._get_timestamp(int(sr[7]))
+                if not IsDBNull(sr[3]):
+                    calendar.DESCRIPTION = sr[3]
+                if not IsDBNull(sr[12]):
+                    calendar.DELETE_STATUS = DELETE_STATUS_DELETED if sr[12] == 1 else DELETE_STATUS_INTACT
                 self.basic.db_insert_table_calendar_info(calendar)
             self.basic.db_commit()
             self.db_cmd.Dispose()

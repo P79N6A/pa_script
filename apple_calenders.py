@@ -305,6 +305,9 @@ def analyze_calender(node, extractDeleted, extractSource):
                 results.append(res)
     db_cmd.Dispose()
     db_cache.Close()
+    #bcp entry
+    temp_dir = ds.OpenCachePath('tmp')
+    PA_runtime.save_cache_path(bcp_basic.BASIC_CALENDAR_INFOMATION, db_path, temp_dir)
     pr = ParserResults()
     pr.Models.AddRange(results)
     pr.Build('系统日历')

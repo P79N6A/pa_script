@@ -130,6 +130,10 @@ def analyze_call_history(node, extractDeleted, extractSource):
             param = (datas[0],datas[5],datas[4],datas[2],datas[1],datas[6],rec['ZLOCATION'].Value, None, None, None,datas[3],node.AbsolutePath,rec.Deleted,0)
             db_insert_table(db_cache, SQL_INSERT_TABLE_RECORDS, param)
         db_cache.Close()
+        #bcp entry
+        temp_dir = ds.OpenCachePath('tmp')
+        PA_runtime.save_cache_path(bcp_basic.BASIC_CONTACT_INFORMATION, db_path, temp_dir)
+        PA_runtime.save_cache_path(bcp_basic.BASIC_CONTACT_DETAILED_INFORMATION, db_path, temp_dir)
     except:
         traceback.print_exc()
         TraceService.Trace(TraceLevel.Error, "解析出错: {0}".format('通话记录'))
