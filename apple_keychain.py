@@ -84,89 +84,90 @@ class KeyChainParser():
             for iter_0 in map_0:
                 key_0 = iter_0.Key
                 value_0 = iter_0.Value
-                if value_0.Count == 0:
-                    continue
-                array = value_0
-                for val in array:
-                    map_1 = val
-                    tempData = {}
-                    keyname = key_0
-                    if map_1 is not None and str(type(map_1)) == "<type 'NSDictionary'>":
-                        for iter_1 in map_1:
-                            key_1 = iter_1.Key
-                            value_1 = iter_1.Value
-                            value = str(value_1)
-                            if str(type(value_1)) == "<type 'NSString'>":
-                                if key_1 == 'Keychain Data' or key_1 == 'v_Data':
-                                    val = str(value_1)
-                                    map_2 = PlistHelper.ReadPlist(Encoding.ASCII.GetBytes(val))
-                                    if map_2 is not None and str(type(map_2)) == "<type 'NSDictionary'>":
-                                        for iter_2 in map_2:
-                                            key_2 = iter_2.Key
-                                            value_2 = iter_2.Value
-                                            if str(type(value_2)) == "<type 'NSData'>":
-                                                value = str(bytes(value_2.Bytes))
-                                            else:
-                                                value = str(value_2)
-                            elif str(type(value_1)) == "<type 'NSData'>":
-                                value = str(bytes(value_1.Bytes))
-                            tempData[key_1] = value
+                if str(type(value_0)) == "<type 'NSArray'>":
+                    if value_0.Count == 0:
+                        continue
+                    array = value_0
+                    for val in array:
+                        map_1 = val
+                        tempData = {}
+                        keyname = key_0
+                        if map_1 is not None and str(type(map_1)) == "<type 'NSDictionary'>":
+                            for iter_1 in map_1:
+                                key_1 = iter_1.Key
+                                value_1 = iter_1.Value
+                                value = str(value_1)
+                                if str(type(value_1)) == "<type 'NSString'>":
+                                    if key_1 == 'Keychain Data' or key_1 == 'v_Data':
+                                        val = str(value_1)
+                                        map_2 = PlistHelper.ReadPlist(Encoding.ASCII.GetBytes(val))
+                                        if map_2 is not None and str(type(map_2)) == "<type 'NSDictionary'>":
+                                            for iter_2 in map_2:
+                                                key_2 = iter_2.Key
+                                                value_2 = iter_2.Value
+                                                if str(type(value_2)) == "<type 'NSData'>":
+                                                    value = str(bytes(value_2.Bytes))
+                                                else:
+                                                    value = str(value_2)
+                                elif str(type(value_1)) == "<type 'NSData'>":
+                                    value = str(bytes(value_1.Bytes))
+                                tempData[key_1] = value
 
-                        srvKey = ['Service', 'svce', 'agrp']
-                        srvValue = { \
-                            'AirPort' : WiFiAcc, \
-                            'com.apple.account.idms.token' : AppleID, \
-                            'com.apple.account.AppleIDAuthentication.token' : AppleID, \
-                            'com.apple.account.POP.password' : MailAcc, \
-                            'com.apple.account.IMAP.password' : MailAcc, \
-                            'com.apple.account.SMTP.password' : MailAcc, \
-                            'com.apple.cfnetwork' : BrowserPsd, \
-                            'EN_KeyChain_ServiceName_*' : Others, \
-                            'sina_cookie' : Others, \
-                            'com.apple.gs.appleid.auth.com.apple.account.AppleIDAuthentication.token' : Others, \
-                            'com.apple.gs.icloud.auth.com.apple.account.AppleIDAuthentication.token' : Others, \
-                            'com.apple.account.idms.heartbeat-token' : Others, \
-                            'com.apple.account.IdentityServices.token' : Others, \
-                            'com.apple.gs.idms.pet.com.apple.account.AppleIDAuthentication.token' : Others, \
-                            'com.apple.gs.supportapp.auth.com.apple.account.AppleIDAuthentication.token' : Others, \
-                            'com.apple.gs.idms.hb.com.apple.account.AppleIDAuthentication.token' : Others, \
-                            'com.apple.gs.pb.auth.com.apple.account.AppleIDAuthentication.token' : Others, \
-                            'com.apple.gs.news.auth.com.apple.account.AppleIDAuthentication.token' : Others, \
-                            'com.apple.account.GameCenter.token' : Others, \
-                            'com.apple.account.AppleAccount.token' : Others, \
-                            'com.apple.account.AppleAccount.maps-token' : Others, \
-                            'com.apple.account.DeviceLocator.token' : Others, \
-                            'com.apple.account.FindMyFriends.find-my-friends-app-token' : Others, \
-                            'com.apple.account.FindMyFriends.find-my-friends-token' : Others, \
-                            'com.apple.account.CloudKit.token' : Others, \
-                            'com.apple.account.IdentityServices.token' : Others, \
-                            'com.apple.twitter.oauth-token-secret' : Others, \
-                            'com.apple.twitter.oauth-token' : Others, \
-                            'AllEncryptedLoginAccountKeyChainService' : Others, \
-                            'com.apple.ProtectedCloudStorage' : Others, \
-                            'BackupAgent' : BackupPsd \
-                            }
+                            srvKey = ['Service', 'svce', 'agrp']
+                            srvValue = { \
+                                'AirPort' : WiFiAcc, \
+                                'com.apple.account.idms.token' : AppleID, \
+                                'com.apple.account.AppleIDAuthentication.token' : AppleID, \
+                                'com.apple.account.POP.password' : MailAcc, \
+                                'com.apple.account.IMAP.password' : MailAcc, \
+                                'com.apple.account.SMTP.password' : MailAcc, \
+                                'com.apple.cfnetwork' : BrowserPsd, \
+                                'EN_KeyChain_ServiceName_*' : Others, \
+                                'sina_cookie' : Others, \
+                                'com.apple.gs.appleid.auth.com.apple.account.AppleIDAuthentication.token' : Others, \
+                                'com.apple.gs.icloud.auth.com.apple.account.AppleIDAuthentication.token' : Others, \
+                                'com.apple.account.idms.heartbeat-token' : Others, \
+                                'com.apple.account.IdentityServices.token' : Others, \
+                                'com.apple.gs.idms.pet.com.apple.account.AppleIDAuthentication.token' : Others, \
+                                'com.apple.gs.supportapp.auth.com.apple.account.AppleIDAuthentication.token' : Others, \
+                                'com.apple.gs.idms.hb.com.apple.account.AppleIDAuthentication.token' : Others, \
+                                'com.apple.gs.pb.auth.com.apple.account.AppleIDAuthentication.token' : Others, \
+                                'com.apple.gs.news.auth.com.apple.account.AppleIDAuthentication.token' : Others, \
+                                'com.apple.account.GameCenter.token' : Others, \
+                                'com.apple.account.AppleAccount.token' : Others, \
+                                'com.apple.account.AppleAccount.maps-token' : Others, \
+                                'com.apple.account.DeviceLocator.token' : Others, \
+                                'com.apple.account.FindMyFriends.find-my-friends-app-token' : Others, \
+                                'com.apple.account.FindMyFriends.find-my-friends-token' : Others, \
+                                'com.apple.account.CloudKit.token' : Others, \
+                                'com.apple.account.IdentityServices.token' : Others, \
+                                'com.apple.twitter.oauth-token-secret' : Others, \
+                                'com.apple.twitter.oauth-token' : Others, \
+                                'AllEncryptedLoginAccountKeyChainService' : Others, \
+                                'com.apple.ProtectedCloudStorage' : Others, \
+                                'BackupAgent' : BackupPsd \
+                                }
 
-                        extra_id = None
-                        for key in srvKey:
-                            if key in tempData.keys():
-                                for name in srvValue.keys():
-                                    if '*' in name:
-                                        if name.replace('*', '') in tempData.keys():
-                                            extra_id = self.getData(tempData, srvValue[name], tempData.get(key, ''))
-                                    else:
-                                        if tempData.get(key, '') == name:
-                                            extra_id = self.getData(tempData, srvValue[name], tempData.get(key, ''))
+                            extra_id = None
+                            for key in srvKey:
+                                if key in tempData.keys():
+                                    for name in srvValue.keys():
+                                        if '*' in name:
+                                            if name.replace('*', '') in tempData.keys():
+                                                extra_id = self.getData(tempData, srvValue[name], tempData.get(key, ''))
+                                        else:
+                                            if tempData.get(key, '') == name:
+                                                extra_id = self.getData(tempData, srvValue[name], tempData.get(key, ''))
 
-                        for name in srvValue.keys():
-                            if name.find(key_0) != -1:
-                                extra_id = self.getData(tempData, '')
+                            for name in srvValue.keys():
+                                if name.find(key_0) != -1:
+                                    extra_id = self.getData(tempData, srvValue[name], '')
 
-                        keychainProfile = Generic.KeychainProfile()
-                        keychainProfile.Deleted = DeletedState.Intact
-                        keychainProfile.Source.Value = self.root.AbsolutePath
-                        keychainProfile.KeychainID.Value = extra_id
-                        for key in tempData.keys():
+                            keychainProfile = Generic.KeychainProfile()
+                            keychainProfile.Deleted = DeletedState.Intact
+                            keychainProfile.Source.Value = self.root.AbsolutePath
+                            keychainProfile.KeychainID.Value = extra_id
+                            
                             if key_0 == 'cert' or key_0 == 'certificates':
                                 keychainProfile.Type.Value = Generic.KeychainProfileType.Certificates
                             elif key_0 == 'genp' or key_0 == 'GenericPassword':
@@ -178,22 +179,23 @@ class KeyChainParser():
                             elif key_0 == 'idnt':
                                 keychainProfile.Type.Value = Generic.KeychainProfileType.Identities
 
-                            if key == 'cdat' or key == 'Create Date':
-                                cdat = tempData.get(key, '').replace('/', '-')
-                                if '-' not in cdat:
-                                    cdat = cdat[0:4] + '-' + cdat[4:6] + '-' + cdat[6:8] + ' ' + cdat[8:10] + ':' + cdat[10:12]+ ':' + cdat[12:14]
-                                keychainProfile.CreateDate.Value = self._get_timestamp(cdat)
-                            elif key == 'mdat' or key == 'Modify Date':
-                                mdat = tempData.get(key, '').replace('/', '-')
-                                if '-' not in mdat:
-                                    mdat = mdat[0:4] + '-' + mdat[4:6] + '-' + mdat[6:8] + ' ' + mdat[8:10] + ':' + mdat[10:12] + ':' + mdat[12:14]
-                                keychainProfile.ModifyDate.Value = self._get_timestamp(mdat)
-                            else:
-                                key_value = KeyValueModel()
-                                key_value.Key.Value = key
-                                key_value.Value.Value = tempData.get(key, '')
-                                keychainProfile.Entities.Add(key_value)
-                        self.models.append(keychainProfile)
+                            for key in tempData.keys():
+                                if key == 'cdat' or key == 'Create Date':
+                                    cdat = tempData.get(key, '').replace('/', '-')
+                                    if '-' not in cdat:
+                                        cdat = cdat[0:4] + '-' + cdat[4:6] + '-' + cdat[6:8] + ' ' + cdat[8:10] + ':' + cdat[10:12]+ ':' + cdat[12:14]
+                                    keychainProfile.CreateDate.Value = self._get_timestamp(cdat)
+                                elif key == 'mdat' or key == 'Modify Date':
+                                    mdat = tempData.get(key, '').replace('/', '-')
+                                    if '-' not in mdat:
+                                        mdat = mdat[0:4] + '-' + mdat[4:6] + '-' + mdat[6:8] + ' ' + mdat[8:10] + ':' + mdat[10:12] + ':' + mdat[12:14]
+                                    keychainProfile.ModifyDate.Value = self._get_timestamp(mdat)
+                                else:
+                                    key_value = KeyValueModel()
+                                    key_value.Key.Value = key
+                                    key_value.Value.Value = tempData.get(key, '')
+                                    keychainProfile.Entities.Add(key_value)
+                            self.models.append(keychainProfile)
 
     def get_models(self):
         for param in self.params:
@@ -366,19 +368,15 @@ class KeyChainParser():
         cdatKey = ['Create Date', 'cdat']
         for key in cdatKey:
             if key in tempData.keys():
-                cdat = tempData.get(key,  '')
-                if '/' in cdat:
-                    cdat = tempData.get(key,  '').replace('/', '-')
-                else:
+                cdat = tempData.get(key,  '').replace('/', '-')
+                if '-' not in cdat:
                     cdat = cdat[0:4] + '-' + cdat[4:6] + '-' + cdat[6:8] + ' ' + cdat[8:10] + ':' + cdat[10:12]+ ':' + cdat[12:14]
 
         mdatKey = ['Modify Date', 'mdat']
         for key in mdatKey:
             if key in tempData.keys():
-                mdat = tempData.get(key,  '')
-                if '/' in mdat:
-                    mdat = tempData.get(key,  '').replace('/', '-')
-                else:
+                mdat = tempData.get(key,  '').replace('/', '-')
+                if '-' not in mdat:
                     mdat = mdat[0:4] + '-' + mdat[4:6] + '-' + mdat[6:8] + ' ' + mdat[8:10] + ':' + mdat[10:12] + ':' + mdat[12:14]
 
         param = None
@@ -392,14 +390,14 @@ class KeyChainParser():
 
     @staticmethod
     def _get_timestamp(str):
-        timestamp = int(time.mktime(time.strptime(str, '%Y-%m-%d %H:%M:%S')))
         try:
+            timestamp = int(time.mktime(time.strptime(str, '%Y-%m-%d %H:%M:%S')))
             ts = TimeStamp.FromUnixTime(timestamp, False)
             if not ts.IsValidForSmartphone():
                 ts = None
             return ts
         except Exception as e:
-            return None
+            traceback.print_exc()
 
 def analyze_keychain(root, extract_deleted, extract_source):
     pr = ParserResults()
