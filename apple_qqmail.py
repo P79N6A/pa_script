@@ -336,7 +336,7 @@ class MailParser(object):
         # self.read_deleted_table_mailaccount()
         self.read_deleted_table_mailinfo()
         self.read_deleted_table_mailcontent()
-        self.read_deleted_table_mailfolder()
+        #self.read_deleted_table_mailfolder()
         self.read_deleted_table_mailcontact()
         self.read_deleted_table_mailcontactitem()
         self.read_deleted_table_mailcontactgroup()
