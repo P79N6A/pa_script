@@ -569,7 +569,7 @@ def parse_miliao(root, extract_deleted, extract_source):
         models = model_im.GenerateModel(ml.cache + '/C37R').get_models()
         mlm = ModelListMerger()
         pr = ParserResults()
-        pr.Categories = DescripCategories.QQ
+        pr.Categories = DescripCategories.MiLiao
         pr.Models.AddRange(list(mlm.GetUnique(models)))
         pr.Build('米聊')
     except Exception as e:
