@@ -266,12 +266,12 @@ class QQParser(object):
         if db is None or 'tb_callRecord' not in db.Tables:
             return
         ts = SQLiteParser.TableSignature('tb_callRecord')
-        SQLiteParser.Tools.AddSignatureToTable(ts, 'uin', 5)
-        SQLiteParser.Tools.AddSignatureToTable(ts, 'duration', 1, 2, 3, 8, 9)
-        SQLiteParser.Tools.AddSignatureToTable(ts, 'netType', 1, 2, 3, 8, 9)
-        SQLiteParser.Tools.AddSignatureToTable(ts, 'accType', 1, 2, 3, 8, 9)
-        SQLiteParser.Tools.AddSignatureToTable(ts, 'msgtype', 1, 2, 3, 8, 9)
-        SQLiteParser.Tools.AddSignatureToTable(ts, 'recordType', 1, 2, 3, 8, 9)
+        SQLiteParser.Tools.AddSignatureToTable(ts, 'uin', 1,2)
+        SQLiteParser.Tools.AddSignatureToTable(ts, 'duration',2,2)
+        SQLiteParser.Tools.AddSignatureToTable(ts, 'netType', 2,2)
+        SQLiteParser.Tools.AddSignatureToTable(ts, 'accType', 2,2)
+        SQLiteParser.Tools.AddSignatureToTable(ts, 'msgtype', 2,2)
+        SQLiteParser.Tools.AddSignatureToTable(ts, 'recordType', 2,2)
         for rec in db.ReadTableRecords(ts, self.extract_deleted):
             if canceller.IsCancellationRequested:
                 return
@@ -863,14 +863,14 @@ class QQParser(object):
             #sql = 'select uin,time,type,read,content,msgId,flag,picUrl from ' + table_name + ' order by time'
             #cursor = conn.execute(sql)			
             ts = SQLiteParser.TableSignature(table_name)
-            SQLiteParser.Tools.AddSignatureToTable(ts, 'uin', 4,5,6)
-            SQLiteParser.Tools.AddSignatureToTable(ts, 'time',4)
-            SQLiteParser.Tools.AddSignatureToTable(ts, 'type', 1,2,3,4)
-            SQLiteParser.Tools.AddSignatureToTable(ts, 'read', 1,8,9)
-            SQLiteParser.Tools.AddSignatureToTable(ts, 'content', 13)
-            SQLiteParser.Tools.AddSignatureToTable(ts, 'msgId', 1,2,3,4,5,6)
-            SQLiteParser.Tools.AddSignatureToTable(ts, 'flag', 1,8,9)
-            SQLiteParser.Tools.AddSignatureToTable(ts, 'picUrl', 13)
+            SQLiteParser.Tools.AddSignatureToTable(ts, 'uin', 1,2)
+            SQLiteParser.Tools.AddSignatureToTable(ts, 'time',2,2)
+            SQLiteParser.Tools.AddSignatureToTable(ts, 'type', 2,2)
+            SQLiteParser.Tools.AddSignatureToTable(ts, 'read', 2,2)
+            SQLiteParser.Tools.AddSignatureToTable(ts, 'content', 1,2)
+            SQLiteParser.Tools.AddSignatureToTable(ts, 'msgId', 2,2)
+            SQLiteParser.Tools.AddSignatureToTable(ts, 'flag', 2,2)
+            SQLiteParser.Tools.AddSignatureToTable(ts, 'picUrl', 1,2)
             for rec in db.ReadTableDeletedRecords(ts, False):
                 try:
                     if canceller.IsCancellationRequested:
@@ -954,14 +954,14 @@ class QQParser(object):
             group_id = table_name[table_name.rfind('_')+1:]	
             #sql = 'select senduin ,msgtime, sMsgtype,read,strmsg,msgid,nickname,picurl from  ' + table_name + ' order by msgtime'			
             ts = SQLiteParser.TableSignature(table_name)
-            SQLiteParser.Tools.AddSignatureToTable(ts, 'SendUin', 4,5,6)
-            SQLiteParser.Tools.AddSignatureToTable(ts, 'MsgTime',4)
-            SQLiteParser.Tools.AddSignatureToTable(ts, 'sMsgType', 1,2,3,4)
-            SQLiteParser.Tools.AddSignatureToTable(ts, 'read', 1,8,9)
-            SQLiteParser.Tools.AddSignatureToTable(ts, 'strMsg', 13)
-            SQLiteParser.Tools.AddSignatureToTable(ts, 'msgId', 1,2,3,4,5,6)
-            SQLiteParser.Tools.AddSignatureToTable(ts, 'nickName',13)
-            SQLiteParser.Tools.AddSignatureToTable(ts, 'picUrl', 13)
+            SQLiteParser.Tools.AddSignatureToTable(ts, 'SendUin', 1,2)
+            SQLiteParser.Tools.AddSignatureToTable(ts, 'MsgTime',2,2)
+            SQLiteParser.Tools.AddSignatureToTable(ts, 'sMsgType',2 ,2)
+            SQLiteParser.Tools.AddSignatureToTable(ts, 'read', 2,2)
+            SQLiteParser.Tools.AddSignatureToTable(ts, 'strMsg', 1,2)
+            SQLiteParser.Tools.AddSignatureToTable(ts, 'msgId', 2,2)
+            SQLiteParser.Tools.AddSignatureToTable(ts, 'nickName',1,2)
+            SQLiteParser.Tools.AddSignatureToTable(ts, 'picUrl', 1,2)
             for row in  db.ReadTableDeletedRecords(ts, False):
                 try:
                     if canceller.IsCancellationRequested:
@@ -1045,13 +1045,13 @@ class QQParser(object):
             return
         #sql = 'select c1uin,c2time,c3type,c4flag,c7content,c8conversationuin,a.msgId from ' + table  +  ' a,tb_Index_c2cMsg_content b  where a.docid = b.docid'			
         ts = SQLiteParser.TableSignature(table)
-        SQLiteParser.Tools.AddSignatureToTable(ts, 'c0msgId',1,2,3, 4,5,6)
-        SQLiteParser.Tools.AddSignatureToTable(ts, 'c1uin', 4,5,6)
-        SQLiteParser.Tools.AddSignatureToTable(ts, 'c2time',4)
-        SQLiteParser.Tools.AddSignatureToTable(ts, 'c3type', 1,2,3,4)
-        SQLiteParser.Tools.AddSignatureToTable(ts, 'c4flag', 1,8,9)
-        SQLiteParser.Tools.AddSignatureToTable(ts, 'c7content', 13)
-        SQLiteParser.Tools.AddSignatureToTable(ts, 'c8conversationUin', 1,2,3,4,5,6)
+        SQLiteParser.Tools.AddSignatureToTable(ts, 'c0msgId',2,2)
+        SQLiteParser.Tools.AddSignatureToTable(ts, 'c1uin',1,2)
+        SQLiteParser.Tools.AddSignatureToTable(ts, 'c2time',2,2)
+        SQLiteParser.Tools.AddSignatureToTable(ts, 'c3type', 2,2)
+        SQLiteParser.Tools.AddSignatureToTable(ts, 'c4flag', 2,2)
+        SQLiteParser.Tools.AddSignatureToTable(ts, 'c7content', 1,2)
+        SQLiteParser.Tools.AddSignatureToTable(ts, 'c8conversationUin', 1,2)
         for row in  db.ReadTableDeletedRecords(ts, False):
             try:
                 if canceller.IsCancellationRequested:
@@ -1098,14 +1098,14 @@ class QQParser(object):
             return	
         #sql = 'select c1uin,c2time,c3type,c4flag,c5nickname,c7content,c8conversationuin,c0msgId from ' + table  +  ' a,tb_Index_TroopMsg_content b  where a.docid = b.docid'	
         ts = SQLiteParser.TableSignature(table)
-        SQLiteParser.Tools.AddSignatureToTable(ts, 'c0msgId',1,2,3, 4,5,6)
-        SQLiteParser.Tools.AddSignatureToTable(ts, 'c1uin', 4,5,6)
-        SQLiteParser.Tools.AddSignatureToTable(ts, 'c2time',4)
-        SQLiteParser.Tools.AddSignatureToTable(ts, 'c3type', 1,2,3,4)
-        SQLiteParser.Tools.AddSignatureToTable(ts, 'c4flag', 1,8,9)
-        SQLiteParser.Tools.AddSignatureToTable(ts, 'c5nickName', 13)
-        SQLiteParser.Tools.AddSignatureToTable(ts, 'c7content', 13)
-        SQLiteParser.Tools.AddSignatureToTable(ts, 'c8conversationUin', 1,2,3,4,5,6)
+        SQLiteParser.Tools.AddSignatureToTable(ts, 'c0msgId',2,2)
+        SQLiteParser.Tools.AddSignatureToTable(ts, 'c1uin', 1,2)
+        SQLiteParser.Tools.AddSignatureToTable(ts, 'c2time',2,2)
+        SQLiteParser.Tools.AddSignatureToTable(ts, 'c3type',2,2)
+        SQLiteParser.Tools.AddSignatureToTable(ts, 'c4flag', 2,2)
+        SQLiteParser.Tools.AddSignatureToTable(ts, 'c5nickName', 1,2)
+        SQLiteParser.Tools.AddSignatureToTable(ts, 'c7content', 1,2)
+        SQLiteParser.Tools.AddSignatureToTable(ts, 'c8conversationUin', 1,2)
         for row in db.ReadTableDeletedRecords(ts, False):
             try:
                 if canceller.IsCancellationRequested:
@@ -1155,14 +1155,14 @@ class QQParser(object):
             return	
         #sql = 'select c1uin,c2time,c3type,c4flag,c5nickname,c7content,c8conversationuin,c0msgId from ' + table  +  ' a,tb_Index_TroopMsg_content b  where a.docid = b.docid'	
         ts = SQLiteParser.TableSignature(table)
-        SQLiteParser.Tools.AddSignatureToTable(ts, 'c0msgId',1,2,3, 4,5,6)
-        SQLiteParser.Tools.AddSignatureToTable(ts, 'c1uin', 4,5,6)
-        SQLiteParser.Tools.AddSignatureToTable(ts, 'c2time',4)
-        SQLiteParser.Tools.AddSignatureToTable(ts, 'c3type', 1,8,9)
-        SQLiteParser.Tools.AddSignatureToTable(ts, 'c4flag', 1,2,3,4)
-        SQLiteParser.Tools.AddSignatureToTable(ts, 'c5nickName', 13)
-        SQLiteParser.Tools.AddSignatureToTable(ts, 'c7content', 13)
-        SQLiteParser.Tools.AddSignatureToTable(ts, 'c8conversationUin', 1,2,3,4,5,6)
+        SQLiteParser.Tools.AddSignatureToTable(ts, 'c0msgId',2,2)
+        SQLiteParser.Tools.AddSignatureToTable(ts, 'c1uin', 1,2)
+        SQLiteParser.Tools.AddSignatureToTable(ts, 'c2time',2,2)
+        SQLiteParser.Tools.AddSignatureToTable(ts, 'c3type',2,2)
+        SQLiteParser.Tools.AddSignatureToTable(ts, 'c4flag', 2,2)
+        SQLiteParser.Tools.AddSignatureToTable(ts, 'c5nickName', 1,2)
+        SQLiteParser.Tools.AddSignatureToTable(ts, 'c7content', 1,2)
+        SQLiteParser.Tools.AddSignatureToTable(ts, 'c8conversationUin', 1,2)
         for row in db.ReadTableRecords(ts, True):
             try:
                 if canceller.IsCancellationRequested:
@@ -1204,8 +1204,11 @@ class QQParser(object):
         self.im.db_commit()																							
         return 
 
-def analyze_qq(root, extract_deleted, extract_source):	
-    pr = ParserResults()
-    pr.Models.AddRange(QQParser(root, extract_deleted, extract_source).parse())
-    pr.Build('QQ')
-    return pr
+def analyze_qq(root, extract_deleted, extract_source):
+    try:	
+        pr = ParserResults()
+        pr.Models.AddRange(QQParser(root, extract_deleted, extract_source).parse())
+        pr.Build('QQ')
+        return pr
+    except:
+        pass
