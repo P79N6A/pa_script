@@ -184,7 +184,25 @@
         </dict>
       </array>
     </dict>
-
+    <dict>
+      <key>Module</key>
+      <string>apple_ml</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>parse_miliao</string>
+          <key>RunnerType</key>
+          <integer>1</integer>
+          <key>Patterns</key>
+          <array>
+            <string>com.xiaomi.miliao</string>
+          </array>
+          <key>Category</key>
+          <string>MiLiao</string>
+        </dict>
+      </array>
+    </dict>
     <dict>
       <key>Module</key>
       <string>apple_locations</string>
