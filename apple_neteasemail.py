@@ -128,7 +128,7 @@ class NeteaseMailParser(object):
         for rec in self._read_table(table_name):
             if canceller.IsCancellationRequested:
                 return
-            if self._is_empty(rec, 'accountId', 'email') or not self._is_email_format(rec, 'email'):
+            if self._is_empty(rec, 'accountId', 'email') or not self._is_email_format(rec['email'].Value):
                 continue
             account = Account()
             account.account_id    = rec['accountId'].Value
@@ -165,7 +165,7 @@ class NeteaseMailParser(object):
         for rec in self._read_table(table_name):
             if canceller.IsCancellationRequested:
                 return
-            if self._is_empty(rec, 'aid', 'email') or not self._is_email_format(rec, 'email'):
+            if self._is_empty(rec, 'aid', 'email') or not self._is_email_format(rec['email'].Value):
                 continue
             contact = Contact()
             contact.contact_id       = rec['rowid'].Value
@@ -235,8 +235,14 @@ class NeteaseMailParser(object):
             mail = Mail()
             mail.mail_id          = self._convert_primary_key(rec['localId'].Value)
             mail.owner_account_id = rec['accountRawId'].Value
-            mail.mail_from        = self._convert_email_format(rec['mailFrom'].Value)
-            mail.mail_to          = self._convert_email_format(rec['mailTos'].Value)
+            mail_from             = self._convert_email_format(rec['mailFrom'].Value)
+            mail_to               = self._convert_email_format(rec['mailTos'].Value)
+            try:
+                if False in [self._is_email_format(i.split(' ')[0]) for i in (mail_from, mail_to)]:
+                    continue
+            except:
+                exc()
+            mail.mail_from, mail.mail_to = mail_from, mail_to
             mail.mail_cc          = self._convert_email_format(rec['ccs'].Value)
             mail.mail_bcc         = self._convert_email_format(rec['bccs'].Value)
             mail.mail_sent_date   = rec['sentDate'].Value
@@ -280,6 +286,7 @@ class NeteaseMailParser(object):
 
     def parse_attachment(self, db_path, table_name):
         ''' imail.db - mailAttachment
+        
                 RecNo	FieldName	SQLType	Size
                 1	attachmentId	            INTEGER
                 2	mailId	            INTEGER	
@@ -331,8 +338,8 @@ class NeteaseMailParser(object):
             exc()
 
     def _read_db(self, db_path):
-        """ 
-            读取手机数据库
+        """ 读取手机数据库
+
         :type db_path: str
         :rtype: bool                              
         """
@@ -344,8 +351,8 @@ class NeteaseMailParser(object):
         return True
 
     def _read_table(self, table_name):
-        """ 
-            读取手机数据库 - 表
+        """ 读取手机数据库 - 表
+
         :type table_name: str
         :rtype: db.ReadTableRecords()                                       
         """
@@ -357,15 +364,15 @@ class NeteaseMailParser(object):
 
     @staticmethod
     def _convert_email_format(name_email):
-        """
-            转换邮件格式
+        """ 转换邮件格式
+
         :type name_email: str
         :rtype: str
         from: [{"name":"pangu_x01","email":"pangu_x01@163.com"}]
         to:   pangu_x01@163.com pangu_x01
         """
         if not name_email:
-            return None
+            return ''
         try:
             res = ''
             name_email = eval(name_email)
@@ -380,25 +387,27 @@ class NeteaseMailParser(object):
                 res   += ' ' + email.strip() + ' ' + name.strip()
             return res.lstrip()
         except:
-            return None
+            return ''
 
     @staticmethod
-    def _is_email_format(rec, key):
+    def _is_email_format(*args):
         """ 匹配邮箱地址 
-        :type rec: type: <rec>
-        :type key: str
+
+        :type mail_address: str
         :rtype: bool        
         """
         try:
-            if IsDBNull(rec[key].Value) or len(rec[key].Value.strip()) < 5:
-                return False
-            reg_str = r'^\w+([-+.]\w+)*@\w+([-.]\w+)*\.\w+([-.]\w+)*$'
-            match_obj = re.match(reg_str, rec[key].Value)
-            if match_obj is None:
-                return False      
+            for mail_address in args:
+                if IsDBNull(mail_address) or len(mail_address.strip()) < 5:
+                    return False
+                if mail_address[0] == '<' and mail_address[-1] == '>':
+                    mail_address = mail_address[1:-1]
+                reg_str = r'^\w+([-+.]\w+)*@\w+([-.]\w+)*\.\w+([-.]\w+)*$'
+                match_obj = re.match(reg_str, mail_address)
+                if match_obj is None:
+                    return False      
             return True      
         except:
-            print 'match email', rec[key].Value
             exc()
             return False
 
@@ -418,7 +427,7 @@ class NeteaseMailParser(object):
         :rtype: bool
         '''
         for i in args:
-            if IsDBNull(rec[i].Value) or not rec[i].Value:
+            if IsDBNull(rec[i].Value) or rec[i].Value in ('', ' ', None, [], {}):
                 return True
         return False
 
