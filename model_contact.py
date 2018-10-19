@@ -19,6 +19,7 @@ from System.Xml.XPath import Extensions as XPathExtensions
 import os
 import System
 import System.Data.SQLite as SQLite
+import sqlite3
 
 SQL_CREATE_TABLE_CONTACTS = '''
     CREATE TABLE IF NOT EXISTS contacts(
@@ -46,12 +47,31 @@ SQL_INSERT_TABLE_CONTACTS = '''
         values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     '''
 
-SQL_FIND_TABLE_CONTACTS = '''
-    SELECT DISTINCT raw_contact_id, mimetype_id, group_concat(mail), group_concat(company), group_concat(title), last_time_contact, last_time_modify,
-    times_contacted, group_concat(phone_number), group_concat(name), group_concat(address), group_concat(notes), group_concat(telegram), 
-    group_concat(head_pic), source, deleted, repeated FROM contacts GROUP BY raw_contact_id
+SQL_FIND_TABLE_CONTACTS_INTACT = '''
+    SELECT DISTINCT raw_contact_id, group_concat(mail), group_concat(company), group_concat(title), last_time_contact, last_time_modify,
+    times_contacted, group_concat(phone_number), group_concat(name), group_concat(address), group_concat(notes), telegram, 
+    group_concat(head_pic), source, deleted, repeated FROM contacts where deleted = 0 GROUP BY raw_contact_id
     '''
 
+SQL_FIND_TABLE_CONTACTS_DELETED = '''
+    SELECT DISTINCT raw_contact_id, group_concat(mail), group_concat(company), group_concat(title), last_time_contact, last_time_modify,
+    times_contacted, group_concat(phone_number), group_concat(name), group_concat(address), group_concat(notes), telegram, 
+    group_concat(head_pic), source, deleted, repeated FROM contacts where deleted = 1 GROUP BY raw_contact_id
+    '''
+
+SQL_CREATE_TABLE_VERSION = '''
+    create table if not exists version(
+        key TEXT primary key,
+        version INT)'''
+
+SQL_INSERT_TABLE_VERSION = '''
+    insert into version(key, version) values(?, ?)'''
+
+VERSION_KEY_DB = 'db'
+VERSION_KEY_APP = 'app'
+
+#中间数据库版本
+VERSION_VALUE_DB = 1
 
 
 class MC(object):
@@ -93,6 +113,8 @@ class MC(object):
         if self.db_cmd is not None:
             self.db_cmd.CommandText = SQL_CREATE_TABLE_CONTACTS
             self.db_cmd.ExecuteNonQuery()
+            self.db_cmd.CommandText = SQL_CREATE_TABLE_VERSION
+            self.db_cmd.ExecuteNonQuery()
 
     def db_insert_table(self, sql, values):
         try:
@@ -109,6 +131,38 @@ class MC(object):
 
     def db_insert_table_call_contacts(self, Column):
         self.db_insert_table(SQL_INSERT_TABLE_CONTACTS, Column.get_values())
+
+    def db_insert_table_version(self, key, version):
+        self.db_insert_table(SQL_INSERT_TABLE_VERSION, (key, version))
+
+    @staticmethod
+    def need_parse(cache_db, app_version):
+        if not os.path.exists(cache_db):
+            return True
+        db = sqlite3.connect(cache_db)
+        cursor = db.cursor()
+        sql = 'select key,version from version'
+        row = None
+        db_version_check = False
+        app_version_check = False
+        try:
+            cursor.execute(sql)
+            row = cursor.fetchone()
+        except Exception as e:
+            pass
+
+        while row is not None:
+            if row[0] == VERSION_KEY_DB and row[1] == VERSION_VALUE_DB:
+                db_version_check = True
+            elif row[0] == VERSION_KEY_APP and row[1] == app_version:
+                app_version_check = True
+            row = cursor.fetchone()
+
+        if cursor is not None:
+            cursor.close()
+        if db is not None:
+            db.close()
+        return not (db_version_check and app_version_check)
 
 class Column(object):
     def __init__(self):

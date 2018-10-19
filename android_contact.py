@@ -14,16 +14,63 @@ import hashlib
 from model_contact import MC, Contact, Generate
 import model_contact
 import System.Data.SQLite as SQLite
+import sys
 import re
 import time
 import shutil
 
 SQL_TABLE_JOIN_CONTACT = '''
-    select e.*, f.mimetype from (select c.*, d.last_time_contacted, d.contact_last_updated_timestamp, d.times_contacted from(
-        select a.raw_contact_id, a.mimetype_id, a.data1, a.data2, a.data3, a.data4, a.data15, 
+    select distinct e.*, f.mimetype from (select c.*, d.last_time_contacted, d.contact_last_updated_timestamp, d.times_contacted from(
+        select a.raw_contact_id, a.mimetype_id, a.data1, a.data2, a.data3, a.data4, a.data15, a.deleted,
         b.contact_id from data as a left join raw_contacts as b on a.raw_contact_id = b._id) 
         as c left join contacts as d on c.contact_id == d._id) as e left join mimetypes as f on e.mimetype_id = f._id 
     '''
+
+SQL_CREATE_TABLE_DATA = '''CREATE TABLE IF NOT EXISTS data(
+    raw_contact_id INTEGER,
+    mimetype_id INTEGER,
+    data1 TEXT,
+    data2 TEXT,
+    data3 TEXT,
+    data4 TEXT,
+    data15 TEXT,
+    deleted INTEGER
+    )'''
+
+SQL_INSERT_TABLE_DATA = '''
+    INSERT OR IGNORE INTO data(raw_contact_id, mimetype_id, data1, data2, data3, data4, data15, deleted)
+    VALUES(?, ?, ?, ?, ?, ?, ?, ?)'''
+
+SQL_CREATE_TABLE_RAW_CONTACTS = '''CREATE TABLE IF NOT EXISTS raw_contacts(
+    _id INTEGER,
+    contact_id INTEGER
+    )'''
+
+SQL_INSERT_TABLE_RAW_CONTACTS = '''
+    INSERT OR IGNORE INTO raw_contacts(_id, contact_id)
+    VALUES(?, ?)'''
+
+SQL_CREATE_TABLE_CONTACTS = '''CREATE TABLE IF NOT EXISTS contacts(
+    _id INTEGER,
+    last_time_contacted INTEGER,
+    contact_last_updated_timestamp INTEGER,
+    times_contacted INTEGER
+    )'''
+
+SQL_INSERT_TABLE_CONTACTS = '''
+    INSERT OR IGNORE INTO contacts(_id, last_time_contacted, contact_last_updated_timestamp, times_contacted)
+    VALUES(?, ?, ?, ?)'''
+
+SQL_CREATE_TABLE_MIMETYPES = '''CREATE TABLE IF NOT EXISTS mimetypes(
+    _id INTEGER,
+    mimetype TEXT
+    )'''
+
+SQL_INSERT_TABLE_MIMETYPES = '''
+    INSERT OR IGNORE INTO mimetypes(_id, mimetype)
+    VALUES(?, ?)'''
+
+VERSION_APP_VALUE = 1
 
 
 class CallsParse(object):
@@ -41,46 +88,187 @@ class CallsParse(object):
         self.cachedb = self.cache_path + "\\" + md5_db.hexdigest().upper() + ".db"
         self.sourceDB = self.cache_path + '\\CallSourceDB'
         self.db_tempo = self.sourceDB + '\\db_tempo.db'
+        self.db_deleted = self.sourceDB + '\\db_deleted.db'
 
     def analyze_call_contacts(self):
         try:
             contactsNode = self.db_tempo
-            self.db = SQLite.SQLiteConnection('Data Source = {}'.format(contactsNode))
-            self.db.Open()
-            self.db_cmd = SQLite.SQLiteCommand(self.db)
+            db = SQLite.SQLiteConnection('Data Source = {}'.format(contactsNode))
+            db.Open()
+            db_cmd = SQLite.SQLiteCommand(db)
         except:
             return
         try:
-            if self.db is None:
-                return
-            self.db_cmd.CommandText = model_contact.SQL_FIND_TABLE_CONTACTS
-            sr = self.db_cmd.ExecuteReader()
-            while (sr.Read()):
-                contacts = Contact()
-                if canceller.IsCancellationRequested:
-                    break
-                contacts.raw_contact_id = sr[0]
-                contacts.mimetype_id = sr[1]
-                contacts.mail = sr[2]
-                contacts.company = sr[3]
-                contacts.title = sr[4]
-                contacts.last_time_contact = sr[5]
-                contacts.last_time_modify = sr[6]
-                contacts.times_contacted = sr[7]
-                contacts.phone_number = sr[8]
-                contacts.name = sr[9]
-                contacts.address = sr[10]
-                contacts.notes = sr[11]
-                contacts.telegram = sr[12]
-                contacts.head_pic = sr[13]
-                contacts.source = sr[14]
-                self.mc.db_insert_table_call_contacts(contacts)
-            self.mc.db_commit()
-            self.db_cmd.Dispose()
-            self.db.Close()
+            sqls = [model_contact.SQL_FIND_TABLE_CONTACTS_INTACT, model_contact.SQL_FIND_TABLE_CONTACTS_DELETED]
+            for sql in sqls:
+                if db is None:
+                    return
+                db_cmd.CommandText = sql
+                sr = db_cmd.ExecuteReader()
+                while (sr.Read()):
+                    contacts = Contact()
+                    if canceller.IsCancellationRequested:
+                        break
+                    contacts.raw_contact_id = sr[0]
+                    contacts.mail = sr[1]
+                    contacts.company = sr[2]
+                    contacts.title = sr[3]
+                    contacts.last_time_contact = sr[4]
+                    contacts.last_time_modify = sr[5]
+                    contacts.times_contacted = sr[6]
+                    contacts.phone_number = sr[7]
+                    contacts.name = sr[8]
+                    contacts.address = sr[9]
+                    contacts.notes = sr[10]
+                    contacts.telegram = sr[11]
+                    contacts.head_pic = sr[12]
+                    contacts.source = sr[13]
+                    contacts.deleted = sr[14]
+                    self.mc.db_insert_table_call_contacts(contacts)
+                self.mc.db_commit()
+                sr.Close()
+            db_cmd.Dispose()
+            db.Close()
         except Exception as e:
             print(e)
-        
+
+    def analyze_deleted_records(self):
+        #创建恢复数据库
+        if os.path.exists(self.db_deleted):
+            os.remove(self.db_deleted)
+        self.db = SQLite.SQLiteConnection('Data Source = {}'.format(self.db_deleted))
+        self.db.Open()
+        self.db_cmd = SQLite.SQLiteCommand(self.db)
+        self.db_cmd.CommandText = SQL_CREATE_TABLE_DATA
+        self.db_cmd.ExecuteNonQuery()
+        self.db_cmd.CommandText = SQL_CREATE_TABLE_RAW_CONTACTS
+        self.db_cmd.ExecuteNonQuery()
+        self.db_cmd.CommandText = SQL_CREATE_TABLE_CONTACTS
+        self.db_cmd.ExecuteNonQuery()
+        self.db_cmd.CommandText = SQL_CREATE_TABLE_MIMETYPES
+        self.db_cmd.ExecuteNonQuery()
+        #向恢复数据库中插入数据
+        node = self.node.Parent.GetByPath('/contacts2.db')
+        db = SQLiteParser.Database.FromNode(node, canceller)
+        if db is None:
+            self.db_cmd.Dispose()
+            self.db.Close()
+            return
+        ts = SQLiteParser.TableSignature('data')
+        for rec in db.ReadTableRecords(ts, self.extractDeleted, True):
+            try:
+                if rec['raw_contact_id'].Value is not None and 'raw_contact_id' in rec:
+                    raw_contact_id = rec['raw_contact_id'].Value
+                if rec['mimetype_id'].Value is not None and 'mimetype_id' in rec:
+                    mimetype_id = rec['mimetype_id'].Value
+                if rec['data1'].Value is not None and 'data1' in rec:
+                    data1 = rec['data1'].Value
+                if rec['data2'].Value is not None and 'data2' in rec:
+                    data2 = rec['data2'].Value
+                if rec['data3'].Value is not None and 'data3' in rec:
+                    data3 = rec['data3'].Value
+                if rec['data4'].Value is not None and 'data4' in rec:
+                    data4 = rec['data4'].Value
+                if rec['data5'].Value is not None and 'data5' in rec:
+                    data15 = rec['data5'].Value
+                deleted = 0
+                params = (raw_contact_id, mimetype_id, data1, data2, data3, data4, data15, deleted)
+                self.db_insert_table(SQL_INSERT_TABLE_DATA, params)
+            except:
+                traceback.print_exc()
+        for rec in db.ReadTableDeletedRecords(ts, False):
+            try:
+                if rec['raw_contact_id'].Value is not None and 'raw_contact_id' in rec:
+                    raw_contact_id = rec['raw_contact_id'].Value
+                if rec['mimetype_id'].Value is not None and 'mimetype_id' in rec:
+                    mimetype_id = rec['mimetype_id'].Value
+                if rec['data1'].Value is not None and 'data1' in rec:
+                    data1 = rec['data1'].Value
+                if rec['data2'].Value is not None and 'data2' in rec:
+                    data2 = rec['data2'].Value
+                if rec['data3'].Value is not None and 'data3' in rec:
+                    data3 = rec['data3'].Value
+                if rec['data4'].Value is not None and 'data4' in rec:
+                    data4 = rec['data4'].Value
+                if rec['data5'].Value is not None and 'data5' in rec:
+                    data15 = rec['data5'].Value
+                deleted = 1
+                params = (raw_contact_id, mimetype_id, data1, data2, data3, data4, data15, deleted)
+                self.db_insert_table(SQL_INSERT_TABLE_DATA, params)
+            except:
+                traceback.print_exc()
+        ts2 = SQLiteParser.TableSignature('raw_contacts')
+        for rec in db.ReadTableRecords(ts2, self.extractDeleted, True):
+            try:
+                if rec['_id'].Value is not None and '_id' in rec:
+                    _id = rec['_id'].Value
+                if rec['contact_id'].Value is not None and 'contact_id' in rec:
+                    contact_id = rec['contact_id'].Value
+                params = (_id, contact_id)
+                self.db_insert_table(SQL_INSERT_TABLE_RAW_CONTACTS, params)
+            except:
+                traceback.print_exc()
+        for rec in db.ReadTableDeletedRecords(ts2, False):
+            try:
+                if rec['_id'].Value is not None and '_id' in rec:
+                    _id = rec['_id'].Value
+                if rec['contact_id'].Value is not None and 'contact_id' in rec:
+                    contact_id = rec['contact_id'].Value
+                params = (_id, contact_id)
+                self.db_insert_table(SQL_INSERT_TABLE_RAW_CONTACTS, params)
+            except:
+                traceback.print_exc()
+        ts3 = SQLiteParser.TableSignature('contacts')
+        for rec in db.ReadTableRecords(ts3, self.extractDeleted, True):
+            try:
+                if rec['_id'].Value is not None and '_id' in rec:
+                    _id = rec['_id'].Value
+                if rec['last_time_contacted'].Value is not None and 'last_time_contacted' in rec:
+                    last_time_contacted = rec['last_time_contacted'].Value
+                if rec['contact_last_updated_timestamp'].Value is not None and 'contact_last_updated_timestamp' in rec:
+                    contact_last_updated_timestamp = rec['contact_last_updated_timestamp'].Value
+                if rec['times_contacted'].Value is not None and 'times_contacted' in rec:
+                    times_contacted = rec['times_contacted'].Value
+                params = (_id, last_time_contacted, contact_last_updated_timestamp, times_contacted)
+                self.db_insert_table(SQL_INSERT_TABLE_CONTACTS, params)
+            except:
+                traceback.print_exc()
+        for rec in db.ReadTableDeletedRecords(ts3, False):
+            try:
+                if rec['_id'].Value is not None and '_id' in rec:
+                    _id = rec['_id'].Value
+                if rec['last_time_contacted'].Value is not None and 'last_time_contacted' in rec:
+                    last_time_contacted = rec['last_time_contacted'].Value
+                if rec['contact_last_updated_timestamp'].Value is not None and 'contact_last_updated_timestamp' in rec:
+                    contact_last_updated_timestamp = rec['contact_last_updated_timestamp'].Value
+                if rec['times_contacted'].Value is not None and 'times_contacted' in rec:
+                    times_contacted = rec['times_contacted'].Value
+                params = (_id, last_time_contacted, contact_last_updated_timestamp, times_contacted)
+                self.db_insert_table(SQL_INSERT_TABLE_CONTACTS, params)
+            except:
+                traceback.print_exc()
+        ts4 = SQLiteParser.TableSignature('mimetypes')
+        for rec in db.ReadTableRecords(ts4, self.extractDeleted, True):
+            try:
+                if rec['_id'].Value is not None and '_id' in rec:
+                    _id = rec['_id'].Value
+                if rec['mimetype'].Value is not None and 'mimetype' in rec:
+                    mimetype = rec['mimetype'].Value
+                params = (_id, mimetype)
+                self.db_insert_table(SQL_INSERT_TABLE_MIMETYPES, params)
+            except:
+                traceback.print_exc()
+        for rec in db.ReadTableDeletedRecords(ts4, False):
+            try:
+                if rec['_id'].Value is not None and '_id' in rec:
+                    _id = rec['_id'].Value
+                if rec['mimetype'].Value is not None and 'mimetype' in rec:
+                    mimetype = rec['mimetype'].Value
+            except:
+                traceback.print_exc()
+        self.db_cmd.Dispose()
+        self.db.Close()
+
     def analyze_logic_contacts(self):
         try:
             node = self.node.Parent.GetByPath('/contacts.db')
@@ -198,13 +386,13 @@ class CallsParse(object):
 
     def insert_contact_tempo(self):
         try:
-            self.db = SQLite.SQLiteConnection('Data Source = {}'.format(self.db_tempo))
-            self.db.Open()
-            self.db_cmd = SQLite.SQLiteCommand(self.db)
+            db_ext = SQLite.SQLiteConnection('Data Source = {}'.format(self.db_tempo))
+            db_ext.Open()
+            self.db_cmd = SQLite.SQLiteCommand(db_ext)
         except:
             return
         try:
-            contactsNode = self.sourceDB + '\\contacts2.db'
+            contactsNode = self.sourceDB + '\\db_deleted.db'
             db = SQLite.SQLiteConnection('Data Source = {}'.format(contactsNode))
             db.Open()
             db_cmd = SQLite.SQLiteCommand(db)
@@ -215,39 +403,55 @@ class CallsParse(object):
                 db_cmd.ExecuteNonQuery()
                 sr = db_cmd.ExecuteReader()
             except:
+                db_cmd.Dispose()
+                db.Close()
+                self.db_cmd.Dispose()
+                db_ext.Close()
+                self.analyze_logic_contacts()
+                return
+            if sr.Read() is False:
+                self.db_cmd.Dispose()
+                db_ext.Close()
+                db_cmd.Dispose()
+                sr.Close()
+                db.Close()
                 self.analyze_logic_contacts()
                 return
             while(sr.Read()):
                 if canceller.IsCancellationRequested:
                     break
-                raw_contact_id = sr[7]
+                raw_contact_id = sr[0]
                 mimetype_id = sr[1]
-                if not IsDBNull(sr[11]):
-                    mail = sr[2] if self._regularMatch(sr[11]) == 1 else None
-                if not IsDBNull(sr[11]):    
-                    company = sr[2] if self._regularMatch(sr[11]) == 2 else None
-                if not IsDBNull(sr[11]):
-                    title = sr[5] if self._regularMatch(sr[11]) == 2 else None
-                last_time_contact = sr[8]
-                last_time_modify = sr[9]
-                times_contacted = sr[10]
-                if not IsDBNull(sr[11]):
-                    phone_number = sr[5] if self._regularMatch(sr[11]) == 3 else sr[4] if (self._regularMatch(sr[11]) == 8 or self._regularMatch(sr[11]) == 9 or self._regularMatch(sr[11]) == 10) else None
-                if not IsDBNull(sr[11]):
-                    name = sr[2] if self._regularMatch(sr[11]) == 4 else None
-                if not IsDBNull(sr[11]):                    
-                    address = sr[2] if self._regularMatch(sr[11]) == 5 else None
-                if not IsDBNull(sr[11]):    
-                    notes = sr[2] if self._regularMatch(sr[11]) == 6 else raw[3] if (self._regularMatch(sr[11]) == 8 or self._regularMatch(sr[11]) == 10) else None
-                if not IsDBNull(sr[11]):
-                    telegram = sr[3] if self._regularMatch(sr[11]) == 9 else None
-                if not IsDBNull(sr[11]):
-                    head_pic = sr[6] if self._regularMatch(sr[11]) == 7 else None
+                if not IsDBNull(sr[12]):
+                    mail = sr[2] if self._regularMatch(sr[12]) == 1 else None
+                if not IsDBNull(sr[12]):    
+                    company = sr[2] if self._regularMatch(sr[12]) == 2 else None
+                if not IsDBNull(sr[12]):
+                    title = sr[5] if self._regularMatch(sr[12]) == 2 else None
+                last_time_contact = sr[9]
+                last_time_modify = sr[10]
+                times_contacted = sr[11]
+                if not IsDBNull(sr[12]):
+                    phone_number = sr[5] if self._regularMatch(sr[12]) == 3 else sr[4] if (self._regularMatch(sr[12]) == 8 or self._regularMatch(sr[12]) == 9 or self._regularMatch(sr[12]) == 10) else None
+                if not IsDBNull(sr[12]):
+                    name = sr[2] if self._regularMatch(sr[12]) == 4 else None
+                if not IsDBNull(sr[12]):                    
+                    address = sr[2] if self._regularMatch(sr[12]) == 5 else None
+                if not IsDBNull(sr[12]):    
+                    notes = sr[2] if self._regularMatch(sr[12]) == 6 else sr[3] if (self._regularMatch(sr[12]) == 8 or self._regularMatch(sr[12]) == 10) else None
+                if not IsDBNull(sr[12]):
+                    telegram = sr[3] if self._regularMatch(sr[12]) == 9 else None
+                if not IsDBNull(sr[12]):
+                    head_pic = sr[6] if self._regularMatch(sr[12]) == 7 else None
                 source = self.node.AbsolutePath
-                param = (raw_contact_id, mimetype_id, mail, company, title, last_time_contact, last_time_modify, times_contacted, phone_number, name, address, notes, telegram, head_pic, source, 0, 0)
+                deleted = sr[7]
+                param = (raw_contact_id, mimetype_id, mail, company, title, last_time_contact, last_time_modify, times_contacted, phone_number, name, address, notes, telegram, head_pic, source, deleted, 0)
                 self.db_insert_table(model_contact.SQL_INSERT_TABLE_CONTACTS, param)
+            sr.Close()
+            db_cmd.Dispose()
+            db.Close()
             self.db_cmd.Dispose()
-            self.db.Close()
+            db_ext.Close()
         except Exception as e:
             traceback.print_exc()
 
@@ -299,13 +503,21 @@ class CallsParse(object):
         return flag
 
     def parse(self):
-        self.mc.db_create(self.cachedb)
-        self._copytocache()
-        self._closewal('contacts2.db')
-        self.create_db_tempo()
-        self.insert_contact_tempo()
-        self.analyze_call_contacts()
-        self.mc.db_close()
+        if self.mc.need_parse(self.cachedb, VERSION_APP_VALUE):
+            self.mc.db_create(self.cachedb)
+            self._copytocache()
+            self._closewal('contacts2.db')
+            self.analyze_deleted_records()
+            self.create_db_tempo()
+            self.insert_contact_tempo()
+            self.analyze_call_contacts()
+            self.mc.db_insert_table_version(model_contact.VERSION_KEY_DB, model_contact.VERSION_VALUE_DB)
+            self.mc.db_insert_table_version(model_contact.VERSION_KEY_APP, VERSION_APP_VALUE)
+            self.mc.db_commit()
+            self.mc.db_close()
+            SQLite.SQLiteConnection.ClearAllPools()
+            if os.path.exists(self.sourceDB):
+                shutil.rmtree(self.sourceDB)
         generate = Generate(self.cachedb)
         models = generate.get_models()
         return models
