@@ -10,7 +10,6 @@ clr.AddReference('System.Xml.Linq')
 clr.AddReference('System.Data.SQLite')
 try:
     clr.AddReference('model_im')
-    clr.AddReference('bcp_im')
     clr.AddReference('QQ_struct')
     clr.AddReference('bcp_im')
 except:
