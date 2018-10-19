@@ -111,8 +111,7 @@ class QQParser(object):
                     self.decode_groupMember_info(acc_id)
                     self.decode_friend_messages(acc_id)
                     self.decode_group_messages(acc_id)	
-                    self.decode_fts_messages(acc_id)		
-                    self.decode_db_calls(acc_id)        
+                    self.decode_fts_messages(acc_id)		                   
                     self.decode_recover_friends(acc_id)
                     self.decode_recover_group_info(acc_id)
                     self.decode_recover_groupMember_info(acc_id)
@@ -251,10 +250,10 @@ class QQParser(object):
                     msg.type = MESSAGE_CONTENT_TYPE_TEXT
                     msg.content = content
                     msg.send_time = sendtime
-                    msg.talker_type = CHAT_TYPE_GROUP
-                    self.im.db_insert_table_message(msg)
+                    msg.talker_type = CHAT_TYPE_GROUP                    
                 except:					
                     pass
+                self.im.db_insert_table_message(msg)
             self.im.db_commit()																							
         return 
 
@@ -403,34 +402,8 @@ class QQParser(object):
                     except:                        
                         pass
                     self.troops[g.chatroom_id] = g
-        node = self.root.GetByPath('/Documents/contents/' + acc_id + '/QQ.db')  
-        d = node.PathWithMountPoint
-        conn = connect(d)
-        db = SQLiteParser.Database.FromNode(node,canceller)
-        if db is None:
-            return		
-        sql = ''
-        try:
-            if 'tb_troop' in db.Tables:
-                sql = 'select groupCode, groupName  from tb_troop'
-            else:
-                sql = 'select groupCode, groupName   from tb_troop_new'
-            cursor = conn.execute(sql)
-            for row in cursor:   
-                if canceller.IsCancellationRequested:
-                    return         
-                groupCode = str(row[0])
-                groupName = str(row[1])
-                group = self.troops[groupCode]
-                group.name = groupName
-                group.chatroom_id = groupCode
-                group.account_id = acc_id
-                if(group.source is None):
-                    group.source = node.AbsolutePath
-                self.im.db_insert_table_chatroom(group)
-        except:
-            pass
-        self.im.db_commit()
+                    self.im.db_insert_table_chatroom(g)     
+            self.im.db_commit()
 
     def decode_groupMember_info(self, acc_id):
         try:
@@ -463,40 +436,49 @@ class QQParser(object):
                     chatroommmebers[(groupCode,MemberUin)] =  chatroommem
             node = self.root.GetByPath('/Documents/contents/' + acc_id + '/QQ.db')
             if node is not None:
-                d = node.PathWithMountPoint
-                conn = sqlite3.connect(d)
-                sql = 'select nick,GroupCode,MemUin,Age,JoinTime,LastSpeakTime,gender from tb_TroopMem'
-                cursor = conn.execute(sql)
-                for row in cursor:
-                        if canceller.IsCancellationRequested:
-                            return
-                        try:
-                            nick = row[0]
-                            groupCode = str(row[1])
-                            MemberUin = str(row[2])
-                            Age = row[3]
-                            JoinTime = row[4]
-                            LastSpeakTime =  row[5]
-                            gender = row[6]
-                            chatmem = chatroommmebers[(groupCode, MemberUin)]
-                            if(chatmem.source is None):
-                                chatmem.source = node.AbsolutePath
-                            chatmem.account_id = acc_id
-                            chatmem.chatroom_id = groupCode
-                            chatmem.member_id = MemberUin
-                            if(chatmem.display_name == ''):
-                                chatmem.display_name = nick
-                            chatmem.age  = Age
-                            if(gender == 0):
-                                chatmem.gender = GENDER_MALE
-                            elif(gender == 1):
-                                chatmem.gender = GENDER_FEMALE
-                            else:
-                                chatmem.gender = GENDER_NONE
-                            chatmem.JoinTime = JoinTime
-                            chatmem.lastspeektime = LastSpeakTime
-                        except:
-                            pass
+                d = node.PathWithMountPoint                
+                sql = 'select nick,GroupCode,MemUin,Age,JoinTime,LastSpeakTime,gender from tb_TroopMem'               
+                datasource = "Data Source =  " + d +";ReadOnly=True"
+                conn = SQLiteConnection(datasource)
+                conn.Open()
+                if(conn is None):
+                    return
+                command = SQLiteCommand(conn)                
+                command.CommandText = sql
+                reader = command.ExecuteReader()
+                while reader.Read():               
+                    if canceller.IsCancellationRequested:
+                        return
+                    try:
+                        nick = SafeGetString(reader,0)
+                        groupCode = SafeGetString(reader,1)
+                        MemberUin = SafeGetString(reader,2)
+                        Age = int(SafeGetString(reader,3))
+                        JoinTime = int(SafeGetString(reader,4))
+                        LastSpeakTime = int(SafeGetString(reader,5))
+                        gender =int(SafeGetString(reader,6))
+                        chatmem = chatroommmebers[(groupCode, MemberUin)]
+                        if(chatmem.source is None):
+                            chatmem.source = node.AbsolutePath
+                        chatmem.account_id = acc_id
+                        chatmem.chatroom_id = groupCode
+                        chatmem.member_id = MemberUin
+                        if(chatmem.display_name == ''):
+                            chatmem.display_name = nick
+                        chatmem.age  = Age
+                        if(gender == 0):
+                            chatmem.gender = GENDER_MALE
+                        elif(gender == 1):
+                            chatmem.gender = GENDER_FEMALE
+                        else:
+                            chatmem.gender = GENDER_NONE
+                        chatmem.JoinTime = JoinTime
+                        chatmem.lastspeektime = LastSpeakTime
+                    except:
+                        pass
+                reader.Close()
+                command.Dispose()		
+                conn.Close()   
             for k in chatroommmebers:
                 self.im.db_insert_table_chatroom_member(chatroommmebers[k])
         except:
