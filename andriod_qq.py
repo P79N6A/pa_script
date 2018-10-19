@@ -11,6 +11,7 @@ clr.AddReference('System.Data.SQLite')
 try:
     clr.AddReference('model_im')
     clr.AddReference('QQ_struct')
+    clr.AddReference('bcp_im')
 except:
     pass
 del clr
@@ -165,9 +166,9 @@ class Andriod_QQParser(object):
                     self.decode_group_info(acc_id)
                     self.decode_groupMember_info(acc_id)
                     self.decode_friend_messages(acc_id)            
-                    self.decode_group_messages(acc_id)	                                     
-                    '''
-                        self.decode_recover_friends(acc_id)
+                    self.decode_group_messages(acc_id)	  
+                    '''                                                       
+                        self.decode_recover_friends(acc_id)                    
                         self.decode_recover_group_info(acc_id)
                         self.decode_recover_groupMember_info(acc_id)
                         self.decode_recover_friend_messages(acc_id)
@@ -595,6 +596,7 @@ class Andriod_QQParser(object):
                 self.im.db_insert_table_message(msg)			
             except Exception as e:		
                 print (e)
+        reader.Close()
         command.Dispose()		
         conn.Close()
         self.im.db_commit()
@@ -785,6 +787,7 @@ class Andriod_QQParser(object):
                 self.im.db_insert_table_message(msg)				
             except Exception as e:		
                 print (e)
-        command.Dispose()		
+        reader.Close()
+        command.Dispose()        
         conn.Close()		
-        self.im.db_commit()		
+        self.im.db_commit()
