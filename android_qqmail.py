@@ -435,7 +435,7 @@ class QQMailParser(object):
         self.read_deleted_table_mailinfo()
         self.read_deleted_table_mailtos()
         self.read_deleted_table_mailcontent()
-        self.read_deleted_table_folder()
+        #self.read_deleted_table_folder()
         self.read_deleted_table_contact()
         self.read_deleted_table_attach()
 
