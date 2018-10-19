@@ -11,6 +11,7 @@ clr.AddReference('System.Xml.Linq')
 clr.AddReference('System.Data.SQLite')
 try:
     clr.AddReference('model_im')
+    clr.AddReference('bcp_im')
     clr.AddReference('QQFriendNickName')
     clr.AddReference('bcp_im')
 except:
@@ -341,13 +342,16 @@ class QQParser(object):
         ac.source = self.app_name
         ac.ServiceType = self.app_name
         #account.deleted = DeletedState.Intact
-        ac.nickname = values['_loginAccount'].Value
-        ac.account_id = values['_uin'].Value
-        ac.nickname = values['_nick'].Value		
-        ac.country = values['_sCountry'].Value 
-        ac.province = values['_sProvince'].Value
-        ac.city = values['_sCity'].Value
-        ac.sex =  values['_sex'].Value
+        try:
+            ac.nickname = values['_loginAccount'].Value
+            ac.account_id = values['_uin'].Value
+            ac.nickname = values['_nick'].Value		            
+            ac.province = values['_sProvince'].Value
+            ac.city = values['_sCity'].Value
+            ac.sex =  values['_sex'].Value
+            ac.country = values['_sCountry'].Value 
+        except:
+            pass
         ac.source = source
         self.nickname = ac.nickname
         self.accounts.append(ac.account_id)
@@ -395,10 +399,10 @@ class QQParser(object):
                         g.account_id = acc_id
                         g.name = v["name"].ToString()
                         g.notice = v["memo"].ToString()
-                        g.source = node.AbsolutePath
-                        self.troops[g.chatroom_id] = g
-                    except:
+                        g.source = node.AbsolutePath                     
+                    except:                        
                         pass
+                    self.troops[g.chatroom_id] = g
         node = self.root.GetByPath('/Documents/contents/' + acc_id + '/QQ.db')  
         d = node.PathWithMountPoint
         conn = connect(d)
@@ -441,18 +445,21 @@ class QQParser(object):
                     if canceller.IsCancellationRequested:
                             return
                     chatroommem = ChatroomMember()
-                    strNick = row[0]
-                    groupCode = str(row[1])
-                    MemberUin = str(row[2])
-                    strRemark = row[3]
-                    PhoneNumber = row[4]
-                    chatroommem.account_id = acc_id
-                    chatroommem.chatroom_id = groupCode
-                    chatroommem.member_id = MemberUin
-                    chatroommem.display_name = strNick
-                    chatroommem.telephone  = PhoneNumber
-                    chatroommem.signature = strRemark
-                    chatroommem.source = node.AbsolutePath
+                    try:
+                        strNick = row[0]
+                        groupCode = str(row[1])
+                        MemberUin = str(row[2])
+                        strRemark = row[3]
+                        PhoneNumber = row[4]
+                        chatroommem.account_id = acc_id
+                        chatroommem.chatroom_id = groupCode
+                        chatroommem.member_id = MemberUin
+                        chatroommem.display_name = strNick
+                        chatroommem.telephone  = PhoneNumber
+                        chatroommem.signature = strRemark
+                        chatroommem.source = node.AbsolutePath
+                    except:
+                        pass
                     chatroommmebers[(groupCode,MemberUin)] =  chatroommem
             node = self.root.GetByPath('/Documents/contents/' + acc_id + '/QQ.db')
             if node is not None:
@@ -463,30 +470,33 @@ class QQParser(object):
                 for row in cursor:
                         if canceller.IsCancellationRequested:
                             return
-                        nick = row[0]
-                        groupCode = str(row[1])
-                        MemberUin = str(row[2])
-                        Age = row[3]
-                        JoinTime = row[4]
-                        LastSpeakTime =  row[5]
-                        gender = row[6]
-                        chatmem = chatroommmebers[(groupCode, MemberUin)]
-                        if(chatmem.source is None):
-                            chatmem.source = node.AbsolutePath
-                        chatmem.account_id = acc_id
-                        chatmem.chatroom_id = groupCode
-                        chatmem.member_id = MemberUin
-                        if(chatmem.display_name == ''):
-                            chatmem.display_name = nick
-                        chatmem.age  = Age
-                        if(gender == 0):
-                            chatmem.gender = GENDER_MALE
-                        elif(gender == 1):
-                            chatmem.gender = GENDER_FEMALE
-                        else:
-                            chatmem.gender = GENDER_NONE
-                        chatmem.JoinTime = JoinTime
-                        chatmem.lastspeektime = LastSpeakTime
+                        try:
+                            nick = row[0]
+                            groupCode = str(row[1])
+                            MemberUin = str(row[2])
+                            Age = row[3]
+                            JoinTime = row[4]
+                            LastSpeakTime =  row[5]
+                            gender = row[6]
+                            chatmem = chatroommmebers[(groupCode, MemberUin)]
+                            if(chatmem.source is None):
+                                chatmem.source = node.AbsolutePath
+                            chatmem.account_id = acc_id
+                            chatmem.chatroom_id = groupCode
+                            chatmem.member_id = MemberUin
+                            if(chatmem.display_name == ''):
+                                chatmem.display_name = nick
+                            chatmem.age  = Age
+                            if(gender == 0):
+                                chatmem.gender = GENDER_MALE
+                            elif(gender == 1):
+                                chatmem.gender = GENDER_FEMALE
+                            else:
+                                chatmem.gender = GENDER_NONE
+                            chatmem.JoinTime = JoinTime
+                            chatmem.lastspeektime = LastSpeakTime
+                        except:
+                            pass
             for k in chatroommmebers:
                 self.im.db_insert_table_chatroom_member(chatroommmebers[k])
         except:
@@ -1209,5 +1219,5 @@ def analyze_qq(root, extract_deleted, extract_source):
         pr.Models.AddRange(QQParser(root, extract_deleted, extract_source).parse())
         pr.Build('QQ')
         return pr
-    except:
-        pass
+    except Exception as e:
+        print(e)
