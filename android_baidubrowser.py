@@ -63,6 +63,7 @@ class BaiduBrowserParser(object):
             databases/dbbrowser.db
             app_webview_baidu/Cookies
         '''
+        print(self.root.AbsolutePath)
         if DEBUG or self.mb.need_parse(self.cache_db, VERSION_APP_VALUE):
             if not self._read_db('databases/dbbrowser.db'):
                 return  
@@ -80,16 +81,17 @@ class BaiduBrowserParser(object):
                 self.mb.db_commit()
                 
             self.mb.db_close()
-            
         tmp_dir = ds.OpenCachePath('tmp')
         save_cache_path(bcp_browser.NETWORK_APP_BAIDU, self.cache_db, tmp_dir)
 
         models = Generate(self.cache_db).get_models()
+        print('匹配 百度浏览器, return models')
+
         return models
 
     def parse_Bookmark(self, db_path, table_name):
-        """
-            dbbrowser.db - bookmark
+        """ dbbrowser.db - bookmark
+
             RecNo  FieldName
             1	   account_uid	        TEXT
             2	   create_time	        INTEGER
@@ -112,7 +114,7 @@ class BaiduBrowserParser(object):
         if not self._read_db(db_path):
             return 
         for rec in self._read_table(table_name):
-            if self._is_empty(rec, 'url', 'title'):
+            if self._is_empty(rec, 'url', 'title') or not self._is_url(rec, 'url'):
                 continue
             bookmark = Bookmark()
             bookmark.id         = rec['_id'].Value
@@ -121,6 +123,7 @@ class BaiduBrowserParser(object):
             bookmark.title      = rec['title'].Value
             bookmark.url        = rec['url'].Value
             bookmark.source     = self.cur_db_source
+            bookmark.deleted    = 1 if rec.IsDeleted else 0                  
             try:
                 self.mb.db_insert_table_bookmarks(bookmark)
             except:
@@ -148,7 +151,7 @@ class BaiduBrowserParser(object):
         for rec in self._read_table(table_name):
             if canceller.IsCancellationRequested:
                 return            
-            if self._is_empty(rec, 'url'):
+            if self._is_empty(rec, 'url') or not self._is_url(rec, 'url'):
                 continue
             browser_record = Browserecord()
             browser_record.id       = rec['_id'].Value
@@ -156,6 +159,7 @@ class BaiduBrowserParser(object):
             browser_record.url      = rec['url'].Value
             browser_record.datetime = rec['date'].Value
             browser_record.source   = self.cur_db_source
+            browser_record.deleted  = 1 if rec.IsDeleted else 0            
             try:
                 self.mb.db_insert_table_browserecords(browser_record)
             except:
@@ -201,6 +205,7 @@ class BaiduBrowserParser(object):
             cookies.hasexipred     = rec['has_expires'].Value
             # cookies.owneruser      = rec['owneruser'].Value
             cookies.source         = self.cur_db_source
+            cookies.deleted        = 1 if rec.IsDeleted else 0              
             try:
                 self.mb.db_insert_table_cookies(cookies)
             except:
@@ -212,8 +217,7 @@ class BaiduBrowserParser(object):
 
     @print_run_time
     def parse_DownloadFile(self, db_path, table_name):
-        """
-            databases/flyflowdownload.db - bddownloadtable
+        """ databases/flyflowdownload.db - bddownloadtable
 
             下载目录: /storage/emulated/0/baidu/flyflow/downloads/
             RecNo	FieldName	SQLType 
@@ -238,17 +242,13 @@ class BaiduBrowserParser(object):
         # print 'table_name:', self.root.AbsolutePath
         if not self._read_db(db_path):
             return 
-
-        auto_id = 1
         for rec in self._read_table(table_name):
-
+            if self._is_empty(rec, 'filename') or not self._is_url(rec, 'url'):
+                continue     
             if canceller.IsCancellationRequested:
                 return            
-            if rec['total'].Value < 1 or not rec['url'].Value.startswith('http://'):
-                continue
+            print('filename', rec['filename'].Value)
             downloads = DownloadFile()
-            downloads.id             = auto_id
-            auto_id += 1
             downloads.url            = rec['url'].Value
             downloads.filename       = rec['filename'].Value
             downloads.filefolderpath = self._convert_2_nodepath(rec['savepath'].Value, downloads.filename)
@@ -258,8 +258,8 @@ class BaiduBrowserParser(object):
             costtime = downloads.donedate - downloads.createdate
             downloads.costtime       = costtime if costtime > 0 else None # 毫秒
             # downloads.owneruser      = rec['name'].Value
-
-            downloads.source = self.cur_db_source
+            downloads.source         = self.cur_db_source
+            downloads.deleted        = 1 if rec.IsDeleted else 0
             try:
                 self.mb.db_insert_table_downloadfiles(downloads)
             except:
@@ -284,7 +284,7 @@ class BaiduBrowserParser(object):
         for rec in self._read_table(table_name):       
             if canceller.IsCancellationRequested:
                 return                 
-            if self._is_empty(rec, 'url', 'title'):
+            if self._is_empty(rec, 'url', 'title') or not self._is_url(rec, 'url'):
                 continue
             search_history = SearchHistory()
             search_history.id       = rec['_id'].Value
@@ -292,6 +292,7 @@ class BaiduBrowserParser(object):
             search_history.url      = rec['url'].Value
             search_history.datetime = rec['date'].Value
             search_history.source   = self.cur_db_source
+            search_history.deleted  = 1 if rec.IsDeleted else 0                
             try:
                 self.mb.db_insert_table_searchhistory(search_history)
             except:
@@ -314,51 +315,55 @@ class BaiduBrowserParser(object):
         self.cur_db_source = node.AbsolutePath
         return True
 
-    def _read_table(self, table_name):
+    def _read_table(self, table_name, read_deleted=None):
         """ 
             读取手机数据库 - 表
+
+        默认全部读取, read_deleted 为 True: 只读删除的数据, 为 False 时, 只读未删除的数据
         :type table_name: str
+        :type extract_deleted: bool
         :rtype: db.ReadTableRecords()                                       
         """
+        tb = SQLiteParser.TableSignature(table_name)  
         try:
-            tb = SQLiteParser.TableSignature(table_name)  
-            return self.cur_db.ReadTableRecords(tb, self.extract_deleted, True)
+            if read_deleted is None:
+                return self.cur_db.ReadTableRecords(tb, self.extract_deleted, True)
+            elif read_deleted is True:
+                return self.cur_db.ReadTableDeletedRecords(tb, False)
+            elif read_deleted is False:
+                return self.cur_db.ReadTableRecords(tb, False, True)
         except:
-            exc()
-
+            exc()           
 
     def _convert_2_nodepath(self, raw_path, file_name):
-        # raw_path = '/data/user/0/com.baidu.browser/files/template/profile.zip'
-        # huawei: 
-        # /data.tar/data/data/com.baidu.searchbox/files/template/profile.zip
-        hwwz_pattern = '/data.tar/data/data/com.baidu.searchbox/files/template/'
-        fs = self.root.FileSystem
-        if not file_name:
-            raw_path_list = raw_path.split(r'/')
-            file_name = raw_path_list[-1]
-        if  '.' not in file_name:
-            return 
-        else:
-            #print os.path.join(hwwz_pattern, file_name)
-
-            if os.path.isfile(os.path.join(hwwz_pattern, file_name)):
-                # print os.path.join(hwwz_pattern, file_name)
-                return os.path.join(hwwz_pattern, file_name)
-                
-        # print 'raw_path, file_name', raw_path, file_name
-
-        _path = None
-        if len(file_name) > 0:
-            try:
-                node = fs.Search(r'com\.baidu\.browser\.apps.*?{}$'.format(re.escape(file_name)))
-                for i in node:
-                    _path = i.AbsolutePath
-            except:
-                pass
-                #print 'file_name, _path', file_name, _path
-        # print 'baidu.browser _path', _path
-        return _path
-
+        try:
+            # huawei: /data/user/0/com.baidu.searchbox/files/template/profile.zip
+            paths = [
+                '/data.tar/data/data/com.baidu.searchbox/files/template/', 
+                '/storage/emulated/0/baidu/flyflow/downloads/',
+            ]
+            fs = self.root.FileSystem
+            if not file_name:
+                raw_path_list = raw_path.split(r'/')
+                file_name = raw_path_list[-1]
+            # if  '.' not in file_name:
+            #     return 
+            for path in paths:
+                if os.path.isfile(os.path.join(path, file_name)):
+                    return os.path.join(path, file_name)
+            _path = None
+            if len(file_name) > 0:
+                try:
+                    node = fs.Search(r'com\.baidu\.browser\.apps.*?{}$'.format(re.escape(file_name)))
+                    for i in node:
+                        _path = i.AbsolutePath
+                except:
+                    pass
+            return _path if _path else file_name
+        except:
+            print'android_baidubrowser.py _conver_2_nodeapth error, file_name:', file_name
+            exc()
+            return file_name
 
     @staticmethod
     def _is_empty(rec, *args):
@@ -372,3 +377,27 @@ class BaiduBrowserParser(object):
             if IsDBNull(rec[i].Value) or rec[i].Value in ('', ' ', None, [], {}):
                 return True
         return False
+
+    @staticmethod
+    def _is_url(rec, *args):
+        ''' 匹配 URL IP
+
+        严格匹配
+        :type rec:   rec
+        :type *args: str
+        :rtype: bool
+        '''
+        URL_PATTERN = r'((http|ftp|https)://)(([a-zA-Z0-9\._-]+\.[a-zA-Z]{2,6})|([0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}))(:[0-9]{1,4})*(/[a-zA-Z0-9\&%_\./-~-]*)?'
+        IP_PATTERN = r'^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$'
+
+        for i in args:
+            try:
+                match_url = re.match(URL_PATTERN, rec[i].Value)
+                match_ip  = re.match(IP_PATTERN, rec[i].Value)
+                
+                if not match_url and not match_ip:
+                    return False
+            except:
+                exc()
+                return False  
+        return True

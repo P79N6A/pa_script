@@ -44,7 +44,8 @@ def analyze_sms(node, extract_deleted, extract_source):
         print('DEBUG sms')
         if res:
             for sms in res:
-                print 'sms.Body.Value', sms.Body.Value
+                # print 'sms.Body.Value:', sms.Body.Value
+                pass
         else:
             print('res is null')
 
@@ -101,28 +102,29 @@ class SMSParser(object):
         # self.parse_mms()
         
     def parse_sim_cards(self):
-       """ 
-           sms - 短信
-       """
-       try:
-           for rec in self.my_read_table('sim_cards'):
-               if IsDBNull(rec['number'].Value):
-                   continue
-               sim = Sim_cards()
-               sim.sim_id       = rec['sim_id'].Value
-               sim.number       = rec['number'].Value
-               sim.sync_enabled = rec['sync_enabled'].Value
-               sim.source       = self.source_mmmssms_db
-               try:
-                   self.m_sms.db_insert_table_sim_cards(sim)
-               except:
-                   exc()
-           try:
-               self.m_sms.db_commit()
-           except:
-               pass
-       except:
-           pass
+        """ 
+            sms - 短信
+        """
+        try:
+            for rec in self.my_read_table('sim_cards'):
+                if IsDBNull(rec['number'].Value):
+                    continue
+                sim = Sim_cards()
+                sim.sim_id       = rec['sim_id'].Value
+                sim.number       = rec['number'].Value
+                sim.sync_enabled = rec['sync_enabled'].Value
+                sim.source       = self.source_mmmssms_db
+                sim.deleted      = 1 if rec.IsDeleted else 0                  
+                try:
+                    self.m_sms.db_insert_table_sim_cards(sim)
+                except:
+                    exc()
+            try:
+                self.m_sms.db_commit()
+            except:
+                pass
+        except:
+            pass
 
     def pre_parse_calls(self):
         ''' calls.db - contacts
@@ -149,20 +151,19 @@ class SMSParser(object):
         contacts = {}
 
         # 关联 通讯录  CALLS/F2BB91E8E7436EAA944C378D44066A79.db
-
-
         BASE_DIR   = os.path.dirname(self.cachepath)
         calls_path = os.path.join(BASE_DIR, 'Calls')
 
         try:
             if not os.listdir(calls_path):
-                print('####### android_sms.py: calls.db 不存在')
+                print('####### android_sms.py: Calls 目录下没有 db')
                 return 
+            print('calls_path', calls_path)
             for f  in os.listdir(calls_path):
                 if f.endswith('.db'):
                     calls_db_path = os.path.join(calls_path, f)
         except:
-            print('####### android_sms.py:  关联 calls.db 失败 ')
+            print('####### android_sms.py: calls.db 不存在')
             return 
 
         try:
@@ -173,8 +174,8 @@ class SMSParser(object):
                 contacts[row[8]] = row[9]
             self.contacts = contacts
         except:
-            exc()
             print('##### android_sms.py #######: 关联 calls.db 失败')
+            exc()
             # pass
         finally:
             cursor.close()
@@ -237,7 +238,8 @@ class SMSParser(object):
                 sms.deleted        = rec['deleted'].Value
             except:
                 pass    
-            sms.source             = self.source_mmmssms_db
+            sms.deleted = 1 if rec.IsDeleted or sms.deleted else 0         
+            sms.source = self.source_mmmssms_db
             try:
                 self.m_sms.db_insert_table_sms(sms)
             except:
@@ -263,7 +265,7 @@ class SMSParser(object):
             sms.deliverd           = self._long2int_timestamp(rec['date'].Value)    
             sms.status             = rec['type'].Value    # SMS_TYPE
             sms.is_sender          = 1 if sms.status == SMS_TYPE_SENT else 0
-            sms.deleted            = rec['deleted'].Value
+            sms.deleted = 1 if rec.IsDeleted else rec['deleted'].Value
             sms.source             = self.source_mmmssms_db
             try:
                 self.m_sms.db_insert_table_sms(sms)
@@ -347,7 +349,6 @@ class SMSParser_no_tar(SMSParser):
         models = GenerateModel(self.cache_db, self.cachepath).get_models()
         return models   
 
-
     def parse_sms(self):
         """ sms/sms.db - SMS
 
@@ -368,7 +369,7 @@ class SMSParser_no_tar(SMSParser):
             if self._is_empty(rec, 'body', 'phoneNumber') or rec['isMms'].Value == 1:
                 continue
             sms = SMS()
-            # sms.sms_id           = rec['_id'].Value
+            # sms.sms_id             = rec['_id'].Value
             sms.sender_phonenumber = rec['phoneNumber'].Value
             sms.sender_name        = self.contacts.get(sms.sender_phonenumber, None)
             sms.read_status        = rec['shortRead'].Value
@@ -378,8 +379,8 @@ class SMSParser_no_tar(SMSParser):
             sms.send_time          = self._convert_2_timestamp(rec['time'].Value)
             sms.delivered_date     = sms.send_time
             sms.is_sender          = 1 if rec['shortType'].Value == 2 else 0
-
             sms.source             = self.source_sms_db
+            sms.deleted            = 1 if rec.IsDeleted else 0               
             try:
                 self.m_sms.db_insert_table_sms(sms)
             except:

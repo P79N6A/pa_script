@@ -99,7 +99,7 @@ class RenRenParser():
 
     def get_user(self):
         if self.user is None:
-            return False
+            return
 
         node = self.root.GetByPath('/Documents/' + self.user + '/userCaches/userProfileDict')
         if node is None:
@@ -119,16 +119,15 @@ class RenRenParser():
         account.photo = self.bpreader_node_get_value(root, 'head_url', '')
         self.im.db_insert_table_account(account)
         self.im.db_commit()
-        return True
 
     def get_contacts(self):
         if self.user is None:
-            return True
+            return
 
         subDbPath = self.root.GetByPath('/Documents/DB/' + self.user + '/subscribed.sqlite')
         subDb = SQLiteParser.Database.FromNode(subDbPath)
         if subDb is None:
-            return False
+            return
 
         if 'r_h_c_public_account_object' in subDb.Tables:
             ts = SQLiteParser.TableSignature('r_h_c_public_account_object')
@@ -162,7 +161,7 @@ class RenRenParser():
         infoDbPath = self.root.GetByPath('/Documents/DB/' + self.user + '/info.sqlite')
         infoDb = SQLiteParser.Database.FromNode(infoDbPath)
         if infoDb is None:
-            return False
+            return
 
         if 'r_s_chat_room_persistence_object' in infoDb.Tables:
             ts_1 = SQLiteParser.TableSignature('r_s_chat_room_persistence_object')
@@ -223,7 +222,7 @@ class RenRenParser():
             chatDbPath = self.root.GetByPath('/Documents/DB/' + self.user + '/chat.sqlite')
             chatDb = SQLiteParser.Database.FromNode(chatDbPath)
             if chatDb is None:
-                return False
+                return
 
             if 'r_s_chat_session' in chatDb.Tables:
                 ts_1 = SQLiteParser.TableSignature('r_s_chat_session')
@@ -261,16 +260,15 @@ class RenRenParser():
                                 friend.photo = None
                             self.im.db_insert_table_friend(friend)
         self.im.db_commit()
-        return True
 
     def get_chats(self):
         if self.user is None:
-            return True
+            return
 
         dbPath = self.root.GetByPath('/Documents/DB/' + self.user + '/chat.sqlite')
         db = SQLiteParser.Database.FromNode(dbPath)
         if db is None:
-            return False
+            return
 
         if 'r_s_chat_message_persistence_object' in db.Tables:
             for contactid in self.contacts.keys():
@@ -306,7 +304,6 @@ class RenRenParser():
                     message.msg_id = str(uuid.uuid1()).replace('-', '')
                     self.im.db_insert_table_message(message)
             self.im.db_commit()
-            return True
 
     def get_media_path(self, contactid, is_sender, xml_string, media_content, type, time, deleted, repeated):
             media_path = ''

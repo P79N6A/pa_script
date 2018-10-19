@@ -2,10 +2,12 @@
 import clr
 try:
     clr.AddReference('model_sim')
+    clr.AddReference('bcp_basic')
 except:
     pass
 del clr
 from model_sim import *
+import bcp_basic
 
 VERSION_APP_VALUE = 1
 
@@ -51,8 +53,10 @@ class SIMParser(object):
                 self.m_sim.db_insert_table_version(VERSION_KEY_DB, VERSION_VALUE_DB)
                 self.m_sim.db_insert_table_version(VERSION_KEY_APP, VERSION_APP_VALUE)
                 self.m_sim.db_commit()
-                        
             self.m_sim.db_close()
+        
+        tmp_dir = ds.OpenCachePath('tmp')
+        save_cache_path(bcp_basic.BASIC_SIM_INFORMATION, self.cache_db, tmp_dir)
 
         models = GenerateModel(self.cache_db).get_models()
         return models
@@ -72,9 +76,9 @@ class SIMParser(object):
             if self.is_empty(rec, 'ROWID', 'subscriber_mdn'):
                 continue
             sim = SIM()
-            sim._id    = rec['ROWID'].Value
+            sim._id     = rec['ROWID'].Value
             sim.msisdn  = rec['subscriber_mdn'].Value
-            sim.source = self.source_db
+            sim.source  = self.source_db
             try:
                 self.m_sim.db_insert_table_sim(sim)
             except:

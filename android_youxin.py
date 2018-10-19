@@ -102,7 +102,7 @@ class YouXinParser():
     
     def get_user(self):
         if self.user is None:
-            return False
+            return
 
         account = model_im.Account()
         account.account_id = self.user
@@ -112,7 +112,7 @@ class YouXinParser():
         if db is None:
             self.im.db_insert_table_account(account)
             self.im.db_commit()
-            return True
+            return
 
         account.source = dbPath.AbsolutePath
         if 'MY_NAME_CARD' in db.Tables:
@@ -128,16 +128,15 @@ class YouXinParser():
 
         self.im.db_insert_table_account(account)
         self.im.db_commit()
-        return True
 
     def get_contacts(self):
         if self.user is None:
-            return False
+            return
 
         dbPath = self.root.GetByPath('/databases/' + 'youxin_db_' + self.user)
         db = SQLiteParser.Database.FromNode(dbPath)
         if db is None:
-            return False
+            return
 
         if 'contact' in db.Tables:
             ts = SQLiteParser.TableSignature('contact')
@@ -189,16 +188,15 @@ class YouXinParser():
                 self.contacts[id] = friend
                 self.im.db_insert_table_friend(friend)
         self.im.db_commit()
-        return True
 
     def get_chats(self):
         if self.user is None:
-            return False
+            return
 
         dbPath = self.root.GetByPath('/databases/yx_new_messages')
         db = SQLiteParser.Database.FromNode(dbPath)
         if db is None:
-            return False
+            return
 
         table = 'messages' + self.user
         if table in db.Tables:
@@ -233,10 +231,9 @@ class YouXinParser():
                     if message.is_sender == model_im.MESSAGE_TYPE_RECEIVE:
                         message.status = model_im.MESSAGE_STATUS_READ if rec['status'].Value == 1 else model_im.MESSAGE_STATUS_UNREAD
                     if message.type == model_im.MESSAGE_CONTENT_TYPE_LOCATION:
-                        self.get_location(message.content, message.deleted, message.repeated, message.send_time)
+                        message.extra_id = self.get_location(message.content, message.deleted, message.repeated, message.send_time)
                     self.im.db_insert_table_message(message)
         self.im.db_commit()
-        return True
 
     def parse_message_type(self, type):
         msgtype = model_im.MESSAGE_CONTENT_TYPE_TEXT
@@ -270,4 +267,4 @@ class YouXinParser():
         location.longitude = obj['longitude']
         self.im.db_insert_table_location(location)
         self.im.db_commit()
-        return True
+        return location.location_id

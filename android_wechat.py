@@ -3,6 +3,7 @@ from PA_runtime import *
 import clr
 clr.AddReference('System.Core')
 clr.AddReference('System.Xml.Linq')
+clr.AddReference('System.Data.SQLite')
 try:
     clr.AddReference('model_im')
     clr.AddReference('bcp_im')
@@ -15,11 +16,11 @@ from System.IO import MemoryStream
 from System.Text import Encoding
 from System.Xml.Linq import *
 from System.Linq import Enumerable
-from System.Xml.XPath import Extensions as XPathExtensions
 from System.Security.Cryptography import *
 from System.Text import *
 from System.IO import *
 from System import Convert
+import System.Data.SQLite as SQLite
 
 import os
 import hashlib
@@ -87,7 +88,8 @@ class WeChatParser(model_im.IM):
         self.cache_path = ds.OpenCachePath('wechat')
         if not os.path.exists(self.cache_path):
             os.makedirs(self.cache_path)
-        self.cache_db = os.path.join(self.cache_path, self.user_hash + '.db')
+        self.cache_db_name = self._md5(node.AbsolutePath)
+        self.cache_db = os.path.join(self.cache_path, self.cache_db_name + '.db')
         nameValues.SafeAddValue(bcp_im.CONTACT_ACCOUNT_TYPE_IM_WECHAT, self.cache_db)
 
     def parse(self):
@@ -104,10 +106,11 @@ class WeChatParser(model_im.IM):
             self.extend_nodes = self.root.FileSystem.Search('/Tencent/MicroMsg/{}$'.format(self.user_hash))
 
             node = self.user_node.GetByPath('/EnMicroMsg.db')
-            mm_db_path = os.path.join(self.cache_path, self.user_hash + '_mm.db')
+            mm_db_path = os.path.join(self.cache_path, self.cache_db_name + '_mm.db')
             if Decryptor.decrypt(node, self._get_db_key(self.imei, self.uin), mm_db_path):
                 self._parse_mm_db(mm_db_path, node.AbsolutePath)
             self._parse_wc_db(self.user_node.GetByPath('/SnsMicroMsg.db'))
+            self._parse_fts_db(self.user_node.GetByPath('/FTS5IndexMicroMsg.db'))
 
             # 数据库填充完毕，请将中间数据库版本和app数据库版本插入数据库，用来检测app是否需要重新解析
             self.db_insert_table_version(model_im.VERSION_KEY_DB, model_im.VERSION_VALUE_DB)
@@ -329,6 +332,124 @@ class WeChatParser(model_im.IM):
             feed.commentcount = len(comments)
         self.db_insert_table_feed(feed)
 
+    def _parse_fts_db(self, node):
+        if node is None:
+            return False
+        if canceller.IsCancellationRequested:
+            return False
+
+        db_path = os.path.join(self.cache_path, 'cache.db')
+        self.db_mapping(node.PathWithMountPoint, db_path)
+        if not os.path.exists(db_path):
+            return False
+        db = SQLite.SQLiteConnection('Data Source = {}'.format(db_path))
+        if db is None:
+            return False
+        db.Open()
+
+        sql = 'select chatroom,member from FTS5ChatRoomMembers'
+        db_cmd = SQLite.SQLiteCommand(sql, db)
+        reader = None
+        try:
+            reader = db_cmd.ExecuteReader()
+        except Exception as e:
+            print(e)
+
+        if reader is not None:
+            while reader.Read():
+                if canceller.IsCancellationRequested:
+                    break
+                chatroom = self._db_reader_get_string_value(reader, 0)
+                member = self._db_reader_get_string_value(reader, 1)
+                if chatroom != '' and member != '':
+                    self._parse_mm_db_chatroom_member_with_value(1, node.AbsolutePath, chatroom, member, '', None)
+            reader.Close()
+        db_cmd.Dispose()
+        self.db_commit()
+
+        sql = '''select c0,aux_index,timestamp 
+                 from FTS5IndexContact_content
+                 left join FTS5MetaContact
+                 on id = docid'''
+        db_cmd = SQLite.SQLiteCommand(sql, db)
+        reader = None
+        try:
+            reader = db_cmd.ExecuteReader()
+        except Exception as e:
+            print(e)
+
+        contacts = {}
+        if reader is not None:
+            while reader.Read():
+                if canceller.IsCancellationRequested:
+                    break
+                aux_index = self._db_reader_get_string_value(reader, 0)
+                username = self._db_reader_get_string_value(reader, 1)
+                timestamp = self._db_reader_get_int_value(reader, 2) / 1000
+                if username in contacts:
+                    contacts[username].append(aux_index)
+                else:
+                    contacts[username] = [aux_index]
+            reader.Close()
+        db_cmd.Dispose()
+
+        for username in contacts:
+            aux_index = contacts.get(username, [])
+            alias = None
+            nickname = None
+            if username.endswith("@chatroom"):
+                if len(aux_index) > 0:
+                    nickname = aux_index[0]
+            else:
+                if len(aux_index) > 0:
+                    alias = aux_index[0]
+                if len(aux_index) > 1:
+                    nickname = aux_index[1]
+            self._parse_mm_db_contact_with_value(1, node.AbsolutePath, username, alias, nickname, '', 0, 0, None, None)
+        self.db_commit()
+        del contacts
+
+        sql = '''select c0,aux_index,talker,timestamp 
+                 from FTS5IndexMessage_content
+                 left join FTS5MetaMessage
+                 on id = docid'''
+        db_cmd = SQLite.SQLiteCommand(sql, db)
+        reader = None
+        try:
+            reader = db_cmd.ExecuteReader()
+        except Exception as e:
+            print(e)
+
+        if reader is not None:
+            while reader.Read():
+                if canceller.IsCancellationRequested:
+                    break
+                msg = self._db_reader_get_string_value(reader, 0)
+                talker = self._db_reader_get_string_value(reader, 1)
+                sender = self._db_reader_get_string_value(reader, 2)
+                timestamp = self._db_reader_get_int_value(reader, 3) / 1000
+                if talker != '':
+                    message = model_im.Message()
+                    message.deleted = 1
+                    message.source = node.AbsolutePath
+                    message.account_id = self.user_account.account_id
+                    message.talker_id = talker
+                    message.talker_name = self.contacts.get(talker, {}).get('nickname')
+                    message.sender_id = sender
+                    message.sender_name = self.contacts.get(sender, {}).get('nickname')
+                    message.is_sender = 1 if talker == sender else 0
+                    message.type = model_im.MESSAGE_CONTENT_TYPE_TEXT
+                    message.send_time = timestamp
+                    message.content = msg
+                    message.talker_type = model_im.CHAT_TYPE_GROUP if talker.endswith("@chatroom") else model_im.CHAT_TYPE_FRIEND
+                    self.db_insert_table_message(message)
+            reader.Close()
+        db_cmd.Dispose()
+        self.db_commit()
+
+        db.Close()
+        self.db_remove_mapping(db_path)
+
     def _parse_mm_db_user_info(self, db, source, node_db):
         cursor = db.cursor()
         self.user_account.source = source
@@ -430,7 +551,12 @@ class WeChatParser(model_im.IM):
             contact['verify_flag'] = verify_flag
             if head:
                 contact['photo'] = head
-            self.contacts[username] = contact
+
+            if deleted == 0:
+                self.contacts[username] = contact
+            else:
+                if username not in self.contacts:
+                    self.contacts[username] = contact
 
             if username.endswith('@chatroom'):
                 chatroom = model_im.Chatroom()
@@ -981,6 +1107,26 @@ class WeChatParser(model_im.IM):
                 return default_value
         else:
             return default_value
+
+    @staticmethod
+    def _db_reader_get_string_value(reader, index, default_value=''):
+        return reader.GetString(index) if not reader.IsDBNull(index) else default_value
+
+    @staticmethod
+    def _db_reader_get_int_value(reader, index, default_value=0):
+        return reader.GetInt64(index) if not reader.IsDBNull(index) else default_value
+
+    @staticmethod
+    def _db_reader_get_blob_value(reader, index, default_value=None):
+        if not reader.IsDBNull(index):
+            try:
+                return bytes(reader.GetValue(index))
+            except Exception as e:
+                return default_value
+        else:
+            return default_value
+
+        return reader.GetString(index) if not reader.IsDBNull(index) else default_value
 
     @staticmethod
     def _convert_msg_type(msg_type):
