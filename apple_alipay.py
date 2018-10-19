@@ -533,7 +533,10 @@ class AlipayParser():
         return deal.deal_id
     
     def get_message_content(self, biz):
-        memoryRange = MemoryRange.FromBytes(self.aes_decode(biz))
+        biz = self.aes_decode(biz)
+        if biz is None:
+            return None
+        memoryRange = MemoryRange.FromBytes(biz)
         obj = BPReader.GetTree(memoryRange)
         if obj is not None:
             return obj.Value
