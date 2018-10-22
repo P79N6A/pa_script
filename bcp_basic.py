@@ -1031,6 +1031,7 @@ class GenerateBcp(object):
                 record.RELATIONSHIP_NAME = sr[5]
                 record.CALL_STATUS = CALL_STATUS_CONNECTD if sr[4] is 1 else CALL_STATUS_MISSED if sr[4] is 3 else CALL_STATUS_OTHER
                 record.LOCAL_ACTION = LOCAL_ACTION_RECEIVE if sr[4] is 1 or sr[4] is 3 else LOCAL_ACTION_SEND if sr[4] is 2 else LOCAL_ACTION_OTHER
+                record.START_TIME = sr[2]
                 record.DUAL_TIME = sr[3]
                 record.DELETE_STATUS = DELETE_STATUS_DELETED if sr[12] == 1 else DELETE_STATUS_INTACT
                 self.basic.db_insert_table_call_record(record)
