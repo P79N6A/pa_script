@@ -393,6 +393,7 @@ class NeteaseMailParser(object):
             return self.cur_db.ReadTableRecords(tb, extract_deleted, True)
         except:
             exc()          
+            return []
 
 
     @staticmethod

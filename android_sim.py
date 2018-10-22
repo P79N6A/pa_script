@@ -88,7 +88,7 @@ class SIMParser(object):
             11	mcc	                INTEGER
             12	mnc	                INTEGER
         """
-        for rec in self.my_read_table(table_name='siminfo'):
+        for rec in self._read_table(table_name='siminfo'):
             if IsDBNull(rec['sim_id'].Value) or IsDBNull(rec['display_name'].Value):
                 continue
             sim = SIM()
@@ -106,19 +106,22 @@ class SIMParser(object):
         except:
             exc()
         
-    def my_read_table(self, table_name, extract_deleted=None):
+    def _read_table(self, table_name, extract_deleted=None):
         """
             读取手机数据库, 单数据库模式
         :type table_name: str
         :rtype: db.ReadTableRecords()
         """
-
-        if self.db is None:
-            return
-        if extract_deleted is None:
-            extract_deleted = self.extract_deleted
-        tb = SQLiteParser.TableSignature(table_name)
-        return self.db.ReadTableRecords(tb, extract_deleted, True)
+        try:
+            if self.db is None:
+                return []
+            if extract_deleted is None:
+                extract_deleted = self.extract_deleted
+            tb = SQLiteParser.TableSignature(table_name)
+            return self.db.ReadTableRecords(tb, extract_deleted, True)
+        except:
+            exc()
+            return []
 
     @staticmethod
     def _is_empty(rec, *args):
@@ -165,7 +168,7 @@ class SIMParser_no_tar(SIMParser):
         1	displayName	TEXT		
         2	phoneNumber	TEXT		
         '''
-        for rec in self.my_read_table(table_name='SIM', extract_deleted=False):
+        for rec in self._read_table(table_name='SIM', extract_deleted=False):
             if self._is_empty(rec, 'displayName'):
                 continue
             sim = SIM()
