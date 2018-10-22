@@ -7,10 +7,13 @@ import clr
 try:
     clr.AddReference('model_calendar')
     clr.AddReference('System.Data.SQLite')
+    clr.AddReference('bcp_basic')
 except:
     pass
 del clr
 import shutil
+import hashlib
+import bcp_basic
 from model_calendar import *
 import System.Data.SQLite as SQLite
 
@@ -24,7 +27,9 @@ class CalendarParser(object):
         self.extractSource = extractSource
         self.db = None
         self.mc = MC()
-        self.db_cache = ds.OpenCachePath("CALENDAR") + '\\calendar.db'
+        md5_db = hashlib.md5()
+        md5_db.update(self.node.AbsolutePath.encode(encoding = 'utf-8'))
+        self.db_cache = ds.OpenCachePath("CALENDAR") + '\\' + md5_db.hexdigest().upper() +'.db'
         self.sourceDB = ds.OpenCachePath("CALENDAR") + '\\CalendarSourceDB'
         self.mc.db_create(self.db_cache)
 
@@ -40,6 +45,8 @@ class CalendarParser(object):
                 self.db_cmd.CommandText = SQL_JOIN_TABLE_CALENDAR
                 sr = self.db_cmd.ExecuteReader()
             except Exception as e:
+                self.db_cmd.Dispose()
+                self.db.Close()
                 self.analyze_logic_calendar()
                 return
             while (sr.Read()):
@@ -60,6 +67,7 @@ class CalendarParser(object):
                 calendar.calendar_displayName = sr[9]
                 self.mc.db_insert_calendar(calendar)
             self.mc.db_commit()
+            sr.Close()
             self.db.Close()
         except Exception as e:
             print(e)
@@ -117,9 +125,8 @@ class CalendarParser(object):
                 calendar.source = self.node.AbsolutePath
                 self.mc.db_insert_calendar(calendar)
             self.mc.db_commit()
+            sr.Close()
             self.db.Close()
-            GC.Collect();
-            GC.WaitForPendingFinalizers();
         except Exception as e:
             print(e)
 
@@ -136,6 +143,15 @@ class CalendarParser(object):
         self.analyze_calendar()
         self.decode_recover_calendar_table()
         self.mc.db_close()
+        SQLite.SQLiteConnection.ClearAllPools()
+        #bcp entry
+        temp_dir = ds.OpenCachePath('tmp')
+        PA_runtime.save_cache_path(bcp_basic.BASIC_CALENDAR_INFOMATION, self.db_cache, temp_dir)
+        try:
+            if os.path.exists(self.sourceDB):
+                shutil.rmtree(self.sourceDB)
+        except:
+            pass
         generate = Generate(self.db_cache)
         models = generate.get_models()
         return models

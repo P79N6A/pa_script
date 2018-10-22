@@ -972,12 +972,15 @@ class GenerateBcp(object):
                 return
             self.db_cmd.CommandText = '''select distinct * from contacts'''
             sr = self.db_cmd.ExecuteReader()
+            count = 0
             while(sr.Read()):
                 if canceller.IsCancellationRequested:
                     break
+                count += 1
                 contactinfo = ContactInfo()
                 contactinfo.COLLECT_TARGET_ID = self.collect_target_id
-                contactinfo.SEQUENCE_NAME = str(sr[0])
+                sid = '0000000000000000000000000000000' + str(count)
+                contactinfo.SEQUENCE_NAME = sid[-32::]
                 contactinfo.RELATIONSHIP_NAME = sr[9]
                 a = sr[15]
                 contactinfo.DELETE_STATUS = DELETE_STATUS_DELETED if sr[15] == 1 else DELETE_STATUS_INTACT
@@ -994,12 +997,15 @@ class GenerateBcp(object):
                 return
             self.db_cmd.CommandText = '''select distinct * from contacts'''
             sr = self.db_cmd.ExecuteReader()
+            count = 0
             while(sr.Read()):
                 if canceller.IsCancellationRequested:
                     break
+                count += 1
                 contactdetail = ContactDetail()
                 contactdetail.COLLECT_TARGET_ID = self.collect_target_id
-                contactdetail.SEQUENCE_NAME = sr[0]
+                sid = '0000000000000000000000000000000' + str(count)
+                contactdetail.SEQUENCE_NAME = sid[-32::]
                 contactdetail.RELATIONSHIP_ACCOUNT = sr[8]
                 a = sr[15]
                 contactdetail.DELETE_STATUS = DELETE_STATUS_DELETED if sr[15] == 1 else DELETE_STATUS_INTACT

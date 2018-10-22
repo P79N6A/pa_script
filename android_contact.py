@@ -7,12 +7,14 @@ import clr
 try:
     clr.AddReference('model_contact')
     clr.AddReference('System.Data.SQLite')
+    clr.AddReference('bcp_basic')
 except:
     pass
 del clr
 import hashlib
 from model_contact import MC, Contact, Generate
 import model_contact
+import bcp_basic
 import System.Data.SQLite as SQLite
 import sys
 import re
@@ -518,6 +520,9 @@ class CallsParse(object):
             SQLite.SQLiteConnection.ClearAllPools()
             if os.path.exists(self.sourceDB):
                 shutil.rmtree(self.sourceDB)
+        #bcp entry
+        temp_dir = ds.OpenCachePath('tmp')
+        PA_runtime.save_cache_path(bcp_basic.BASIC_CONTACT_INFORMATION, self.cachedb, temp_dir)
         generate = Generate(self.cachedb)
         models = generate.get_models()
         return models

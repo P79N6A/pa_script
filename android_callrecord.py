@@ -6,10 +6,12 @@ from PA_runtime import *
 import clr
 try:
     clr.AddReference('model_callrecord')
+    clr.AddReference('bcp_basic')
 except:
     pass
 del clr
 import hashlib
+import bcp_basic
 from model_callrecord import MC, Records, Generate
 import model_callrecord
 import time
@@ -126,6 +128,14 @@ class CallsParse(object):
         self._closewal('contacts2.db')
         self.analyze_call_records()
         self.mc.db_close()
+        try:
+            if os.path.exists(self.sourceDB):
+                shutil.rmtree(self.sourceDB)
+        except:
+            pass
+        #bcp entry
+        temp_dir = ds.OpenCachePath('tmp')
+        PA_runtime.save_cache_path(bcp_basic.BASIC_RECORD_INFORMATION, self.cachedb, temp_dir)
         generate = Generate(self.cachedb)
         models = generate.get_models()
         return models

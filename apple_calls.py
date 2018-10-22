@@ -133,7 +133,6 @@ def analyze_call_history(node, extractDeleted, extractSource):
         #bcp entry
         temp_dir = ds.OpenCachePath('tmp')
         PA_runtime.save_cache_path(bcp_basic.BASIC_CONTACT_INFORMATION, db_path, temp_dir)
-        PA_runtime.save_cache_path(bcp_basic.BASIC_CONTACT_DETAILED_INFORMATION, db_path, temp_dir)
     except:
         traceback.print_exc()
         TraceService.Trace(TraceLevel.Error, "解析出错: {0}".format('通话记录'))
