@@ -34,7 +34,7 @@ import bcp_im
 # Models: Common.User, Common.Friend, Common.Group, Generic.Chat, Common.MomentContent
 
 # app数据库版本
-VERSION_APP_VALUE = 2
+VERSION_APP_VALUE = 3
 
 # 消息类型
 MSG_TYPE_TEXT = 1
@@ -878,25 +878,26 @@ class WeChatParser(model_im.IM):
             node = user_node.GetByPath('Img/{0}/{1}.pic'.format(friend_hash, msg_local_id))
             if node is not None:
                 img_path = node.AbsolutePath
-            #else:
-            #    model.deleted = 1
+            else:
+                img_path = user_node.AbsolutePath + '/Img/{0}/{1}.pic'.format(friend_hash, msg_local_id)
         elif msg_type == MSG_TYPE_VOICE:
             content = '[语音]'
             node = user_node.GetByPath('Audio/{0}/{1}.aud'.format(friend_hash, msg_local_id))
             if node is not None:
                 img_path = node.AbsolutePath 
-            #else:
-            #    model.deleted = 1
+            else:
+                img_path = user_node.AbsolutePath + '/Audio/{0}/{1}.aud'.format(friend_hash, msg_local_id)
         #elif msg_type == MSG_TYPE_CONTACT_CARD:
         #    pass
         elif msg_type == MSG_TYPE_VIDEO or msg_type == MSG_TYPE_VIDEO_2:
             content = '[视频]'
             node = user_node.GetByPath('Video/{0}/{1}.mp4'.format(friend_hash, msg_local_id))
             if node is None:
-                #model.deleted = 1
                 node = user_node.GetByPath('Video/{0}/{1}.video_thum'.format(friend_hash, msg_local_id))
             if node is not None:
                 img_path = node.AbsolutePath
+            else:
+                img_path = user_node.AbsolutePath + '/Video/{0}/{1}.mp4'.format(friend_hash, msg_local_id)
         elif msg_type == MSG_TYPE_EMOJI:
             pass
         elif msg_type == MSG_TYPE_LOCATION:
