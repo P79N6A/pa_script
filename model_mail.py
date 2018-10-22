@@ -606,7 +606,7 @@ class Generate(object):
         sql = '''select distinct a.mail_group, a.mail_send_status, a.mail_subject, a.mail_content, a.mail_sent_date, 
             a.mail_from, a.mail_ip, a.mail_to, a.mail_cc, a.mail_bcc, b.attachment_name, b.attachment_save_dir, b.attachment_download_date, b.attachment_size,
             a.mail_abstract, a.mail_size, a.mail_recall_status, c.account_alias, c.account_user, c.account_last_login, c.account_email, c.account_id, a.mail_read_status, a.source, a.deleted
-            from mail as a left join attachment as b on a.mail_id = b.mail_id left join account as c on a.owner_account_id = c.account_id
+            from mail as a left join attachment as b on a.mail_id = b.mail_id left join account as c on a.owner_account_id = c.account_id where a.mail_id is not 0 
             '''
         try:
             self.db_cmd.CommandText = sql
