@@ -181,7 +181,7 @@ class RenRenParser():
                 chatroom = model_im.Chatroom()
                 chatroom.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
                 chatroom.repeated = contact.get('repeated', 0)
-                chatroom.source = infoDb.AbsolutePath
+                chatroom.source = infoDbPath.AbsolutePath
                 chatroom.account_id = self.user
                 chatroom.chatroom_id = contactid
                 chatroom.name = rec['room_name'].Value
@@ -211,7 +211,7 @@ class RenRenParser():
                         chatroom_member = model_im.ChatroomMember()
                         chatroom_member.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
                         chatroom.repeated = member.get('repeated', 0)
-                        chatroom_member.source = infoDb.AbsolutePath
+                        chatroom_member.source = infoDbPath.AbsolutePath
                         chatroom_member.account_id = self.user
                         chatroom_member.chatroom_id = room_id
                         chatroom_member.member_id = member_id
