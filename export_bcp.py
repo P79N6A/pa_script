@@ -9,6 +9,7 @@ try:
     clr.AddReference('bcp_browser')
     clr.AddReference('bcp_basic')
     clr.AddReference('model_eb')
+    clr.AddReference('bcp_other')
 except:
     pass
 del clr
@@ -18,6 +19,7 @@ import bcp_mail
 import bcp_weibo
 import bcp_browser
 import bcp_basic
+import bcp_other
 import hashlib
 import os
 import traceback
@@ -30,12 +32,7 @@ MAIL_LIST   = ['01001','01002','01003','01004','01005','01006','01007','01999']
 BROWER_LIST = ['1560001','1560002','1560003','1560004','1560005','1560006','1560007','1560008','1560009','1560010','1560011','1560012','1560013','1560014','1560015','1560016','1569999','1560017','1560018','1560019','1560020','1560021','1560022','1560023','1560024','1560025']
 BASIC_LIST  = ["01","02","03","04","05","06","07","08","09","10","11","12","13","14"]
 EC_LIST = ["1220007", "1220069", "1220005", "1220002", "1290007"]
-"""
-bcp_path -- 文件拷贝的路径
-ts_path -- bcp数据库暂存的目录
-mountDir -- 挂载的位置
-app_lists -- 需要生产bcp数据库应用的集合
-"""
+OTHER_LIST = ["15","16","17","18","19","20"]
 
 # caseDir = r"E:\iPhone 6_11.1.2_133217541373990_full(1)_0817\caches"
 
@@ -60,6 +57,7 @@ def run(target_id, bcp_path, case_path, mountDir, software_type):
         ts_db = None
         bcp_path_list = []
         path_lists = []
+        
         # IM类生成bcp数据库
         if software_type in IM_LIST:
             path_lists = read_path(software_path)
@@ -70,8 +68,10 @@ def run(target_id, bcp_path, case_path, mountDir, software_type):
                         bcp_im.GenerateBcp(bcp_path, mountDir, path, ts_db, target_id, software_type).generate()
                         bcp_path_list.append(ts_db)
                     except Exception as e:
-                        print(traceback.print_exc())
+                        TraceService.Debug("{0}".format(e))
                 return bcp_path_list
+
+
         if software_type in EC_LIST:
             path_lists = read_path(software_path)
             if path_lists:
@@ -82,8 +82,9 @@ def run(target_id, bcp_path, case_path, mountDir, software_type):
                         bcp.generate_bcp()
                         bcp_path_list.append(ts_db)
                     except:
-                        traceback.print_exc()
+                        TraceService.Debug("{0}".format(e))
                 return bcp_path_list
+
         # 地理位置类生成bcp数据库
         elif software_type in MAP_LIST:
             path_lists = read_path(software_path)
@@ -94,7 +95,7 @@ def run(target_id, bcp_path, case_path, mountDir, software_type):
                         bcp_gis.BuildBCP(path, ts_db, target_id, software_type).genetate()
                         bcp_path_list.append(ts_db)
                     except Exception as e:
-                        print(traceback.print_exc())
+                        TraceService.Debug("{0}".format(e))
                 return bcp_path_list
 
         # # 浏览器类生成bcp数据库
@@ -107,7 +108,7 @@ def run(target_id, bcp_path, case_path, mountDir, software_type):
                         bcp_browser.GenerateBcp(path, ts_db, target_id, software_type).generate()
                         bcp_path_list.append(ts_db)
                     except Exception as e:
-                        print(traceback.print_exc())
+                        TraceService.Debug("{0}".format(e))
                 return bcp_path_list
 
         # 邮件类生成bcp数据库
@@ -120,7 +121,7 @@ def run(target_id, bcp_path, case_path, mountDir, software_type):
                         bcp_mail.GenerateBcp(bcp_path, path, ts_db, target_id, software_type, mountDir).generate()
                         bcp_path_list.append(ts_db)
                     except Exception as e:
-                        print(traceback.print_exc())
+                        TraceService.Debug("{0}".format(e))
                 return bcp_path_list
 
         # 微博类生成bcp数据库
@@ -133,7 +134,7 @@ def run(target_id, bcp_path, case_path, mountDir, software_type):
                         bcp_weibo.GenerateBcp(path, ts_db, target_id, software_type).generate()
                         bcp_path_list.append(ts_db)
                     except Exception as e:
-                        print(traceback.print_exc())
+                        TraceService.Debug("{0}".format(e))
                 return bcp_path_list
         
         # 基础信息类生成bcp数据库
@@ -143,10 +144,23 @@ def run(target_id, bcp_path, case_path, mountDir, software_type):
                 for path in path_lists: 
                     try:
                         ts_db = md5(path, ts_path)    
-                        bcp_basic.GenerateBcp(bcp_path, path, ts_db, software_type, mountDir).generate()
+                        bcp_basic.GenerateBcp(bcp_path, path, ts_db, target_id, mountDir).generate()
                         bcp_path_list.append(ts_db)
                     except Exception as e:
-                        print(traceback.print_exc())
+                        TraceService.Debug("{0}".format(e))
+                return bcp_path_list
+
+        # 其他应用信息
+        elif software_type in OTHER_LIST:
+            path_lists = read_path(software_path)
+            if path_lists:
+                for path in path_lists: 
+                    try:
+                        ts_db = md5(path, ts_path)    
+                        bcp_other.BuildBCP(bcp_path, path, ts_db, target_id, software_type, mountDir).generate()
+                        bcp_path_list.append(ts_db)
+                    except Exception as e:
+                        TraceService.Debug("{0}".format(e))
                 return bcp_path_list
 
     return None
