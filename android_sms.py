@@ -106,7 +106,7 @@ class SMSParser(object):
             sms - 短信
         """
         try:
-            for rec in self.my_read_table('sim_cards'):
+            for rec in self._read_table('sim_cards'):
                 if IsDBNull(rec['number'].Value):
                     continue
                 sim = Sim_cards()
@@ -217,7 +217,7 @@ class SMSParser(object):
             creator            TEXT,
             favorite_date      INTEGER DEFAULT 0
         """
-        for rec in self.my_read_table(table_name='sms'):
+        for rec in self._read_table(table_name='sms'):
             if canceller.IsCancellationRequested:
                 return            
             if self._is_empty(rec, 'body', 'address') or not self._is_num(rec['address'].Value):
@@ -253,7 +253,7 @@ class SMSParser(object):
         """ 
             pdu - 彩信
         """
-        for rec in self.my_read_table(table_name='pdu'):
+        for rec in self._read_table(table_name='pdu'):
             if IsDBNull(rec['address'].Value) or IsDBNull(rec['body'].Value):
                 continue
             sms = Message()
@@ -276,16 +276,20 @@ class SMSParser(object):
         except:
             exc()            
 
-    def my_read_table(self, table_name):
+    def _read_table(self, table_name):
         """
             读取手机数据库, 单数据库模式
         :type table_name: str
         :rtype: db.ReadTableRecords()
         """
-        if self.db is None:
-            return
-        tb = SQLiteParser.TableSignature(table_name)
-        return self.db.ReadTableRecords(tb, self.extract_deleted, True)
+        try:
+            if self.db is None:
+                return [] 
+            tb = SQLiteParser.TableSignature(table_name)
+            return self.db.ReadTableRecords(tb, self.extract_deleted, True)
+        except:
+            exc()
+            return []
 
     def _get_contacts(self, sender_phonenumber):
         try:
@@ -363,7 +367,7 @@ class SMSParser_no_tar(SMSParser):
         8	body	            TEXT
         9	path	            TEXT
         """
-        for rec in self.my_read_table(table_name='SMS'):
+        for rec in self._read_table(table_name='SMS'):
             if canceller.IsCancellationRequested:
                 return            
             if self._is_empty(rec, 'body', 'phoneNumber') or rec['isMms'].Value == 1:

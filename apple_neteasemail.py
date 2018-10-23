@@ -360,7 +360,8 @@ class NeteaseMailParser(object):
             tb = SQLiteParser.TableSignature(table_name)  
             return self.cur_db.ReadTableRecords(tb, self.extract_deleted, True)
         except:
-            exc()           
+            exc()        
+            return []
 
     @staticmethod
     def _convert_email_format(name_email):

@@ -146,7 +146,7 @@ class YouXinParser():
                     return
                 friend = model_im.Friend()
                 friend.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
-                friend.source = self.app_name
+                friend.source = dbPath.AbsolutePath
                 friend.account_id = self.user
                 friend.friend_id = rec['[uid]'].Value
                 friend.type = model_im.FRIEND_TYPE_FRIEND
@@ -175,7 +175,7 @@ class YouXinParser():
                 obj = json.loads(rec['[info]'].Value)
                 friend = model_im.Friend()
                 friend.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
-                friend.source = self.app_name
+                friend.source = dbPath.AbsolutePath
                 friend.account_id = self.user
                 friend.friend_id = id
                 friend.username = obj['name']
@@ -210,7 +210,7 @@ class YouXinParser():
                     contact = self.contacts.get(contact_id)
                     message = model_im.Message()
                     message.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
-                    message.source = self.app_name
+                    message.source = dbPath.AbsolutePath
                     message.account_id = self.user
                     message.msg_id = str(uuid.uuid1()).replace('-', '')
                     message.talker_id = contact_id
@@ -224,7 +224,7 @@ class YouXinParser():
                     message.send_time = int(time.mktime(time.strptime(rec['[msgtime]'].Value, '%Y-%m-%d %H:%M:%S')))
                     message.media_path = self.get_media_path(message.type, message.content, contact_id)
                     if message.type == model_im.MESSAGE_CONTENT_TYPE_LOCATION:
-                        message.extra_id = self.get_location(message.content, message.send_time, message.deleted, message.repeated)
+                        message.extra_id = self.get_location(message.source, message.content, message.send_time, message.deleted, message.repeated)
                     self.im.db_insert_table_message(message)
 
         dbPath = self.root.GetByPath('/Documents/' + self.user + '/callHistoryRecord.Sqlite3')
@@ -244,7 +244,7 @@ class YouXinParser():
                     contact = self.contacts.get(contact_id)
                     message = model_im.Message()
                     message.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
-                    message.source = self.app_name
+                    message.source = dbPath.AbsolutePath
                     message.account_id = self.user
                     message.msg_id = str(uuid.uuid1()).replace('-', '')
                     message.talker_id = contact_id
@@ -267,10 +267,10 @@ class YouXinParser():
                     self.im.db_insert_table_message(message)
         self.im.db_commit()
 
-    def get_location(self, content, time, deleted, repeated):
+    def get_location(self, source, content, time, deleted, repeated):
         obj = json.loads(content)
         location = model_im.Location()
-        location.source = self.app_name
+        location.source = source
         location.deleted = deleted
         location.repeated = repeated
         location.location_id = str(uuid.uuid1()).replace('-', '')

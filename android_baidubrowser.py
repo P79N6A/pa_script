@@ -324,8 +324,8 @@ class BaiduBrowserParser(object):
         :type extract_deleted: bool
         :rtype: db.ReadTableRecords()                                       
         """
-        tb = SQLiteParser.TableSignature(table_name)  
         try:
+            tb = SQLiteParser.TableSignature(table_name)  
             if read_deleted is None:
                 return self.cur_db.ReadTableRecords(tb, self.extract_deleted, True)
             elif read_deleted is True:
@@ -334,6 +334,7 @@ class BaiduBrowserParser(object):
                 return self.cur_db.ReadTableRecords(tb, False, True)
         except:
             exc()           
+            return []
 
     def _convert_2_nodepath(self, raw_path, file_name):
         try:

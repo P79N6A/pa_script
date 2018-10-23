@@ -440,6 +440,7 @@ class BaiduMobileParser(object):
             return self.cur_db.ReadTableRecords(tb, self.extract_deleted, True)
         except:
             exc()
+            return []
 
     def _convert_2_nodepath(self, raw_path, file_name):
         # raw_path = '/data/user/0/com.baidu.searchbox/files/template/profile.zip'

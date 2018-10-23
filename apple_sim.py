@@ -72,7 +72,7 @@ class SIMParser(object):
         5	last_update_time	INTEGER			
         6	slot_id	            INTEGER			
         """
-        for rec in self.my_read_table(table_name='subscriber_info'):
+        for rec in self._read_table(table_name='subscriber_info'):
             if self.is_empty(rec, 'ROWID', 'subscriber_mdn'):
                 continue
             sim = SIM()
@@ -88,16 +88,21 @@ class SIMParser(object):
         except:
             exc()
         
-    def my_read_table(self, table_name):
+    def _read_table(self, table_name):
         """
             读取手机数据库, 单数据库模式
         :type table_name: str
         :rtype: db.ReadTableRecords()
         """
         if self.db is None:
-            return
-        tb = SQLiteParser.TableSignature(table_name)
-        return self.db.ReadTableRecords(tb, self.extract_deleted, True)
+            return []
+        try:
+            tb = SQLiteParser.TableSignature(table_name)
+            return self.db.ReadTableRecords(tb, self.extract_deleted, True)
+        except:
+            exc()
+            return []
+
 
     @staticmethod
     def is_empty(rec, *args):

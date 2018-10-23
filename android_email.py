@@ -488,7 +488,8 @@ class EmailParser(object):
             tb = SQLiteParser.TableSignature(table_name)  
             return self.cur_db.ReadTableRecords(tb, extract_deleted, True)
         except:
-            exc()         
+            exc()   
+            return []
 
     def _get_account_id(self, my_email):
         ''' return corresponding account_id by email

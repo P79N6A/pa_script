@@ -793,6 +793,8 @@ class WeChatParser(model_im.IM):
                 if node is not None:
                     media_path = node.AbsolutePath
                     break
+            if media_path is None:
+                media_path = '/no_image'
         return media_path
 
     def _process_parse_message_tranlate_voice_path(self, voice_id):
@@ -807,6 +809,8 @@ class WeChatParser(model_im.IM):
             if node is not None:
                 media_path = node.AbsolutePath
                 break
+        if media_path is None:
+            media_path = '/no_voice'
         return media_path
 
     def _process_parse_message_tranlate_video_path(self, video_id):
@@ -823,6 +827,8 @@ class WeChatParser(model_im.IM):
             if node is not None:
                 media_path = node.AbsolutePath
                 break
+        if media_path is None:
+            media_path = '/no_video'
         return media_path
 
     def _process_parse_message_link(self, xml_str, model):
