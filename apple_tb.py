@@ -358,11 +358,11 @@ class Taobao(object):
             m = model_im.Message()
             m.account_id = ac.uid
             m.sender_id = unity_c37r.c_sharp_get_string(reader, 3)
-            m.is_sender = 1 if unity_c37r.c_sharp_get_string(reader, 4) == m.sender_id else 0
+            m.talker_id = unity_c37r.c_sharp_get_string(reader, 0)
+            m.is_sender = 0 if m.sender_id.__contains__(m.talker_id) else 1
             if m.is_sender == 1:
                 m.sender_id = ac.uid # 如果是自己发的，则替换对应的ID
             m.send_time = unity_c37r.c_sharp_get_long(reader, 5) / 1000
-            m.talker_id = unity_c37r.c_sharp_get_string(reader, 0)
             m.talker_name = f_dict[m.talker_id].nickname
             m.content = unity_c37r.c_sharp_get_string(reader, 2)
             m.msg_id = unity_c37r.c_sharp_get_string(reader, 1)
