@@ -485,6 +485,6 @@ def analyze_keychain(root, extract_deleted, extract_source):
     models = KeyChainParser(root, extract_deleted, extract_source).parse()
     mlm = ModelListMerger()
     pr.Models.AddRange(list(mlm.GetUnique(models)))
-    pr.Build('KeyChain')
+    pr.Build('钥匙串')
     gc.collect()
     return pr
