@@ -1450,6 +1450,27 @@
         </dict>
       </array>
     </dict>
+	
+	<dict>
+      <key>Module</key>
+      <string>andriod_app_lists</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_app_lists</string>
+          <key>RunnerType</key>
+          <integer>2</integer>
+          <key>Patterns</key>
+          <array>
+            <string>/appinfo/appinfo\.db$</string>
+			<string>/data\.tar/data/app$</string>
+          </array>
+          <key>Category</key>
+          <string>Applications</string>
+        </dict>
+      </array>
+    </dict>
 
   </array>
 </plist>
