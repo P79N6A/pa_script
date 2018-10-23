@@ -148,9 +148,16 @@ class Generate(object):
                 application.Version.Value = row[2]
             if row[3]:
                 permissions = pickle.loads(row[3])
-                if permissions:
+                if permissions and type(permissions) == list:
                     for i in permissions:
                         application.Permissions.Add(i)
+                else:
+                        tmp_a = permissions.encode("utf-8")
+                        tmp_b = tmp_a.split("\n")
+                        tmp_c =  tmp_b[1:-1]
+                        for per in tmp_c:
+                            application.Permissions.Add(per)
+
             if row[6]:
                 application.SourceFile.Value = row[6]
             if row[7]:
