@@ -649,8 +649,6 @@ class AlipayParser():
 
                 try:
                     memoryRange = MemoryRange.FromBytes(rec['data'].Value)
-                    file = 'C:/Users/Admin/Desktop/2003_new.plist'
-                    memoryRange = MemoryRange.CreateFromFile(file)
                     obj = BPReader.GetTree(memoryRange)
                     list = obj.Children['list']
                     for month_obj in list:
