@@ -14,11 +14,14 @@ del clr
 import shutil
 import hashlib
 import bcp_basic
+import model_calendar
 from model_calendar import *
 import System.Data.SQLite as SQLite
 
 SQL_JOIN_TABLE_CALENDAR = '''select Events.calendar_id, Events._id, Events.title, Events.eventLocation, Events.description, Events.dtstart, 
     Reminders.minutes, Events.dtend, Events.rrule, Calendars.calendar_displayName from Events left join Reminders on Events._id = Reminders.event_id left join Calendars on Events.calendar_id = Calendars._id'''
+
+VERSION_APP_VALUE = 1
 
 class CalendarParser(object):
     def __init__(self, node, extractDeleted, extractSource):
@@ -31,7 +34,6 @@ class CalendarParser(object):
         md5_db.update(self.node.AbsolutePath.encode(encoding = 'utf-8'))
         self.db_cache = ds.OpenCachePath("CALENDAR") + '\\' + md5_db.hexdigest().upper() +'.db'
         self.sourceDB = ds.OpenCachePath("CALENDAR") + '\\CalendarSourceDB'
-        self.mc.db_create(self.db_cache)
 
     def analyze_calendar(self):
         try:
@@ -53,19 +55,22 @@ class CalendarParser(object):
                 calendar = Calendar()
                 if canceller.IsCancellationRequested:
                     break
-                calendar.calendar_id = sr[0]
-                calendar.title = sr[2]
-                calendar.description = sr[4]
-                calendar.dtstart = sr[5]
-                calendar.remind = sr[6]
-                calendar.dtend = sr[7]
-                if not IsDBNull(sr[8]):
-                    calendar.rrule = self._extractData(sr[8],'FREQ')
-                    calendar.interval = self._extractData(sr[8],'INTERVAL')
-                    calendar.until = self._extractData(sr[8],'UNTIL')
-                calendar.source = self.node.AbsolutePath
-                calendar.calendar_displayName = sr[9]
-                self.mc.db_insert_calendar(calendar)
+                try:
+                    calendar.calendar_id = sr[0]
+                    calendar.title = sr[2]
+                    calendar.description = sr[4]
+                    calendar.dtstart = sr[5]
+                    calendar.remind = sr[6]
+                    calendar.dtend = sr[7]
+                    if not IsDBNull(sr[8]):
+                        calendar.rrule = self._extractData(sr[8],'FREQ')
+                        calendar.interval = self._extractData(sr[8],'INTERVAL')
+                        calendar.until = self._extractData(sr[8],'UNTIL')
+                    calendar.source = self.node.AbsolutePath
+                    calendar.calendar_displayName = sr[9]
+                    self.mc.db_insert_calendar(calendar)
+                except:
+                    pass
             self.mc.db_commit()
             sr.Close()
             self.db.Close()
@@ -85,17 +90,20 @@ class CalendarParser(object):
             for row in self.db.ReadTableDeletedRecords(ts, False):
                 if canceller.IsCancellationRequested:
                     break
-                calendar.calendar_id = row['calendar_id'].Value if 'calendar_id' in row and not row['calendar_id'].IsDBNull else None
-                calendar.title = row['title'].Value if 'title' in row and not row['title'].IsDBNull else None
-                calendar.description = row['description'].Value if 'description' in row and not row['description'].IsDBNull else None 
-                calendar.dtstart = row['dtstart'].Value if 'dtstart' in row and not row['dtstart'].IsDBNull else None
-                calendar.dend = row['dend'].Value if 'dend' in row and not row['dend'].IsDBNull else None
-                calendar.rrule = self._extractData(row['rrule'].Value,'FREQ') if 'rrule' in row and not row['rrule'].IsDBNull else None
-                calendar.interval = self._extractData(row['rrule'].Value,'INTERVAL') if 'rrule' in row and not row['rrule'].IsDBNull else None
-                calendar.until = self._extractData(row['rrule'].Value,'UNTIL') if 'rrule' in row and not row['rrule'].IsDBNull else None
-                calendar.source = self.node.AbsolutePath
-                calendar.deleted = 1
-                self.mc.db_insert_calendar(calendar)
+                try:
+                    calendar.calendar_id = row['calendar_id'].Value if 'calendar_id' in row and not row['calendar_id'].IsDBNull else None
+                    calendar.title = row['title'].Value if 'title' in row and not row['title'].IsDBNull else None
+                    calendar.description = row['description'].Value if 'description' in row and not row['description'].IsDBNull else None 
+                    calendar.dtstart = row['dtstart'].Value if 'dtstart' in row and not row['dtstart'].IsDBNull else None
+                    calendar.dend = row['dend'].Value if 'dend' in row and not row['dend'].IsDBNull else None
+                    calendar.rrule = self._extractData(row['rrule'].Value,'FREQ') if 'rrule' in row and not row['rrule'].IsDBNull else None
+                    calendar.interval = self._extractData(row['rrule'].Value,'INTERVAL') if 'rrule' in row and not row['rrule'].IsDBNull else None
+                    calendar.until = self._extractData(row['rrule'].Value,'UNTIL') if 'rrule' in row and not row['rrule'].IsDBNull else None
+                    calendar.source = self.node.AbsolutePath
+                    calendar.deleted = 1
+                    self.mc.db_insert_calendar(calendar)
+                except:
+                    pass
             self.mc.db_commit()
         except Exception as e:
             pass
@@ -114,16 +122,19 @@ class CalendarParser(object):
                 calendar = Calendar()
                 if canceller.IsCancellationRequested:
                     break
-                calendar.calendar_id = sr[0]
-                calendar.title = sr[1]
-                calendar.description = sr[3]
-                calendar.dtstart = sr[5]
-                calendar.dtend = sr[6]
-                calendar.rrule = self._extractData(sr[4],'FREQ')
-                calendar.interval = self._extractData(sr[4],'INTERVAL')
-                calendar.until = self._extractData(sr[4],'UNTIL')
-                calendar.source = self.node.AbsolutePath
-                self.mc.db_insert_calendar(calendar)
+                try:
+                    calendar.calendar_id = sr[0]
+                    calendar.title = sr[1]
+                    calendar.description = sr[3]
+                    calendar.dtstart = sr[5]
+                    calendar.dtend = sr[6]
+                    calendar.rrule = self._extractData(sr[4],'FREQ')
+                    calendar.interval = self._extractData(sr[4],'INTERVAL')
+                    calendar.until = self._extractData(sr[4],'UNTIL')
+                    calendar.source = self.node.AbsolutePath
+                    self.mc.db_insert_calendar(calendar)
+                except:
+                    pass
             self.mc.db_commit()
             sr.Close()
             self.db.Close()
@@ -139,19 +150,24 @@ class CalendarParser(object):
         return None
 
     def parse(self):
-        self._copytocache()
-        self.analyze_calendar()
-        self.decode_recover_calendar_table()
-        self.mc.db_close()
-        SQLite.SQLiteConnection.ClearAllPools()
+        if self.mc.need_parse(self.db_cache, VERSION_APP_VALUE):
+            self.mc.db_create(self.db_cache)
+            self._copytocache()
+            self.analyze_calendar()
+            self.decode_recover_calendar_table()
+            self.mc.db_insert_table_version(model_calendar.VERSION_KEY_DB, model_calendar.VERSION_VALUE_DB)
+            self.mc.db_insert_table_version(model_calendar.VERSION_KEY_APP, VERSION_APP_VALUE)
+            self.mc.db_commit()
+            self.mc.db_close()
+            SQLite.SQLiteConnection.ClearAllPools()
+            try:
+                if os.path.exists(self.sourceDB):
+                    shutil.rmtree(self.sourceDB)
+            except:
+                pass
         #bcp entry
         temp_dir = ds.OpenCachePath('tmp')
         PA_runtime.save_cache_path(bcp_basic.BASIC_CALENDAR_INFOMATION, self.db_cache, temp_dir)
-        try:
-            if os.path.exists(self.sourceDB):
-                shutil.rmtree(self.sourceDB)
-        except:
-            pass
         generate = Generate(self.db_cache)
         models = generate.get_models()
         return models

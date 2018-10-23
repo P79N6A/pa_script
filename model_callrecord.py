@@ -19,6 +19,7 @@ from System.Xml.XPath import Extensions as XPathExtensions
 import os
 import System
 import System.Data.SQLite as SQLite
+import sqlite3
 
 SQL_CREATE_TABLE_RECORDS = '''
     CREATE TABLE IF NOT EXISTS records(
@@ -46,6 +47,20 @@ SQL_INSERT_TABLE_RECORDS = '''
 SQL_FIND_TABLE_RECORDS = '''
     SELECT * FROM RECORDS
     '''
+
+SQL_CREATE_TABLE_VERSION = '''
+    create table if not exists version(
+        key TEXT primary key,
+        version INT)'''
+
+SQL_INSERT_TABLE_VERSION = '''
+    insert into version(key, version) values(?, ?)'''
+
+VERSION_KEY_DB = 'db'
+VERSION_KEY_APP = 'app'
+
+#中间数据库版本
+VERSION_VALUE_DB = 1
 
 
 class MC(object):
@@ -104,6 +119,37 @@ class MC(object):
     def db_insert_table_call_records(self, Column):
         self.db_insert_table(SQL_INSERT_TABLE_RECORDS, Column.get_values())
 
+    def db_insert_table_version(self, key, version):
+        self.db_insert_table(SQL_INSERT_TABLE_VERSION, (key, version))
+
+    @staticmethod
+    def need_parse(cache_db, app_version):
+        if not os.path.exists(cache_db):
+            return True
+        db = sqlite3.connect(cache_db)
+        cursor = db.cursor()
+        sql = 'select key,version from version'
+        row = None
+        db_version_check = False
+        app_version_check = False
+        try:
+            cursor.execute(sql)
+            row = cursor.fetchone()
+        except Exception as e:
+            pass
+
+        while row is not None:
+            if row[0] == VERSION_KEY_DB and row[1] == VERSION_VALUE_DB:
+                db_version_check = True
+            elif row[0] == VERSION_KEY_APP and row[1] == app_version:
+                app_version_check = True
+            row = cursor.fetchone()
+
+        if cursor is not None:
+            cursor.close()
+        if db is not None:
+            db.close()
+        return not (db_version_check and app_version_check)
 
 class Column(object):
     def __init__(self):
