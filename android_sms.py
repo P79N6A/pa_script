@@ -243,14 +243,14 @@ class SMSParser(object):
             sms.deliverd    = rec['date'].Value
             sms.is_sender   = 1 if sms.type in (SMS_TYPE_SENT, SMS_TYPE_OUTBOX, SMS_TYPE_DRAFT) else 0
             if sms.is_sender == 1:  # 发
-                sms.sender_phonenumber = self.sim_phonenumber.get(sms.sim_id, None) if sms.sim_id else '本机'
+                sms.sender_phonenumber = self.sim_phonenumber.get(sms.sim_id, None) if sms.sim_id else None
                 sms.sender_name        = self._get_contacts(sms.sender_phonenumber)
                 sms.recv_phonenumber   = rec['address'].Value
                 sms.recv_name          = self._get_contacts(sms.recv_phonenumber)
             else:                   # 收
                 sms.sender_phonenumber = rec['address'].Value
                 sms.sender_name        = self._get_contacts(sms.sender_phonenumber)
-                sms.recv_phonenumber   = self.sim_phonenumber.get(sms.sim_id, None) if sms.sim_id else '本机'
+                sms.recv_phonenumber   = self.sim_phonenumber.get(sms.sim_id, None) if sms.sim_id else None
                 sms.recv_name          = self._get_contacts(sms.recv_phonenumber)
 
             sms.deleted = 1 if rec.IsDeleted or sms.deleted else 0         
@@ -404,14 +404,14 @@ class SMSParser_no_tar(SMSParser):
             sms.is_sender      = 1 if sms.type == SMS_TYPE_OUTBOX else 0
 
             if sms.is_sender == 1:  # 发
-                sms.sender_phonenumber = self.sim_phonenumber.get(sms.sim_id, None) if sms.sim_id else '本机'
+                sms.sender_phonenumber = self.sim_phonenumber.get(sms.sim_id, None) if sms.sim_id else None
                 sms.sender_name        = self._get_contacts(sms.sender_phonenumber)
                 sms.recv_phonenumber   = rec['phoneNumber'].Value
                 sms.recv_name          = self._get_contacts(sms.recv_phonenumber)
             else:                   # 收
                 sms.sender_phonenumber = rec['phoneNumber'].Value
                 sms.sender_name        = self._get_contacts(sms.sender_phonenumber)
-                sms.recv_phonenumber   = self.sim_phonenumber.get(sms.sim_id, None) if sms.sim_id else '本机'
+                sms.recv_phonenumber   = self.sim_phonenumber.get(sms.sim_id, None) if sms.sim_id else None
                 sms.recv_name          = self._get_contacts(sms.recv_phonenumber)
 
             sms.source  = self.source_sms_db
