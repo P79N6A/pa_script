@@ -241,7 +241,6 @@ class SMSParser(object):
             sms.body        = rec['body'].Value
             sms.send_time   = rec['date_sent'].Value
             sms.deliverd    = rec['date'].Value
-            print('sms type', sms.type)
             sms.is_sender   = 1 if sms.type in (SMS_TYPE_SENT, SMS_TYPE_OUTBOX, SMS_TYPE_DRAFT) else 0
             if sms.is_sender == 1:  # 发
                 sms.sender_phonenumber = self.sim_phonenumber.get(sms.sim_id, None) if sms.sim_id else '本机'
