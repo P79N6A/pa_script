@@ -154,10 +154,12 @@ class Generate(object):
                 else:
                         tmp_a = permissions.encode("utf-8")
                         tmp_b = tmp_a.split("\n")
-                        tmp_c =  tmp_b[1:-1]
+                        tmp_c =  tmp_b[1:-2]
                         for per in tmp_c:
-                            application.Permissions.Add(per)
-
+                            try:
+                                application.Permissions.Add(per.strip().replace(",","").replace('\"',""))
+                            except Exception as e:
+                                pass
             if row[6]:
                 application.SourceFile.Value = row[6]
             if row[7]:
