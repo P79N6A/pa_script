@@ -43,6 +43,8 @@ class TbAccount(object):
         self.uid = None   # 淘宝数字账号
         self.tb_id = None # 淘宝字符串账号（用户可见）
         self.tb_nick = None # 淘宝昵称
+        self.photo = None
+        self.is_from_avfs = False # 表明是否是从avfs中获取到的 这是为了防止重复插入account
 
 class Taobao(object):
     def __init__(self, node, extract_source, extract_deleted):
@@ -60,6 +62,7 @@ class Taobao(object):
         self.account = list()
         self.log = self.eb.log
         self.message_dict = dict() # 放关于message对应的表
+        self.avfs_message_dict = dict()
         self.log.set_level(1) # 开启双重print
 
     def get_master_account(self):
@@ -87,15 +90,69 @@ class Taobao(object):
             ac = TbAccount()
             ac.uid = a
             self.account.append(ac)
+        if len(self.account) == 0:
+            print('try to load from filesystem')
+            node = self.node.GetByPath('Documents/TBDocuments/userInfo')
+            if node is None:
+                print('failed')
+                return
+            p = PlistHelper.ReadPlist(node)
+            if p is not None:
+                try:
+                    ac = TbAccount()
+                    ac.uid = p['userId'].ToString()
+                    ac.tb_nick = p['nick'].ToString()
+                    ac.is_from_avfs = True
+                    self.account.append(ac)
+                except:
+                    traceback.print_exc()
+                    return
         self.log.m_print('total find %d account(s)' % len(self.account))
         try:
             self.prepare_message_dict()
+            self.try_get_avfs_message_dict()
         except Exception as e:
+            traceback.print_exc()
             self.log.m_err('get message_dict failed!')
+
+    def try_get_avfs_message_dict(self):
+        avfs_dir_node = self.node.GetByPath('Documents/AVFSStorage')
+        if avfs_dir_node is None:
+            return
+        avfs_path = avfs_dir_node.PathWithMountPoint
+        pl = os.listdir(avfs_path)
+        for f in pl:
+            avfs_sqlite_node = self.node.GetByPath('Documents/AVFSStorage/{}/avfs.sqlite'.format(f))
+            if avfs_sqlite_node is None:
+                continue
+            conn = unity_c37r.create_connection_tentatively(avfs_sqlite_node)
+            cmd = sql.SQLiteCommand(conn)
+            cmd.CommandText = '''
+                select tbl_name from sqlite_master where tbl_name = 'MPMProfileim_cc' and type = 'table'
+            '''
+            reader = cmd.ExecuteReader()
+            if not reader.Read():
+                reader.Close()
+                cmd.Dispose()
+                conn.Close()
+                continue
+            reader.Close()
+            cmd.CommandText = '''
+                select targetId from MPMProfileim_cc where name is not null
+            '''
+            reader = cmd.ExecuteReader()
+            if reader.Read():
+                uid = unity_c37r.c_sharp_get_string(reader, 0)
+                self.avfs_message_dict[uid] = avfs_sqlite_node
+            reader.Close()
+            cmd.Dispose()
+            conn.Close()
 
 
     def prepare_message_dict(self):
         db_node = self.node.GetByPath('Library/Caches/YWDB')
+        if db_node is None:
+            return
         p_l = os.listdir(db_node.PathWithMountPoint)
         db_dirs = list()
         for p in p_l:
@@ -221,9 +278,104 @@ class Taobao(object):
         f.friend_id = random.randint(0, 0xffffffff)# 产生假ID
         return f
         
+    def parse_avfs(self, ac):
+        #ac = TbAccount()
+        db_node = self.avfs_message_dict.get(str(ac.uid))
+        if db_node is None:
+            return
+        conn = unity_c37r.create_connection_tentatively(db_node)
+        cmd = sql.SQLiteCommand(conn)
+        if ac.is_from_avfs:
+            cmd.CommandText = '''
+                select name, extInfo, deleteStatus, signature, avatarURL, displayName, targetId from MPMProfileim_cc where targetId = {}
+            '''.format(ac.uid)
+            reader = cmd.ExecuteReader()
+            if reader.Read():
+                a = model_im.Account()
+                a.account_id = unity_c37r.c_sharp_get_string(reader, 6)
+                a.nickname = unity_c37r.c_sharp_get_string(reader, 0)
+                a.username = a.nickname
+                a.signature = unity_c37r.c_sharp_get_string(reader, 3)
+                a.photo = unity_c37r.c_sharp_get_string(reader, 4)
+                self.im.db_insert_table_account(a)
+            reader.Close()
+        cmd.CommandText = '''
+            select name, extInfo, deleteStatus, signature, avatarURL, displayName, targetId from MPMProfileim_cc where targetId != {}
+        '''.format(ac.uid)
+        reader = cmd.ExecuteReader()
+        f_dict = dict()
+        while reader.Read():
+            f = model_im.Friend()
+            f.nickname = unity_c37r.c_sharp_get_string(reader, 0)
+            f.account_id = ac.uid
+            f.friend_id = unity_c37r.c_sharp_get_string(reader, 6)
+            f.signature = unity_c37r.c_sharp_get_string(reader, 3)
+            f.remark = f.nickname
+            f.deleted = unity_c37r.c_sharp_get_long(reader, 2)
+            f.photo = unity_c37r.c_sharp_get_string(reader, 4)
+            f_dict[f.friend_id] = f
+            self.eb.im.db_insert_table_friend(f)
+        reader.Close()
+        cmd.CommandText = '''
+            select name, displayName, targetId, avatarURL from MPMProfileim_bc where name != '{}'
+        '''.format(ac.tb_id)
+        reader = cmd.ExecuteReader()
+        #TODO add pic/tb_id when parse avfs message dict
+        while reader.Read():
+            f = model_im.Friend()
+            f.account_id = ac.uid
+            f.nickname = unity_c37r.c_sharp_get_string(reader, 0)
+            f.friend_id = unity_c37r.c_sharp_get_string(reader, 2)
+            f.remark = unity_c37r.c_sharp_get_string(reader, 1)
+            f.photo = unity_c37r.c_sharp_get_string(reader, 3)
+            f_dict[f.friend_id] = f
+            self.eb.im.db_insert_table_friend(f)
+        reader.Close()
+        #c2c messages
+        cmd.CommandText = '''
+            select  convTargetId, messageID, summary, senderId, receiverId, messageTime from MPMessageim_cc
+        '''
+        reader = cmd.ExecuteReader()
+        while reader.Read():
+            m = model_im.Message()
+            m.account_id = ac.uid
+            m.sender_id = unity_c37r.c_sharp_get_string(reader, 3)
+            m.is_sender = 1 if unity_c37r.c_sharp_get_string(reader, 4) == m.sender_id else 0
+            m.msg_id = unity_c37r.c_sharp_get_string(reader, 1)
+            m.talker_id = unity_c37r.c_sharp_get_string(reader, 0)
+            m.content = unity_c37r.c_sharp_get_string(reader, 2)
+            m.send_time = unity_c37r.c_sharp_get_long(reader, 5) / 1000
+            m.talker_name = f_dict[m.talker_id].nickname
+            m.type = model_im.MESSAGE_CONTENT_TYPE_TEXT
+            self.im.db_insert_table_message(m)
+        reader.Close()
+        #b2c messages
+        cmd.CommandText = '''
+            select convTargetId, messageID, summary, senderId, receiverId, messageTime from MPMessageim_bc
+        '''
+        reader = cmd.ExecuteReader()
+        while reader.Read():
+            m = model_im.Message()
+            m.account_id = ac.uid
+            m.sender_id = unity_c37r.c_sharp_get_string(reader, 3)
+            m.talker_id = unity_c37r.c_sharp_get_string(reader, 0)
+            m.is_sender = 0 if m.sender_id.__contains__(m.talker_id) else 1
+            if m.is_sender == 1:
+                m.sender_id = ac.uid # 如果是自己发的，则替换对应的ID
+            m.send_time = unity_c37r.c_sharp_get_long(reader, 5) / 1000
+            m.talker_name = f_dict[m.talker_id].nickname
+            m.content = unity_c37r.c_sharp_get_string(reader, 2)
+            m.msg_id = unity_c37r.c_sharp_get_string(reader, 1)
+            m.type = model_im.MESSAGE_CONTENT_TYPE_TEXT
+            self.im.db_insert_table_message(m)
+        reader.Close()
+        cmd.Dispose()
+        conn.Close()
+        self.im.db_commit()
 
     def parse(self, ac):
         #ac = TbAccount()
+        self.parse_avfs(ac)
         db_node = self.node.GetByPath('Library/Caches/amps3_{}.db'.format(ac.uid))
         if db_node is None:
             self.log.m_print('get db node failed, parse exists!')

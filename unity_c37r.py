@@ -11,7 +11,7 @@ import math
 from PA.InfraLib.Utils import *
 import sys
 reload(sys)
-
+import os
 
 sys.setdefaultencoding("utf8")
 
@@ -92,6 +92,10 @@ def mapping_file_with_safe_read(src, dst):
 
 def md5(string):
     return hashlib.md5(string).hexdigest()
+
+def is_md5(string):
+    grp = re.search('[a-fA-F0-9]{32,32}', string)
+    return True if grp is not None else False
 
 def create_connection(src, read_only = True):
     cmd = 'DataSource = {}; ReadOnly = True'.format(src) if read_only else 'DataSource = {}'.format(src)
@@ -268,3 +272,67 @@ def gcj2wgs_exact(gcjLat, gcjLng):
         else:
             mLng = wgsLng
     return wgsLat, wgsLng
+SQL_TP_TXT  = 0
+SQL_TP_INT  = 1
+SQL_TP_BLOB = 2
+SQL_TP_REAL = 3
+#
+# 因为C# sqlite 对于类型有强依赖，这样便于写代码时减少错误
+# 这个可能不是很全面，因为我还没有收集SQLITE的全部类型。。。。
+#
+def get_sqlite_tbl_info(cmd, tbl_name):
+    res = list()
+    cmd.CommandText = '''pragma table_info(%s)''' %tbl_name
+    reader = cmd.ExecuteReader()
+    while reader.Read():
+        tp = c_sharp_get_string(reader, 2)
+        if tp == 'text':
+            res.append(SQL_TP_TXT)
+        elif tp == 'int':
+            res.append(SQL_TP_INT)
+        elif tp == 'blob':
+            res.append(SQL_TP_BLOB)
+        elif tp == 'real':
+            res.append(SQL_TP_REAL)
+    return res
+
+def execute_query(cmd, cmd_text, values):
+    cmd.CommandText = cmd_text
+    cmd.Parameters.Clear()
+    for v in values:
+        p = cmd.CreateParameter()
+        p.Value = v
+        cmd.Parameters.Add(p)
+    cmd.ExecuteNonQuery()
+
+# copy file....
+# note, give node, not db path
+def create_connection_tentatively(db_node, read_only = True):
+    cmd = 'DataSource = {}; ReadOnly = {}'
+    cmd = cmd.format(db_node.PathWithMountPoint, 'True' if read_only else 'False')
+    try:
+        conn = sql.SQLiteConnection(cmd)
+        conn.Open()
+        return conn
+    except:
+        data = db_node.Data
+        sz = db_node.Size
+        cache = ds.OpenCache('C37R')
+        if not os.path.exists(cache):
+            os.mkdir(cache)
+        cache_db = cache + '/' + md5(db_node.PathWithMountPoint)
+        f = open(cache_db, 'wb+')
+        f.write(data.read(sz))
+        f.close()
+        cmd = 'DataSource = {}; ReadOnly = {}'.format(cache_db, 'True' if read_only else 'False')
+        conn = sql.SQLiteConnection(cmd)
+        conn.Open()
+        return conn
+#
+# MACROS
+#
+WA_FILE_TEXT = 1
+WA_FILE_IMAGE = 2
+WA_FILE_AUDIO = 3
+WA_FILE_VIDEO = 4
+WA_FILE_OTHER = 99

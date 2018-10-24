@@ -41,7 +41,6 @@ def analyze_sms(node, extract_deleted, extract_source):
         res = SMSParser(node, extract_deleted, extract_source).parse()
 
     if DEBUG:
-        print('DEBUG sms')
         if res:
             for sms in res:
                 # print 'sms.Body.Value:', sms.Body.Value
@@ -69,6 +68,7 @@ class SMSParser(object):
         self.cache_db = self.cachepath + '\\{}.db'.format(hash_str)
 
         self.contacts = {}
+        self.sim_phonenumber = {}
 
     def parse(self):
         if DEBUG or self.m_sms.need_parse(self.cache_db, VERSION_APP_VALUE):
@@ -114,7 +114,8 @@ class SMSParser(object):
                 sim.number       = rec['number'].Value
                 sim.sync_enabled = rec['sync_enabled'].Value
                 sim.source       = self.source_mmmssms_db
-                sim.deleted      = 1 if rec.IsDeleted else 0                  
+                sim.deleted      = 1 if rec.IsDeleted else 0  
+                self.sim_phonenumber[sim.sim_id] = sim.number
                 try:
                     self.m_sms.db_insert_table_sim_cards(sim)
                 except:
@@ -196,6 +197,7 @@ class SMSParser(object):
                                     ALL=0;INBOX=1;SENT=2;DRAFT=3;OUTBOX=4;FAILED=5;QUEUED=6;
             subject            TEXT,
             body               TEXT,
+            (xiaomi: service_center)
             seen               INTEGER DEFAULT 0,
             timed              INTEGER DEFAULT 0,
             deleted            INTEGER DEFAULT 0,
@@ -220,24 +222,37 @@ class SMSParser(object):
         for rec in self._read_table(table_name='sms'):
             if canceller.IsCancellationRequested:
                 return            
-            if self._is_empty(rec, 'body', 'address') or not self._is_num(rec['address'].Value):
+            if self._is_empty(rec, 'type', 'body'):
+                continue
+            if rec['address'].Value and not self._is_num(rec['address'].Value):
                 continue
             sms = SMS()
-            sms._id                = rec['_id'].Value
-            sms.sender_phonenumber = rec['address'].Value
-            sms.sender_name        = self._get_contacts(sms.sender_phonenumber)
-            sms.read_statusd       = rec['read'].Value
-            sms.type               = rec['type'].Value    # SMS_TYPE
-            sms.subject            = rec['subject'].Value 
-            sms.body               = rec['body'].Value
-            sms.send_time          = rec['date_sent'].Value
-            sms.deliverd           = rec['date'].Value
-            sms.is_sender          = 1 if sms.type == SMS_TYPE_SENT else 0
             try: # 华为没有的字段
-                sms.sim_id         = rec['sim_id'].Value
-                sms.deleted        = rec['deleted'].Value
-            except:
+                sms.sim_id  = rec['sim_id'].Value
+                sms.deleted = rec['deleted'].Value
+                sms.smsc    = rec['service_center'].Value
+            except Exception as e:
                 pass    
+            sms._id         = rec['_id'].Value
+            sms.read_status = rec['read'].Value
+            sms.type        = rec['type'].Value    # SMS_TYPE
+
+            sms.subject     = rec['subject'].Value 
+            sms.body        = rec['body'].Value
+            sms.send_time   = rec['date_sent'].Value
+            sms.deliverd    = rec['date'].Value
+            sms.is_sender   = 1 if sms.type in (SMS_TYPE_SENT, SMS_TYPE_OUTBOX, SMS_TYPE_DRAFT) else 0
+            if sms.is_sender == 1:  # 发
+                sms.sender_phonenumber = self.sim_phonenumber.get(sms.sim_id, None) if sms.sim_id else None
+                sms.sender_name        = self._get_contacts(sms.sender_phonenumber)
+                sms.recv_phonenumber   = rec['address'].Value
+                sms.recv_name          = self._get_contacts(sms.recv_phonenumber)
+            else:                   # 收
+                sms.sender_phonenumber = rec['address'].Value
+                sms.sender_name        = self._get_contacts(sms.sender_phonenumber)
+                sms.recv_phonenumber   = self.sim_phonenumber.get(sms.sim_id, None) if sms.sim_id else None
+                sms.recv_name          = self._get_contacts(sms.recv_phonenumber)
+
             sms.deleted = 1 if rec.IsDeleted or sms.deleted else 0         
             sms.source = self.source_mmmssms_db
             try:
@@ -249,32 +264,33 @@ class SMSParser(object):
         except:
             exc()
 
-    def parse_mms(self):
-        """ 
-            pdu - 彩信
-        """
-        for rec in self._read_table(table_name='pdu'):
-            if IsDBNull(rec['address'].Value) or IsDBNull(rec['body'].Value):
-                continue
-            sms = Message()
-            sms.sender_phonenumber = rec['address'].Value
-            sms.sms_id             = rec['_id'].Value
-            sms.subject            = rec['subject'].Value # decode or what
-            sms.body               = rec['body'].Value
-            sms.send_time          = self._long2int_timestamp(rec['date'].Value)
-            sms.deliverd           = self._long2int_timestamp(rec['date'].Value)    
-            sms.status             = rec['type'].Value    # SMS_TYPE
-            sms.is_sender          = 1 if sms.status == SMS_TYPE_SENT else 0
-            sms.deleted = 1 if rec.IsDeleted else rec['deleted'].Value
-            sms.source             = self.source_mmmssms_db
-            try:
-                self.m_sms.db_insert_table_sms(sms)
-            except:
-                exc()
-        try:
-            self.m_sms.db_commit()
-        except:
-            exc()            
+    # TODO
+    # def parse_mms(self):
+    #     """ 
+    #         pdu - 彩信
+    #     """
+    #     for rec in self._read_table(table_name='pdu'):
+    #         if IsDBNull(rec['address'].Value) or IsDBNull(rec['body'].Value):
+    #             continue
+    #         sms = Message()
+    #         sms.sender_phonenumber = rec['address'].Value
+    #         sms.sms_id             = rec['_id'].Value
+    #         sms.subject            = rec['subject'].Value # decode or what
+    #         sms.body               = rec['body'].Value
+    #         sms.send_time          = self._long2int_timestamp(rec['date'].Value)
+    #         sms.deliverd           = self._long2int_timestamp(rec['date'].Value)    
+    #         sms.status             = rec['type'].Value    # SMS_TYPE
+    #         sms.is_sender          = 1 if sms.type in (SMS_TYPE_SENT, SMS_TYPE_OUTBOX) else 0
+    #         sms.deleted = 1 if rec.IsDeleted else rec['deleted'].Value
+    #         sms.source             = self.source_mmmssms_db
+    #         try:
+    #             self.m_sms.db_insert_table_sms(sms)
+    #         except Exception as e:
+    #             exc()
+    #     try:
+    #         self.m_sms.db_commit()
+    #     except Exception as e:
+    #         exc()            
 
     def _read_table(self, table_name):
         """
@@ -318,7 +334,7 @@ class SMSParser(object):
     @staticmethod
     def _is_num(address):
         try:
-            if isinstance(int(address), (int, long)):
+            if isinstance(int(address), (int, long, Int64)):
                 return True
             return False
         except:
@@ -374,17 +390,32 @@ class SMSParser_no_tar(SMSParser):
                 continue
             sms = SMS()
             # sms.sms_id             = rec['_id'].Value
-            sms.sender_phonenumber = rec['phoneNumber'].Value
-            sms.sender_name        = self.contacts.get(sms.sender_phonenumber, None)
-            sms.read_status        = rec['shortRead'].Value
-            sms.type               = SMS_TYPE_INBOX if rec['shortType'].Value == 1 else SMS_TYPE_OUTBOX
-            sms.subject            = rec['theme'].Value
-            sms.body               = rec['body'].Value.replace('\0', '')
-            sms.send_time          = self._convert_2_timestamp(rec['time'].Value)
-            sms.delivered_date     = sms.send_time
-            sms.is_sender          = 1 if rec['shortType'].Value == 2 else 0
-            sms.source             = self.source_sms_db
-            sms.deleted            = 1 if rec.IsDeleted else 0               
+            if rec['shortType'].Value == 1:
+                sms.type = SMS_TYPE_INBOX 
+            elif rec['shortType'].Value == 2:
+                sms.type = SMS_TYPE_OUTBOX
+            else:
+                sms.type = SMS_TYPE_ALL
+            sms.read_status    = rec['shortRead'].Value
+            sms.subject        = rec['theme'].Value
+            sms.body           = rec['body'].Value.replace('\0', '')
+            sms.send_time      = self._convert_2_timestamp(rec['time'].Value)
+            sms.delivered_date = sms.send_time
+            sms.is_sender      = 1 if sms.type == SMS_TYPE_OUTBOX else 0
+
+            if sms.is_sender == 1:  # 发
+                sms.sender_phonenumber = self.sim_phonenumber.get(sms.sim_id, None) if sms.sim_id else None
+                sms.sender_name        = self._get_contacts(sms.sender_phonenumber)
+                sms.recv_phonenumber   = rec['phoneNumber'].Value
+                sms.recv_name          = self._get_contacts(sms.recv_phonenumber)
+            else:                   # 收
+                sms.sender_phonenumber = rec['phoneNumber'].Value
+                sms.sender_name        = self._get_contacts(sms.sender_phonenumber)
+                sms.recv_phonenumber   = self.sim_phonenumber.get(sms.sim_id, None) if sms.sim_id else None
+                sms.recv_name          = self._get_contacts(sms.recv_phonenumber)
+
+            sms.source  = self.source_sms_db
+            sms.deleted = 1 if rec.IsDeleted else 0
             try:
                 self.m_sms.db_insert_table_sms(sms)
             except:
