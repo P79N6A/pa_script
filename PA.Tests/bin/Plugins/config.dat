@@ -1354,6 +1354,10 @@
           </array>
           <key>Category</key>
           <string>Messages</string>
+		  <key>Dependents</key>
+		  <array>
+			<string>analyze_android_calls@android_contact</string>
+		  </array>
         </dict>
       </array>
     </dict>
