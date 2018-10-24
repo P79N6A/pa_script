@@ -29,7 +29,7 @@ DEBUG = False
 
 def exc():
     if DEBUG:
-        traceback.print_exc()
+        TraceService.Trace(TraceLevel.Error, "解析出错: 短信 {}".format(traceback.format_exc()))
     else:
         pass    
 
@@ -116,9 +116,12 @@ SQL_CREATE_TABLE_SMS = '''
         is_sender           INT,
         source              TEXT,
         deleted             INT DEFAULT 0, 
-        repeated            INT DEFAULT 0)
+        repeated            INT DEFAULT 0,
+        recv_phonenumber    TEXT,
+        recv_name           TEXT,
+        smsc                TEXT
+        )
     '''
-
 SQL_INSERT_TABLE_SMS = ''' 
     insert into sms(
         _id, 
@@ -132,8 +135,15 @@ SQL_INSERT_TABLE_SMS = '''
         send_time,
         delivered_date,
         is_sender,
-        source, deleted, repeated) 
-        values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
+        source, 
+        deleted, 
+        repeated,
+        recv_phonenumber,
+        recv_name,
+        smsc
+        ) 
+        values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+               ?, ?, ?)'''
 
 SQL_CREATE_TABLE_VERSION = '''
     create table if not exists version(
@@ -226,7 +236,7 @@ class Model_SMS(object):
         # if self.cursor is not None:
         #     try:
         #         self.cursor.execute(SQL_INSERT_TABLE_SMS, column.get_values())
-        #     except:
+        #     except Exception as e:
         #         pass
         self.db_insert_table(SQL_INSERT_TABLE_SMS, column.get_values())
 
@@ -303,7 +313,7 @@ class SMS(Column):
         super(SMS, self).__init__()
         self._id                = None  # 消息ID[INT]
         self.sim_id             = None  # SIM 卡 ID[INT]
-        self.sender_phonenumber = None  # 发送者ID[TEXT]
+        self.sender_phonenumber = None  # 发送者手机号码[TEXT]
         self.sender_name        = None  # 发送者姓名[TEXT]
         self.read_status        = None  # 读取状态[INT], 1 已读, 0 未读
         self.type               = None  # 消息类型[INT], SMS_TYPE
@@ -312,6 +322,9 @@ class SMS(Column):
         self.send_time          = None  # 发送时间[INT]
         self.delivered_date     = None  # 送达时间
         self.is_sender          = None  # 自己是否为发送方[INT]
+        self.recv_phonenumber   = None  # 接受者手机号码[TEXT]
+        self.recv_name          = None  # 接受者姓名[TEXT]        
+        self.smsc               = None  # 短信服务中心号码[TEXT]        
 
     def get_values(self):
         return (
@@ -326,7 +339,13 @@ class SMS(Column):
                 self.send_time, 
                 self.delivered_date, 
                 self.is_sender, 
-            ) + super(SMS, self).get_values()
+                self.source, 
+                self.deleted, 
+                self.repeated,
+                self.recv_phonenumber,
+                self.recv_name,
+                self.smsc
+            )
 
 class GenerateModel(object):
     def __init__(self, cache_db, cachepath=None):
@@ -370,7 +389,11 @@ class GenerateModel(object):
             10    is_sender           INT,
             11    source              TEXT,
             12    deleted             INT DEFAULT 0, 
-            13    repeated            INT DEFAULT 0  
+            13    repeated            INT DEFAULT 0,
+
+            14    recv_phonenumber  TEXT,
+            15    recv_name         TEXT,
+            16    smsc               TEXT
 
             SMS_TYPE_ALL    = 0
             SMS_TYPE_INBOX  = 1
@@ -398,26 +421,39 @@ class GenerateModel(object):
                 sms.Delivered.Value = self._get_timestamp(row[9])
             if row[8] is not None:
                 sms.TimeStamp.Value = self._get_timestamp(row[8])
-            if row[4] == 0:
-                sms.Status.Value = MessageStatus.Unread
-            elif row[4] == 1:
-                sms.Status.Value = MessageStatus.Read
-            else:
-                sms.Status.Value = self._convert_sms_type(row[5])
 
+            # 注意优先级  row[4] read_status, row[5]: type
+            sms.Status.Value = MessageStatus.Read if row[4] == 1 else MessageStatus.Unread
+            if row[5] in [2, 3, 4]:
+                sms.Status.Value = self._convert_sms_type(row[5]) 
+
+            # 发件人
             party = Generic.Party()
-            if row[10] is not None:
-                party.Role.Value = PartyRole.To if row[10] == 1 else PartyRole.From
+            # party.Role.Value = PartyRole.From if row[10] != 1 else PartyRole.To
+            party.Role.Value = PartyRole.From
             if row[2] is not None:
-                party.Identifier.Value = row[2]
+                party.Identifier.Value = row[2] # sender_phonenumber
             if row[3] is not None:
-                party.Name.Value = row[3]
+                party.Name.Value = row[3]       # sender_name
             sms.Parties.Add(party)     
+            # 收件人
+            party = Generic.Party()
+            # party.Role.Value = PartyRole.To if row[10] != 1 else PartyRole.From
+            party.Role.Value = PartyRole.To
+            if row[14] is not None:
+                party.Identifier.Value = row[14]   # recv_phonenumber
+            if row[15] is not None:                                     
+                party.Name.Value = row[15]        # recv_name     
+            sms.Parties.Add(party)               
 
-            if row[-3] is not None:
-                sms.SourceFile.Value = self._get_source_file(row[-3])
-            if row[-2] is not None:
-                sms.Deleted = self._convert_deleted_status(row[-2])
+            if row[16] is not None:                                     
+                sms.SMSC.Value = row[16]  
+
+            if row[11] is not None:
+                sms.SourceFile.Value = self._get_source_file(row[11])
+            if row[12] is not None:
+                sms.Deleted = self._convert_deleted_status(row[12])
+
             models.append(sms)
             row = self.cursor.fetchone()
         return models        
@@ -458,10 +494,10 @@ class GenerateModel(object):
         SMS_TYPE_FAILED = 5
         SMS_TYPE_QUEUED = 6 
         '''
-        if sms_type in [2,4]:
+        if sms_type in [2,4]:  # 发件箱
             return MessageStatus.Sent
-        elif sms_type == 3:
+        elif sms_type == 3:    # 草稿箱
             return MessageStatus.Unsent
-        elif sms_type == 1:
-            return MessageStatus.Unread
-        return MessageStatus.Default
+        # elif sms_type == 1:    # 未读
+        #     return MessageStatus.Unread
+        # return MessageStatus.Default
