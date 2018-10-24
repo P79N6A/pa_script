@@ -20,7 +20,14 @@ import System
 from System.Xml.Linq import *
 from System.Xml.XPath import Extensions as XPathExtensions
 from System.Data.SQLite import *
+from PA.InfraLib.Services import ServiceGetter,IApplicationService
+from System.IO import Path
 import bcp_other
+
+
+appService = ServiceGetter.Get[IApplicationService]()
+runPath = appService.RunPath
+destDir = Path.Combine(runPath,"bin","aapt.exe")
 
 def GetString(reader, idx):
     return reader.GetString(idx) if not reader.IsDBNull(idx) else ""
@@ -42,7 +49,7 @@ class AppLists(object):
         for app in app_lists:
             dicts = defaultdict(list)
             base_apk_path = app.PathWithMountPoint + "\\base.apk"
-            file_content = os.popen(os.getcwd() + "\\aapt.exe dump badging {0}".format(base_apk_path)).read()
+            file_content = os.popen( destDir + " dump badging {0}".format(base_apk_path)).read()
             if file_content:
                 app_info = model_applists.Info()
                 app_info.sourceFile = app.AbsolutePath + "/base.apk"
