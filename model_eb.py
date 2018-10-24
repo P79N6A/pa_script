@@ -98,7 +98,7 @@ TBL_DEAL_CREATE = '''
 '''
 
 TBL_DEAL_INSERT = '''
-    insert into tb_deal values(?,?,?,?,?,?,?,?)
+    insert into tb_deal values(?,?,?,?,?,?,?,?,?,?,?)
 '''
 
 EBDEAL_TYPE_REC = 0
