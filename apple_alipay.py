@@ -67,10 +67,12 @@ class AlipayParser():
             user_list = self.get_user_list()
             for user in user_list:
                 self.contacts = {}
+                self.msg_deals = []
                 self.user = user
                 self.parse_user()
                 self.user = None
                 self.contacts = None
+                self.msg_deals = None
             self.eb.db_insert_table_version(model_eb.EB_VERSION_KEY, model_eb.EB_VERSION_VALUE)
             self.eb.db_insert_table_version(model_eb.EB_APP_VERSION_KEY, VERSION_APP_VALUE)
             self.eb.db_commit()
@@ -528,6 +530,7 @@ class AlipayParser():
                 deal.money = g.group(0)
             deal.description = json_obj['m']
             deal.remark = json_obj['appName']
+        self.msg_deals.append(deal)
         self.im.db_insert_table_deal(deal)
         self.im.db_commit()
         return deal.deal_id
@@ -632,6 +635,20 @@ class AlipayParser():
         return msgtype
 
     def get_deals(self):
+        for deal in self.msg_deals:
+            trade = model_eb.EBDeal()
+            trade.set_value_with_idx(trade.account_id, deal.account_id)
+            trade.set_value_with_idx(trade.deal_type, deal.type)
+            trade.set_value_with_idx(trade.money, deal.money)
+            trade.set_value_with_idx(trade.status, deal.status)
+            trade.set_value_with_idx(trade.begin_time, deal.create_time)
+            trade.set_value_with_idx(trade.deleted, deal.deleted)
+            trade.set_value_with_idx(trade.desc, deal.description)
+            trade.set_value_with_idx(trade.content, deal.remark)
+            trade.set_value_with_idx(trade.source_file, deal.source)
+            self.eb.db_insert_table_deal(trade.get_value())
+        self.eb.db_commit()
+
         if self.user is None:
             return
 
@@ -648,22 +665,24 @@ class AlipayParser():
                     continue
 
                 try:
+                    file = 'C:/Users/Admin/Desktop/2003_new.plist'
+                    memoryRange = MemoryRange.FromCreateFile(file)
                     memoryRange = MemoryRange.FromBytes(rec['data'].Value)
                     obj = BPReader.GetTree(memoryRange)
                     list = obj.Children['list']
                     for month_obj in list:
                         recordList = month_obj.Children['recordList']
                         for record in recordList:
-                            deal = model_im.Deal()
-                            deal.deleted = DeletedState.Intact
-                            deal.source = dbPath.AbsolutePath
-                            deal.account_id = self.user
-                            deal.money = record['money'].Value
-                            deal.description = record['title'].Value
-                            deal.create_time = record['gmtCreate'].Value
-                            deal.remark = record['categoryName'].Value
-                            self.im.db_insert_table_deal(deal)
-                    self.im.db_commit()
+                            trade = model_eb.EBDeal()
+                            trade.set_value_with_idx(deal.deleted, DeletedState.Intact)
+                            trade.set_value_with_idx(deal.source_file, dbPath.AbsolutePath)
+                            trade.set_value_with_idx(deal.account_id, self.user)
+                            trade.set_value_with_idx(deal.money, record['money'].Value)
+                            trade.set_value_with_idx(deal.desc, record['title'].Value)
+                            trade.set_value_with_idx(deal.begin_time, record['gmtCreate'].Value)
+                            trade.set_value_with_idx(deal.content, record['categoryName'].Value)
+                            self.eb.db_insert_table_deal(trade.get_value())
+                    self.eb.db_commit()
                 except:
                     traceback.print_exc()
 
