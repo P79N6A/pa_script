@@ -67,10 +67,12 @@ class AlipayParser():
             user_list = self.get_user_list()
             for user in user_list:
                 self.contacts = {}
+                self.msg_deals = []
                 self.user = user
                 self.parse_user()
                 self.user = None
                 self.contacts = None
+                self.msg_deals = None
             self.eb.db_insert_table_version(model_eb.EB_VERSION_KEY, model_eb.EB_VERSION_VALUE)
             self.eb.db_insert_table_version(model_eb.EB_APP_VERSION_KEY, VERSION_APP_VALUE)
             self.eb.db_commit()
@@ -489,11 +491,11 @@ class AlipayParser():
                         if message.type == model_im.MESSAGE_CONTENT_TYPE_RED_ENVELPOE or \
                            message.type == model_im.MESSAGE_CONTENT_TYPE_RECEIPT or \
                            message.type == model_im.MESSAGE_CONTENT_TYPE_AA_RECEIPT:
-                            message.extra_id = self.get_deal(message.source, data, message.type, message.deleted, message.repeated)
+                            message.extra_id = self.get_deal(message.source, data, message.type, time, message.deleted, message.repeated)
                         self.im.db_insert_table_message(message)
         self.im.db_commit()
 
-    def get_deal(self, source, content, type, deleted, repeated):
+    def get_deal(self, source, content, type, time, deleted, repeated):
         json_obj = None
         try:
             memoryRange = MemoryRange.FromBytes(self.aes_decode(content))
@@ -506,28 +508,30 @@ class AlipayParser():
         deal.deleted = deleted
         deal.repeated = repeated
         deal.source = source
+        deal.time = time
         deal.deal_id = str(uuid.uuid1()).replace('-', '')
         if type == model_im.MESSAGE_CONTENT_TYPE_AA_RECEIPT:
             deal.type = model_im.DEAL_TYPE_AA_RECEIPT
             g = re.search('\d+\.\d+(.*?)', json_obj['topTitle'], re.M | re.I)
             if g is not None:
-                deal.money = g.group(0)
+                deal.money = g.group(0).replace(',', '')
             deal.description = json_obj['topTitle']
             deal.remark = json_obj['appName']
         if type == model_im.MESSAGE_CONTENT_TYPE_RED_ENVELPOE:
             deal.type = model_im.DEAL_TYPE_RED_ENVELPOE
             g = re.search('\d+\.\d+(.*?)', json_obj['m'], re.M | re.I)
             if g is not None:
-                deal.money = g.group(0)
+                deal.money = g.group(0).replace(',', '')
             deal.description = json_obj['m']
             deal.remark = json_obj['appName']
         if type == model_im.MESSAGE_CONTENT_TYPE_RECEIPT:
             deal.type = model_im.DEAL_TYPE_RECEIPT
             g = re.search('\d+\.\d+(.*?)', json_obj['title'], re.M | re.I)
             if g is not None:
-                deal.money = g.group(0)
+                deal.money = g.group(0).replace(',', '')
             deal.description = json_obj['m']
             deal.remark = json_obj['appName']
+        self.msg_deals.append(deal)
         self.im.db_insert_table_deal(deal)
         self.im.db_commit()
         return deal.deal_id
@@ -632,6 +636,19 @@ class AlipayParser():
         return msgtype
 
     def get_deals(self):
+        for deal in self.msg_deals:
+            trade = model_eb.EBDeal()
+            trade.set_value_with_idx(trade.account_id, self.user)
+            trade.set_value_with_idx(trade.money, deal.money.replace(',', ''))
+            trade.set_value_with_idx(trade.deal_type, model_eb.EBDEAL_TYPE_OTHER)
+            trade.set_value_with_idx(trade.status, deal.status)
+            trade.set_value_with_idx(trade.begin_time, deal.create_time)
+            trade.set_value_with_idx(trade.deleted, deal.deleted)
+            trade.set_value_with_idx(trade.desc, deal.description)
+            trade.set_value_with_idx(trade.source_file, deal.source)
+            self.eb.db_insert_table_deal(trade.get_value())
+        self.eb.db_commit()
+
         if self.user is None:
             return
 
@@ -654,16 +671,16 @@ class AlipayParser():
                     for month_obj in list:
                         recordList = month_obj.Children['recordList']
                         for record in recordList:
-                            deal = model_im.Deal()
-                            deal.deleted = DeletedState.Intact
-                            deal.source = dbPath.AbsolutePath
-                            deal.account_id = self.user
-                            deal.money = record['money'].Value
-                            deal.description = record['title'].Value
-                            deal.create_time = record['gmtCreate'].Value
-                            deal.remark = record['categoryName'].Value
-                            self.im.db_insert_table_deal(deal)
-                    self.im.db_commit()
+                            trade = model_eb.EBDeal()
+                            trade.set_value_with_idx(trade.deleted, DeletedState.Intact)
+                            trade.set_value_with_idx(trade.source_file, dbPath.AbsolutePath)
+                            trade.set_value_with_idx(trade.account_id, self.user)
+                            trade.set_value_with_idx(trade.deal_type, model_eb.EBDEAL_TYPE_OTHER)
+                            trade.set_value_with_idx(trade.money, record['money'].Value.replace(',', ''))
+                            trade.set_value_with_idx(trade.desc, record['title'].Value)
+                            trade.set_value_with_idx(trade.begin_time, record['gmtCreate'].Value)
+                            self.eb.db_insert_table_deal(trade.get_value())
+                    self.eb.db_commit()
                 except:
                     traceback.print_exc()
 

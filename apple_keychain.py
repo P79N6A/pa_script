@@ -388,7 +388,7 @@ class KeyChainParser():
             atyp_name = self._get_map_value(map, 'atyp', 'str')
             srvr_name = self._get_map_value(map, 'srvr', 'str')
             ptcl_name = self._get_map_value(map, 'ptcl', 'str')
-            if ptcl is not None:
+            if ptcl_name is not None:
                 if ptcl_name == 'http':
                     url = 'http://' + srvr_name
                 elif ptcl_name == 'https':
@@ -462,12 +462,14 @@ class KeyChainParser():
             return None
         if str(type(map[key])) == "<type 'NSData'>":
             if format == 'str':
-                return str(map[key].Bytes)
+                return str(bytes(map[key].Bytes))
             return map[key].Bytes
         return str(map[key])
 
     @staticmethod
     def _get_timestamp(str):
+        if str is None:
+            return None
         try:
             str = str.replace('/', '-')
             if '-' not in str:
@@ -485,6 +487,6 @@ def analyze_keychain(root, extract_deleted, extract_source):
     models = KeyChainParser(root, extract_deleted, extract_source).parse()
     mlm = ModelListMerger()
     pr.Models.AddRange(list(mlm.GetUnique(models)))
-    pr.Build('钥匙串')
+    pr.Build('KeyChain')
     gc.collect()
     return pr
