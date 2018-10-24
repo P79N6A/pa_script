@@ -454,7 +454,7 @@ class GenerateModel(object):
         while reader.Read():
             t = EC.Trading()
             if unity_c37r.c_sharp_get_string(reader, 0) is not '':
-                t.OwnerUserID = unity_c37r.c_sharp_get_string(reader, 0)
+                t.OwnerUserID.Value = unity_c37r.c_sharp_get_string(reader, 0)
             if unity_c37r.c_sharp_get_string(reader, 1) is not '':
                 uid = unity_c37r.c_sharp_get_string(reader, 1)
                 usr = Common.UserIntro()
@@ -468,31 +468,31 @@ class GenerateModel(object):
             if unity_c37r.c_sharp_get_long(reader, 2) is not None:
                 tp = unity_c37r.c_sharp_get_long(reader, 2)
                 if tp == EBDEAL_TYPE_REC:
-                    t.TradingType.Value = TradingType.Conllection
+                    t.Type.Value = EC.TradingType.Conllection
                 elif tp == EBDEAL_TYPE_SEND:
-                    t.TradingType.Value = TradingType.Payment
+                    t.Type.Value = EC.TradingType.Payment
                 elif tp == EBDEAL_TYPE_OTHER:
-                    t.TradingType.Value = TradingType.None
+                    t.Type.Value = EC.TradingType.None
             if unity_c37r.c_sharp_get_real(reader, 3) is not 0.0:
-                t.Money = str(unity_c37r.c_sharp_get_real(reader, 3))
+                t.Money.Value = str(unity_c37r.c_sharp_get_real(reader, 3))
             if unity_c37r.c_sharp_get_long(reader, 4) is not None:
                 tp = unity_c37r.c_sharp_get_long(reader, 4)
                 if tp == TRADE_STATUS_CLOSE:
-                    t.TradingStatus.Value = TradingStatus.Close
+                    t.Status.Value = EC.TradingStatus.Close
                 elif tp == TRADE_STATUS_FINISHED:
-                    t.TradingStatus.Value = TradingStatus.Finish
+                    t.Status.Value = EC.TradingStatus.Finish
                 elif tp == TRADE_STATUS_PROCESSING:
-                    t.TradingStatus.Value = TradingStatus.Unfinish
+                    t.Status.Value = EC.TradingStatus.Unfinish
                 elif tp == TRADE_STATUS_UNKWON:
-                    t.TradingStatus.Value = TradingStatus.None
+                    t.Status.Value = EC.TradingStatus.None
             if unity_c37r.c_sharp_get_long(reader, 5) is not 0:
                 t.StartTime.Value = unity_c37r.get_c_sharp_ts(unity_c37r.c_sharp_get_long(reader, 5))
             if unity_c37r.c_sharp_get_long(reader, 6) is not 0:
                 t.EndTime.Value = unity_c37r.get_c_sharp_ts(unity_c37r.c_sharp_get_long(reader, 6))
-            if unity_c37r.c_sharp_get_string(reader, 7) is not '':
-                t.Description.Value = unity_c37r.c_sharp_get_string(reader, 7)
-            if unity_c37r.c_sharp_get_string(reader, 8):
-                t.Content.Value = unity_c37r.c_sharp_get_string(reader, 8)
+            if unity_c37r.c_sharp_get_string(reader, 8) is not '':
+                t.Description.Value = unity_c37r.c_sharp_get_string(reader, 8)
+            if unity_c37r.c_sharp_get_string(reader, 9):
+                t.Content.Value = unity_c37r.c_sharp_get_string(reader, 9)
             models.append(t)
         reader.Close()
         #self.ccmd.Dispose()
