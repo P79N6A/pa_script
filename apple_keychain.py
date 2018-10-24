@@ -462,7 +462,7 @@ class KeyChainParser():
             return None
         if str(type(map[key])) == "<type 'NSData'>":
             if format == 'str':
-                return str(map[key].Bytes)
+                return str(bytes(map[key].Bytes))
             return map[key].Bytes
         return str(map[key])
 
