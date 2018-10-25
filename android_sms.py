@@ -72,6 +72,7 @@ class SMSParser(object):
 
     def parse(self):
         if DEBUG or self.m_sms.need_parse(self.cache_db, VERSION_APP_VALUE):
+        #if self.m_sms.need_parse(self.cache_db, VERSION_APP_VALUE):
             node = self.root.GetByPath("mmssms.db")
             self.db = SQLiteParser.Database.FromNode(node, canceller)
             if self.db is None:
@@ -153,18 +154,21 @@ class SMSParser(object):
 
         # 关联 通讯录  CALLS/F2BB91E8E7436EAA944C378D44066A79.db
         BASE_DIR   = os.path.dirname(self.cachepath)
-        calls_path = os.path.join(BASE_DIR, 'Calls')
+        # print(BASE_DIR)
+        calls_path = os.path.join(BASE_DIR, 'Contact')
+        # print(calls_path)
 
         try:
             if not os.listdir(calls_path):
-                print('####### android_sms.py: Calls 目录下没有 db')
+                print('####### android_sms.py: Contact 目录下没有 db')
                 return 
-            print('calls_path', calls_path)
+            # print('calls_path', calls_path)
             for f  in os.listdir(calls_path):
                 if f.endswith('.db'):
                     calls_db_path = os.path.join(calls_path, f)
-        except:
-            print('####### android_sms.py: calls.db 不存在')
+        except Exception as e:
+            print('####### android_sms.py: db 不存在')
+            # exc()
             return 
 
         try:
@@ -174,9 +178,10 @@ class SMSParser(object):
             for row in cursor:
                 contacts[row[8]] = row[9]
             self.contacts = contacts
-        except:
-            print('##### android_sms.py #######: 关联 calls.db 失败')
-            exc()
+            # print(contacts)
+        except Exception as e:
+            print('##### android_sms.py #######: 关联通讯录失败')
+            # exc()
             # pass
         finally:
             cursor.close()
@@ -241,6 +246,7 @@ class SMSParser(object):
             sms.body        = rec['body'].Value
             sms.send_time   = rec['date_sent'].Value
             sms.deliverd    = rec['date'].Value
+            # print('sms type', sms.type)
             sms.is_sender   = 1 if sms.type in (SMS_TYPE_SENT, SMS_TYPE_OUTBOX, SMS_TYPE_DRAFT) else 0
             if sms.is_sender == 1:  # 发
                 sms.sender_phonenumber = self.sim_phonenumber.get(sms.sim_id, None) if sms.sim_id else None
@@ -390,6 +396,8 @@ class SMSParser_no_tar(SMSParser):
                 continue
             sms = SMS()
             # sms.sms_id             = rec['_id'].Value
+            # sms.sender_phonenumber = rec['phoneNumber'].Value if rec['phoneNumber'].Value != 'insert-address-token' else None
+            # sms.sender_name        = self.contacts.get(sms.sender_phonenumber, None)
             if rec['shortType'].Value == 1:
                 sms.type = SMS_TYPE_INBOX 
             elif rec['shortType'].Value == 2:
@@ -406,10 +414,10 @@ class SMSParser_no_tar(SMSParser):
             if sms.is_sender == 1:  # 发
                 sms.sender_phonenumber = self.sim_phonenumber.get(sms.sim_id, None) if sms.sim_id else None
                 sms.sender_name        = self._get_contacts(sms.sender_phonenumber)
-                sms.recv_phonenumber   = rec['phoneNumber'].Value
+                sms.recv_phonenumber   = rec['phoneNumber'].Value if rec['phoneNumber'].Value != 'insert-address-token' else None
                 sms.recv_name          = self._get_contacts(sms.recv_phonenumber)
             else:                   # 收
-                sms.sender_phonenumber = rec['phoneNumber'].Value
+                sms.sender_phonenumber = rec['phoneNumber'].Value if rec['phoneNumber'].Value != 'insert-address-token' else None
                 sms.sender_name        = self._get_contacts(sms.sender_phonenumber)
                 sms.recv_phonenumber   = self.sim_phonenumber.get(sms.sim_id, None) if sms.sim_id else None
                 sms.recv_name          = self._get_contacts(sms.recv_phonenumber)
