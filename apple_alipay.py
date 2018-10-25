@@ -85,6 +85,7 @@ class AlipayParser():
             self.get_mobile_contacts()
         for model in self.contacts_models:
             models.append(model)
+        return models
 
     def get_models_from_cache_db(self):
         models = model_eb.GenerateModel(self.cache + '/Alipay').get_models()
