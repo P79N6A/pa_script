@@ -62,9 +62,9 @@ class AlipayParser():
         nameValues.SafeAddValue('1290007', self.cache + '/Alipay')
 
     def parse(self):
+        user_list = self.get_user_list()
         if self.need_parse:
             self.eb.db_create()
-            user_list = self.get_user_list()
             for user in user_list:
                 self.contacts = {}
                 self.msg_deals = []
@@ -80,6 +80,9 @@ class AlipayParser():
             self.im.db_close()
             self.eb.db_close()
         models = self.get_models_from_cache_db()
+        for user in user_list:
+            self.user = user
+            self.get_mobile_contacts()
         for model in self.contacts_models:
             models.append(model)
         return models
@@ -121,7 +124,6 @@ class AlipayParser():
     def parse_user(self):
         self.get_user()
         self.get_contacts()
-        self.get_mobile_contacts()
         self.get_searchs()
         self.get_chats()
         self.get_deals()

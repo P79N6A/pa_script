@@ -92,6 +92,8 @@ class KeyChainParser():
                         map_1 = val
                         keyname = key_0
                         if map_1 is not None and str(type(map_1)) == "<type 'NSDictionary'>":
+                            if len(map_1.Keys) == 2:
+                                continue
                             srvKey = ['Service', 'svce', 'agrp']
                             srvValue = { \
                                 'AirPort' : WiFiAcc, \
@@ -402,7 +404,7 @@ class KeyChainParser():
             accKey = ['Account', 'acct']
             for key in accKey:
                 if key in map.Keys:
-                    account = map[key]
+                    account = self._get_map_value(map, key, 'str')
             lablKey = ['Label', 'labl']
             for key in lablKey:
                 if key in map.Keys:
@@ -487,6 +489,6 @@ def analyze_keychain(root, extract_deleted, extract_source):
     models = KeyChainParser(root, extract_deleted, extract_source).parse()
     mlm = ModelListMerger()
     pr.Models.AddRange(list(mlm.GetUnique(models)))
-    pr.Build('KeyChain')
+    pr.Build('钥匙串')
     gc.collect()
     return pr
