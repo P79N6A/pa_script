@@ -41,7 +41,7 @@
   <PropertyGroup />
   <ItemGroup>
     <Reference Include="FsAgent">
-      <HintPath>..\..\..\pwnanalysis\PA.Libs\FsAgent.dll</HintPath>
+      <HintPath>..\..\..\pwnanalysis\PNFA.Libs\FsAgent.dll</HintPath>
     </Reference>
     <Reference Include="IronPython, Version=2.7.8.0, Culture=neutral, PublicKeyToken=7f709c5b713576e1, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
@@ -78,50 +78,50 @@
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\bin\Mono.HttpUtility.dll</HintPath>
     </Reference>
-    <Reference Include="PA.AndroidApps">
-      <HintPath>..\Lib\PA.AndroidApps.dll</HintPath>
+    <Reference Include="PNFA.AndroidApps">
+      <HintPath>..\Lib\PNFA.AndroidApps.dll</HintPath>
     </Reference>
-    <Reference Include="PA.Common">
-      <HintPath>..\Lib\PA.Common.dll</HintPath>
+    <Reference Include="PNFA.Common">
+      <HintPath>..\Lib\PNFA.Common.dll</HintPath>
     </Reference>
-    <Reference Include="PA.Contracts">
-      <HintPath>..\Lib\PA.Contracts.dll</HintPath>
+    <Reference Include="PNFA.Contracts">
+      <HintPath>..\Lib\PNFA.Contracts.dll</HintPath>
     </Reference>
-    <Reference Include="PA.Decryption">
-      <HintPath>..\Lib\PA.Decryption.dll</HintPath>
+    <Reference Include="PNFA.Decryption">
+      <HintPath>..\Lib\PNFA.Decryption.dll</HintPath>
     </Reference>
-    <Reference Include="PA.Engine">
-      <HintPath>..\Lib\PA.Engine.dll</HintPath>
+    <Reference Include="PNFA.Engine">
+      <HintPath>..\Lib\PNFA.Engine.dll</HintPath>
     </Reference>
-    <Reference Include="PA.Formats">
-      <HintPath>..\Lib\PA.Formats.dll</HintPath>
+    <Reference Include="PNFA.Formats">
+      <HintPath>..\Lib\PNFA.Formats.dll</HintPath>
     </Reference>
-    <Reference Include="PA.Formats.Exts">
-      <HintPath>..\Lib\PA.Formats.Exts.dll</HintPath>
+    <Reference Include="PNFA.Formats.Exts">
+      <HintPath>..\Lib\PNFA.Formats.Exts.dll</HintPath>
     </Reference>
-    <Reference Include="PA.Formats.NextStep">
-      <HintPath>..\Lib\PA.Formats.NextStep.dll</HintPath>
+    <Reference Include="PNFA.Formats.NextStep">
+      <HintPath>..\Lib\PNFA.Formats.NextStep.dll</HintPath>
     </Reference>
-    <Reference Include="PA.Formats.Physical">
-      <HintPath>..\Lib\PA.Formats.Physical.dll</HintPath>
+    <Reference Include="PNFA.Formats.Physical">
+      <HintPath>..\Lib\PNFA.Formats.Physical.dll</HintPath>
     </Reference>
-    <Reference Include="PA.InfraLib">
-      <HintPath>..\Lib\PA.InfraLib.dll</HintPath>
+    <Reference Include="PNFA.InfraLib">
+      <HintPath>..\Lib\PNFA.InfraLib.dll</HintPath>
     </Reference>
-    <Reference Include="PA.InfraLib.Exts">
-      <HintPath>..\Lib\PA.InfraLib.Exts.dll</HintPath>
+    <Reference Include="PNFA.InfraLib.Exts">
+      <HintPath>..\Lib\PNFA.InfraLib.Exts.dll</HintPath>
     </Reference>
-    <Reference Include="PA.InfraLib.Plugins">
-      <HintPath>..\Lib\PA.InfraLib.Plugins.dll</HintPath>
+    <Reference Include="PNFA.InfraLib.Plugins">
+      <HintPath>..\Lib\PNFA.InfraLib.Plugins.dll</HintPath>
     </Reference>
-    <Reference Include="PA.iPhoneApps">
-      <HintPath>..\Lib\PA.iPhoneApps.dll</HintPath>
+    <Reference Include="PNFA.iPhoneApps">
+      <HintPath>..\Lib\PNFA.iPhoneApps.dll</HintPath>
     </Reference>
-    <Reference Include="PA.Logic">
-      <HintPath>..\Lib\PA.Logic.dll</HintPath>
+    <Reference Include="PNFA.Logic">
+      <HintPath>..\Lib\PNFA.Logic.dll</HintPath>
     </Reference>
-    <Reference Include="SQLiteSpy">
-      <HintPath>..\Lib\SQLiteSpy.dll</HintPath>
+    <Reference Include="PNFA.SQLite">
+      <HintPath>..\Lib\PNFA.SQLite.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Data" />
