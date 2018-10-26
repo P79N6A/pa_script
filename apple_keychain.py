@@ -87,6 +87,7 @@ class KeyChainParser():
                 if str(type(value_0)) == "<type 'NSArray'>":
                     if value_0.Count == 0:
                         continue
+
                     array = value_0
                     for val in array:
                         map_1 = val
@@ -154,22 +155,22 @@ class KeyChainParser():
                                     cert.CreationDate.Value = self._get_timestamp(self._get_map_value(map_1, 'cdat', 'str'))
                                     cert.ModificationDate.Value = self._get_timestamp(self._get_map_value(map_1, 'mdat', 'str'))
                                     cert.Label.Value = self._get_map_value(map_1, 'labl', 'str')
-                                    cert.Data.Value = self._get_map_value(map_1, 'v_Data')
+                                    cert.Data.Value = self._get_map_value(map_1, 'v_Data', 'data')
                                 else:
                                     cert.AccessGroup = self._get_map_value(map_1, 'Entitlement Group', 'str')
                                     cert.CreationDate.Value = self._get_timestamp(self._get_map_value(map_1, 'Create Date', 'str'))
                                     cert.ModificationDate.Value = self._get_timestamp(self._get_map_value(map_1, 'Modify Date', 'str'))
                                     cert.Label.Value = self._get_map_value(map_1, 'Label', 'str')
-                                    cert.Data.Value = self._get_map_value(map_1, 'Keychain Data')
+                                    cert.Data.Value = self._get_map_value(map_1, 'Keychain Data', 'data')
                                 cert.ProtectionDomain.Value = self._get_map_value(map_1, 'pdmn', 'str')
-                                cert.Issuer.Value = self._get_map_value(map_1, 'issr')
+                                cert.Issuer.Value = self._get_map_value(map_1, 'issr', 'data')
                                 cert.CertificateEncoding.Value = self._get_map_value(map_1, 'cenc', 'str')
                                 cert.CertificateType.Value = self._get_map_value(map_1, 'ctyp', 'str')
-                                cert.PublicKeyHash.Value = self._get_map_value(map_1, 'pkhh')
-                                cert.SubjectKeyID.Value = self._get_map_value(map_1, 'skid')
-                                cert.SerialNumber.Value = self._get_map_value(map_1, 'slnr')
+                                cert.PublicKeyHash.Value = self._get_map_value(map_1, 'pkhh', 'data')
+                                cert.SubjectKeyID.Value = self._get_map_value(map_1, 'skid', 'data')
+                                cert.SerialNumber.Value = self._get_map_value(map_1, 'slnr', 'data')
                                 cert.Subject.Value = self._get_map_value(map_1, 'subj')
-                                cert.Synchronizable.Value = self._get_map_value(map_1, 'sync', 'str')
+                                cert.Synchronizable.Value = self._get_map_value(map_1, 'sync', 'bool')
                                 self.models.append(cert)
                             elif key_0 == 'genp' or key_0 == 'GenericPassword':
                                 genp = Generic.KeychainProfile.GenericPassword()
@@ -181,7 +182,7 @@ class KeyChainParser():
                                     genp.ModificationDate.Value = self._get_timestamp(self._get_map_value(map_1, 'mdat', 'str'))
                                     genp.Account.Value = self._get_map_value(map_1, 'acct', 'str')
                                     genp.Service.Value = self._get_map_value(map_1, 'srvr', 'str')
-                                    genp.Data.Value = self._get_map_value(map_1, 'v_Data')
+                                    genp.Data.Value = self._get_map_value(map_1, 'v_Data', 'data')
                                     genp.Label.Value = self._get_map_value(map_1, 'Label', 'str')
                                 else:
                                     genp.AccessGroup.Value = self._get_map_value(map_1, 'Entitlement Group', 'str')
@@ -189,10 +190,10 @@ class KeyChainParser():
                                     genp.ModificationDate.Value = self._get_timestamp(self._get_map_value(map_1, 'Modify Date', 'str'))
                                     genp.Account.Value = self._get_map_value(map_1, 'Account', 'str')
                                     genp.Service.Value = self._get_map_value(map_1, 'Service', 'str')
-                                    genp.Data.Value = self._get_map_value(map_1, 'Keychain Data')
+                                    genp.Data.Value = self._get_map_value(map_1, 'Keychain Data', 'data')
                                     genp.Label.Value = self._get_map_value(map_1, 'labl', 'str')
                                 genp.ProtectionDomain.Value = self._get_map_value(map_1, 'pdmn', 'str')
-                                genp.Synchronizable.Value = self._get_map_value(map_1, 'sync', 'str')
+                                genp.Synchronizable.Value = self._get_map_value(map_1, 'sync', 'bool')
                                 genp.Description.Value = self._get_map_value(map_1, 'desc', 'str')
                                 self.models.append(genp)
                             elif key_0 == 'inet' or key_0 == 'InternetPassword':
@@ -205,7 +206,7 @@ class KeyChainParser():
                                     inet.ModificationDate.Value = self._get_timestamp(self._get_map_value(map_1, 'mdat', 'str'))
                                     inet.Account.Value = self._get_map_value(map_1, 'acct', 'str')
                                     inet.Server.Value = self._get_map_value(map_1, 'srvr', 'str')
-                                    inet.Data.Value = self._get_map_value(map_1, 'v_Data')
+                                    inet.Data.Value = self._get_map_value(map_1, 'v_Data', 'data')
                                 else:
                                     inet.AccessGroup.Value = self._get_map_value(map_1, 'Entitlement Group', 'str')
                                     inet.CreationDate.Value = self._get_timestamp(self._get_map_value(map_1, 'Create Date', 'str'))
@@ -218,7 +219,7 @@ class KeyChainParser():
                                 inet.Port.Value = self._get_map_value(map_1, 'port', 'str')
                                 inet.Protocol.Value = self._get_map_value(map_1, 'ptcl', 'str')
                                 inet.SecurityDomain.Value = self._get_map_value(map_1, 'sdmn', 'str')
-                                inet.Synchronizable.Value = self._get_map_value(map_1, 'sync', 'str')
+                                inet.Synchronizable.Value = self._get_map_value(map_1, 'sync', 'bool')
                                 inet.Description.Value = self._get_map_value(map_1, 'desc', 'str')
                                 self.models.append(inet)
                             elif key_0 == 'keys' or key_0 == 'Keys':
@@ -229,28 +230,29 @@ class KeyChainParser():
                                     keys.AccessGroup.Value = self._get_map_value(map_1, 'agrp', 'str')
                                     keys.CreationDate.Value = self._get_timestamp(self._get_map_value(map_1, 'cdat', 'str'))
                                     keys.ModificationDate.Value = self._get_timestamp(self._get_map_value(map_1, 'mdat', 'str'))
-                                    keys.ApplicationTag.Value = self._get_map_value(map_1, 'atag', 'str')
-                                    keys.CanEncrypt.Value = self._get_map_value(map_1, 'encr')
-                                    keys.CanDecrypt.Value = self._get_map_value(map_1, 'decr')
-                                    keys.Data.Value = self._get_map_value(map_1, 'v_Data')
+                                    keys.ApplicationTag.Value = self._get_map_value(map_1, 'atag', 'data')
+                                    keys.CanEncrypt.Value = self._get_map_value(map_1, 'encr', 'bool')
+                                    keys.CanDecrypt.Value = self._get_map_value(map_1, 'decr', 'bool')
+                                    keys.Data.Value = self._get_map_value(map_1, 'v_Data', 'data')
                                     keys.Label.Value = self._get_map_value(map_1, 'labl', 'str')
                                 else:
                                     keys.AccessGroup.Value = self._get_map_value(map_1, 'Entitlement Group', 'str')
                                     keys.CreationDate.Value = self._get_timestamp(self._get_map_value(map_1, 'Create Date', 'str'))
                                     keys.ModificationDate.Value = self._get_timestamp(self._get_map_value(map_1, 'Modify Date', 'str'))
-                                    keys.Data.Value =  self._get_map_value(map_1, 'keychain Data')
+                                    keys.Data.Value =  self._get_map_value(map_1, 'keychain Data', 'data')
                                     keys.Label.Value = self._get_map_value(map_1, 'Label', 'str')
                                 keys.ProtectionDomain.Value = self._get_map_value(map_1, 'pdmn', 'str')
                                 keys.KeySizeInBits.Value = self._get_map_value(map_1, 'bsiz', 'str')
                                 keys.EffectiveKeySize.Value = self._get_map_value(map_1, 'esiz', 'str')
                                 keys.KeyClass.Value = self._get_map_value(map_1, 'kcls', 'str')
                                 keys.ApplicationLabel.Value = self._get_map_value(map_1, 'klbl', 'str')
-                                keys.IsPermanent.Value = self._get_map_value(map_1, 'perm')
-                                keys.CanDerive.Value = self._get_map_value(map_1, 'drve')
-                                keys.CanSign.Value = self._get_map_value(map_1, 'sign')
-                                keys.CanWrap.Value = self._get_map_value(map_1, 'wrap')
-                                keys.CanVerify.Value = self._get_map_value(map_1, 'vrfy')
-                                keys.CanUnwrap.Value = self._get_map_value(map_1, 'unwp')
+                                keys.IsPermanent.Value = self._get_map_value(map_1, 'perm', 'bool')
+                                keys.CanDerive.Value = self._get_map_value(map_1, 'drve', 'bool')
+                                keys.CanSign.Value = self._get_map_value(map_1, 'sign', 'bool')
+                                keys.CanWrap.Value = self._get_map_value(map_1, 'wrap', 'bool')
+                                keys.CanVerify.Value = self._get_map_value(map_1, 'vrfy', 'bool')
+                                keys.CanUnwrap.Value = self._get_map_value(map_1, 'unwp', 'bool')
+                                keys.Synchronizable.Value = self._get_map_value(map_1, 'sync', 'bool')
                                 self.models.append(keys)
                             elif key_0 == 'idnt':
                                 idnt = Generic.KeychainProfile.Identity()
@@ -260,30 +262,30 @@ class KeyChainParser():
                                 idnt.CreationDate.Value = self._get_timestamp(self._get_map_value(map_1, 'cdat', 'str'))
                                 idnt.ModificationDate.Value = self._get_timestamp(self._get_map_value(map_1, 'mdat', 'str'))
                                 idnt.Label.Value = self._get_map_value(map_1, 'labl', 'str')
-                                idnt.Issuer.Value = self._get_map_value(map_1, 'issr')
+                                idnt.Issuer.Value = self._get_map_value(map_1, 'issr', 'data')
                                 idnt.CertificateEncoding.Value = self._get_map_value(map_1, 'cenc', 'str')
                                 idnt.CertificateType.Value = self._get_map_value(map_1, 'ctyp', 'str')
                                 idnt.ProtectionDomain.Value = self._get_map_value(map_1, 'pdmn', 'str')
-                                idnt.PublicKeyHash.Value = self._get_map_value(map_1, 'pkhh')
-                                idnt.SubjectKeyID.Value = self._get_map_value(map_1, 'skid')
-                                idnt.SerialNumber.Value = self._get_map_value(map_1, 'slnr')
-                                idnt.Subject.Value = self._get_map_value(map_1, 'subj')
-                                idnt.Synchronizable.Value = self._get_map_value(map_1, 'sync', 'str')
-                                idnt.CertificateData.Value = self._get_map_value(map_1, 'certdata')
-                                idnt.ApplicationTag.Value = self._get_map_value(map_1, 'atag', 'str')
+                                idnt.PublicKeyHash.Value = self._get_map_value(map_1, 'pkhh', 'data')
+                                idnt.SubjectKeyID.Value = self._get_map_value(map_1, 'skid', 'data')
+                                idnt.SerialNumber.Value = self._get_map_value(map_1, 'slnr', 'data')
+                                idnt.Subject.Value = self._get_map_value(map_1, 'subj', 'data')
+                                idnt.Synchronizable.Value = self._get_map_value(map_1, 'sync', 'bool')
+                                idnt.CertificateData.Value = self._get_map_value(map_1, 'certdata', 'data')
+                                idnt.ApplicationTag.Value = self._get_map_value(map_1, 'atag', 'data')
                                 idnt.KeySizeInBits.Value = self._get_map_value(map_1, 'bsiz', 'str')                                
-                                idnt.CanEncrypt.Value = self._get_map_value(map_1, 'encr')
-                                idnt.CanDecrypt.Value = self._get_map_value(map_1, 'decr')
+                                idnt.CanEncrypt.Value = self._get_map_value(map_1, 'encr', 'bool')
+                                idnt.CanDecrypt.Value = self._get_map_value(map_1, 'decr', 'bool')
                                 idnt.EffectiveKeySize.Value = self._get_map_value(map_1, 'esiz', 'str')
                                 idnt.KeyClass.Value = self._get_map_value(map_1, 'kcls', 'str')
                                 idnt.ApplicationLabel.Value = self._get_map_value(map_1, 'klbl', 'str')
-                                idnt.Data.Value = self._get_map_value(map_1, 'v_Data')
-                                idnt.IsPermanent.Value = self._get_map_value(map_1, 'perm')
-                                idnt.CanDerive.Value = self._get_map_value(map_1, 'drve')
-                                idnt.CanSign.Value = self._get_map_value(map_1, 'sign')
-                                idnt.CanWrap.Value = self._get_map_value(map_1, 'wrap')
-                                idnt.CanVerify.Value = self._get_map_value(map_1, 'vrfy')
-                                idnt.CanUnwrap.Value = self._get_map_value(map_1, 'unwp')
+                                idnt.Data.Value = self._get_map_value(map_1, 'v_Data', 'data')
+                                idnt.IsPermanent.Value = self._get_map_value(map_1, 'perm', 'bool')
+                                idnt.CanDerive.Value = self._get_map_value(map_1, 'drve', 'bool')
+                                idnt.CanSign.Value = self._get_map_value(map_1, 'sign', 'bool')
+                                idnt.CanWrap.Value = self._get_map_value(map_1, 'wrap', 'bool')
+                                idnt.CanVerify.Value = self._get_map_value(map_1, 'vrfy', 'bool')
+                                idnt.CanUnwrap.Value = self._get_map_value(map_1, 'unwp', 'bool')
                                 self.models.append(idnt)
 
     def get_models(self):
@@ -427,7 +429,7 @@ class KeyChainParser():
             for key in accKey:
                 if key in map.Keys:
                     account = self._get_map_value(map, key, 'str')
-
+            
         if name != 'com.apple.ProtectedCloudStorage':
             dataKey = ['Keychain Data', 'v_Data']
             for key in dataKey:
@@ -465,7 +467,13 @@ class KeyChainParser():
         if str(type(map[key])) == "<type 'NSData'>":
             if format == 'str':
                 return str(bytes(map[key].Bytes))
+            if format == 'bool':
+                return bool(bytes(map[key].Bytes))
             return map[key].Bytes
+        if format == 'data':
+            return UnicodeEncoding.UTF8.GetBytes(str(map[key]))
+        if format == 'bool':
+            return bool(map[key])
         return str(map[key])
 
     @staticmethod
