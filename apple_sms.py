@@ -4,7 +4,7 @@ import PA_runtime
 from PA_runtime import *
 
 import clr
-clr.AddReference('PA.iPhoneApps')
+clr.AddReference('PNFA.iPhoneApps')
 del clr
 
 from PA.iPhoneApps.Parsers import MessageParser
