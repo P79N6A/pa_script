@@ -19,6 +19,7 @@ clr.AddReference('System.Xml.Linq')
 clr.AddReference('System.Data.SQLite')
 try:
     clr.AddReference('unity_c37r')
+    clr.AddReference('model_eb')
 except Exception as e:
     print("debug", e)
 del clr
