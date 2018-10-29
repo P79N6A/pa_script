@@ -4,7 +4,7 @@ import PA_runtime
 from PA_runtime import *
 
 import clr
-clr.AddReference('PA.iPhoneApps')
+clr.AddReference('PNFA.iPhoneApps')
 del clr
 
 from PA.iPhoneApps.Parsers import MessageParser
@@ -213,15 +213,14 @@ def decode_smss(fs, extract_deleted, extract_source):
             if first_time:
                 TraceService.Trace(TraceLevel.Info, "正在解析 {0}".format("短信"))
                 first_time = False
-            # try:
-            #     time_start = time.time()    
-            #     parser = MessageParser(d, extract_deleted, extract_source)      
-            #     if parser.Error:                        
-            #         raise Exception("解析短信数据库出错")
-            #     smss.Models.AddRange(parser.Results)
-            #     existing_sms.update(parser.ExistingMessages)
-            # except:
-            #     traceback.print_exc()
+            try:  
+                parser = MessageParser(d, extract_deleted, extract_source)      
+                if parser.Error:                        
+                    raise Exception("解析短信数据库出错")
+                smss.Models.AddRange(parser.Results)
+                existing_sms.update(parser.ExistingMessages)
+            except:
+                traceback.print_exc()
 
     for pattern, func in EXTEND_SMS:
         first_time = True
@@ -237,11 +236,10 @@ def decode_smss(fs, extract_deleted, extract_source):
                 traceback.print_exc()
     return smss
 
-def analyze_smss(fs, extract_deleted, extract_source, installed_apps):
+def analyze_smss(fs, extract_deleted, extract_source):
     name = "SMS"
     app_id = "com.apple.MobileSMS"
     ds.ApplicationsManager.AddTag(name, app_id)
     sms_results = decode_smss(fs, extract_deleted, extract_source)   
-    update_app_model(sms_results, installed_apps, app_id)
-    sms_results.Build('系统短信')
+    sms_results.Build('短信')
     return sms_results

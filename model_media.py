@@ -210,7 +210,7 @@ class Generate(object):
         self.db_cmd = SQLite.SQLiteCommand(self.db)
         models.extend(self._get_model_media())
         models.extend(self._get_model_thumbnail())
-        self.db.close()
+        self.db.Close()
         self.db = None
         return models
 

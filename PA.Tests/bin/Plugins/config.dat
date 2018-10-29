@@ -3,7 +3,7 @@
 <plist version="1.0">
   <array>
     <!--苹果插件从这里开始,安卓插件请见下面-->
-	<!--要个性化自定义运行某些插件,请按此文件的格式建立config.debug.dat文件,调试版的程序程序会优先读取config.debug.dat文件-->
+    <!--要个性化自定义运行某些插件,请按此文件的格式建立config.debug.dat文件,调试版的程序程序会优先读取config.debug.dat文件-->
     <dict>
       <key>Module</key>
       <string>apple_push</string>
@@ -23,8 +23,28 @@
         </dict>
       </array>
     </dict>
-	
-	<dict>
+
+    <dict>
+      <key>Module</key>
+      <string>apple_voicemail</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_voicemail</string>
+          <key>RunnerType</key>
+          <integer>0</integer>
+          <key>Patterns</key>
+          <array>
+            <string>/Library/Voicemail$</string>
+          </array>
+          <key>Category</key>
+          <string>VoiceMail</string>
+        </dict>
+      </array>
+    </dict>
+
+    <dict>
       <key>Module</key>
       <string>apple_keychain</string>
       <key>Runners</key>
@@ -37,15 +57,15 @@
           <key>Patterns</key>
           <array>
             <string>/tmp/keychain\.plist$</string>
-			<string>/Keychains/keychain-backup\.plist$</string>
+            <string>/Keychains/keychain-backup\.plist$</string>
           </array>
           <key>Category</key>
           <string>KeyChains</string>
         </dict>
       </array>
     </dict>
-	
-	<dict>
+
+    <dict>
       <key>Module</key>
       <string>apple_renren</string>
       <key>Runners</key>
@@ -64,7 +84,7 @@
         </dict>
       </array>
     </dict>
-	
+
     <dict>
       <key>Module</key>
       <string>apple_qt</string>
@@ -84,7 +104,7 @@
         </dict>
       </array>
     </dict>
-	
+
     <dict>
       <key>Module</key>
       <string>apple_filesystem_log</string>
@@ -836,7 +856,7 @@
       </array>
     </dict>
 
-	<dict>
+    <dict>
       <key>Module</key>
       <string>apple_tb</string>
       <key>Runners</key>
@@ -855,7 +875,7 @@
         </dict>
       </array>
     </dict>
-	
+
     <dict>
       <key>Module</key>
       <string>apple_xy</string>
@@ -1074,10 +1094,10 @@
           <key>Patterns</key>
           <array>
             <string>com.tencent.mobileqq/databases$</string>
-			<string>com.tencent.mobileQQi/databases$</string>
-			<string>com.tencent.qqlite/databases$</string>
-			<string>com.tencent.tim/databases$</string>
-			<string>com.tencent.minihd.qq/databases$</string>			
+            <string>com.tencent.mobileQQi/databases$</string>
+            <string>com.tencent.qqlite/databases$</string>
+            <string>com.tencent.tim/databases$</string>
+            <string>com.tencent.minihd.qq/databases$</string>
           </array>
           <key>Category</key>
           <string>QQ</string>
@@ -1251,7 +1271,7 @@
             <string>/Apps/com.android.soundrecorder/databases/record.*.db$</string>
           </array>
           <key>Category</key>
-          <string>Notes</string>
+          <string>Recordings</string>
         </dict>
       </array>
     </dict>
@@ -1355,15 +1375,15 @@
           </array>
           <key>Category</key>
           <string>Messages</string>
-		  <key>Dependents</key>
-		  <array>
-			<string>analyze_android_calls@android_contact</string>
-		  </array>
+          <key>Dependents</key>
+          <array>
+            <string>analyze_android_calls@android_contact</string>
+          </array>
         </dict>
       </array>
     </dict>
 
-     <dict>
+    <dict>
       <key>Module</key>
       <string>android_baidubrowser</string>
       <key>Runners</key>
@@ -1381,16 +1401,16 @@
           <string>BaiduBrowser</string>
         </dict>
       </array>
-    </dict>  
-	
-	<dict>
+    </dict>
+
+    <dict>
       <key>Module</key>
       <string>android_telegram</string>
       <key>Runners</key>
       <array>
-		<dict>
+        <dict>
           <key>EntryPoint</key>
-		  <string>parse_telegram</string>
+          <string>parse_telegram</string>
           <key>RunnerType</key>
           <integer>2</integer>
           <key>Patterns</key>
@@ -1401,16 +1421,16 @@
           <string>Telegram</string>
         </dict>
       </array>
-    </dict>  
+    </dict>
 
-	<dict>
+    <dict>
       <key>Module</key>
       <string>android_jd</string>
       <key>Runners</key>
       <array>
-		<dict>
+        <dict>
           <key>EntryPoint</key>
-		  <string>parse_jd</string>
+          <string>parse_jd</string>
           <key>RunnerType</key>
           <integer>2</integer>
           <key>Patterns</key>
@@ -1421,7 +1441,7 @@
           <string>Jingdong</string>
         </dict>
       </array>
-    </dict>  
+    </dict>
 
     <dict>
       <key>Module</key>
@@ -1455,8 +1475,8 @@
         </dict>
       </array>
     </dict>
-	
-	<dict>
+
+    <dict>
       <key>Module</key>
       <string>andriod_app_lists</string>
       <key>Runners</key>
@@ -1469,7 +1489,7 @@
           <key>Patterns</key>
           <array>
             <string>/appinfo/appinfo\.db$</string>
-			<string>/data\.tar/data/app$</string>
+            <string>/data\.tar/data/app$</string>
           </array>
           <key>Category</key>
           <string>Applications</string>

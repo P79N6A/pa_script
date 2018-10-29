@@ -6,7 +6,7 @@ import traceback
 import time
 
 import clr
-clr.AddReference('PA.iPhoneApps')
+clr.AddReference('PNFA.iPhoneApps')
 try:
     clr.AddReference('model_mail')
     clr.AddReference('bcp_mail')
