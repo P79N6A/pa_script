@@ -121,6 +121,23 @@ class WangxinParser():
         if db is None:
             return
 
+        if 'ZPUBACCOUNT' in db.Tables:
+            ts = SQLiteParser.TableSignature('ZPUBACCOUNT')
+            SQLiteParser.Tools.AddSignatureToTable(ts, 'ZSNSID', SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
+            for rec in db.ReadTableRecords(ts, self.extract_deleted):
+                friend = model_im.Friend()
+                friend.deleted = DeletedState.Intact
+                friend.source = self.dbNode.AbsolutePath
+                friend.account_id = self.user
+                friend.friend_id = rec['ZWWID'].Value
+                friend.nickname = rec['ZNICK'].Value
+                friend.remark = rec['ZDESC'].Value
+                friend.photo = rec['ZAVATAR'].Value
+                friend.type = model_im.FRIEND_TYPE_SUBSCRIBE
+                self.friends[friend.friend_id] = friend
+                self.im.db_insert_table_friend(friend)
+            self.im.db_commit()
+
         if 'ZWWPERSON' in db.Tables:
             ts = SQLiteParser.TableSignature('ZWWPERSON')
             SQLiteParser.Tools.AddSignatureToTable(ts, 'ZTB_ID', SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
@@ -145,7 +162,8 @@ class WangxinParser():
                 friend.province = rec['ZPROVINCE'].Value
                 friend.city = rec['ZCITY'].Value
                 friend.email = rec['ZEMAIL'].Value
-                self.friends[friend.friend_id] = friend
+                if friend.friend_id not in self.friends.keys():
+                    self.friends[friend.friend_id] = friend
                 self.im.db_insert_table_friend(friend)
             self.im.db_commit()
 
@@ -218,10 +236,15 @@ class WangxinParser():
                     if friend is not None:
                         message.sender_name = friend.nickname
                         message.talker_name = friend.nickname
+                        if friend.type == model_im.FRIEND_TYPE_FRIEND:
+                            message.talker_type = model_im.CHAT_TYPE_FRIEND
+                        if friend.type == model_im.FRIEND_TYPE_SUBSCRIBE:
+                            message.talker_type = model_im.CHAT_TYPE_OFFICIAL
                     message.is_sender = message.sender_id == self.user
-                    message.talker_type = model_im.CHAT_TYPE_FRIEND
+                    
                     message.type = self.parse_message_type(rec['ZTYPE'].Value)
                     message.content =  UnicodeEncoding.UTF8.GetString(rec['ZCONTENT'].Value) if not IsDBNull(rec['ZCONTENT'].Value) else None
+                    message.send_time = self.macTime_to_unixTime(rec['ZTIME'].Value)
                     if message.type == model_im.MESSAGE_CONTENT_TYPE_VIDEO:
                         try:
                             obj = json.loads(message.content)
@@ -258,6 +281,7 @@ class WangxinParser():
                                 message.sender_name = member.display_name
                     message.is_sender = message.sender_id == self.user
                     message.type = self.parse_message_type(rec['ZCONTENTTYPE'].Value)
+                    message.send_time = self.macTime_to_unixTime(rec['ZDTIME'].Value)
                     message.content =  str(rec['ZCONTENT'].Value)
                     if message.type == model_im.MESSAGE_CONTENT_TYPE_IMAGE:
                         try:
@@ -337,6 +361,9 @@ class WangxinParser():
             msg_type = model_im.MESSAGE_CONTENT_TYPE_VOICE
         return msg_type
 
+    def macTime_to_unixTime(self, t):
+        return t + 978278400 + 8 * 3600
+        
 def analyze_wangxin(root, extract_deleted, extract_source):
     pr = ParserResults()
 

@@ -253,6 +253,7 @@ class KeyChainParser():
                                 keys.CanVerify.Value = self._get_map_value(map_1, 'vrfy', 'bool')
                                 keys.CanUnwrap.Value = self._get_map_value(map_1, 'unwp', 'bool')
                                 keys.Synchronizable.Value = self._get_map_value(map_1, 'sync', 'bool')
+                                keys.KeyType.Value = self._get_map_value(map_1, 'type', 'int')
                                 self.models.append(keys)
                             elif key_0 == 'idnt':
                                 idnt = Generic.KeychainProfile.Identity()
@@ -280,6 +281,7 @@ class KeyChainParser():
                                 idnt.KeyClass.Value = self._get_map_value(map_1, 'kcls', 'int')
                                 idnt.ApplicationLabel.Value = self._get_map_value(map_1, 'klbl', 'str')
                                 idnt.Data.Value = self._get_map_value(map_1, 'v_Data', 'data')
+                                idnt.KeyType.Value = self._get_map_value(map_1, 'type', 'int')
                                 idnt.IsPermanent.Value = self._get_map_value(map_1, 'perm', 'bool')
                                 idnt.CanDerive.Value = self._get_map_value(map_1, 'drve', 'bool')
                                 idnt.CanSign.Value = self._get_map_value(map_1, 'sign', 'bool')
