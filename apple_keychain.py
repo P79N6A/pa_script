@@ -164,8 +164,8 @@ class KeyChainParser():
                                     cert.Data.Value = self._get_map_value(map_1, 'Keychain Data', 'data')
                                 cert.ProtectionDomain.Value = self._get_map_value(map_1, 'pdmn', 'str')
                                 cert.Issuer.Value = self._get_map_value(map_1, 'issr', 'data')
-                                cert.CertificateEncoding.Value = self._get_map_value(map_1, 'cenc', 'str')
-                                cert.CertificateType.Value = self._get_map_value(map_1, 'ctyp', 'str')
+                                cert.CertificateEncoding.Value = self._get_map_value(map_1, 'cenc', 'int')
+                                cert.CertificateType.Value = self._get_map_value(map_1, 'ctyp', 'int')
                                 cert.PublicKeyHash.Value = self._get_map_value(map_1, 'pkhh', 'data')
                                 cert.SubjectKeyID.Value = self._get_map_value(map_1, 'skid', 'data')
                                 cert.SerialNumber.Value = self._get_map_value(map_1, 'slnr', 'data')
@@ -263,8 +263,8 @@ class KeyChainParser():
                                 idnt.ModificationDate.Value = self._get_timestamp(self._get_map_value(map_1, 'mdat', 'str'))
                                 idnt.Label.Value = self._get_map_value(map_1, 'labl', 'str')
                                 idnt.Issuer.Value = self._get_map_value(map_1, 'issr', 'data')
-                                idnt.CertificateEncoding.Value = self._get_map_value(map_1, 'cenc', 'str')
-                                idnt.CertificateType.Value = self._get_map_value(map_1, 'ctyp', 'str')
+                                idnt.CertificateEncoding.Value = self._get_map_value(map_1, 'cenc', 'int')
+                                idnt.CertificateType.Value = self._get_map_value(map_1, 'ctyp', 'int')
                                 idnt.ProtectionDomain.Value = self._get_map_value(map_1, 'pdmn', 'str')
                                 idnt.PublicKeyHash.Value = self._get_map_value(map_1, 'pkhh', 'data')
                                 idnt.SubjectKeyID.Value = self._get_map_value(map_1, 'skid', 'data')
@@ -469,11 +469,15 @@ class KeyChainParser():
                 return str(bytes(map[key].Bytes))
             if format == 'bool':
                 return bool(bytes(map[key].Bytes))
+            if format == 'int':
+                return int(bytes(map[key].Bytes))
             return map[key].Bytes
         if format == 'data':
             return UnicodeEncoding.UTF8.GetBytes(str(map[key]))
         if format == 'bool':
             return bool(map[key])
+        if format == 'int':
+            return int(map[key])
         return str(map[key])
 
     @staticmethod
