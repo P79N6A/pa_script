@@ -9,7 +9,10 @@ except:
     pass
 del clr
 
+from PA.Common.Utilities.Types import TimeStampFormats
+
 import System.Data.SQLite as SQLite
+import System.DateTime as DateTime
 import model_callrecord
 import model_im
 
@@ -17,6 +20,8 @@ import re
 import hashlib
 import shutil
 import traceback
+import time
+import datetime
 
 VERSION_APP_VALUE = 2
 
@@ -79,20 +84,20 @@ class ViberParser(model_im.IM, model_callrecord.MC):
                     account = model_im.Account()
                     if canceller.IsCancellationRequested:
                         break
-                    if sr[0] == '_myCountryCode':
-                        country = sr[1]
-                    elif sr[0] == '_myFormattedPhoneNumber':
-                        telephone = sr[1]
-                    elif sr[0] == '_myUserName':
-                        username = sr[1]
+                    if re.match('_myCountryCode', sr[0]) is not None:
+                        country =  sr.GetString(1)
+                    elif re.match('_myFormattedPhoneNumber', sr[0]) is not None:
+                        telephone =  sr.GetString(1)
+                    elif re.match('_myUserName$', sr[0]) is not None:
+                        username =  sr.GetString(1)
                 except:
                     pass
             sr.Close()
             try:
                 account.account_id = account_id
-                account.country = str(country) if not IsDBNull(country) else ''
-                account.telephone = str(telephone) if not IsDBNull(telephone) else ''
-                account.username = str(username) if not IsDBNull(username) else ''
+                account.country = country if not IsDBNull(country) else ''
+                account.telephone = telephone if not IsDBNull(telephone) else ''
+                account.username = username if not IsDBNull(username) else ''
                 account.source = node.AbsolutePath
                 account.deleted = deleteFlag
                 self.db_insert_table_account(account)
@@ -164,7 +169,9 @@ class ViberParser(model_im.IM, model_callrecord.MC):
                         break
                     chatroom.account_id = "1"
                     chatroom.chatroom_id = self._db_reader_get_int_value(sr, 0)
-                    #chatroom.create_time = sr[2]  #未能识别为有效的DateTime
+                    dstart = DateTime(1970,1,1,8,0,0)
+                    cdate = TimeStampFormats.GetTimeStampEpoch1Jan2001(sr.GetDouble(2))
+                    chatroom.create_time = int((cdate - dstart).TotalSeconds)
                     chatroom.deleted = deleteFlag
                     chatroom.member_count = self._db_reader_get_int_value(sr, 3) + 1
                     chatroom.name = self._db_reader_get_string_value(sr, 4)
@@ -262,7 +269,9 @@ class ViberParser(model_im.IM, model_callrecord.MC):
                             break
                     message.media_path = mediaPath
                     message.msg_id = self._db_reader_get_int_value(sr, 0)
-                    #message.send_time = sr[5]
+                    dstart = DateTime(1970,1,1,8,0,0)
+                    cdate = TimeStampFormats.GetTimeStampEpoch1Jan2001(sr.GetDouble(5))
+                    message.send_time = int((cdate - dstart).TotalSeconds)
                     message.sender_id = self._db_reader_get_int_value(sr, 6)
                     message.sender_name = self._db_reader_get_string_value(sr, 8)
                     message.source = self.node.AbsolutePath
@@ -304,7 +313,9 @@ class ViberParser(model_im.IM, model_callrecord.MC):
                     location.location_id = self._db_reader_get_int_value(sr, 0)
                     location.longitude = sr[4]
                     location.source = self.node.AbsolutePath
-                    #location.timestamp = sr[2]  #该字符串未被识别为有效的 DateTime
+                    dstart = DateTime(1970,1,1,8,0,0)
+                    cdate = TimeStampFormats.GetTimeStampEpoch1Jan2001(sr.GetDouble(2))
+                    location.timestamp = int((cdate - dstart).TotalSeconds)
                     self.db_insert_table_location(location)
                 except:
                     traceback.print_exc()
@@ -332,7 +343,9 @@ class ViberParser(model_im.IM, model_callrecord.MC):
                     record = model_callrecord.Records()
                     if canceller.IsCancellationRequested:
                         break
-                    #record.date = sr[1]
+                    dstart = DateTime(1970,1,1,8,0,0)
+                    cdate = TimeStampFormats.GetTimeStampEpoch1Jan2001(sr.GetDouble(1))
+                    record.date = int((cdate - dstart).TotalSeconds)
                     record.deleted = deleteFlag
                     record.duration = self._db_reader_get_int_value(sr, 2)
                     record.id = self._db_reader_get_int_value(sr, 0)
