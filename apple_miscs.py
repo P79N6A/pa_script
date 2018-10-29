@@ -185,44 +185,49 @@ def analyze_startup_time(node, extract_deleted, extract_source):
     return pr
 
 def analyze_permissions(node, extract_deleted, extract_source):
-    db = SQLiteParser.Tools.GetDatabaseByPath(node, '', 'access')
-    if db is None:
-        return
-    installed_apps = ds.InstalledApps
-    permissions_dict = {
-        'kTCCServiceCalendar': PermissionCategory.Calendars,
-        'kTCCServicePhotos': PermissionCategory.Photos,
-        'kTCCServiceAddressBook': PermissionCategory.Contacts,
-        'kTCCServiceMicrophone': PermissionCategory.Microphone,
-        'kTCCServiceReminders': PermissionCategory.Reminders,
-        'kTCCServiceBluetooth': PermissionCategory.Bluetooth,
-    }
+    pr = ParserResults()
+    try:
+        db = SQLiteParser.Tools.GetDatabaseByPath(node, '', 'access')
+        if db is None:
+            return
+        installed_apps = ds.InstalledApps
+        permissions_dict = {
+            'kTCCServiceCalendar': '日历',
+            'kTCCServicePhotos': '照片',
+            'kTCCServiceAddressBook': '通讯录',
+            'kTCCServiceMicrophone': '麦克风',
+            'kTCCServiceReminders': '提醒',
+            'kTCCServiceBluetooth': '蓝牙',
+        }
 
-    apps_dict = {}
-    for app in installed_apps:
-        if app.Identifier is not None:
-            apps_dict[app.Identifier.Value] = app
+        apps_dict = {}
+        for app in installed_apps:
+            if app.Identifier is not None:
+                apps_dict[app.Identifier.Value] = app
 
-    ts = SQLiteParser.TableSignature('access')
-    if extract_deleted:
-        ts['prompt_count'] = SQLiteParser.Signatures.NumericSet(8, 9)
-        ts['client_type'] = SQLiteParser.Signatures.NumericSet(8)
-        ts['allowed'] = SQLiteParser.Signatures.NumericSet(9)
+        ts = SQLiteParser.TableSignature('access')
+        if extract_deleted:
+            ts['prompt_count'] = SQLiteParser.Signatures.NumericSet(8, 9)
+            ts['client_type'] = SQLiteParser.Signatures.NumericSet(8)
+            ts['allowed'] = SQLiteParser.Signatures.NumericSet(9)
 
-    for rec in db.ReadTableRecords(ts, extract_deleted, True):
-        if 'client' not in rec or 'service' not in rec or 'allowed' not in rec or rec['allowed'].Value != 1:
-            continue
-        app_id = rec['client'].Value if not IsDBNull(rec['client'])else None
-        if app_id:
-            if app_id not in apps_dict:
-                ServiceLog.Warning("Application %s in permission file %s was not found in installed applications" %
-                                   (app_id, node.AbsolutePath))
+        for rec in db.ReadTableRecords(ts, extract_deleted, True):
+            if 'client' not in rec or 'service' not in rec or 'allowed' not in rec or rec['allowed'].Value != 1:
                 continue
-            if not IsDBNull(rec['service']):
-                perm = permissions_dict.get(rec['service'].Value)
-                if perm is not None:
-                    source = MemoryRange(rec['service'].Source) if extract_source else None
-                    apps_dict[app_id].Permissions.Add(perm, source)
+            app_id = rec['client'].Value if not IsDBNull(rec['client'])else None
+            if app_id:
+                if app_id not in apps_dict:
+                    ServiceLog.Warning("Application %s in permission file %s was not found in installed applications" %
+                                    (app_id, node.AbsolutePath))
+                    continue
+                if not IsDBNull(rec['service']):
+                    perm = permissions_dict.get(rec['service'].Value)
+                    if perm is not None:
+                        source = MemoryRange(rec['service'].Source) if extract_source else None
+                        apps_dict[app_id].Permissions.Add(perm)
+    except:
+        traceback.print_exc()
+    return pr
 
 def analyze_tethering(node, extract_deleted, extract_source):
     pr = ParserResults()
