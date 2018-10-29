@@ -26,6 +26,46 @@
 
     <dict>
       <key>Module</key>
+      <string>apple_copy</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_copy</string>
+          <key>RunnerType</key>
+          <integer>0</integer>
+          <key>Patterns</key>
+          <array>
+            <string>/Library/Application Support/copy\.db$</string>
+          </array>
+          <key>Category</key>
+          <string>Clipboard</string>
+        </dict>
+      </array>
+    </dict>
+
+    <dict>
+      <key>Module</key>
+      <string>apple_sms</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_smss</string>
+          <key>RunnerType</key>
+          <integer>0</integer>
+          <key>Patterns</key>
+          <array>
+            <string>#</string>
+          </array>
+          <key>Category</key>
+          <string>Messages</string>
+        </dict>
+      </array>
+    </dict>
+    
+    <dict>
+      <key>Module</key>
       <string>apple_voicemail</string>
       <key>Runners</key>
       <array>
