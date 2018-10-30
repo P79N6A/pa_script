@@ -156,7 +156,7 @@ class WangxinParser():
                 friend.nickname = rec['ZDISPLAYNAME'].Value
                 friend.remark = rec['ZFULL_NAME'].Value
                 friend.photo = rec['ZAVATAR'].Value
-                friend_type = model_im.FRIEND_TYPE_FRIEND
+                friend.type = model_im.FRIEND_TYPE_FRIEND
                 if rec['ZGENDER'].Value == '男':
                     friend.gender = model_im.GENDER_MALE 
                 elif rec['ZGENDER'].Value == '女':
@@ -186,6 +186,7 @@ class WangxinParser():
                 friend.type = model_im.FRIEND_TYPE_SHOP
                 friend.province = rec['ZPROVINCE'].Value
                 friend.city = rec['ZCITY'].Value
+                self.friends[friend.friend_id] = friend
                 self.im.db_insert_table_friend(friend)
             self.im.db_commit()
 
@@ -263,7 +264,7 @@ class WangxinParser():
                             message.talker_type = model_im.CHAT_TYPE_FRIEND
                         elif friend.type == model_im.FRIEND_TYPE_SUBSCRIBE:
                             message.talker_type = model_im.CHAT_TYPE_OFFICIAL
-                        elif friend.type == model_im.CHAT_TYPE_SHOP:
+                        elif friend.type == model_im.FRIEND_TYPE_SHOP:
                             message.talker_type = model_im.CHAT_TYPE_SHOP
                     message.is_sender = message.sender_id == self.user
     
@@ -332,7 +333,9 @@ class WangxinParser():
                 self.im.db_commit()
 
     def get_location(self, talker_type, msg_time, param = None):
-        if talker_type == model_im.CHAT_TYPE_FRIEND:
+        if talker_type == model_im.CHAT_TYPE_FRIEND \
+            or talker_type == model_im.CHAT_TYPE_OFFICIAL \
+            or talker_type == model_im.CHAT_TYPE_SHOP:
             db = SQLiteParser.Database.FromNode(self.dbNode)
             if db is None:
                 return
