@@ -976,6 +976,25 @@
       </array>
     </dict>
 
+    <dict>
+      <key>Module</key>
+      <string>apple_wangxin</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_wangxin</string>
+          <key>RunnerType</key>
+          <integer>1</integer>
+          <key>Patterns</key>
+          <array>
+            <string>com.taobao.iteam.ios.aliwangwang</string>
+          </array>
+          <key>Category</key>
+          <string>WangXin</string>
+        </dict>
+      </array>
+    </dict>
 
     <!--安卓运行插件从这里开始-->
 
