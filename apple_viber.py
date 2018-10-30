@@ -41,6 +41,10 @@ class ViberParser(model_im.IM, model_callrecord.MC):
         self.cachedb = self.cachepath + "\\" + md5_db.hexdigest().upper() + ".db"
         self.recoverDB = self.cachepath + "\\" +md5_rdb.hexdigest().upper() + ".db"
         self.sourceDB = self.cachepath + '\\ViberSourceDB'
+        self.chatgroupid = []
+        self.publicaccountid = []
+        self.accountname = ''
+        self.accountphone = ''
 
     def db_create_table(self):
         model_im.IM.db_create_table(self)
@@ -75,7 +79,7 @@ class ViberParser(model_im.IM, model_callrecord.MC):
                 return
             db_cmd.CommandText = '''select key, value from Data'''
             sr = db_cmd.ExecuteReader()
-            account_id = "1"
+            account_id = "-1"
             country = ''
             telephone = ''
             username = ''
@@ -97,7 +101,9 @@ class ViberParser(model_im.IM, model_callrecord.MC):
                 account.account_id = account_id
                 account.country = country if not IsDBNull(country) else ''
                 account.telephone = telephone if not IsDBNull(telephone) else ''
+                self.accountphone = account.telephone
                 account.username = username if not IsDBNull(username) else ''
+                self.accountname = account.username
                 account.source = node.AbsolutePath
                 account.deleted = deleteFlag
                 self.db_insert_table_account(account)
@@ -129,18 +135,53 @@ class ViberParser(model_im.IM, model_callrecord.MC):
                     friend = model_im.Friend()
                     if canceller.IsCancellationRequested:
                         break
-                    friend.account_id = "1"
+                    friend.account_id = "-1"
                     friend.deleted = deleteFlag
                     firstName = self._db_reader_get_string_value(sr, 1)
                     secondName = self._db_reader_get_string_value(sr, 2)
-                    friend.friend_id = self._db_reader_get_int_value(sr, 0)
+                    friend.friend_id = 'p' + str(sr[0]) if not IsDBNull(sr[0]) else 0
                     friend.nickname = firstName + secondName
                     friend.source = self.node.AbsolutePath
                     friend.telephone = self._db_reader_get_string_value(sr, 3)
+                    friend.type = model_im.FRIEND_TYPE_FRIEND
                     self.db_insert_table_friend(friend)
                 except:
                     traceback.print_exc()
             sr.Close()
+
+            db_cmd.CommandText = '''SELECT a.Z_PK, a.ZDISPLAYFULLNAME, b.ZPHONE from ZMEMBER as a 
+                left join ZPHONENUMBER as b on a.Z_PK = b.ZMEMBER '''
+            sr = db_cmd.ExecuteReader()
+            while (sr.Read()):
+                try:
+                    friend = model_im.Friend()
+                    if canceller.IsCancellationRequested:
+                        break
+                    friend.account_id = "-1"
+                    friend.deleted = deleteFlag
+                    friend.friend_id = self._db_reader_get_int_value(sr, 0)
+                    friend.nickname = self._db_reader_get_string_value(sr, 1)
+                    friend.source = self.node.AbsolutePath
+                    friend.telephone = self._db_reader_get_string_value(sr, 2)
+                    friend.type = model_im.FRIEND_TYPE_FRIEND
+                    self.db_insert_table_friend(friend)
+                except:
+                    traceback.print_exc()
+            sr.Close()
+
+            try:
+                friend = model_im.Friend()
+                friend.account_id = "-1"
+                friend.deleted = deleteFlag
+                friend.friend_id = "-1"
+                friend.nickname = self.accountname
+                friend.source = self.node.AbsolutePath
+                friend.telephone = self.accountphone
+                friend.type = model_im.FRIEND_TYPE_FRIEND
+                self.db_insert_table_friend(friend)
+            except:
+                traceback.print_exc()
+
             if deleteFlag is 0: 
                 self.db_commit()
             db_cmd.Dispose()
@@ -167,9 +208,10 @@ class ViberParser(model_im.IM, model_callrecord.MC):
                     chatroom = model_im.Chatroom()
                     if canceller.IsCancellationRequested:
                         break
-                    chatroom.account_id = "1"
+                    chatroom.account_id = "-1"
                     chatroom.chatroom_id = self._db_reader_get_int_value(sr, 0)
-                    dstart = DateTime(1970,1,1,8,0,0)
+                    self.chatgroupid.append(chatroom.chatroom_id)
+                    dstart = DateTime(1970,1,1,0,0,0)
                     cdate = TimeStampFormats.GetTimeStampEpoch1Jan2001(sr.GetDouble(2))
                     chatroom.create_time = int((cdate - dstart).TotalSeconds)
                     chatroom.deleted = deleteFlag
@@ -209,7 +251,7 @@ class ViberParser(model_im.IM, model_callrecord.MC):
                     chatroom_member = model_im.ChatroomMember()
                     if canceller.IsCancellationRequested:
                         break
-                    chatroom_member.account_id = "1"
+                    chatroom_member.account_id = "-1"
                     chatroom_member.chatroom_id = self._db_reader_get_int_value(sr, 0)
                     chatroom_member.deleted = deleteFlag
                     chatroom_member.display_name = self._db_reader_get_string_value(sr, 2)
@@ -247,19 +289,32 @@ class ViberParser(model_im.IM, model_callrecord.MC):
         try:
             if db is None:
                 return
+            try:
+                db_cmd.CommandText = '''select Z_PK from ZCONVERSATION where ZSUBSCRIBED is not null'''
+                sr = db_cmd.ExecuteReader()
+                while (sr.Read()):
+                    try:
+                        self.publicaccountid.append(self._db_reader_get_int_value(sr, 0))
+                    except:
+                        pass
+                sr.Close()
+            except:
+                pass
             db_cmd.CommandText = '''select a.Z_PK, a.ZTEXT, a.ZSTATE, a.ZLOCATION, b.ZNAME, a.ZDATE, a.ZPHONENUMINDEX,
-                 a.ZCONVERSATION, c.ZDISPLAYFULLNAME from ZVIBERMESSAGE as a left join ZATTACHMENT as b 
-                 on a.ZATTACHMENT = b.Z_PK left join ZMEMBER as c on a.ZPHONENUMINDEX = c.Z_PK'''
+                 a.ZCONVERSATION, c.ZDISPLAYFULLNAME, d.ZNAME, d.ZINTERLOCUTOR, e.ZDISPLAYFULLNAME as ZCHATNAME from ZVIBERMESSAGE as a left join ZATTACHMENT as b 
+                 on a.ZATTACHMENT = b.Z_PK left join ZMEMBER as c on a.ZPHONENUMINDEX = c.Z_PK
+                 left join ZCONVERSATION as d on a.ZCONVERSATION = d.Z_PK left join ZMEMBER as e on d.ZINTERLOCUTOR = e.Z_PK'''
             sr = db_cmd.ExecuteReader()
             while (sr.Read()):
                 try:
                     message = model_im.Message()
                     if canceller.IsCancellationRequested:
                         break
-                    message.account_id = "1"
+                    message.account_id = "-1"
                     message.content = self._db_reader_get_string_value(sr, 1)
                     message.deleted =  deleteFlag
-                    message.is_sender = 1 if sr[2] is not 'received' else 0
+                    message.is_sender = 1 if sr[2] != 'received' else 0
+                    issender = sr[2]
                     mediaPath = ''
                     if not IsDBNull(sr[4]):
                         aa = sr[4]
@@ -269,14 +324,16 @@ class ViberParser(model_im.IM, model_callrecord.MC):
                             break
                     message.media_path = mediaPath
                     message.msg_id = self._db_reader_get_int_value(sr, 0)
-                    dstart = DateTime(1970,1,1,8,0,0)
+                    dstart = DateTime(1970,1,1,0,0,0)
                     cdate = TimeStampFormats.GetTimeStampEpoch1Jan2001(sr.GetDouble(5))
                     message.send_time = int((cdate - dstart).TotalSeconds)
-                    message.sender_id = self._db_reader_get_int_value(sr, 6)
-                    message.sender_name = self._db_reader_get_string_value(sr, 8)
+                    message.sender_id = self._db_reader_get_int_value(sr, 6) if message.is_sender != 1 else -1
+                    message.sender_name = self._db_reader_get_string_value(sr, 8) if message.is_sender != 1 else '我'
                     message.source = self.node.AbsolutePath
                     message.status = model_im.MESSAGE_STATUS_SENT if sr[2] is 'send' or sr[2] is 'dilivered' else model_im.MESSAGE_STATUS_UNSENT if sr[2] is 'pending' or sr[2] is 'pendingNotSent' else model_im.MESSAGE_STATUS_DEFAULT
-                    message.talker_id = self._db_reader_get_int_value(sr, 7)
+                    message.talker_type = model_im.CHAT_TYPE_GROUP if sr[7] in self.chatgroupid else model_im.CHAT_TYPE_OFFICIAL if sr[7] in self.publicaccountid else model_im.CHAT_TYPE_FRIEND
+                    message.talker_id = message.sender_id if message.talker_type == model_im.CHAT_TYPE_FRIEND else self._db_reader_get_int_value(sr, 7)
+                    message.talker_name = sr[9] if not IsDBNull(sr[9]) else sr[11] if not IsDBNull(sr[11]) else '未知聊天名'
                     self.db_insert_table_message(message)
                 except:
                     traceback.print_exc()
@@ -313,7 +370,7 @@ class ViberParser(model_im.IM, model_callrecord.MC):
                     location.location_id = self._db_reader_get_int_value(sr, 0)
                     location.longitude = sr[4]
                     location.source = self.node.AbsolutePath
-                    dstart = DateTime(1970,1,1,8,0,0)
+                    dstart = DateTime(1970,1,1,0,0,0)
                     cdate = TimeStampFormats.GetTimeStampEpoch1Jan2001(sr.GetDouble(2))
                     location.timestamp = int((cdate - dstart).TotalSeconds)
                     self.db_insert_table_location(location)
@@ -343,7 +400,7 @@ class ViberParser(model_im.IM, model_callrecord.MC):
                     record = model_callrecord.Records()
                     if canceller.IsCancellationRequested:
                         break
-                    dstart = DateTime(1970,1,1,8,0,0)
+                    dstart = DateTime(1970,1,1,0,0,0)
                     cdate = TimeStampFormats.GetTimeStampEpoch1Jan2001(sr.GetDouble(1))
                     record.date = int((cdate - dstart).TotalSeconds)
                     record.deleted = deleteFlag
@@ -444,7 +501,7 @@ class ViberParser(model_im.IM, model_callrecord.MC):
                 (ZCONTACT INTEGER, ZPHONE TEXT)'''
             db_cmd.ExecuteNonQuery()
             db_cmd.CommandText = '''create table if not exists ZCONVERSATION
-                (Z_PK INTEGER, ZCONTEXT TEXT, ZDATE INTEGER, ZROLE INTEGER, ZNAME TEXT)'''
+                (Z_PK INTEGER, ZCONTEXT TEXT, ZDATE INTEGER, ZROLE INTEGER, ZNAME TEXT, ZINTERLOCUTOR INTEGER)'''
             db_cmd.ExecuteNonQuery()
             db_cmd.CommandText = '''create table if not exists ZCONVERSATIONROLE
                 (ZCONVERSATION INTEGER, ZPHONENUMBERINDEX INTEGER)'''
@@ -523,8 +580,8 @@ class ViberParser(model_im.IM, model_callrecord.MC):
                 try:
                     if canceller.IsCancellationRequested:
                         break
-                    param = (rec['Z_PK'].Value, rec['ZCONTEXT'].Value, rec['ZDATE'].Value, rec['ZROLE'].Value, rec['ZNAME'].Value)
-                    self.db_insert_to_deleted_table('''insert into ZCONVERSATION(Z_PK, ZCONTEXT, ZDATE, ZROLE, ZNAME) values(?, ?, ?, ?, ?)''', param)
+                    param = (rec['Z_PK'].Value, rec['ZCONTEXT'].Value, rec['ZDATE'].Value, rec['ZROLE'].Value, rec['ZNAME'].Value, rec['ZINTERLOCUTOR'].Value)
+                    self.db_insert_to_deleted_table('''insert into ZCONVERSATION(Z_PK, ZCONTEXT, ZDATE, ZROLE, ZNAME, ZINTERLOCUTOR) values(?, ?, ?, ?, ?, ?)''', param)
                 except:
                     pass
         except Exception as e:

@@ -21,7 +21,7 @@ import sqlite3
 import json
 import uuid
 
-VERSION_VALUE_DB = 6
+VERSION_VALUE_DB = 7
 
 GENDER_NONE = 0
 GENDER_MALE = 1
@@ -37,6 +37,7 @@ FRIEND_TYPE_MUTUAL_FOLLOW = 6  # 互相关注
 FRIEND_TYPE_RECENT = 7  # 最近
 FRIEND_TYPE_SUBSCRIBE = 8  # 公众号
 FRIEND_TYPE_STRANGER = 9  # 陌生人
+FRIEND_TYPE_SHOP = 10  # 商家
 
 CHATROOM_TYPE_NORMAL = 1  # 普通群
 CHATROOM_TYPE_TEMP = 2  # 临时群
@@ -46,6 +47,7 @@ CHAT_TYPE_GROUP = 2  # 群聊天
 CHAT_TYPE_SYSTEM = 3  # 系统消息
 CHAT_TYPE_OFFICIAL = 4  # 公众号
 CHAT_TYPE_SUBSCRIBE = 5  # 订阅号
+CHAT_TYPE_SHOP = 6  # 商家
 
 MESSAGE_TYPE_SEND = 1
 MESSAGE_TYPE_RECEIVE = 2
@@ -1474,6 +1476,8 @@ class GenerateModel(object):
             return Common.FriendType.Subscribe
         elif friend_type == FRIEND_TYPE_STRANGER:
             return Common.FriendType.Stranger
+        elif friend_type == FRIEND_TYPE_SHOP:
+            return Common.FriendType.Shop
         else:
             return Common.FriendType.None
 
@@ -1505,6 +1509,8 @@ class GenerateModel(object):
             return Common.ChatType.Official
         elif chat_type == CHAT_TYPE_SUBSCRIBE:
             return Common.ChatType.Subscribe
+        elif chat_type == CHAT_TYPE_SHOP:
+            return Common.ChatType.Shop
         else:
             return Common.ChatType.None
 

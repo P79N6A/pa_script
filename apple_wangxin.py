@@ -142,13 +142,17 @@ class WangxinParser():
             ts = SQLiteParser.TableSignature('ZWWPERSON')
             SQLiteParser.Tools.AddSignatureToTable(ts, 'ZTB_ID', SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
             for rec in db.ReadTableRecords(ts, self.extract_deleted):
+                id = UnicodeEncoding.UTF8.GetString(rec['ZTB_ID'].Value) if not IsDBNull(rec['ZTB_ID'].Value) else None
+                if id in self.friends.keys():
+                    continue
                 if rec['ZISFRIEND'].Value != 1:
                     continue
+
                 friend = model_im.Friend()
                 friend.deleted = DeletedState.Intact
                 friend.source = self.dbNode.AbsolutePath
                 friend.account_id = self.user
-                friend.friend_id = UnicodeEncoding.UTF8.GetString(rec['ZTB_ID'].Value) if not IsDBNull(rec['ZTB_ID'].Value) else None
+                friend.friend_id = id
                 friend.nickname = rec['ZDISPLAYNAME'].Value
                 friend.remark = rec['ZFULL_NAME'].Value
                 friend.photo = rec['ZAVATAR'].Value
@@ -167,6 +171,25 @@ class WangxinParser():
                 self.im.db_insert_table_friend(friend)
             self.im.db_commit()
 
+        if 'ZWXSHOP' in db.Tables:
+            ts = SQLiteParser.TableSignature('ZWXSHOP')
+            SQLiteParser.Tools.AddSignatureToTable(ts, 'ZSHOPID', SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
+            for rec in db.ReadTableRecords(ts, self.extract_deleted):
+                friend = model_im.Friend()
+                friend.deleted = DeletedState.Intact
+                friend.source = self.dbNode.AbsolutePath
+                friend.account_id = self.user
+                friend.friend_id = rec['ZSHOPID'].Value
+                friend.nickname = rec['ZNICK'].Value
+                friend.photo = rec['ZPICURL'].Value
+                friend.remark = rec['ZTITLE'].Value
+                friend.type = model_im.FRIEND_TYPE_SHOP
+                friend.province = rec['ZPROVINCE'].Value
+                friend.city = rec['ZCITY'].Value
+                self.friends[friend.friend_id] = friend
+                self.im.db_insert_table_friend(friend)
+            self.im.db_commit()
+
         if 'ZWWTRIBELIST' in db.Tables:
             ts = SQLiteParser.TableSignature('ZWWTRIBELIST')
             SQLiteParser.Tools.AddSignatureToTable(ts, 'ZTRIBEID', SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
@@ -180,6 +203,7 @@ class WangxinParser():
                 chatroom.photo = rec['ZAVATAR'].Value
                 chatroom.create_time = rec['ZPROFILELATESTUPDATE'].Value
                 chatroom.member_count = rec['ZMEMBERCOUNT'].Value
+                chatroom.type = model_im.CHATROOM_TYPE_NORMAL
                 self.im.db_insert_table_chatroom(chatroom)
                 self.chatrooms[chatroom.chatroom_id] = chatroom
 
@@ -221,8 +245,8 @@ class WangxinParser():
                 ts = SQLiteParser.TableSignature('ZWWMESSAGE')
                 SQLiteParser.Tools.AddSignatureToTable(ts, 'ZSENDERID', SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
                 for rec in db.ReadTableRecords(ts, self.extract_deleted):
-                    sender_id = str(bytes(rec['ZSENDERID'].Value))
-                    receive_id = str(bytes(rec['ZRECEIVERID'].Value))
+                    sender_id = UnicodeEncoding.UTF8.GetString(rec['ZSENDERID'].Value) if not IsDBNull(rec['ZSENDERID'].Value) else None
+                    receive_id = UnicodeEncoding.UTF8.GetString(rec['ZRECEIVERID'].Value) if not IsDBNull(rec['ZRECEIVERID'].Value) else None
                     if sender_id != id and receive_id != id:
                         continue
                     message = model_im.Message()
@@ -238,10 +262,12 @@ class WangxinParser():
                         message.talker_name = friend.nickname
                         if friend.type == model_im.FRIEND_TYPE_FRIEND:
                             message.talker_type = model_im.CHAT_TYPE_FRIEND
-                        if friend.type == model_im.FRIEND_TYPE_SUBSCRIBE:
+                        elif friend.type == model_im.FRIEND_TYPE_SUBSCRIBE:
                             message.talker_type = model_im.CHAT_TYPE_OFFICIAL
+                        elif friend.type == model_im.FRIEND_TYPE_SHOP:
+                            message.talker_type = model_im.CHAT_TYPE_SHOP
                     message.is_sender = message.sender_id == self.user
-                    
+    
                     message.type = self.parse_message_type(rec['ZTYPE'].Value)
                     message.content =  UnicodeEncoding.UTF8.GetString(rec['ZCONTENT'].Value) if not IsDBNull(rec['ZCONTENT'].Value) else None
                     message.send_time = self.macTime_to_unixTime(rec['ZTIME'].Value)
@@ -307,7 +333,9 @@ class WangxinParser():
                 self.im.db_commit()
 
     def get_location(self, talker_type, msg_time, param = None):
-        if talker_type == model_im.CHAT_TYPE_FRIEND:
+        if talker_type == model_im.CHAT_TYPE_FRIEND \
+            or talker_type == model_im.CHAT_TYPE_OFFICIAL \
+            or talker_type == model_im.CHAT_TYPE_SHOP:
             db = SQLiteParser.Database.FromNode(self.dbNode)
             if db is None:
                 return
