@@ -177,7 +177,7 @@ class WangxinParser():
             for rec in db.ReadTableRecords(ts, self.extract_deleted):
                 friend = model_im.Friend()
                 friend.deleted = DeletedState.Intact
-                friend.source = db.AbsolutePath
+                friend.source = self.dbNode.AbsolutePath
                 friend.account_id = self.user
                 friend.friend_id = rec['ZSHOPID'].Value
                 friend.nickname = rec['ZNICK'].Value
