@@ -382,33 +382,24 @@ class ICQParser(object):
                 message.is_sender = 1 if rec["ZOUTGOING"].Value == 1 else 0
                 message.deleted = 1
 
-                if "@" in message.talker_id:
-                    message.sender_id = rec["ZPARTICIPANTUID"].Value
-                    message.talker_type = model_im.CHAT_TYPE_GROUP
-                else:
-                    message.talker_type = model_im.CHAT_TYPE_FRIEND
-                    if message.is_sender == 1:
-                        message.sender_id = message.account_id
-                    else:
-                        message.sender_id = message.talker_id
-
                 _type = rec["ZTYPE"].Value
                 if _type == 510:
                     file_id = rec["ZFILEID"].Value
                     file_info = self.__query_file_info(file_id)
-                    message.media_path = file_info[0] if not file_info[0] else file_info[2]
-                    if file_info[1] is not None:
-                        file_type = file_info[1].split("/")[0]
-                        if file_type == "image":
-                            message.type = model_im.MESSAGE_CONTENT_TYPE_IMAGE
-                        elif file_type == "audio":
-                            message.type = model_im.MESSAGE_CONTENT_TYPE_VOICE
-                        elif file_type == "video":
-                            message.type = model_im.MESSAGE_CONTENT_TYPE_VIDEO
+                    if file_info:
+                        message.media_path = file_info[0] if not file_info[0] else file_info[2]
+                        if file_info[1] is not None:
+                            file_type = file_info[1].split("/")[0]
+                            if file_type == "image":
+                                message.type = model_im.MESSAGE_CONTENT_TYPE_IMAGE
+                            elif file_type == "audio":
+                                message.type = model_im.MESSAGE_CONTENT_TYPE_VOICE
+                            elif file_type == "video":
+                                message.type = model_im.MESSAGE_CONTENT_TYPE_VIDEO
+                            else:
+                                message.type = None
                         else:
-                            message.type = None
-                else:
-                    message.type = self.__convert_message_content_type(_type)
+                            message.type = self.__convert_message_content_type(_type)
 
                 self.model_im_col.db_insert_table_message(message)
             except Exception as e:
