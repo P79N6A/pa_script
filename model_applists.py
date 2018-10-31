@@ -27,6 +27,10 @@ SQL_CREATE_TABLE_APPLISTS= """
         version TEXT,
         permission BLOB,
         installedPath TEXT,
+        imgUrl TEXT,
+        purchaseDate INT,
+        deletedDate INT,
+        description TEXT,
         source TEXT,
         sourceFile TEXT,
         deleted INT DEFAULT 0,
@@ -35,8 +39,8 @@ SQL_CREATE_TABLE_APPLISTS= """
 """
 
 SQL_INSERT_TABLE_APPLISTS = """
-    insert into Applists(bind_id, name, version, permission, installedPath, source, sourceFile, deleted, repeated)
-    values(?,?,?,?,?,?,?,?,?)
+    insert into Applists(bind_id, name, version, permission, installedPath, imgUrl,purchaseDate,deletedDate,description, source, sourceFile, deleted, repeated)
+    values(?,?,?,?,?,?,?,?,?,?,?,?,?)
 """
 
 
@@ -98,9 +102,14 @@ class Info(Column):
         self.version = None
         self.permission = None
         self.installedPath = None
+        self.imgUrl = None
+        self.purchaseDate = None
+        self.deletedDate = None
+        self.description = None
 
     def get_values(self):
-        return (self.bind_id, self.name, self.version, self.permission, self.installedPath) + super(Info, self).get_values()
+        return (self.bind_id, self.name, self.version, self.permission, self.installedPath,self.imgUrl,
+        self.purchaseDate,self.deletedDate, self.description) + super(Info, self).get_values()
         
 
 
@@ -124,7 +133,7 @@ class Generate(object):
         models = []
 
         sql = """
-        select bind_id, name, version, permission, installedPath, source, sourceFile, deleted, repeated 
+        select bind_id, name, version, permission, installedPath, imgUrl,purchaseDate,deletedDate,description, source, sourceFile, deleted, repeated
             from Applists
         """
         row = None
@@ -160,10 +169,10 @@ class Generate(object):
                                 application.Permissions.Add(per.strip().replace(",","").replace('\"',""))
                             except Exception as e:
                                 pass
-            if row[6]:
-                application.SourceFile.Value = row[6]
-            if row[7]:
-                application.Deleted = self._convert_delete_status(row[7])
+            if row[10]:
+                application.SourceFile.Value = row[10]
+            if row[11]:
+                application.Deleted = self._convert_delete_status(row[11])
 
             row = self.cursor.fetchone()
             models.append(application)
