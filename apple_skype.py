@@ -127,6 +127,8 @@ class SkypeParser(object):
 
     def __fetch_data_path(self):
         node = self.root.GetByPath("Library/LocalDatabase")
+        if not node:
+            return
         account_db_nodes = node.Search('/*\.db$')
         old_version_nodes = node.Search('/*\.dbb$')
         for node in account_db_nodes:
@@ -263,6 +265,7 @@ class SkypeParser(object):
                     message.content = message_info.get("content", None)
                     message.send_time = self.__convert_timestamp(message_info.get("createdTime", None))
                     message.type = self.__convert_message_content_type(message_info.get("messagetype", None))
+                    message.talker_type = model_im.CHAT_TYPE_GROUP if "@" in message.talker_id else model_im.CHAT_TYPE_FRIEND
                     if message.type in (model_im.MESSAGE_CONTENT_TYPE_IMAGE, model_im.MESSAGE_CONTENT_TYPE_VIDEO,
                                         model_im.MESSAGE_CONTENT_TYPE_VOICE):
                         self.__add_media_path(message)
@@ -389,6 +392,7 @@ class SkypeParser(object):
                 message.content = message_info.get("content", None)
                 message.send_time = self.__convert_timestamp(message_info.get("createdTime", None))
                 message.type = self.__convert_message_content_type(message_info.get("messagetype", None))
+                message.talker_type = model_im.CHAT_TYPE_GROUP if "@" in message.talker_id else model_im.CHAT_TYPE_FRIEND
                 if message.type in (model_im.MESSAGE_CONTENT_TYPE_IMAGE, model_im.MESSAGE_CONTENT_TYPE_VIDEO,
                                     model_im.MESSAGE_CONTENT_TYPE_VOICE):
                     self.__add_media_path(message)
