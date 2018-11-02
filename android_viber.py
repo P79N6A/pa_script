@@ -18,7 +18,7 @@ import hashlib
 import shutil
 import traceback
 
-VERSION_APP_VALUE = 1
+VERSION_APP_VALUE = 2
 
 class ViberParser(model_im.IM, model_callrecord.MC):
     def __init__(self, node, extract_deleted, extract_source):
@@ -166,7 +166,7 @@ class ViberParser(model_im.IM, model_callrecord.MC):
         try:
             if db is None:
                 return
-            db_cmd.CommandText = '''select group_id, date, participant_id_1, participant_id_2, participant_id_3, participant_id_4, name from conversations where conversation_type = 1'''
+            db_cmd.CommandText = '''select _id, date, participant_id_1, participant_id_2, participant_id_3, participant_id_4, name from conversations where conversation_type = 1'''
             sr = db_cmd.ExecuteReader()
             while (sr.Read()):
                 try:
@@ -212,7 +212,7 @@ class ViberParser(model_im.IM, model_callrecord.MC):
         try:
             if self.db is None:
                 return
-            db_cmd.CommandText = '''select a.group_id, a.date, a.participant_id_1, b.number, b.display_name, a.participant_id_2, c.number, c.display_name, 
+            db_cmd.CommandText = '''select a._id, a.date, a.participant_id_1, b.number, b.display_name, a.participant_id_2, c.number, c.display_name, 
             a.participant_id_3, d.number, d.display_name, a.participant_id_4, e.number, e.display_name, a.name from conversations as a 
             left join participants_info as b on a.participant_id_1 = b._id left join participants_info as c on a.participant_id_2 = c._id
             left join participants_info as d on a.participant_id_3 = d._id left join participants_info as e on a.participant_id_4 = e._id where conversation_type = 1'''
@@ -277,7 +277,7 @@ class ViberParser(model_im.IM, model_callrecord.MC):
                             message.media_path = node.AbsolutePath
                             break
                     message.msg_id = self._db_reader_get_int_value(sr, 3)
-                    message.send_time = self._db_reader_get_int_value(sr, 4)
+                    message.send_time = self._get_timestamp(sr[4]) if not IsDBNull(sr[4]) else 0
                     message.sender_id = self._db_reader_get_int_value(sr, 5)
                     message.sender_name = self._db_reader_get_string_value(sr, 6)
                     message.source = self.node.AbsolutePath
@@ -400,7 +400,7 @@ class ViberParser(model_im.IM, model_callrecord.MC):
                 (contact_id INTEGER, data2 TEXT)'''
             db_cmd.ExecuteNonQuery()
             db_cmd.CommandText = '''create table if not exists conversations
-                (conversation_type INTEGER, group_id INTEGER, date INTEGER, participant_id_1 INTEGER, participant_id_2 INTEGER, participant_id_3 INTEGER, participant_id_4 INTEGER, name TEXT)'''
+                (conversation_type INTEGER, _id INTEGER, date INTEGER, participant_id_1 INTEGER, participant_id_2 INTEGER, participant_id_3 INTEGER, participant_id_4 INTEGER, name TEXT)'''
             db_cmd.ExecuteNonQuery()
             db_cmd.CommandText = '''create table if not exists messages
                 (body TEXT, send_type INTEGER, extra_uri TEXT, _id INTEGER, msg_date INTEGER, participant_id INTEGER, conversation_type INTEGER, conversation_id INTEGER)'''
@@ -480,8 +480,8 @@ class ViberParser(model_im.IM, model_callrecord.MC):
                 try:
                     if canceller.IsCancellationRequested:
                         break
-                    param = (rec['conversation_type'].Value, rec['group_id'].Value, rec['date'].Value, rec['participant_id_1'].Value, rec['participant_id_2'].Value, rec['participant_id_3'].Value, rec['participant_id_4'].Value, rec['name'].Value)
-                    self.db_insert_to_deleted_table('''insert into conversations(conversation_type, group_id, date, participant_id_1, participant_id_2, participant_id_3, participant_id_4, name) values(?, ?, ?, ?, ?, ?, ?, ?)''', param)
+                    param = (rec['conversation_type'].Value, rec['_id'].Value, rec['date'].Value, rec['participant_id_1'].Value, rec['participant_id_2'].Value, rec['participant_id_3'].Value, rec['participant_id_4'].Value, rec['name'].Value)
+                    self.db_insert_to_deleted_table('''insert into conversations(conversation_type, _id, date, participant_id_1, participant_id_2, participant_id_3, participant_id_4, name) values(?, ?, ?, ?, ?, ?, ?, ?)''', param)
                 except:
                     pass
         except Exception as e:
