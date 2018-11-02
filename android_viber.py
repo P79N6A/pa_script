@@ -18,7 +18,7 @@ import hashlib
 import shutil
 import traceback
 
-VERSION_APP_VALUE = 2
+VERSION_APP_VALUE = 1
 
 class ViberParser(model_im.IM, model_callrecord.MC):
     def __init__(self, node, extract_deleted, extract_source):
@@ -75,7 +75,7 @@ class ViberParser(model_im.IM, model_callrecord.MC):
                     account = model_im.Account()
                     account.account_id = self._db_reader_get_int_value(sr, 0)
                     account.telephone = self._db_reader_get_string_value(sr, 2)
-                    account.username = self._db_reader_get_string_value(sr, 3)
+                    account.username = self._db_reader_get_string_value(sr, 1)
                     account.source = node.AbsolutePath
                     account.deleted = deleteFlag
                     self.db_insert_table_account(account)
@@ -223,6 +223,8 @@ class ViberParser(model_im.IM, model_callrecord.MC):
                         break
                     tags = [2, 5, 8, 11]
                     for tag in tags:
+                        if IsDBNull(sr[tag]) or sr[tag] == 0:
+                            break
                         chatroom_member = model_im.ChatroomMember()
                         chatroom_member.account_id = "1"
                         chatroom_member.chatroom_id = self._db_reader_get_int_value(sr, 0)
@@ -608,7 +610,7 @@ class ViberParser(model_im.IM, model_callrecord.MC):
     @staticmethod
     def _get_timestamp(timestamp):
         try:
-            if isinstance(timestamp, (long, float, str)) and len(str(timestamp)) > 10:
+            if isinstance(timestamp, (long, float, str, Int64)) and len(str(timestamp)) > 10:
                 timestamp = int(str(timestamp)[:10])
             if isinstance(timestamp, int) and len(str(timestamp)) == 10:
                 return timestamp
