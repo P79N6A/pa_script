@@ -88,13 +88,13 @@ class WangxinParser():
                     SQLiteParser.Tools.AddSignatureToTable(ts, 'ZUSER_ID', SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
                     for rec in db.ReadTableRecords(ts, self.extract_deleted):
                         account = model_im.Account()
-                        account.deleted = DeletedState.Intact
+                        account.deleted = 0 ifrec.Deleted == DeletedState.Intact else 1
                         account.source = node.AbsolutePath
                         account.account_id = UnicodeEncoding.UTF8.GetString(rec['ZUSER_ID'].Value) if not IsDBNull(rec['ZUSER_ID'].Value) else None
                         account.nickname = UnicodeEncoding.UTF8.GetString(rec['ZTBNICK'].Value) if not IsDBNull(rec['ZTBNICK'].Value) else None
                         account.username = UnicodeEncoding.UTF8.GetString(rec['ZNAME'].Value) if not IsDBNull(rec['ZNAME'].Value) else None
                         if account.username is None:
-                            account.nickname = account.username
+                            account.username = account.nickname
                         account.photo = rec['ZAVATAR'].Value
                         if rec['ZGENDER'].Value == '男':
                             account.gender = model_im.GENDER_MALE 
@@ -149,7 +149,7 @@ class WangxinParser():
                     continue
 
                 friend = model_im.Friend()
-                friend.deleted = DeletedState.Intact
+                friend.deleted = 0 ifrec.Deleted == DeletedState.Intact else 1
                 friend.source = self.dbNode.AbsolutePath
                 friend.account_id = self.user
                 friend.friend_id = id
@@ -176,7 +176,7 @@ class WangxinParser():
             SQLiteParser.Tools.AddSignatureToTable(ts, 'ZSHOPID', SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
             for rec in db.ReadTableRecords(ts, self.extract_deleted):
                 friend = model_im.Friend()
-                friend.deleted = DeletedState.Intact
+                friend.deleted = 0 ifrec.Deleted == DeletedState.Intact else 1
                 friend.source = self.dbNode.AbsolutePath
                 friend.account_id = self.user
                 friend.friend_id = rec['ZSHOPID'].Value
@@ -195,7 +195,7 @@ class WangxinParser():
             SQLiteParser.Tools.AddSignatureToTable(ts, 'ZTRIBEID', SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
             for rec in db.ReadTableRecords(ts, self.extract_deleted):
                 chatroom = model_im.Chatroom()
-                chatroom.deleted = DeletedState.Intact
+                chatroom.deleted = 0 ifrec.Deleted == DeletedState.Intact else 1
                 chatroom.source = self.dbNode.AbsolutePath
                 chatroom.account_id = self.user
                 chatroom.chatroom_id = rec['ZTRIBEID'].Value
@@ -216,7 +216,7 @@ class WangxinParser():
                             continue
 
                         chatroom_member = model_im.ChatroomMember()
-                        chatroom_member.deleted = DeletedState.Intact
+                        chatroom_member.deleted = 0 ifrec.Deleted == DeletedState.Intact else 1
                         chatroom_member.source = self.dbNode.AbsolutePath
                         chatroom_member.account_id = self.user
                         chatroom_member.chatroom_id = chatroom.chatroom_id
@@ -250,7 +250,7 @@ class WangxinParser():
                     if sender_id != id and receive_id != id:
                         continue
                     message = model_im.Message()
-                    message.deleted = DeletedState.Intact
+                    message.deleted = 0 ifrec.Deleted == DeletedState.Intact else 1
                     message.source = self.dbNode.AbsolutePath
                     message.msg_id = str(uuid.uuid1()).replace('-', '')
                     message.account_id = self.user
@@ -290,7 +290,7 @@ class WangxinParser():
                     if str(bytes(rec['ZTRIBEID'].Value)) != id:
                         continue
                     message = model_im.Message()
-                    message.deleted = DeletedState.Intact
+                    message.deleted = 0 ifrec.Deleted == DeletedState.Intact else 1
                     message.source = self.dbNode.AbsolutePath
                     message.msg_id = str(uuid.uuid1()).replace('-', '')
                     message.account_id = self.user
