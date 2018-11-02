@@ -1594,5 +1594,26 @@
       </array>
     </dict>
 
+    <dict>
+      <key>Module</key>
+      <string>android_viber</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_android_viber</string>
+          <key>RunnerType</key>
+          <integer>2</integer>
+          <key>Patterns</key>
+          <array>
+            <string>/data/com.viber.voip/databases/viber_messages$</string>
+            <string>/Apps/com.viber.voip/databases/viber_messages$</string>
+          </array>
+          <key>Category</key>
+          <string>Applications</string>
+        </dict>
+      </array>
+    </dict>
+
   </array>
 </plist>
