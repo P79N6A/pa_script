@@ -21,7 +21,7 @@ import sqlite3
 import json
 import uuid
 
-VERSION_VALUE_DB = 7
+VERSION_VALUE_DB = 8
 
 GENDER_NONE = 0
 GENDER_MALE = 1
@@ -124,6 +124,7 @@ SQL_CREATE_TABLE_FRIEND = '''
         account_id TEXT, 
         friend_id TEXT, 
         nickname TEXT, 
+        fullname TEXT,
         remark TEXT,
         photo TEXT, 
         type INT,
@@ -139,9 +140,9 @@ SQL_CREATE_TABLE_FRIEND = '''
         repeated INT DEFAULT 0)'''
 
 SQL_INSERT_TABLE_FRIEND = '''
-    insert into friend(account_id, friend_id, nickname, remark, photo, type, telephone, email, gender, 
+    insert into friend(account_id, friend_id, nickname, fullname, remark, photo, type, telephone, email, gender, 
                        age, address, birthday, signature, source, deleted, repeated) 
-        values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
+        values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
 
 SQL_CREATE_TABLE_CHATROOM = '''
     create table if not exists chatroom(
@@ -528,6 +529,7 @@ class Friend(Column):
         self.account_id = None  # 账号ID[TEXT]
         self.friend_id = None  # 好友ID[TEXT]
         self.nickname = None  # 昵称[TEXT]
+        self.fullname = None  # 全名[TEXT]
         self.remark = None  # 备注[TEXT]
         self.photo = None  # 头像[TEXT]
         self.type = FRIEND_TYPE_NONE  # 类型[INT] FRIEND_TYPE
@@ -540,7 +542,7 @@ class Friend(Column):
         self.signature = None  # 签名[TEXT]
 
     def get_values(self):
-        return (self.account_id, self.friend_id, self.nickname, self.remark, self.photo, self.type, self.telephone, 
+        return (self.account_id, self.friend_id, self.nickname, self.fullname, self.remark, self.photo, self.type, self.telephone, 
                 self.email, self.gender, self.age, self.address, self.birthday, self.signature) + super(Friend, self).get_values()
 
 
@@ -820,7 +822,7 @@ class GenerateModel(object):
         models = []
 
         sql = '''select account_id, friend_id, nickname, remark, photo, type, telephone, email, gender, 
-                        age, address, birthday, signature, source, deleted, repeated
+                        age, address, birthday, signature, source, deleted, repeated, fullname
                  from friend'''
         row = None
         try:
@@ -850,6 +852,8 @@ class GenerateModel(object):
             if row[2]:
                 friend.NickName.Value = row[2]
                 contact['nickname'] = row[2]
+            if row[16]:
+                friend.FullName.Value = row[16]
             if row[4] and len(row[4]) > 0:
                 friend.PhotoUris.Add(self._get_uri(row[4]))
                 contact['photo'] = row[4]

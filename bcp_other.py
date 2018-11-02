@@ -358,7 +358,7 @@ class BuildBCP(object):
     def _get_installedapps(self):
         cursor = self.db.cursor()
         SQL = """
-            select bind_id, name, version, permission, installedPath, source, sourceFile, deleted, repeated 
+            select bind_id, name, version, permission, installedPath, imgUrl,purchaseDate,deletedDate,description, source, sourceFile, deleted, repeated
             from Applists
         """
         try:
@@ -383,7 +383,7 @@ class BuildBCP(object):
             if row[4]:
                 installedapps.sotfware_path = row[4]
 
-            installedapps.delete_status =  self._convert_deleted_type(row[7])
+            installedapps.delete_status =  self._convert_deleted_type(row[11])
 
             self.otherinfo.db_insert_table_installedapp(installedapps)
             row = cursor.fetchone()
