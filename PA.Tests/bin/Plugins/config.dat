@@ -184,7 +184,27 @@
         </dict>
       </array>
     </dict>
-
+	
+	<dict>
+      <key>Module</key>
+      <string>apple_application_log</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_Installation_log</string>
+          <key>RunnerType</key>
+          <integer>0</integer>
+          <key>Patterns</key>
+          <array>
+            <string>Library/Logs/MobileInstallation$</string>
+          </array>
+          <key>Category</key>
+          <string>ApplicationLog</string>
+        </dict>
+      </array>
+    </dict>
+	
     <dict>
       <key>Module</key>
       <string>apple_twr</string>
