@@ -156,15 +156,12 @@ SQL_INSERT_TABLE_VERSION = '''
 
 class Model_SMS(object):
     def __init__(self):
-        # self.db = None
-        # self.cursor = None
         self.db = None
         self.db_cmd = None
         self.db_trans = None
 
     def db_create(self, db_path):
         if os.path.exists(db_path):
-            # os.remove(db_path)
             try:
                 os.remove(db_path)
             except:
@@ -182,19 +179,11 @@ class Model_SMS(object):
         self.db_commit()
 
     def db_commit(self):
-        # if self.db is not None:
-        #     self.db.commit()
         if self.db_trans is not None:
             self.db_trans.Commit()
         self.db_trans = self.db.BeginTransaction()
 
     def db_close(self):
-        # if self.cursor is not None:
-        #     self.cursor.close()
-        #     self.cursor = None
-        # if self.db is not None:
-        #     self.db.close()
-        #     self.db = None
         self.db_trans = None
         if self.db_cmd is not None:
             self.db_cmd.Dispose()
@@ -204,11 +193,7 @@ class Model_SMS(object):
             self.db = None   
             
     def db_create_table(self):
-        # if self.cursor is not None:
         if self.db_cmd is not None:
-            # self.cursor.execute(SQL_CREATE_TABLE_SMS)
-            # self.cursor.execute(SQL_CREATE_TABLE_SIM_CARDS)
-            # self.cursor.execute(SQL_CREATE_TABLE_VERSION)
             self.db_cmd.CommandText = SQL_CREATE_TABLE_SMS
             self.db_cmd.ExecuteNonQuery()
             self.db_cmd.CommandText = SQL_CREATE_TABLE_SIM_CARDS
@@ -227,23 +212,14 @@ class Model_SMS(object):
             self.db_cmd.ExecuteNonQuery()
 
     def db_insert_table_sim_cards(self, column):
-        # if self.cursor is not None:
-        #     self.cursor.execute(SQL_INSERT_TABLE_SIM_CARDS, column.get_values())
         self.db_insert_table(SQL_INSERT_TABLE_SIM_CARDS, column.get_values())
 
 
     def db_insert_table_sms(self, column):
-        # if self.cursor is not None:
-        #     try:
-        #         self.cursor.execute(SQL_INSERT_TABLE_SMS, column.get_values())
-        #     except Exception as e:
-        #         pass
         self.db_insert_table(SQL_INSERT_TABLE_SMS, column.get_values())
 
 
     def db_insert_table_version(self, key, version):
-        # if self.cursor is not None:
-        #     self.cursor.execute(SQL_INSERT_TABLE_VERSION, (key, version))
         self.db_insert_table(SQL_INSERT_TABLE_VERSION, (key, version))
 
     '''
@@ -355,7 +331,6 @@ class GenerateModel(object):
     def get_models(self):
         models = []
         self.db = sqlite3.connect(self.cache_db)
-        # self.db = SQLite.SQLiteConnection('Data Source = {}'.format(self.db_path))
         self.cursor = self.db.cursor()
 
         models.extend(self._get_sms_models())

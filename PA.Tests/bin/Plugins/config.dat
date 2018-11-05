@@ -1014,6 +1014,26 @@
       </array>
     </dict>
 
+    <dict>
+      <key>Module</key>
+      <string>apple_line</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_line</string>
+          <key>RunnerType</key>
+          <integer>1</integer>
+          <key>Patterns</key>
+          <array>
+            <string>jp.naver.line</string>
+          </array>
+          <key>Category</key>
+          <string>Line</string>
+        </dict>
+      </array>
+    </dict>    
+
     <!--安卓运行插件从这里开始-->
 
     <dict>
@@ -1587,6 +1607,27 @@
           <array>
             <string>/appinfo/appinfo\.db$</string>
             <string>/data\.tar/data/app$</string>
+          </array>
+          <key>Category</key>
+          <string>Applications</string>
+        </dict>
+      </array>
+    </dict>
+
+    <dict>
+      <key>Module</key>
+      <string>android_viber</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_android_viber</string>
+          <key>RunnerType</key>
+          <integer>2</integer>
+          <key>Patterns</key>
+          <array>
+            <string>/data/com.viber.voip/databases/viber_messages$</string>
+            <string>/Apps/com.viber.voip/databases/viber_messages$</string>
           </array>
           <key>Category</key>
           <string>Applications</string>
