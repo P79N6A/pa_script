@@ -1562,6 +1562,26 @@
 
     <dict>
       <key>Module</key>
+      <string>android_skype</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_skype</string>
+          <key>RunnerType</key>
+          <integer>2</integer>
+          <key>Patterns</key>
+          <array>
+            <string>com.skype.raider$</string>
+          </array>
+          <key>Category</key>
+          <string>Skype</string>
+        </dict>
+      </array>
+    </dict>
+
+    <dict>
+      <key>Module</key>
       <string>android_baidumobile</string>
       <key>Runners</key>
       <array>
