@@ -22,9 +22,10 @@ from PA_runtime import *
 from System.Data.SQLite import *
 from System.Xml.Linq import *
 from System.Xml.XPath import Extensions as XPathExtensions
+from PA.Common.Utilities.Types import TimeStampFormats
+
 
 __author__ = "TaoJianping"
-
 
 # CONST
 ICQ_VERSION = 1
@@ -102,14 +103,6 @@ class Utils(object):
         with codecs.open(file_path, 'r', encoding=encoding) as f:
             return f.read()
 
-    @staticmethod
-    def base64_to_str(encoded_data):
-        pass
-
-    @staticmethod
-    def str_to_base64(origin_data):
-        pass
-
 
 class ICQParser(object):
     def __init__(self, root, extract_deleted, extract_source):
@@ -138,8 +131,8 @@ class ICQParser(object):
         if all((account_info_node, cl_db_node, agent_db_node, files_db_node)):
             for node in (account_info_node, cl_db_node, agent_db_node, files_db_node):
                 copy_file_path = os.path.join(
-                        self.cache_path,
-                        os.path.split(node.PathWithMountPoint)[-1]
+                    self.cache_path,
+                    os.path.split(node.PathWithMountPoint)[-1]
                 )
                 path_name_list.append(copy_file_path)
                 shutil.copy(node.PathWithMountPoint, copy_file_path)
@@ -168,8 +161,10 @@ class ICQParser(object):
         account.nickname = user_info.get("displayId", "").decode("utf-8")
         account.birthday = self.__convert_timestamp(user_info.get("birthDate"))
         account.signature = user_info.get("about", None)
-        account.city = user_info["homeAddress"].get("city", None)
-        account.country = user_info["homeAddress"].get("country", None)
+        if user_info["homeAddress"].get("city", None):
+            account.city = user_info["homeAddress"].get("city").decode("utf-8")
+        if user_info["homeAddress"].get("country", None):
+            account.country = user_info["homeAddress"].get("country").decode("utf-8")
         account.source = self.account_info_path
 
         self.using_account = account
@@ -261,7 +256,7 @@ class ICQParser(object):
                     message.account_id, _, message.talker_id = db_col.get_string(6).split("|")
                     message.msg_id = db_col.get_int64(0)
                     message.content = db_col.get_string(2)
-                    message.send_time = db_col.get_int64(3)
+                    message.send_time = self._get_timestamp(db_col.get_int64(3))
                     message.is_sender = 1 if db_col.get_int64(7) == 1 else 0
 
                     if "@" in message.talker_id:
@@ -296,6 +291,24 @@ class ICQParser(object):
                 except Exception as e:
                     print("debug error", e)
             self.model_im_col.db_commit()
+
+    def _get_chatroom_member_table(self):
+        for chatroom_member_info in self.__query_chatroom_list():
+            member_id = chatroom_member_info["member_id"]
+            account_id = chatroom_member_info["account_id"]
+            conversation_id = chatroom_member_info["conversation_id"]
+            display_name = self.__query_member_name(member_id)
+
+            if not all((member_id, account_id, conversation_id)):
+                continue
+
+            chatroom_member = model_im.ChatroomMember()
+            chatroom_member.member_id = member_id
+            chatroom_member.display_name = display_name
+            chatroom_member.account_id = account_id
+            chatroom_member.chatroom_id = conversation_id
+            self.model_im_col.db_insert_table_chatroom_member(chatroom_member)
+        self.model_im_col.db_commit()
 
     def decode_recover_friend(self):
         if not self.cl_recover_helper.is_valid():
@@ -352,6 +365,7 @@ class ICQParser(object):
                 chatroom.source = self.cl_db_path
                 chatroom.account_id, _, chatroom.chatroom_id = rec["pid"].Value.split("|")
                 chatroom.name = rec["displayName"].Value
+                chatroom.deleted = 1
                 self.model_im_col.db_insert_table_chatroom(chatroom)
             except Exception as e:
                 print("debug error", e)
@@ -375,11 +389,13 @@ class ICQParser(object):
                 return
             try:
                 message = model_im.Message()
+                message.account_id = self.using_account.account_id
                 message.source = self.cl_db_path
                 message.msg_id = rec["ZHISTORYID"].Value
                 message.content = rec["ZTEXT"].Value
-                message.send_time = rec["ZTIME"].Value
+                message.send_time = self._get_timestamp(rec["ZTIME"].Value)
                 message.is_sender = 1 if rec["ZOUTGOING"].Value == 1 else 0
+                message.sender_id = message.account_id if message.is_sender == 1 else rec["ZPARTICIPANTUID"].Value
                 message.deleted = 1
 
                 _type = rec["ZTYPE"].Value
@@ -432,6 +448,40 @@ class ICQParser(object):
                 except Exception as e:
                     print("debug error", e)
 
+    def __query_chatroom_list(self):
+        with self.agent_db_col as db_col:
+            sql = """SELECT DISTINCT ZMRMESSAGE.ZPARTICIPANTUID, 
+                            ZMRCONVERSATION.Z_PK, 
+                            ZMRCONVERSATION.ZPID
+                        FROM ZMRMESSAGE left join ZMRCONVERSATION
+                        on ZMRMESSAGE.ZCONVERSATION = ZMRCONVERSATION.Z_PK
+                        WHERE ZMRMESSAGE.ZPARTICIPANTUID is not null;"""
+            db_col.execute_sql(sql)
+            while db_col.has_rest():
+                try:
+                    member_id = db_col.get_string(0)
+                    account_id, _, conversation_id = db_col.get_string(2).split("|")
+                    yield {
+                        "member_id": member_id,
+                        "account_id": account_id,
+                        "conversation_id": conversation_id,
+                    }
+                except Exception as e:
+                    print("debug error", e)
+
+    def __query_member_name(self, member_id):
+        with self.cl_db_col as db_col:
+            sql = """SELECT displayName
+                        FROM contact
+                        WHERE uid = '{}';""".format(member_id)
+            db_col.execute_sql(sql)
+            while db_col.has_rest():
+                try:
+                    display_name = db_col.get_string(0)
+                    return display_name
+                except Exception as e:
+                    print("debug error", e)
+
     @staticmethod
     def __convert_gender(gender):
         if gender == 1:
@@ -443,17 +493,22 @@ class ICQParser(object):
 
     @staticmethod
     def __convert_timestamp(ts):
-        ts = str(ts)
-        if len(ts) > 13:
-            return
-        elif int(ts) < 0:
-            return
-        elif len(ts) == 13:
-            return int(ts[:-3])
-        elif len(ts) <= 10:
-            return int(ts)
-        else:
-            return
+        try:
+            ts = str(ts)
+            if len(ts) > 13:
+                return
+            elif int(ts) < 0:
+                return
+            elif len(ts) == 13:
+                return int(ts[:-3])
+            elif len(ts) <= 10:
+                return int(ts)
+            else:
+                return
+        except Exception as e:
+            print("__convert_timestamp error", ts)
+            print(e)
+            return None
 
     @staticmethod
     def __convert_message_content_type(type):
@@ -468,6 +523,14 @@ class ICQParser(object):
         else:
             return None
 
+    def _get_timestamp(self, timestamp):
+        try:
+            dstart = DateTime(1970, 1, 1, 0, 0, 0)
+            cdate = TimeStampFormats.GetTimeStampEpoch1Jan2001(timestamp)
+            return ((cdate - dstart).TotalSeconds)
+        except Exception as e:
+            return None
+
     def parse(self):
         """解析的主函数"""
 
@@ -476,6 +539,7 @@ class ICQParser(object):
         self._get_friend_table()
         self._get_message_table()
         self._get_chatroom_table()
+        self._get_chatroom_member_table()
         self.decode_recover_friend()
         self.decode_recover_message()
         self.decode_recover_chatroom()
