@@ -215,7 +215,6 @@ class BDNetDisk(object):
         self.nd.im.db_commit()
 
 def parse_bdy(node, extract_source, extract_deleted):
-    node = FileSystem.FromLocalDir(ur'D:\ios_case\baiduyun\C0D80003-221A-45A1-ACED-88A67FFAFD20')
     try:
         b = BDNetDisk(node, extract_deleted, extract_source)
         if b.need_parse:

@@ -182,7 +182,7 @@ def get_btree_node_str(b, k, d = ""):
 def get_c_sharp_ts(ts):
     try:
         ts = TimeStamp.FromUnixTime(ts, False)
-        if not ts.IsValidFromSmartphone():
+        if not ts.IsValidForSmartphone():
             ts = None
         return ts
     except:
