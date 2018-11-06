@@ -1078,6 +1078,26 @@
 
     <dict>
       <key>Module</key>
+      <string>android_keychain</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_keychain</string>
+          <key>RunnerType</key>
+          <integer>2</integer>
+          <key>Patterns</key>
+          <array>
+            <string>/system_ce/0/accounts_ce\.db$</string>
+          </array>
+          <key>Category</key>
+          <string>Keychains</string>
+        </dict>
+      </array>
+    </dict>
+    
+    <dict>
+      <key>Module</key>
       <string>android_wechat</string>
       <key>Runners</key>
       <array>
