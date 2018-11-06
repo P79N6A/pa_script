@@ -23,7 +23,27 @@
         </dict>
       </array>
     </dict>
-
+	
+	<dict>
+      <key>Module</key>
+      <string>apple_ctrip</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_ctrip</string>
+          <key>RunnerType</key>
+          <integer>1</integer>
+          <key>Patterns</key>
+          <array>
+            <string>ctrip.com</string>
+          </array>
+          <key>Category</key>
+          <string>Ctrip</string>
+        </dict>
+      </array>
+    </dict>
+	
     <dict>
       <key>Module</key>
       <string>apple_copy</string>
@@ -184,7 +204,27 @@
         </dict>
       </array>
     </dict>
-
+	
+	<dict>
+      <key>Module</key>
+      <string>apple_application_log</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_Installation_log</string>
+          <key>RunnerType</key>
+          <integer>0</integer>
+          <key>Patterns</key>
+          <array>
+            <string>Library/Logs/MobileInstallation$</string>
+          </array>
+          <key>Category</key>
+          <string>ApplicationLog</string>
+        </dict>
+      </array>
+    </dict>
+	
     <dict>
       <key>Module</key>
       <string>apple_twr</string>
@@ -1038,6 +1078,26 @@
 
     <dict>
       <key>Module</key>
+      <string>android_keychain</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_keychain</string>
+          <key>RunnerType</key>
+          <integer>2</integer>
+          <key>Patterns</key>
+          <array>
+            <string>/system_ce/0/accounts_ce\.db$</string>
+          </array>
+          <key>Category</key>
+          <string>Keychains</string>
+        </dict>
+      </array>
+    </dict>
+    
+    <dict>
+      <key>Module</key>
       <string>android_wechat</string>
       <key>Runners</key>
       <array>
@@ -1562,6 +1622,26 @@
 
     <dict>
       <key>Module</key>
+      <string>android_skype</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_skype</string>
+          <key>RunnerType</key>
+          <integer>2</integer>
+          <key>Patterns</key>
+          <array>
+            <string>com.skype.raider$</string>
+          </array>
+          <key>Category</key>
+          <string>Skype</string>
+        </dict>
+      </array>
+    </dict>
+
+    <dict>
+      <key>Module</key>
       <string>android_baidumobile</string>
       <key>Runners</key>
       <array>
@@ -1631,6 +1711,26 @@
           </array>
           <key>Category</key>
           <string>Applications</string>
+        </dict>
+      </array>
+    </dict>
+	
+	<dict>
+      <key>Module</key>
+      <string>android_ctrip</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_ctrip</string>
+          <key>RunnerType</key>
+          <integer>2</integer>
+          <key>Patterns</key>
+          <array>
+            <string>ctrip.android.view/databases$</string>
+          </array>
+          <key>Category</key>
+          <string>Ctrip</string>
         </dict>
       </array>
     </dict>

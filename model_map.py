@@ -96,7 +96,51 @@ SQL_INSERT_TABLE_ADDRESS = '''
         values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     '''
 
+SQL_CREATE_TABLE_JOURNEY = '''
+    create table if not exists journey(
+        account_id TEXT,
+        start_time INT,
+        depart TEXT,
+        depart_address TEXT,
+        start_longitude REAL,
+        start_latitude REAL,
+        start_above_sealevel REAL,
+        end_time INT,
+        destination TEXT,
+        destination_address TEXT,
+        destination_longitude REAL,
+        destination_latitude REAL,
+        destination_above_sealevel REAL,
+        flightid TEXT,
+        purchase_price TEXT,
+        aircom TEXT,
+        order_num TEXT,
+        ticket_status TEXT,
+        order_time INT,
+        deleted_time INT,
+        latest_mod_time INT,
+        name TEXT,
+        sequence_name TEXT,
+        deliver_tool TEXT,
+        materials_name TEXT,
+        remark TEXT,
+        source TEXT,
+        sourceApp TEXT,
+        sourceFile TEXT,
+        deleted INT DEFAULT 0,
+        repeated INT DEFAULT 0
+        )'''
 
+
+SQL_INSERT_TABLE_JOURNEY = '''
+    insert into journey(account_id,start_time,depart,depart_address,start_longitude,
+    start_latitude,start_above_sealevel,end_time,destination,destination_address,
+    destination_longitude,destination_latitude,destination_above_sealevel,
+    flightid,purchase_price,aircom,order_num,ticket_status,order_time,deleted_time,
+    latest_mod_time,name,sequence_name,deliver_tool,materials_name,remark,
+    source,sourceApp,sourceFile,deleted,repeated)
+        values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+    '''
 
 class Map(object):
     
@@ -254,6 +298,42 @@ class Search(Column):
     def get_values(self):
         return (self.account_id, self.keyword, self.create_time, self.delete_time, self.adcode, self.address, self.district, self.pos_x, self.pos_y, self.item_type) + super(Search, self).get_values()
 
+# 行程信息
+class LocationJourney(Column):
+    def __init__(self):
+        super(LocationJourney, self).__init__()
+        self.account_id = None
+        self.start_time = None
+        self.depart = None
+        self.depart_address = None
+        self.start_longitude = None
+        self.start_latitude = None
+        self.start_above_sealevel = None
+        self.end_time = None
+        self.destination = None
+        self.destination_address = None
+        self.destination_longitude = None
+        self.destination_latitude = None
+        self.destination_above_sealevel = None
+        self.flightid = None
+        self.purchase_price = None
+        self.aircom = None
+        self.order_num = None
+        self.ticket_status = None
+        self.order_time = None
+        self.deleted_time = None
+        self.latest_mod_time = None
+        self.name = None
+        self.sequence_name = None
+        self.deliver_tool = None
+        self.materials_name = None
+        self.remark = None
+
+    def get_values(self):
+        return (self.account_id,self.start_time,self.depart,self.depart_address,self.start_longitude,self.start_latitude,
+        self.start_above_sealevel,self.end_time,self.destination,self.destination_address,self.destination_longitude,self.destination_latitude,
+        self.destination_above_sealevel,self.flightid,self.purchase_price,self.aircom,self.order_num,self.ticket_status,self.order_time,self.deleted_time,
+        self.latest_mod_time,self.name,self.sequence_name,self.deliver_tool,self.materials_name,self.remark) + super(LocationJourney, self).get_values()
 
 
 class Genetate(object):
@@ -270,6 +350,7 @@ class Genetate(object):
         models.extend(self._get_accout_models())
         models.extend(self._get_address_models())
         models.extend(self._get_search_models())
+        models.extend(self._get_trip_models())
 
         self.cursor.close()
         self.db.close()
@@ -523,12 +604,153 @@ class Genetate(object):
             row = self.cursor.fetchone()
         return models
     
-    
+    """
+        account_id TEXT,                        0
+        start_time INT,                         1
+        depart TEXT,                            2
+        depart_address TEXT,                    3
+        start_longitude REAL,                   4
+        start_latitude REAL,                    5
+        start_above_sealevel REAL,              6
+        end_time INT,                           7
+        destination TEXT,                       8
+        destination_address TEXT,               9
+        destination_longitude REAL,             10
+        destination_latitude REAL,              11
+        destination_above_sealevel REAL,        12
+        flightid TEXT,                          13
+        purchase_price TEXT,                    14
+        aircom TEXT,                            15
+        order_num TEXT,                         16
+        ticket_status TEXT,                     17
+        order_time INT,                         18
+        deleted_time INT,                       19
+        latest_mod_time INT,                    20
+        name TEXT,                              21
+        sequence_name TEXT,                     22
+        deliver_tool TEXT,                      23
+        materials_name TEXT,                    24
+        remark TEXT,                            25
+        source TEXT,                            26
+        sourceApp TEXT,                         27
+        sourceFile TEXT,                        28
+        deleted INT DEFAULT 0,                  29
+        repeated INT DEFAULT 0                  30
+    """
+    def _get_trip_models(self):
+        model = []
+
+        sql = """
+            select account_id,start_time,depart,depart_address,start_longitude,
+                start_latitude,start_above_sealevel,end_time,destination,destination_address,
+                destination_longitude,destination_latitude,destination_above_sealevel,
+                flightid,purchase_price,aircom,order_num,ticket_status,order_time,deleted_time,
+                latest_mod_time,name,sequence_name,deliver_tool,materials_name,remark,
+                source,sourceApp,sourceFile,deleted,repeated from journey
+        """
+        row = None
+        try:
+            self.cursor.execute(sql)
+            row = self.cursor.fetchone()
+        except Exception as e:
+            print(e)
+
+        while row is not None:
+            if canceller.IsCancellationRequested:
+                return
+            trip = Trip()
+            if row[0]:
+                trip.OwnerUserID.Value = row[0]
+            journey = Journey()
+            frompoint = Location()
+            topoint = Location()
+            fromcoord = Coordinate()
+            tocoord = Coordinate()
+            if row[1]:
+                journey.StartTime.Value = self._get_timestamp(row[1])
+            if row[2]:
+                frompoint.Name.Value = row[2]
+            if row[3]:
+                fromcoord.PositionAddress.Value = row[3]
+            if row[4]:
+                fromcoord.Longitude.Value = row[4]
+            if row[5]:
+                fromcoord.Latitude.Value = row[5]
+            if row[6]:
+                fromcoord.Elevation.Value = row[6]
+            if row[7]:
+                journey.EndTime.Value = self._get_timestamp(row[7])
+            if row[8]:
+                frompoint.Name.Value = row[8]
+            if row[9]:
+                tocoord.PositionAddress.Value = row[9]
+            if row[10]:
+                tocoord.Longitude.Value = row[10]
+            if row[11]:
+                tocoord.Latitude.Value = row[11]
+            if row[12]:
+                tocoord.Elevation.Value = row[12]
+            if row[13]:
+                trip.Flightid.Value = row[13]
+            if row[14]:
+                trip.PurchasePrice.Value = row[14]
+            if row[17]:
+                pass
+            if row[18]:
+                trip.OrderTime.Value = self._get_timestamp(row[18])
+            if row[19]:
+                trip.DeleteTime.Value = self._get_timestamp(row[19])
+            if row[20]:
+                trip.LastModTime.Value = self._get_timestamp(row[20])
+            if row[21]:
+                trip.Name.Value = row[21]
+            if row[24]:
+                trip.MaterialsName.Value = row[24]
+            if row[26]:
+                trip.Source.Value = row[26]
+                journey.Source.Value = row[26]
+                frompoint.Source.Value = row[26]
+                topoint.Source.Value = row[26]
+                fromcoord.Source.Value = row[26]
+                tocoord.Source.Value = row[26]
+            if row[27]:
+                trip.SourceApp.Value = row[27]
+                journey.SourceApp.Value = row[27]
+                frompoint.SourceApp.Value = row[27]
+                topoint.SourceApp.Value = row[27]
+                fromcoord.SourceApp.Value = row[27]
+                tocoord.SourceApp.Value = row[27]
+            if row[28]:
+                trip.SourceFile.Value = row[28]
+                journey.SourceFile.Value = row[28]
+                frompoint.SourceFile.Value = row[28]
+                topoint.SourceFile.Value = row[28]
+                fromcoord.SourceFile.Value = row[28]
+                tocoord.SourceFile.Value = row[28]
+            journey.Deleted = DeletedState.Intact if row[29] == 0 else DeletedState.Deleted
+            frompoint.Deleted = DeletedState.Intact if row[29] == 0 else DeletedState.Deleted
+            topoint.Deleted = DeletedState.Intact if row[29] == 0 else DeletedState.Deleted
+            fromcoord.Deleted = DeletedState.Intact if row[29] == 0 else DeletedState.Deleted
+            tocoord.Deleted = DeletedState.Intact if row[29] == 0 else DeletedState.Deleted
+            
+            frompoint.Position.Value = fromcoord
+            topoint.Position.Value = tocoord            
+            journey.FromPoint.Value = frompoint 
+            journey.ToPoint.Value = topoint
+            trip.Journey.Value = journey
+
+            model.append(trip)
+            row = self.cursor.fetchone()
+        return model
+
+
     def _get_timestamp(self, timestamp):
         if len(str(timestamp)) == 13:
             timestamp = int(str(timestamp)[0:10])
         elif len(str(timestamp)) != 13 and len(str(timestamp)) != 10:
             timestamp = 0
+        elif len(str(timestamp)) == 10:
+            timestamp = timestamp
         ts = TimeStamp.FromUnixTime(timestamp, False)
         if not ts.IsValidForSmartphone():
             ts = None

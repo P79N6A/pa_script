@@ -21,12 +21,12 @@ DEBUG = False
 VERSION_APP_VALUE = 1
 
 # 朋友圈类型
-MOMENT_TYPE_IMAGE = 1  # 正常文字图片
+MOMENT_TYPE_IMAGE     = 1  # 正常文字图片
 MOMENT_TYPE_TEXT_ONLY = 2  # 纯文字
-MOMENT_TYPE_SHARED = 3  # 分享
-MOMENT_TYPE_MUSIC = 4  # 带音乐的（存的是封面）
-MOMENT_TYPE_EMOJI = 10  # 分享了表情包
-MOMENT_TYPE_VIDEO = 15  # 视频
+MOMENT_TYPE_SHARED    = 3  # 分享
+MOMENT_TYPE_MUSIC     = 4  # 带音乐的（存的是封面）
+MOMENT_TYPE_EMOJI     = 10  # 分享了表情包
+MOMENT_TYPE_VIDEO     = 15  # 视频
 
 def exc(e=''):
     if DEBUG:
@@ -40,7 +40,6 @@ def exc_debug(*e):
         TraceService.Trace(TraceLevel.Warning, "{}".format(e))
     else:
         pass
-
 
 def analyze_line(node, extract_deleted, extract_source):
     """ ios LINE 
@@ -56,9 +55,11 @@ def analyze_line(node, extract_deleted, extract_source):
     if res:
         pr.Models.AddRange(res)
         pr.Build('LINE')
-    #return pr
+        exc_debug('apple_line.py 解析完毕!')
+    return pr
 
 class LineParser(object):
+
     def __init__(self, node, extract_deleted, extract_source):
         ''' boundId: 
             
@@ -70,15 +71,15 @@ class LineParser(object):
                 Library\Preferences\group.com.linecorp.line.plist
                 Library\\Application Support\\PrivateStore\\P_u423af962f145 6db6cba8465cf82bb91b\\Messages\\Line.sqlite    
         '''
-        # print('node.AbsolutePath:', node.AbsolutePath)
+        # exc_debug('node.AbsolutePath:', node.AbsolutePath)
         self.root = node
         self.user_plist_node = self.root.GetByPath('Library/Preferences/jp.naver.line.plist')
 
         ################# group.com.linecorp.line ################
         # Library\Preferences\group.com.linecorp.line.plist
         self.group_plist_node = list(self.root.FileSystem.Search('group.com.linecorp.line.plist$'))[0]
-        # print(type(self.group_plist_node)) 
-        # print(self.group_plist_node.AbsolutePath)
+        # exc_debug(type(self.group_plist_node)) 
+        # exc_debug(self.group_plist_node.AbsolutePath)
         # Library\\Application Support\\PrivateStore
         self.group_root = self.group_plist_node.Parent.Parent.Parent
         self.group_db_root = self.group_root.GetByPath('Library/Application Support/PrivateStore')
@@ -89,13 +90,15 @@ class LineParser(object):
         self.cachepath = ds.OpenCachePath("LINE")
 
         hash_str = hashlib.md5(self.root.AbsolutePath).hexdigest()
-        self.cache_db = self.cachepath + '\\{}.db'.format(hash_str)
+        self.cache_db = self.cachepath + '\\line_{}.db'.format(hash_str)
 
         self.account_list = []
         self.chatroom_map = {}          # 群 ZID: ZNAME
         self.member_chatroom_map = {}   # 群成员PK: 群PK
-        self.friend_tel_map = {}        # 群成员PK: 群PK
-
+        self.friend_tel_map = {}        # friend ZMID: telphone
+        self.chat_friend_pk_map = {}    # Z_1MEMBERS  chat PK: friend PK
+        self.friend_pk_name_map = {}    # friend PK: friend name
+        self.frien_mid_pk_map = {}         # friend mid: pk 
 
     def parse(self):
         ''' account
@@ -107,9 +110,9 @@ class LineParser(object):
         ''' 
         if DEBUG or self.im.need_parse(self.cache_db, VERSION_APP_VALUE):
 
-            # if self.pre_parse_plist(plist_node=self.user_plist_node) == False:
+            # if self.preparse_plist(plist_node=self.user_plist_node) == False:
             #     return []
-            # print(self.account_list)
+            # exc_debug(self.account_list)
             if not self.user_plist_node:
                 return []
             
@@ -139,22 +142,25 @@ class LineParser(object):
             self.cur_account_id = account.account_id
 
             account_file_name = 'P_' + account.account_id
-            self.pre_parse_group_member(self.group_db_root, 
+            self.preparse_group_member(self.group_db_root, 
                                         account_file_name+'/Messages/Line.sqlite', 
                                         'Z_4MEMBERS')
-            self.pre_parse_friend_tel(self.group_db_root, 
+            self.preparse_friend_tel(self.group_db_root, 
                                         account_file_name+'/Messages/Line.sqlite', 
                                         'ZCONTACT')
-
+            self.preparse_chat_friend_pk(self.group_db_root, 
+                                        account_file_name+'/Messages/Line.sqlite', 
+                                        'Z_1MEMBERS')
+            #########################################################################
             self.parse_Chatroom(self.group_db_root, 
                                 account_file_name+'/Messages/Line.sqlite', 
                                 'ZGROUP')
-            self.parse_Message(self.group_db_root, 
-                               account_file_name+'/Messages/Line.sqlite', 
-                               'ZMESSAGE')
             self.parse_Friend_ChatroomMember(self.group_db_root, 
                                              account_file_name+'/Messages/Line.sqlite', 
                                              'ZUSER')
+            self.parse_Message(self.group_db_root, 
+                               account_file_name+'/Messages/Line.sqlite', 
+                               'ZMESSAGE')
             self.parse_Feed(self.root.GetByPath('Library/Caches/PrivateStore/P_' \
                                                 + self.cur_account_id  \
                                                 + '/jp.naver.myhome.MBDataResults/timeline'))
@@ -169,6 +175,27 @@ class LineParser(object):
                              '/Library/Application Support/PrivateStore/' + account_file_name + '/Search Data/SearchData.sqlite', 
                              'ZRECENTSEARCHKEYWORD')
 
+    def preparse_chat_friend_pk(self, db_root, db_path, table_name):
+        ''' chat PK, friend PK,  & friend name later
+        
+            /Messages/Line.sqlite  Z_1MEMBERS 
+                        
+            RecNo	FieldName	SQLType	Size
+            1	Z_1CHATS	    INTEGER
+            2	Z_12MEMBERS	    INTEGER
+        '''
+        if not self._read_db(db_root, db_path):
+            return 
+        for rec in self._read_table(table_name):
+            if canceller.IsCancellationRequested:
+                return
+            if self._is_empty(rec, 'Z_1CHATS', 'Z_12MEMBERS'):
+                continue    
+            chat_pk    = rec['Z_1CHATS'].Value
+            friend_pk  = rec['Z_12MEMBERS'].Value
+            # 按理说 如果是好友聊天, 一个 chat PK 对应 一个user Pk
+            if not self.chat_friend_pk_map.has_key(chat_pk):
+                self.chat_friend_pk_map[chat_pk] = friend_pk
 
     def parse_Search(self, db_root, db_path, table_name):
         ''' 5A249183-668C-4CC0-B983-C0A7EA2E657F\Library\Application Support\PrivateStore\P_u423af962f1456db6cba8465cf82bb91b\Search Data\SearchData.sqlite
@@ -197,8 +224,8 @@ class LineParser(object):
             search = model_im.Search()
             search.account_id  = self.cur_account_id
             search.key         = rec['ZSEARCHKEYWORD'].Value
-            search.create_time = rec['ZTIME'].Value
-            search.source = self.cur_db_source
+            # search.create_time = rec['ZTIME'].Value
+            search.source  = self.cur_db_source
             search.deleted = 1 if rec.IsDeleted else 0               
             try:
                 self.im.db_insert_table_search(search)
@@ -207,7 +234,7 @@ class LineParser(object):
         self.im.db_commit()                        
 
 
-    def pre_parse_friend_tel(self, db_root, db_path, table_name):
+    def preparse_friend_tel(self, db_root, db_path, table_name):
         ''' /Messages/Line.sqlite  ZCONTACT 
                         
             RecNo	FieldName	SQLType	
@@ -244,7 +271,7 @@ class LineParser(object):
             else:
                 self.friend_tel_map[friend_id] = [friend_tel]
 
-    def pre_parse_group_member(self, db_root, db_path, table_name):
+    def preparse_group_member(self, db_root, db_path, table_name):
             ''' 'Z_4MEMBERS' Z_4GROUPS 
                             
                 RecNo	FieldName	SQLType	Size
@@ -365,7 +392,8 @@ class LineParser(object):
                 for key in ('photos', 'medias', 'videos'):
                     if media_node and media_node[key]:
                         for each_media_node in media_node[key]:
-                            feed.media_path = each_media_node['sourceURL'].Value  # 媒体文件地址[TEXT] .Value ['objectID']
+                            # 媒体文件地址[TEXT] .Value ['objectID']
+                            feed.media_path = each_media_node['sourceURL'].Value  
             except:
                 exc()
                 # _print_plist(feed_node)
@@ -461,12 +489,17 @@ class LineParser(object):
             if rec['Z_OPT'].Value==3 or (rec['ZCONTENTTYPE'].Value!=18 and not rec['ZSENDER'].Value and rec['ZID'].Value):
                 message.is_sender = 1
 
-
-            message.talker_id   = rec['ZCHAT'].Value
-            message.talker_name = CHAT_TYPE_DICT.get(rec['ZCHAT'].Value, {}).get('chat_name', None)
-
-            #TODO 区分是 好友聊天还是群聊天 CHAT_TYPE, 2 是群, 0 是好友
+            # 区分是 好友聊天还是群聊天 CHAT_TYPE, 2 是群, 0 是好友
             message.talker_type = self._convert_chat_type(CHAT_TYPE_DICT.get(rec['ZCHAT'].Value, {}).get('ZTYPE', None))
+            message.talker_id   = rec['ZCHAT'].Value
+            if message.talker_type == model_im.CHAT_TYPE_GROUP:
+                message.talker_name = CHAT_TYPE_DICT.get(rec['ZCHAT'].Value, {}).get('chat_name', None)
+            # elif message.talker_type == model_im.CHAT_TYPE_FRIEND:
+            else:
+                chat_id   = rec['ZCHAT'].Value
+                friend_pk = self.chat_friend_pk_map.get(chat_id, None)
+                message.talker_name = self.friend_pk_name_map.get(friend_pk, None)
+
             if message.content and message.content[-4:] in ['.m4a', '.mp4']:
                 # 自己发的语音, 视频, 保留在 /tmp, 文件名不变 self.root + tmp/_3997735.m4a
                 message.media_path = message.content
@@ -500,11 +533,10 @@ class LineParser(object):
                 exc()
         self.im.db_commit()  
 
-
     def parse_Message_ZCHAT(self, table_name):
         ''' parse table ZCHAT index chat list 
         
-            return  {chat_id: {'ZTYPE': type, 'ZMID': id}, ...}
+            return  CHAT_TYPE_DICT {chat_id: {'ZTYPE': type, 'ZMID': id}, ...}
 
             ZCHAT
                 RecNo	FieldName	SQLType	Size	
@@ -540,10 +572,14 @@ class LineParser(object):
             chat_id   = rec['Z_PK'].Value
             chat_type = rec['ZTYPE'].Value
             chat_zmid = rec['ZMID'].Value
-            chat_name = self.chatroom_map.get(rec['ZMID'].Value, '')
-
+            chat_name = None
+            if chat_type == 2: # 群
+                chat_name = self.chatroom_map.get(chat_zmid, '已退出该群')
+            elif chat_type == 0: # 好友
+                chat_name = self.chat_friend_pk_map.get(chat_id, None)
             CHAT_TYPE_DICT[chat_id] = {
                 'ZTYPE'    : chat_type,
+                'ZID  '    : chat_id,
                 'ZMID'     : chat_zmid,
                 'chat_name': chat_name, # 会话对象的名称, 例如好友, 群...
             }
@@ -603,15 +639,15 @@ class LineParser(object):
             # chatroom.owner_id          = rec['Z_PK'].Value
             # chatroom.member_count      = rec['Z_PK'].Value
             # chatroom.max_member_count  = rec['Z_PK'].Value
-            chatroom.create_time       = rec['ZCREATEDTIME'].Value
+            # chatroom.create_time       = rec['ZCREATEDTIME'].Value # 格式不对
                 
             chatroom.deleted    = 1 if rec.IsDeleted else 0         
             chatroom.source     = self.cur_db_source            
             try:
                 self.chatroom_map[chatroom.chatroom_id] = chatroom.name
             except:
-                print 'self.chatroom_map', self.chatroom_map
-                print 'chatroom.chatroom_id', chatroom.chatroom_id
+                exc_debug('self.chatroom_map', self.chatroom_map)
+                exc_debug('chatroom.chatroom_id', chatroom.chatroom_id)
                 exc()
             try:
                 self.im.db_insert_table_chatroom(chatroom)
@@ -622,43 +658,43 @@ class LineParser(object):
     def parse_Friend_ChatroomMember(self, db_root, db_path, table_name):
         ''' 'Line.sqlite', 'ZUSER'
 
-                        RecNo	FieldName	SQLType	
-            account_id  1	Z_PK	        INTEGER
-                        2	Z_ENT	        INTEGER
-                        3	Z_OPT	        INTEGER
-                        4	ZALERT	        INTEGER
-                        5	ZBLOCKING	        INTEGER
-                        6	ZCAPABILITIES	        INTEGER
-                        7	ZCONTACTTYPE	        INTEGER
-                        8	ZE2EECONTENTTYPES	        INTEGER
-                        9	ZFAVORITEORDER	        INTEGER
-                        10	ZFRIENDREQUESTSTATUS	        INTEGER
-                        11	ZISFRIEND	        INTEGER
-                        12	ZISHIDDEN	        INTEGER
-                        13	ZISINADDRESSBOOK	        INTEGER
-                        14	ZISRECOMMENDED	        INTEGER
-                        15	ZISREMOVED	        INTEGER
-                        16	ZISUNREGISTERED	        INTEGER
-                        17	ZISVIEWED	        INTEGER
-                        18	ZMYHOMECAPABLE	        INTEGER
-                        19	ZUSERTYPE	        INTEGER
-                        20	ZVIDEOCALLCAPABLE	        INTEGER
-                        21	ZVOICECALLCAPABLE	        INTEGER
-                        22	ZCREATEDTIME	        TIMESTAMP
-                        23	ZSTATUSUPDATEDAT	        TIMESTAMP
-                        24	ZADDRESSBOOKNAME	        VARCHAR
-                        25	ZCOUNTRY	        VARCHAR
-                        26	ZCUSTOMNAME	        VARCHAR
-                        27	ZMID	        VARCHAR
-            nickname    28	ZNAME	        VARCHAR
-                        29	ZPICTURESTATUS	        VARCHAR
-                        30	ZPICTUREURL	        VARCHAR
-                        31	ZPROFILEIMAGE	        VARCHAR
-                        32	ZRECOMMENDresS	        VARCHAR
-            username    33	ZSORTABLENAME	        VARCHAR
-            signature   34	ZSTATUSMESSAGE	        VARCHAR
-                        35	ZE2EEPUBLICKEYCHAIN	        BLOB
-                        36	ZPUBLICKEYCHAIN	        BLOB
+                            RecNo	FieldName	SQLType	
+                            1	Z_PK	        INTEGER
+                            2	Z_ENT	        INTEGER
+                            3	Z_OPT	        INTEGER
+                            4	ZALERT	        INTEGER
+                            5	ZBLOCKING	        INTEGER
+                            6	ZCAPABILITIES	        INTEGER
+                            7	ZCONTACTTYPE	        INTEGER
+                            8	ZE2EECONTENTTYPES	        INTEGER
+                            9	ZFAVORITEORDER	        INTEGER
+                            10	ZFRIENDREQUESTSTATUS	        INTEGER
+                            11	ZISFRIEND	        INTEGER
+                            12	ZISHIDDEN	        INTEGER
+                            13	ZISINADDRESSBOOK	        INTEGER
+                            14	ZISRECOMMENDED	        INTEGER
+                            15	ZISREMOVED	        INTEGER
+                            16	ZISUNREGISTERED	        INTEGER
+                            17	ZISVIEWED	        INTEGER
+                            18	ZMYHOMECAPABLE	        INTEGER
+                            19	ZUSERTYPE	        INTEGER
+                            20	ZVIDEOCALLCAPABLE	        INTEGER
+                            21	ZVOICECALLCAPABLE	        INTEGER
+                            22	ZCREATEDTIME	        TIMESTAMP
+                            23	ZSTATUSUPDATEDAT	        TIMESTAMP
+                            24	ZADDRESSBOOKNAME	        VARCHAR
+                            25	ZCOUNTRY	        VARCHAR
+                            26	ZCUSTOMNAME	        VARCHAR
+                account_id  27	ZMID	        VARCHAR
+                nickname    28	ZNAME	        VARCHAR
+                            29	ZPICTURESTATUS	        VARCHAR
+                            30	ZPICTUREURL	        VARCHAR
+                            31	ZPROFILEIMAGE	        VARCHAR
+                            32	ZRECOMMENDresS	        VARCHAR
+                username    33	ZSORTABLENAME	        VARCHAR
+                signature   34	ZSTATUSMESSAGE	        VARCHAR
+                            35	ZE2EEPUBLICKEYCHAIN	        BLOB
+                            36	ZPUBLICKEYCHAIN	        BLOB
 
             FRIEND_TYPE_NONE           = 0  # 未知
             FRIEND_TYPE_FRIEND         = 1  # 好友
@@ -676,12 +712,21 @@ class LineParser(object):
         for rec in self._read_table(table_name):
             if canceller.IsCancellationRequested:
                 return
-            if self._is_empty(rec, 'ZNAME', 'ZSORTABLENAME', ):
+            if self._is_empty(rec, 'ZNAME', 'ZSORTABLENAME', 'ZMID'):
                 continue
             friend = model_im.Friend()
-            friend.account_id = rec['Z_PK'].Value
+            friend.account_id = self.cur_account_id
+            friend.friend_id  = rec['ZMID'].Value
+            # friend.friend_id  = rec['Z_PK'].Value
+            friend_pk         = rec['Z_PK'].Value      # 用来关联表
+            self.frien_mid_pk_map[friend.friend_id] = friend_pk
+
             friend.nickname   = rec['ZNAME'].Value
             friend.username   = rec['ZSORTABLENAME'].Value
+
+            # provide talker_name
+            self.friend_pk_name_map[friend_pk] = friend.nickname
+
             friend.remark     = rec['ZCUSTOMNAME'].Value    # 备注[TEXT]
             friend.signature  = rec['ZSTATUSMESSAGE'].Value
 
@@ -689,7 +734,8 @@ class LineParser(object):
             if pic_url and pic_url.startswith('/'):
                 friend.photo = self._search_profile_img(pic_url)
 
-            if rec['ZISINADDRESSBOOK'].Value and rec['ZMID'].Value :  # telephone 只取第一个
+            # telephone 只取第一个
+            if rec['ZISINADDRESSBOOK'].Value and rec['ZMID'].Value :  
                 friend.telephone = self.friend_tel_map.get(rec['ZMID'].Value, '')[0]
 
             if rec['ZISFRIEND'].Value: # 好友
@@ -701,7 +747,8 @@ class LineParser(object):
             friend.deleted = 1 if rec.IsDeleted or rec['ZISREMOVED'].Value else 0         
             friend.source  = self.cur_db_source
 
-            for chatroom_id in self.member_chatroom_map.get(friend.account_id, []):
+            # M2M,  friend chatroom
+            for chatroom_id in self.member_chatroom_map.get(friend_pk, []):
                 self.parse_ChatroomMember(friend, chatroom_id)
             try:
                 self.im.db_insert_table_friend(friend)
@@ -730,12 +777,10 @@ class LineParser(object):
             self.birthday  = None  # 生日[TEXT]
             self.signature = None  # 签名[TEXT]
         '''
-        if  not self.member_chatroom_map.has_key(friend.account_id):
-            return 
         cm = model_im.ChatroomMember()
         cm.account_id   = friend.account_id # 账户ID[TEXT]
         cm.chatroom_id  = chatroom_id  # 群ID[TEXT]
-        cm.member_id    = friend.account_id # 成员ID[TEXT]
+        cm.member_id    = friend.friend_id # 成员ID[TEXT]
         cm.display_name = friend.remark if friend.remark else friend.nickname # 群内显示名称[TEXT]
         cm.photo        = friend.photo  # 头像[TEXT]
         cm.telephone    = friend.telephone  
@@ -768,9 +813,9 @@ class LineParser(object):
         res = {}
         bp = BPReader(plist_node.Data).top    
         # bp = BPReader.GetTree(plist_node.Data)
-        # print(dir(BPReader))
-        # print(type(bp))
-        #print(bp)
+        # exc_debug(dir(BPReader))
+        # exc_debug(type(bp))
+        #exc_debug(bp)
         try:
             for k in keys:
                 exc_debug(k)
@@ -790,14 +835,14 @@ class LineParser(object):
         pp = '/Library/Caches/PrivateStore/P_' \
              + self.cur_account_id + r'/Profile Images' \
              + file_name
-        #print('friend pic url pattern ', pp)
+        #exc_debug('friend pic url pattern ', pp)
 
         _node = self.group_root.GetByPath(pp)
         if _node:
             for file_node in _node.Children:
                 file_path = file_node.AbsolutePath
                 if file_path.split('/')[-1].endswith('.jpg'):
-                    # print(file_path)
+                    # exc_debug(file_path)
                     return file_path
 
         # exc_debug('profile_img:', file_name)
@@ -828,6 +873,9 @@ class LineParser(object):
         # self.root + '/Library/Application Support/PrivateStore/P_u423af962f1456db6cba8465cf82bb91b/Message Attachments'
         # + /u1f49041c24a3b489dbf90163f8bcb293/8785959165675.mp4
 
+        # /u1f49041c24a3b489dbf90163f8bcb293 是 ZMESSAGE ZCHAT 对应的 ZCHAT - ZMID
+        # 8785959165675 是 ZMESSAGE - ZID
+
         # file_pattern = self.root.AbsolutePath \
         #                + '/Library/Application Support/PrivateStore/P_' \
         #                + self.cur_account_id + r'/Message Attachments/' \
@@ -843,7 +891,7 @@ class LineParser(object):
             for file_node in _node.Children:
                 file_path = file_node.AbsolutePath
                 if file_path.split('/')[-1].startswith(msg_ZID):
-                    # print(file_path)
+                    # exc_debug(file_path)
                     return file_path
         return 
 
@@ -863,9 +911,9 @@ class LineParser(object):
 
     @staticmethod
     def _convert_ArrayByte_2_str(ab):
-        # print(ab.ToString())
-        # print(type(ab))
-        # print(type(ab[0]))
+        # exc_debug(ab.ToString())
+        # exc_debug(type(ab))
+        # exc_debug(type(ab[0]))
         buf = ''.join([chr(x) for x in ab])
         buf = ''.join(ab).decode('utf-8')
 
@@ -895,7 +943,7 @@ class LineParser(object):
         """
         try:
             tb = SQLiteParser.TableSignature(table_name)  
-            print(dir(self.cur_db.ReadTableRecords(tb, self.extract_deleted, True)))
+            exc_debug(dir(self.cur_db.ReadTableRecords(tb, self.extract_deleted, True)))
             return self.cur_db.ReadTableRecords(tb, self.extract_deleted, True)
         except:
             exc()         
@@ -918,7 +966,7 @@ class LineParser(object):
                 return False      
             return True      
         except:
-            print 'match email', rec[key].Value
+            exc_debug('match email', rec[key].Value)
             exc()
             return False
 
