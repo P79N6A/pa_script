@@ -1,14 +1,14 @@
 #coding=utf-8
 import clr
-clr.AddReference('PA.Common')
+clr.AddReference('PNFA.Common')
 clr.AddReference('System.Xml')
-clr.AddReference('PA.InfraLib')
-clr.AddReference('PA.InfraLib.Exts')
-clr.AddReference('PA.InfraLib.Plugins')
-clr.AddReference('PA.Formats')
-clr.AddReference('PA.Formats.Exts')
-clr.AddReference('PA.Engine')
-clr.AddReference('SQLiteSpy')
+clr.AddReference('PNFA.InfraLib')
+clr.AddReference('PNFA.InfraLib.Exts')
+clr.AddReference('PNFA.InfraLib.Plugins')
+clr.AddReference('PNFA.Formats')
+clr.AddReference('PNFA.Formats.Exts')
+clr.AddReference('PNFA.Engine')
+clr.AddReference('PNFA.SQLite')
 clr.AddReference('System.Core')
 
 import re
@@ -50,8 +50,8 @@ from PA.InfraLib.Models.Calls import *
 from PA.InfraLib.Models.Apps import *
 from PA.InfraLib.Models.Locations import *
 from PA.InfraLib.Models.Contacts import *
-from PA.InfraLib.Models.Generic import *
 from PA.InfraLib.Models.Common import *
+from PA.InfraLib.Models.Generic import *
 from PA.Common.Utilities.Types import *
 from PA.Common.Utilities.Data import Endianity,EndianityReverse
 from PA.Formats.Apple import *
