@@ -23,7 +23,27 @@
         </dict>
       </array>
     </dict>
-
+	
+	<dict>
+      <key>Module</key>
+      <string>apple_ctrip</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_ctrip</string>
+          <key>RunnerType</key>
+          <integer>1</integer>
+          <key>Patterns</key>
+          <array>
+            <string>ctrip.com</string>
+          </array>
+          <key>Category</key>
+          <string>Ctrip</string>
+        </dict>
+      </array>
+    </dict>
+	
     <dict>
       <key>Module</key>
       <string>apple_copy</string>
@@ -1671,6 +1691,26 @@
           </array>
           <key>Category</key>
           <string>Applications</string>
+        </dict>
+      </array>
+    </dict>
+	
+	<dict>
+      <key>Module</key>
+      <string>android_ctrip</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_ctrip</string>
+          <key>RunnerType</key>
+          <integer>2</integer>
+          <key>Patterns</key>
+          <array>
+            <string>ctrip.android.view/databases$</string>
+          </array>
+          <key>Category</key>
+          <string>Ctrip</string>
         </dict>
       </array>
     </dict>
