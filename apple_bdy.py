@@ -211,8 +211,44 @@ class BDNetDisk(object):
             m.content = unity_c37r.c_sharp_get_string(reader, 4)
             m.is_sender = 1 if current_account == m.sender_id else 0
             m.account_id = current_account
+            m.type = model_im.MESSAGE_CONTENT_TYPE_TEXT
             self.nd.im.db_insert_table_message(m)
         self.nd.im.db_commit()
+        reader.Close()
+        cmd.CommandText = '''
+            select uk, uname, avatarurl from mbox_newfriendunreadlist
+        '''
+        reader = cmd.ExecuteReader()
+        while reader.Read():
+            f = model_im.Friend()
+            f.account_id = current_account
+            f.friend_id = unity_c37r.c_sharp_get_string(reader, 0)
+            f.photo = unity_c37r.c_sharp_get_string(reader, 2)
+            f.nickname = unity_c37r.c_sharp_get_string(reader, 1)
+            self.nd.im.db_insert_table_friend(f)
+        self.nd.im.db_commit()
+        reader.Close()
+        cmd.CommandText = '''
+            select msgid, msguk, is_receive, time, content, username from mbox_msg
+        '''
+        reader = cmd.ExecuteReader()
+        while reader.Read():
+            m = model_im.Message()
+            m.is_sender = unity_c37r.c_sharp_get_long(reader, 2)
+            m.msg_id = unity_c37r.c_sharp_get_string(reader, 0)
+            m.talker_id = unity_c37r.c_sharp_get_string(reader, 1)
+            if m.is_sender == 0:
+                m.sender_id = m.talker_id
+            else:
+                m.sender_id = current_account
+            m.account_id = current_account
+            m.content = unity_c37r.c_sharp_get_string(reader, 4)
+            m.send_time = unity_c37r.c_sharp_try_get_time(reader, 3)
+            m.talker_name = unity_c37r.c_sharp_get_string(reader, 5)
+            m.type = model_im.MESSAGE_CONTENT_TYPE_TEXT
+            self.nd.im.db_insert_table_message(m)
+        self.nd.im.db_commit()
+        reader.Close()
 
 def parse_bdy(node, extract_source, extract_deleted):
     try:

@@ -245,6 +245,7 @@ class NDModel(object):
     def __init__(self, cache_db):
         self.conn = None
         self.cmd = None
+        self.cache_db = cache_db
         if not os.path.exists(cache_db):
             return
         if not os.path.exists(cache_db + ".IM"):
@@ -364,6 +365,7 @@ class NDModel(object):
     
     def generate_models(self):
         models = []
+        models.extend(model_im.GenerateModel(self.cache_db + '.IM').get_models())
         models.extend(self.__generate_file_basic_model())
         models.extend(self.__generate_file_share_model())
         models.extend(self.__generate_file_transfer_model())
