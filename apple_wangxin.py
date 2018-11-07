@@ -254,7 +254,7 @@ class WangxinParser():
                     message.source = self.dbNode.AbsolutePath
                     message.msg_id = str(uuid.uuid1()).replace('-', '')
                     message.account_id = self.user
-                    message.sender_id = sender_id if sender_id != self.user else receive_id
+                    message.sender_id = sender_id
                     message.talker_id = message.sender_id
                     friend = self.friends.get(message.sender_id, None)
                     if friend is not None:
