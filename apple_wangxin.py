@@ -95,6 +95,7 @@ class WangxinParser():
                         account.username = UnicodeEncoding.UTF8.GetString(rec['ZNAME'].Value) if not IsDBNull(rec['ZNAME'].Value) else None
                         if account.username is None:
                             account.username = account.nickname
+                        self.username = account.username
                         account.photo = rec['ZAVATAR'].Value
                         if rec['ZGENDER'].Value == '男':
                             account.gender = model_im.GENDER_MALE 
@@ -254,11 +255,11 @@ class WangxinParser():
                     message.source = self.dbNode.AbsolutePath
                     message.msg_id = str(uuid.uuid1()).replace('-', '')
                     message.account_id = self.user
+                    message.talker_id = id
                     message.sender_id = sender_id
-                    message.talker_id = message.sender_id
-                    friend = self.friends.get(message.sender_id, None)
+                    friend = self.friends.get(id, None)
                     if friend is not None:
-                        message.sender_name = friend.nickname
+                        message.sender_name = self.username if sender_id == self.user else friend.nickname
                         message.talker_name = friend.nickname
                         if friend.type == model_im.FRIEND_TYPE_FRIEND:
                             message.talker_type = model_im.CHAT_TYPE_FRIEND
