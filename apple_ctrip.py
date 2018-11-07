@@ -266,7 +266,7 @@ class Ctrip(object):
                                         if "url" in chat_content:
                                             messages.media_path = chat_content["url"]
                                     except Exception as e:
-                                        print(e)
+                                        messages.content = rec["msgBody"].Value
 
                                 elif rec["msgType"].Value == 2:
                                     messages.type = MESSAGE_CONTENT_TYPE_LINK
@@ -277,7 +277,7 @@ class Ctrip(object):
                                         if "url" in chat_content:
                                             messages.media_path = chat_content["url"]
                                     except Exception as e:
-                                        print(e)
+                                        messages.content = rec["msgBody"].Value
 
                                 elif rec["msgType"].Value == 4:
                                     messages.type = MESSAGE_CONTENT_TYPE_VOICE
@@ -288,7 +288,7 @@ class Ctrip(object):
                                         if "audio" in chat_content and "url" in chat_content["audio"]:
                                             messages.media_path = chat_content["audio"]["url"]
                                     except Exception as e:
-                                        print(e)
+                                        messages.content = rec["msgBody"].Value
 
                                 elif rec["msgType"].Value == 6:
                                     messages.type = MESSAGE_CONTENT_TYPE_LOCATION
@@ -306,7 +306,7 @@ class Ctrip(object):
                                         self.ctrip.db_insert_table_location(chat_location)
                                         messages.extra_id = chat_location.location_id
                                     except Exception as e:
-                                        print(e)
+                                        messages.content = rec["msgBody"].Value
 
                                 elif rec["msgType"].Value == 7:
                                     try:
@@ -321,12 +321,17 @@ class Ctrip(object):
                                             if "title" in chat_content:
                                                 messages.content = chat_content["title"]
                                     except Exception as e:
-                                        print(e)
+                                        messages.content = rec["msgBody"].Value
+                                        
                             if "isRead" in rec and (not rec["isRead"].IsDBNull):
                                 if rec["isRead"].Value == 1:
                                     messages.status = MESSAGE_STATUS_READ
                                 else:
                                     messages.status = MESSAGE_STATUS_UNREAD
+                            
+                            if "timestamp" in rec and (not rec["timestamp"].IsDBNull):
+                                messages.send_time = convert_to_unixtime(rec["timestamp"].Value)
+
                             if messages.account_id and messages.sender_id:
                                 self.ctrip.db_insert_table_message(messages)
                         except Exception as e:
