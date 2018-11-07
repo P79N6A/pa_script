@@ -237,6 +237,7 @@
           <key>Patterns</key>
           <array>
             <string>com.skype.skype</string>
+            <string>com.skype.SkypeForiPad</string>
           </array>
           <key>Category</key>
           <string>Skype</string>
