@@ -188,12 +188,12 @@ class YiXinParser():
                     message.account_id = self.user
                     message.is_sender = model_im.MESSAGE_TYPE_SEND if rec['msg_from_id'].Value == message.account_id else model_im.MESSAGE_TYPE_RECEIVE
                     message.talker_id = rec['id'].Value if message.is_sender else rec['msg_from_id'].Value
-                    message.send_id = rec['msg_from_id'].Value if message.is_sender == model_im.MESSAGE_TYPE_SEND else rec['id'].Value
+                    message.sender_id = rec['msg_from_id'].Value
                     type = rec['msg_content_type'].Value
                     message.type = self.get_message_type(type)
                     message.send_time = rec['msg_time'].Value
                     message.content = rec['msg_body'].Value
-                    contact_type = rec['msg_type']
+                    contact_type = rec['msg_type'].Value
                     if contact_type == 1:
                         message.talker_type = model_im.CHAT_TYPE_FRIEND
                     if contact_type == 2:
@@ -202,7 +202,7 @@ class YiXinParser():
                         message.talker_type = model_im.CHAT_TYPE_OFFICIAL
                     message.media_path = self.parse_message_content(message.content, message.type)
                     if message.type == model_im.MESSAGE_CONTENT_TYPE_LOCATION:
-                        message.location = self.get_location(message.source, message.content, message.send_time, message.deleted, message.repeated)
+                        message.extra_id = self.get_location(message.source, message.content, message.send_time, message.deleted, message.repeated)
                     self.im.db_insert_table_message(message)
         self.im.db_commit()
 

@@ -169,6 +169,12 @@ class Generate(object):
                                 application.Permissions.Add(per.strip().replace(",","").replace('\"',""))
                             except Exception as e:
                                 pass
+            if row[6]:
+                application.PurchaseDate.Value = TimeStamp.FromUnixTime(row[6], False)
+            if row[7]:
+                application.DeletedDate.Value = TimeStamp.FromUnixTime(row[7], False)
+            if row[8]:
+                application.Description.Value = row[8]
             if row[10]:
                 application.SourceFile.Value = row[10]
             if row[11]:

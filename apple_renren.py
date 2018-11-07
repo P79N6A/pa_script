@@ -294,7 +294,7 @@ class RenRenParser():
                     if contact.get('type', 0) == CONTACT_TYPE_GROUP:
                         message.talker_type = model_im.CHAT_TYPE_GROUP
                     message.talker_name = rec['fname'].Value
-                    message.sender_id = message.talker_id
+                    message.sender_id = rec['from_user_id'].Value
                     message.sender_name = message.talker_name
                     message.type = self.parse_message_type(rec['class_type'].Value, rec['child_node_string'].Value)
                     message.content = rec['summary'].Value

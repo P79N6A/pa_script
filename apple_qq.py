@@ -13,7 +13,6 @@ try:
     clr.AddReference('model_im')
     clr.AddReference('bcp_im')
     clr.AddReference('QQFriendNickName')
-    clr.AddReference('bcp_im')
 except:
     pass
 del clr
@@ -36,34 +35,49 @@ import uuid
 import hashlib
 import bcp_im
 def SafeGetString(reader,i):
-    if not reader.IsDBNull(i):
-        return reader.GetString(i)
-    else:
+    try:
+        if not reader.IsDBNull(i):
+            return reader.GetString(i)
+        else:
+            return ""
+    except:
         return ""
 
 def SafeGetInt64(reader,i):
-    if not reader.IsDBNull(i):
-        return reader.GetInt64(i)
-    else:
+    try:
+        if not reader.IsDBNull(i):
+            return reader.GetInt64(i)
+        else:
+            return 0
+    except:
         return 0
 def SafeGetDouble(reader,i):
-    if not reader.IsDBNull(i):
-        return reader.GetDouble(i)
-    else:
-        return 0
+    try:
+        if not reader.IsDBNull(i):
+            return reader.GetDouble(i)
+        else:
+            return 0.0
+    except:
+        return 0.0
 
 def SafeGetBlob(reader,i):
-    if not reader.IsDBNull(i):
-        obj = reader.GetValue(i)
-        return obj #byte[]
-    else:
+    try:
+        if not reader.IsDBNull(i):
+            obj = reader.GetValue(i)
+            return obj #byte[]
+        else:
+            return None
+    except:
         return None
 
 def SafeGetValue(reader,i):
-    if not reader.IsDBNull(i):
-        obj = reader.GetValue(i)
-        return obj 
-    else:
+    try:
+        if not reader.IsDBNull(i):
+            obj = reader.GetValue(i)
+            return obj 
+        else:
+            return None
+    except:
         return None
 class QQParser(object):
     def __init__(self, app_root_dir, extract_deleted, extract_source):
@@ -539,9 +553,9 @@ class QQParser(object):
                 try:
                     if canceller.IsCancellationRequested:
                         return
-                    uin = SafeGetString(reader,0)
+                    uin = str(SafeGetInt64(reader,0))
                     sendtime = int(SafeGetDouble(reader,1))
-                    msgtype =SafeGetInt64(reader2)
+                    msgtype =SafeGetInt64(reader,2)
                     bread = SafeGetInt64(reader,3)
                     content =SafeGetString(reader,4)
                     msgid = str( SafeGetInt64(reader,5))	

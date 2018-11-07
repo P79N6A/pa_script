@@ -9,10 +9,11 @@ import logging
 import re
 import math
 from PA.InfraLib.Utils import *
+from PA_runtime import *
 import sys
 reload(sys)
 import os
-
+import traceback
 sys.setdefaultencoding("utf8")
 
 #
@@ -64,7 +65,7 @@ def c_sharp_try_get_time(reader, idx):
     if reader.IsDBNull(idx):
         return 0
     try:
-        return reader.GetDouble(idx)
+        return int(reader.GetDouble(idx))
     except:
         pass
     try:
@@ -181,7 +182,7 @@ def get_btree_node_str(b, k, d = ""):
 def get_c_sharp_ts(ts):
     try:
         ts = TimeStamp.FromUnixTime(ts, False)
-        if not ts.IsValidFromSmartphone():
+        if not ts.IsValidForSmartphone():
             ts = None
         return ts
     except:
@@ -315,9 +316,10 @@ def create_connection_tentatively(db_node, read_only = True):
         conn.Open()
         return conn
     except:
+        traceback.print_exc()
         data = db_node.Data
         sz = db_node.Size
-        cache = ds.OpenCache('C37R')
+        cache = ds.OpenCachePath('C37R')
         if not os.path.exists(cache):
             os.mkdir(cache)
         cache_db = cache + '/' + md5(db_node.PathWithMountPoint)
@@ -336,3 +338,13 @@ WA_FILE_IMAGE = 2
 WA_FILE_AUDIO = 3
 WA_FILE_VIDEO = 4
 WA_FILE_OTHER = 99
+
+#
+# 产生用户类型
+#
+def create_user_intro(uid, name, photo):
+    usr = Common.UserIntro()
+    usr.ID.Value = uid
+    usr.Name.Value = name
+    usr.Photo.Value = get_c_sharp_uri(photo)
+    return usr

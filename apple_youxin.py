@@ -148,7 +148,7 @@ class YouXinParser():
                 friend.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
                 friend.source = dbPath.AbsolutePath
                 friend.account_id = self.user
-                friend.friend_id = rec['[uid]'].Value
+                friend.friend_id = str(rec['[uid]'].Value)
                 friend.type = model_im.FRIEND_TYPE_FRIEND
                 friend.nickname = rec['[name]'].Value
                 friend.photo = rec['[small_head_image_url]'].Value
@@ -217,7 +217,7 @@ class YouXinParser():
                     message.talker_name = contact.nickname
                     message.talker_type = model_im.CHAT_TYPE_FRIEND
                     message.is_sender = model_im.MESSAGE_TYPE_SEND if rec['[msgtype]'].Value else model_im.MESSAGE_TYPE_RECEIVE
-                    message.sender_id = contact_id
+                    message.sender_id = self.user if message.is_sender == model_im.MESSAGE_TYPE_SEND else contact_id
                     message.sender_name = contact.nickname
                     message.type = self.parse_message_type(rec['[msgcontype]'].Value)
                     message.content = self.decode_url_message(rec['[msgcontent]'].Value)
@@ -251,7 +251,7 @@ class YouXinParser():
                     message.talker_name = contact.nickname
                     message.talker_type = model_im.CHAT_TYPE_FRIEND
                     message.is_sender = model_im.MESSAGE_TYPE_SEND if rec['[calltype]'].Value == 0 else model_im.MESSAGE_TYPE_RECEIVE
-                    message.sender_id = contact_id
+                    message.sender_id = self.user if message.is_sender == model_im.MESSAGE_TYPE_SEND else contact_id
                     message.sender_name = contact.nickname
                     message.type = model_im.MESSAGE_CONTENT_TYPE_VOIP
                     if IsDBNull(rec['[telephone]'].Value):

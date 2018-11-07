@@ -148,6 +148,8 @@ class KeyChainParser():
 
                             if key_0 == 'cert' or key_0 == 'certificates':
                                 cert = Generic.KeychainProfile.Certificate()
+                                cert.Deleted = DeletedState.Intact
+                                cert.SourceFile.Value = self.root.AbsolutePath
                                 cert.KeychainID.Value = extra_id
                                 if key_0 == 'cert':
                                     cert.UUID.Value = self._get_map_value(map_1, 'UUID', 'str')
@@ -174,6 +176,8 @@ class KeyChainParser():
                                 self.models.append(cert)
                             elif key_0 == 'genp' or key_0 == 'GenericPassword':
                                 genp = Generic.KeychainProfile.GenericPassword()
+                                genp.Deleted = DeletedState.Intact
+                                genp.SourceFile.Value = self.root.AbsolutePath
                                 genp.KeychainID.Value = extra_id
                                 if key_0 == 'genp':
                                     genp.UUID.Value = self._get_map_value(map_1, 'UUID', 'str')
@@ -198,6 +202,8 @@ class KeyChainParser():
                                 self.models.append(genp)
                             elif key_0 == 'inet' or key_0 == 'InternetPassword':
                                 inet = Generic.KeychainProfile.InternetPassword()
+                                inet.Deleted = DeletedState.Intact
+                                inet.SourceFile = self.root.AbsolutePath
                                 inet.KeychainID.Value = extra_id
                                 if key_0 == 'inet':
                                     inet.UUID.Value = self._get_map_value(map_1, 'UUID', 'str')
@@ -225,6 +231,8 @@ class KeyChainParser():
                             elif key_0 == 'keys' or key_0 == 'Keys':
                                 keys = Generic.KeychainProfile.Key()
                                 keys.KeychainID.Value = extra_id
+                                keys.Deleted = DeletedState.Intact
+                                keys.SourceFile = self.root.AbsolutePath
                                 if key_0 == 'keys':
                                     keys.UUID.Value = self._get_map_value(map_1, 'UUID', 'str')
                                     keys.AccessGroup.Value = self._get_map_value(map_1, 'agrp', 'str')
@@ -258,6 +266,8 @@ class KeyChainParser():
                                 self.models.append(keys)
                             elif key_0 == 'idnt':
                                 idnt = Generic.KeychainProfile.Identity()
+                                idnt.Deleted = DeletedState.Intact
+                                idnt.SourceFile.Value = self.root.AbsolutePath
                                 idnt.KeychainID.Value = extra_id
                                 idnt.UUID.Value = self._get_map_value(map_1, 'UUID', 'str')
                                 idnt.AccessGroup.Value = self._get_map_value(map_1, 'agrp', 'str')
