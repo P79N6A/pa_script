@@ -199,7 +199,6 @@ class LineParser(object):
                                           DEL_FRIEND_PK_CHATROOM_MID,
                                           MEMBER_PK_CHATROOM_PKS, 
                                           CHATROOM_PK_MID)
-
                 # self.parse_FeedLike('', '')
                 # self.parse_FeedComment('', '')
                 # self.parse_Location('', '')
@@ -920,11 +919,6 @@ class LineParser(object):
         :type plist_node: node
         :type keys: tuple(*str)
         :rtype: tuple(*str)
-
-        dir(bp) 
-        ['ContainsKey', 'Equals', 'GetHashCode', 'GetKeySource', 'GetType', 'Item', 'Keys', 'MemberwiseClone', 
-        'Populate', 'PrettyPrint', 'ReadMultiValue', 'ReadValue', 'ReferenceEquals', 'Source', 'ToString', 'Value', 
-        '__class__', '__delattr__', '__doc__', '__format__', '__getattribute__', '__getitem__', '__hash__', '__init__', '__new__', '__reduce__', '__reduce_ex__', '__repr__', '__setattr__', '__sizeof__', '__str__', '__subclasshook__']
         '''
         res = {}
         bp = BPReader(plist_node.Data).top    
