@@ -67,16 +67,20 @@ class RenRenParser():
             self.im.db_create(self.cache_db)
             user_list = self.get_user_list()
             for user in user_list:
-                self.contacts = {}
+                self.friends = {}
+                self.chatrooms = {}
+                self.chatroom_members = {}
                 self.user = user
                 self.parse_user()
                 self.user = None
-                self.contacts = None
+                self.friends = None
+                self.chatrooms = None
+                self.chatroom_members = None
             self.im.db_insert_table_version(model_im.VERSION_KEY_DB, model_im.VERSION_VALUE_DB)
             self.im.db_insert_table_version(model_im.VERSION_KEY_APP, VERSION_APP_VALUE)
             self.im.db_commit()
             self.im.db_close()
-        models  = self.get_models_from_cache_db()
+        models = self.get_models_from_cache_db()
         return models
 
     def get_models_from_cache_db(self):
@@ -135,27 +139,16 @@ class RenRenParser():
             for rec in subDb.ReadTableRecords(ts, self.extract_deleted):
                 if canceller.IsCancellationRequested:
                     return
-                contact = {'deleted' : rec.Deleted, 'repeated' : 0}
-                contactid = str(rec['account_i_d'].Value)
-                if contactid in self.contacts:
-                    if rec.Deleted != DeletedState.Intact:
-                        self.contacts[contactid] = contact
-                    else:
-                        contact['repeated'] = 1
-                else:
-                    self.contacts[contactid] = contact
-
-                self.contacts[contactid]['type'] = CONTACT_TYPE_FRIEND
 
                 friend = model_im.Friend()
                 friend.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
-                friend.repeated = contact.get('repeated', 0)
                 friend.source = subDbPath.AbsolutePath
                 friend.account_id = self.user
-                friend.friend_id = contactid
+                friend.friend_id = str(rec['account_i_d'].Value)
                 friend.nickname = rec['account_name'].Value
                 friend.photo = rec['account_head_u_r_l'].Value
-                friend.type = model_im.FRIEND_TYPE_FOLLOW
+                friend.type = model_im.FRIEND_TYPE_SUBSCRIBE
+                self.friends[friend.friend_id] = friend
                 self.im.db_insert_table_friend(friend)
                 
         infoDbPath = self.root.GetByPath('/Documents/DB/' + self.user + '/info.sqlite')
@@ -169,28 +162,19 @@ class RenRenParser():
             for rec in infoDb.ReadTableRecords(ts_1, self.extract_deleted):
                 if canceller.IsCancellationRequested:
                     return
-                contact = {'deleted' : rec.Deleted, 'repeated' : 0}
-                contactid = str(rec['room_id'].Value)
-                if contactid in self.contacts:
-                    continue
-                else:
-                    self.contacts[contactid] = contact
-
-                self.contacts[contactid]['type'] = CONTACT_TYPE_GROUP
-
                 chatroom = model_im.Chatroom()
                 chatroom.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
-                chatroom.repeated = contact.get('repeated', 0)
                 chatroom.source = infoDbPath.AbsolutePath
                 chatroom.account_id = self.user
-                chatroom.chatroom_id = contactid
+                chatroom.chatroom_id = str(rec['room_id'].Value)
                 chatroom.name = rec['room_name'].Value
                 chatroom.photo = rec['head_url'].Value
                 if IsDBNull(chatroom.photo):
                     chatroom.photo = None
+                self.chatrooms[chatroom.chatroom_id] = chatroom
                 self.im.db_insert_table_chatroom(chatroom)
                     
-                chatroom_members = {}
+                chatroom_members = []
                 if 'r_s_chat_member_persistence_object' in infoDb.Tables:
                     ts_2 = SQLiteParser.TableSignature('r_s_chat_member_persistence_object')
                     SQLiteParser.Tools.AddSignatureToTable(ts_2, "user_id", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
@@ -201,23 +185,17 @@ class RenRenParser():
                         if room_id != chatroom.chatroom_id:
                             continue
 
-                        member = {'deleted' : rec.Deleted, 'repeated' : 0}
-                        member_id = rec['user_id'].Value
-                        if member_id in chatroom_members:
-                            continue
-                        else:
-                            chatroom_members[member_id] = member
-
                         chatroom_member = model_im.ChatroomMember()
                         chatroom_member.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
-                        chatroom.repeated = member.get('repeated', 0)
                         chatroom_member.source = infoDbPath.AbsolutePath
                         chatroom_member.account_id = self.user
                         chatroom_member.chatroom_id = room_id
-                        chatroom_member.member_id = member_id
+                        chatroom_member.member_id = rec['user_id'].Value
                         chatroom_member.display_name = rec['name'].Value
                         chatroom_member.photo = rec['head_url'].Value
+                        chatroom_members.append(chatroom_member)
                         self.im.db_insert_table_chatroom_member(chatroom_member)
+                self.chatroom_members[chatroom.chatroom_id] = chatroom_members
 
             chatDbPath = self.root.GetByPath('/Documents/DB/' + self.user + '/chat.sqlite')
             chatDb = SQLiteParser.Database.FromNode(chatDbPath)
@@ -230,22 +208,13 @@ class RenRenParser():
                 for rec in chatDb.ReadTableRecords(ts_1, self.extract_deleted):
                     if canceller.IsCancellationRequested:
                         return
-                    contact = {'deleted' : rec.Deleted, 'repeated' : 0}
-                    contactid = str(rec['target_user_id'].Value)
-                    if contactid in self.contacts:
-                        continue
-                    else:
-                        self.contacts[contactid] = contact
-
-                    self.contacts[contactid]['type'] = CONTACT_TYPE_FRIEND
 
                     friend = model_im.Friend()
                     friend.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
-                    friend.repeated = contact.get('repeated', 0)
                     friend.source = chatDbPath.AbsolutePath
                     friend.type = model_im.FRIEND_TYPE_FRIEND
                     friend.account_id = self.user
-                    friend.friend_id = contactid
+                    friend.friend_id = str(rec['target_user_id'].Value)
                     friend.nickname = rec['target_user_name'].Value
 
                     if 'r_n_chat_target_info' in infoDb.Tables:
@@ -258,7 +227,9 @@ class RenRenParser():
                             friend.photo = rec['target_head_url'].Value
                             if IsDBNull(friend.photo):
                                 friend.photo = None
-                            self.im.db_insert_table_friend(friend)
+                    if friend.friend_id not in self.friends.keys() and friend.friend_id not in self.chatrooms.keys():
+                        self.friends[friend.friend_id] = friend
+                    self.im.db_insert_table_friend(friend)
         self.im.db_commit()
 
     def get_chats(self):
@@ -270,40 +241,71 @@ class RenRenParser():
         if db is None:
             return
 
-        if 'r_s_chat_message_persistence_object' in db.Tables:
-            for contactid in self.contacts.keys():
+        for id in self.friends.keys():
+            if 'r_s_chat_message_persistence_object' in db.Tables:
                 ts = SQLiteParser.TableSignature('r_s_chat_message_persistence_object')
                 SQLiteParser.Tools.AddSignatureToTable(ts, "msg_key", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
                 for rec in db.ReadTableRecords(ts, self.extract_deleted):
                     if canceller.IsCancellationRequested:
                         return
-                    if contactid != str(rec['from_user_id'].Value):
-                        if contactid != str(rec['to_user_id'].Value):
+                    if id != str(rec['from_user_id'].Value):
+                        if id != str(rec['to_user_id'].Value):
                             continue
                     
-                    contact = self.contacts.get(contactid)
+                    friend = self.friends.get(id)
 
                     message = model_im.Message()
                     message.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
                     message.source = dbPath.AbsolutePath
                     message.account_id = self.user
                     message.is_sender = model_im.MESSAGE_TYPE_SEND if rec['from_user_id'].Value == self.user else model_im.MESSAGE_TYPE_RECEIVE
-                    message.talker_id = contactid
-                    if contact.get('type', 0) == CONTACT_TYPE_FRIEND:
+                    message.talker_id = id
+                    if friend.type == model_im.FRIEND_TYPE_FRIEND:
                         message.talker_type = model_im.CHAT_TYPE_FRIEND
-                    if contact.get('type', 0) == CONTACT_TYPE_GROUP:
-                        message.talker_type = model_im.CHAT_TYPE_GROUP
-                    message.talker_name = rec['fname'].Value
+                    if friend.type == model_im.FRIEND_TYPE_SUBSCRIBE:
+                        message.talker_type = model_im.CHAT_TYPE_OFFICIAL
+                    message.talker_name = friend.nickname
                     message.sender_id = rec['from_user_id'].Value
-                    message.sender_name = message.talker_name
+                    message.sender_name = rec['fname'].Value
                     message.type = self.parse_message_type(rec['class_type'].Value, rec['child_node_string'].Value)
                     message.content = rec['summary'].Value
                     message.send_time = rec['time_stamp'].Value
-                    message.media_path = self.get_media_path(contactid, message.is_sender, rec['child_node_string'].Value, rec['elements'].Value, 
+                    message.media_path = self.get_media_path(id, message.is_sender, rec['child_node_string'].Value, rec['elements'].Value, 
                                                              message.type, message.send_time, message.deleted, message.repeated)
                     message.msg_id = str(uuid.uuid1()).replace('-', '')
                     self.im.db_insert_table_message(message)
-            self.im.db_commit()
+
+        for id in self.chatrooms.keys():
+            if 'r_s_chat_message_persistence_object' in db.Tables:
+                ts = SQLiteParser.TableSignature('r_s_chat_message_persistence_object')
+                SQLiteParser.Tools.AddSignatureToTable(ts, "msg_key", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
+                for rec in db.ReadTableRecords(ts, self.extract_deleted):
+                    if canceller.IsCancellationRequested:
+                        return
+                    if id != str(rec['from_user_id'].Value):
+                        if id != str(rec['to_user_id'].Value):
+                            continue
+                    
+                    chatroom = self.chatrooms.get(id)
+
+                    message = model_im.Message()
+                    message.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
+                    message.source = dbPath.AbsolutePath
+                    message.account_id = self.user
+                    message.is_sender = model_im.MESSAGE_TYPE_SEND if rec['from_user_id'].Value == self.user else model_im.MESSAGE_TYPE_RECEIVE
+                    message.talker_id = id
+                    message.talker_type = model_im.CHAT_TYPE_GROUP
+                    message.talker_name = chatroom.name
+                    message.sender_id = rec['from_user_id'].Value
+                    message.sender_name = rec['fname'].Value
+                    message.type = self.parse_message_type(rec['class_type'].Value, rec['child_node_string'].Value)
+                    message.content = rec['summary'].Value
+                    message.send_time = rec['time_stamp'].Value
+                    message.media_path = self.get_media_path(id, message.is_sender, rec['child_node_string'].Value, rec['elements'].Value, 
+                                                             message.type, message.send_time, message.deleted, message.repeated)
+                    message.msg_id = str(uuid.uuid1()).replace('-', '')
+                    self.im.db_insert_table_message(message)
+        self.im.db_commit()
 
     def get_media_path(self, contactid, is_sender, xml_string, media_content, type, time, deleted, repeated):
             media_path = ''

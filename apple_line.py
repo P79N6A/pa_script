@@ -1,4 +1,4 @@
-# coding=utf-8
+﻿# coding=utf-8
 import traceback
 import hashlib
 import re
@@ -13,6 +13,7 @@ try:
 except:
     pass
 del clr
+
 import model_im
 import bcp_im
 
@@ -33,10 +34,12 @@ def print_run_time(func):
     ''' decorator ''' 
     def wrapper(*args, **kw):  
         local_time = time.time()  
-        msg = 'Current Function [{}] run time is {:.2} s'.format(func.__name__ , time.time() - local_time)  
+        res = func(*args, **kw) 
         if DEBUG:
+            msg = 'Current Function <{}> run time is {:.2} s'.format(func.__name__ , time.time() - local_time)  
             TraceService.Trace(TraceLevel.Warning, "{}".format(msg))
-        return func(*args, **kw) 
+        if res:
+            return res
     return wrapper
 
 def exc(e=''):
@@ -80,7 +83,7 @@ class LineParser(object):
 
             group.com.linecorp.line
                 Library\Preferences\group.com.linecorp.line.plist
-                Library\\Application Support\\PrivateStore\\P_u423af962f145 6db6cba8465cf82bb91b\\Messages\\Line.sqlite    
+                Library\\Application Support\\PrivateStore\\P_u423af962f1456db6cba8465cf82bb91b\\Messages\\Line.sqlite    
         '''
         # exc_debug('node.AbsolutePath:', node.AbsolutePath)
         self.root = node
@@ -103,6 +106,7 @@ class LineParser(object):
         hash_str = hashlib.md5(self.root.AbsolutePath).hexdigest()
         self.cache_db = self.cachepath + '\\line_{}.db'.format(hash_str)
 
+        self.friend_list = {} # friend_pk: Friend()
 
     def parse(self):
         ''' account
@@ -140,7 +144,7 @@ class LineParser(object):
     def parse_main(self):
         ''' 
             # self.CHAT_DICT              = {}   # table ZCHAT, keys: 'ZTYPE', 'ZMID', 'chat_name'
-            # self.CHAT_PK_FRIEND_PK      = {}   # chat pk: friend pk            Z_1MEMBERS
+            # self.CHAT_PK_FRIEND_PKS      = {}   # chat pk: friend pk            Z_1MEMBERS
             # self.CHAT_PK_CHATROOM_MID   = {}   # chat pk: chatroom_mid
             # self.CHATROOM_MID_NAME      = {}   # 群 ZID: ZNAME
             # self.CHATROOM_PK_MID        = {}   # 群 pk: ZID
@@ -151,25 +155,21 @@ class LineParser(object):
             # self.FRIEND_PK_MID_MAP      = {}   # friend pk: mid        
 
             chatroom.max_member_count       CHATROOM_MEMBER_COUNT
-
-            CHAT_DICT.chat_name             CHATROOM_MID_NAME[caht.zmid] or CHAT_PK_FRIEND_PK[chat_pk]
-
+            CHAT_DICT.chat_name             CHATROOM_MID_NAME[caht.zmid] or CHAT_PK_FRIEND_PKS[chat_pk]
             chatroommember.chatroom_id      CHAT_PK_CHATROOM_MID[
                                                     CHATROOM_PK_MID[ 
                                                         MEMBER_PK_CHATROOM_PKS[friend_pk] 
                                                     ]
                                             ]
-
             friend.telephone    FRIEND_MID_TEL
-
             message.sender_id   FRIEND_PK_MID_MAP
             message.sender_name FRIEND_PK_NAME_MAP
             message.talker_type self._convert_chat_type(CHAT_DICT.get(rec['ZCHAT'].Value, {}).get('ZTYPE', None))             
-            message.talker_name FRIEND_PK_NAME_MAP, CHAT_PK_FRIEND_PK
+            message.talker_name FRIEND_PK_NAME_MAP, CHAT_PK_FRIEND_PKS
 
-            TODO 关联 已退出群 与 群成员关系:
-                1. ZMESSAGE => friend.pk: chat.pk
-                2. ZUSER, ZCHAT => friend.mid: chatroom.mid         # CHAT_PK_CHATROOM_MID
+            关联 已退出群 与 群成员关系:
+                1. ZMESSAGE     => friend.pk: chat.pk        # CHAT_PK_FRIEND_PKS
+                2. ZUSER, ZCHAT => friend.mid: chatroom.mid  # CHAT_PK_CHATROOM_MID
             需要: FRIEND_MID_PK_MAP
         '''
         account_list = self.parse_Account(self.user_plist_node, self.group_plist_node)
@@ -182,24 +182,23 @@ class LineParser(object):
             if self._read_db(self.group_db_root, account_file_name+'/Messages/Line.sqlite'):
                 
                 CHATROOM_MEMBER_COUNT, MEMBER_PK_CHATROOM_PKS = self.preparse_group_member('Z_4MEMBERS')   # 群 mid: member_count
-                FRIEND_MID_TEL                                = self.preparse_friend_tel('ZCONTACT')       # friend ZMID: telphone
-                CHAT_PK_FRIEND_PK                             = self.preparse_chat_friend_pk('Z_1MEMBERS') # chat pk: friend pk
+                FRIEND_MID_TEL     = self.preparse_friend_tel('ZCONTACT')       # friend ZMID: telphone
+                CHAT_PK_FRIEND_PKS = self.preparse_chat_friend_pk('Z_1MEMBERS') # chat pk: friend pk
 
+                FRIEND_PK_NAME_MAP, FRIEND_PK_MID_MAP = self.parse_Friend('ZUSER', FRIEND_MID_TEL)
                 CHATROOM_MID_NAME, CHATROOM_PK_MID  = self.parse_Chatroom('ZGROUP', CHATROOM_MEMBER_COUNT)
-
                 CHAT_DICT, CHATROOM_MID_NAME, CHAT_PK_CHATROOM_MID = self.preparse_ZCHAT('ZCHAT', 
                                                                                          CHATROOM_MID_NAME, 
-                                                                                         CHAT_PK_FRIEND_PK)
-
-                FRIEND_PK_NAME_MAP, FRIEND_PK_MID_MAP = self.parse_Friend_ChatroomMember('ZUSER', FRIEND_MID_TEL, 
-                                                                                                  MEMBER_PK_CHATROOM_PKS, 
-                                                                                                  CHAT_PK_CHATROOM_MID, 
-                                                                                                  CHATROOM_PK_MID)
-                self.parse_Message('ZMESSAGE', FRIEND_PK_MID_MAP, 
-                                               FRIEND_PK_NAME_MAP, 
-                                               CHAT_DICT, 
-                                               CHAT_PK_FRIEND_PK)
-
+                                                                                         FRIEND_PK_NAME_MAP,
+                                                                                         CHAT_PK_FRIEND_PKS)
+                DEL_FRIEND_PK_CHATROOM_MID = self.parse_Message('ZMESSAGE', FRIEND_PK_MID_MAP, 
+                                                                            FRIEND_PK_NAME_MAP, 
+                                                                            CHAT_DICT, 
+                                                                            CHAT_PK_FRIEND_PKS)
+                self.parse_ChatroomMember(self.friend_list, 
+                                          DEL_FRIEND_PK_CHATROOM_MID,
+                                          MEMBER_PK_CHATROOM_PKS, 
+                                          CHATROOM_PK_MID)
                 # self.parse_FeedLike('', '')
                 # self.parse_FeedComment('', '')
                 # self.parse_Location('', '')
@@ -296,8 +295,6 @@ class LineParser(object):
         
     def preparse_friend_tel(self, table_name):
         ''' /Messages/Line.sqlite  ZCONTACT 
-
-
                         
             RecNo	FieldName	SQLType	
             1	Z_PK	            INTEGER
@@ -343,7 +340,7 @@ class LineParser(object):
             1	Z_1CHATS	    INTEGER
             2	Z_12MEMBERS	    INTEGER
         '''
-        CHAT_PK_FRIEND_PK = {}
+        CHAT_PK_FRIEND_PKS = {}
         for rec in self._read_table(table_name):
             if canceller.IsCancellationRequested:
                 return
@@ -352,11 +349,14 @@ class LineParser(object):
             chat_pk    = rec['Z_1CHATS'].Value
             friend_pk  = rec['Z_12MEMBERS'].Value
             # 按理说 如果是好友聊天, 一个 chat PK 对应 一个user Pk
-            if not CHAT_PK_FRIEND_PK.has_key(chat_pk):
-                CHAT_PK_FRIEND_PK[chat_pk] = friend_pk
-        return CHAT_PK_FRIEND_PK
+            if CHAT_PK_FRIEND_PKS.has_key(chat_pk):
+                if friend_pk not in CHAT_PK_FRIEND_PKS[chat_pk]:
+                    CHAT_PK_FRIEND_PKS[chat_pk].append(friend_pk)
+            else:
+                CHAT_PK_FRIEND_PKS[chat_pk] = [friend_pk]
+        return CHAT_PK_FRIEND_PKS
         
-    def preparse_ZCHAT(self, table_name, CHATROOM_MID_NAME, CHAT_PK_FRIEND_PK):
+    def preparse_ZCHAT(self, table_name, CHATROOM_MID_NAME, CHAT_PK_FRIEND_PKS, FRIEND_PK_NAME_MAP):
         ''' parse table ZCHAT index chat list 
         
             return  self.CHAT_DICT {chat_pk: {'ZTYPE': type, 'ZMID': id}, ...}
@@ -412,13 +412,15 @@ class LineParser(object):
                     chatroom.name        = chat_name
                     chatroom.source      = self.cur_db_source
                     chatroom.deleted     = 1
+
                     try:
                         self.im.db_insert_table_chatroom(chatroom)
                     except:
                         exc()
                 chat_name = CHATROOM_MID_NAME.get(chat_zmid, '已退出该群')
             elif chat_type == 0: # 好友
-                chat_name = CHAT_PK_FRIEND_PK.get(chat_pk, None)
+                friend_pk = CHAT_PK_FRIEND_PKS.get(chat_pk, [None])[0]
+                chat_name = FRIEND_PK_NAME_MAP.get(friend_pk, None)
             CHAT_DICT[chat_pk] = {
                 'ZTYPE'    : chat_type,
                 'ZMID'     : chat_zmid, # 会话对象 MID
@@ -506,10 +508,7 @@ class LineParser(object):
         return CHATROOM_MID_NAME, CHATROOM_PK_MID
 
     @print_run_time
-    def parse_Friend_ChatroomMember(self, table_name, FRIEND_MID_TEL, 
-                                                      MEMBER_PK_CHATROOM_PKS, 
-                                                      CHAT_PK_CHATROOM_MID, 
-                                                      CHATROOM_PK_MID):
+    def parse_Friend(self, table_name, FRIEND_MID_TEL):
         ''' 'Line.sqlite', 'ZUSER'
 
                             RecNo	FieldName	SQLType	
@@ -597,8 +596,8 @@ class LineParser(object):
             # provide talker_name
             FRIEND_PK_NAME_MAP[friend_pk] = friend.nickname
             # parse_ChatroomMember
-            self.parse_ChatroomMember(friend, friend_pk, MEMBER_PK_CHATROOM_PKS, CHATROOM_PK_MID)
-
+            # self.parse_ChatroomMember(friend, friend_pk, MEMBER_PK_CHATROOM_PKS, CHATROOM_PK_MID)
+            self.friend_list[friend_pk] = friend
             try:
                 self.im.db_insert_table_friend(friend)
             except:
@@ -607,7 +606,8 @@ class LineParser(object):
         self.im.db_commit()
         return FRIEND_PK_NAME_MAP, FRIEND_PK_MID_MAP
 
-    def parse_ChatroomMember(self, friend, friend_pk, MEMBER_PK_CHATROOM_PKS, CHATROOM_PK_MID):
+    @print_run_time
+    def parse_ChatroomMember(self, friend_list, DEL_FRIEND_PK_CHATROOM_MID, MEMBER_PK_CHATROOM_PKS, CHATROOM_PK_MID):
         ''' account_id+'/Messages/Line.sqlite', 'ZGROUP'
 
             :type friend: model_im.Friend()
@@ -631,41 +631,41 @@ class LineParser(object):
             self.birthday  = None  # 生日[TEXT]
             self.signature = None  # 签名[TEXT]
         '''
-        # M2M,  friend chatroom
-        for chatroom_pk in MEMBER_PK_CHATROOM_PKS.get(friend_pk, [False]):
-            # 如果 chatroom_pk 不在 群与群成员关系表里, 则说明是 退出的群
-            # 需要根据 ZCHAT, 即 ZCHAT 表的 pk, 关联 群id(ZMID)
-            if not chatroom_pk:
-                chatroom_mid = ''
-                # chat_pk = rec['ZCHAT'].Value
-                # chatroom_mid = CHAT_PK_CHATROOM_MID.get(chat_pk, None)
-            else: # pk 2 mid
-                chatroom_mid = CHATROOM_PK_MID.get(chatroom_pk, None)
+        for friend_pk, friend in friend_list.iteritems():
+            # M2M,  friend chatroom
+            for chatroom_pk in MEMBER_PK_CHATROOM_PKS.get(friend_pk, [False]):
 
-
-            cm = model_im.ChatroomMember()
-            cm.account_id   = friend.account_id # 账户ID[TEXT]
-            if chatroom_mid.startswith('c'):
-                cm.chatroom_id  = chatroom_mid
-            cm.member_id    = friend.friend_id  # 成员ID[TEXT]
-            cm.display_name = friend.remark if friend.remark else friend.nickname # 群内显示名称[TEXT]
-            cm.photo        = friend.photo      # 头像[TEXT]
-            cm.telephone    = friend.telephone  
-            cm.email        = friend.email
-            cm.gender       = friend.gender
-            cm.age          = friend.age 
-            cm.address      = friend.address
-            cm.birthday     = friend.birthday
-            cm.signature    = friend.signature  
-            cm.deleted      = friend.deleted  
-            cm.source       = friend.source  
-            try:
-                self.im.db_insert_table_chatroom_member(cm)
-            except:
-                exc()
+                if chatroom_pk:
+                    chatroom_mid = CHATROOM_PK_MID.get(chatroom_pk, None)
+                # 如果 chatroom_pk 不在 群与群成员关系表里, 则说明是 退出的群
+                # 需要根据 ZCHAT, 即 ZCHAT 表的 pk, 关联 群id(ZMID)
+                else: # pk 2 mid
+                    chatroom_mid = DEL_FRIEND_PK_CHATROOM_MID.get(friend_pk, None)
+                if not chatroom_mid:
+                    continue
+                cm = model_im.ChatroomMember()
+                cm.account_id   = friend.account_id # 账户ID[TEXT]
+                if chatroom_mid and chatroom_mid.startswith('c'):
+                    cm.chatroom_id  = chatroom_mid
+                cm.member_id    = friend.friend_id  # 成员ID[TEXT]
+                cm.display_name = friend.remark if friend.remark else friend.nickname # 群内显示名称[TEXT]
+                cm.photo        = friend.photo      # 头像[TEXT]
+                cm.telephone    = friend.telephone  
+                cm.email        = friend.email
+                cm.gender       = friend.gender
+                cm.age          = friend.age 
+                cm.address      = friend.address
+                cm.birthday     = friend.birthday
+                cm.signature    = friend.signature  
+                cm.deleted      = friend.deleted  
+                cm.source       = friend.source  
+                try:
+                    self.im.db_insert_table_chatroom_member(cm)
+                except:
+                    exc()
 
     @print_run_time
-    def parse_Message(self, table_name, FRIEND_PK_MID_MAP, FRIEND_PK_NAME_MAP, CHAT_DICT, CHAT_PK_FRIEND_PK):
+    def parse_Message(self, table_name, FRIEND_PK_MID_MAP, FRIEND_PK_NAME_MAP, CHAT_DICT, CHAT_PK_FRIEND_PKS):
         ''' 'P_'+account_id+'/Messages/Line.sqlite', 'ZMESSAGE'
 
                             RecNo	FieldName	SQLType	Size	
@@ -701,6 +701,7 @@ class LineParser(object):
             self.status      = None  # 消息状态[INT]，MESSAGE_STATUS
             self.talker_type = None  # 聊天类型[INT]，CHAT_TYPE
         '''
+        DEL_FRIEND_PK_CHATROOM_MID = {}
         for rec in self._read_table(table_name):
             if canceller.IsCancellationRequested:
                 return
@@ -709,14 +710,16 @@ class LineParser(object):
             message = model_im.Message()
             message.account_id  = self.cur_account_id
             message.msg_id      = rec['ZID'].Value
-            message.sender_id   = FRIEND_PK_MID_MAP.get(rec['ZSENDER'].Value, None)
-            message.sender_name = FRIEND_PK_NAME_MAP.get(rec['ZSENDER'].Value, None)
+
+            sender_pk           = rec['ZSENDER'].Value
+            message.sender_id   = FRIEND_PK_MID_MAP.get(sender_pk, None)
+            message.sender_name = FRIEND_PK_NAME_MAP.get(sender_pk, None)
             message.content     = rec['ZTEXT'].Value
             message.send_time   = rec['ZTIMESTAMP'].Value if len(str(rec['ZTIMESTAMP'].Value)) == 13 else None
             message.type        = self._convert_msg_type(rec['ZCONTENTTYPE'].Value)
             message.status      = self._convert_msg_status(rec['ZSENDSTATUS'].Value)
 
-            if rec['Z_OPT'].Value==3 or (rec['ZCONTENTTYPE'].Value!=18 and not rec['ZSENDER'].Value and rec['ZID'].Value):
+            if rec['Z_OPT'].Value==3 or (rec['ZCONTENTTYPE'].Value!=18 and not sender_pk and rec['ZID'].Value):
                 message.is_sender = 1
                 message.sender_id = self.cur_account_id
 
@@ -729,14 +732,21 @@ class LineParser(object):
             message.talker_id = rec['ZCHAT'].Value
 
             # 获取已删除的群与群成员关系, 即 ZMESSAGE.ZCHAT: ZMESSAGE.sender_mid
-            # TODO self.message.sender_id
+            # 如果 ZCHAT 对应的 ZCHAT 对应的 chatroom mid 不存在于 ZGROUP 表中, 即已删除
+            # self.message.sender_id
             if message.talker_type == model_im.CHAT_TYPE_GROUP:
-                message.talker_name = CHAT_DICT.get(rec['ZCHAT'].Value, {}).get('chat_name', None)
+                # CHAT_PK_CHATROOM_MID
+                msg_chat_pk = rec['ZCHAT'].Value
+                if msg_chat_pk ==3:
+                    pass
+                if sender_pk and CHAT_DICT.get(msg_chat_pk, {}).get('chat_name', '').startswith('已退出'):
+                    DEL_FRIEND_PK_CHATROOM_MID[sender_pk] = CHAT_DICT.get(msg_chat_pk, {}).get('ZMID', None)
+                message.talker_name = CHAT_DICT.get(msg_chat_pk, {}).get('chat_name', None)
             # elif message.talker_type == model_im.CHAT_TYPE_FRIEND:
             else: # 非群聊
                 chat_pk   = rec['ZCHAT'].Value
-                friend_pk = CHAT_PK_FRIEND_PK.get(chat_pk, None)
-                message.talker_name = FRIEND_PK_NAME_MAP.get(friend_pk, None)
+                friend_pks = CHAT_PK_FRIEND_PKS.get(chat_pk, None)
+                message.talker_name = FRIEND_PK_NAME_MAP.get(friend_pks[0], None)
 
             if message.content and message.content[-4:] in ['.m4a', '.mp4']:
                 # 自己发的语音, 视频, 保留在 /tmp, 文件名不变 self.root + tmp/_3997735.m4a
@@ -769,6 +779,7 @@ class LineParser(object):
             except:
                 exc()
         self.im.db_commit()  
+        return DEL_FRIEND_PK_CHATROOM_MID
 
 
     def parse_Feed(self, plist_node=None):
@@ -901,7 +912,6 @@ class LineParser(object):
                 exc()
         self.im.db_commit()                        
 
-
     @staticmethod
     def _read_plist(plist_node, *keys):
         ''' read .plist file 
@@ -909,11 +919,6 @@ class LineParser(object):
         :type plist_node: node
         :type keys: tuple(*str)
         :rtype: tuple(*str)
-
-        dir(bp) 
-        ['ContainsKey', 'Equals', 'GetHashCode', 'GetKeySource', 'GetType', 'Item', 'Keys', 'MemberwiseClone', 
-        'Populate', 'PrettyPrint', 'ReadMultiValue', 'ReadValue', 'ReferenceEquals', 'Source', 'ToString', 'Value', 
-        '__class__', '__delattr__', '__doc__', '__format__', '__getattribute__', '__getitem__', '__hash__', '__init__', '__new__', '__reduce__', '__reduce_ex__', '__repr__', '__setattr__', '__sizeof__', '__str__', '__subclasshook__']
         '''
         res = {}
         bp = BPReader(plist_node.Data).top    
@@ -923,10 +928,10 @@ class LineParser(object):
         #exc_debug(bp)
         try:
             for k in keys:
-                exc_debug(k)
+                # exc_debug(k)
                 if bp[k]:
                     res[k] = bp[k].Value
-                    exc_debug(res[k])
+                    # exc_debug(res[k])
             return res
         except:
             exc()
@@ -950,44 +955,12 @@ class LineParser(object):
                     # exc_debug(file_path)
                     return file_path
 
-        # exc_debug('profile_img:', file_name)
-        # fs = self.root.FileSystem
-        # node_list = list(fs.Search(file_name))
-        # try:
-        #     if len(node_list) > 1:
-        #         for i in node_list:
-        #             file_path = i.AbsolutePath
-        #             if not file_path.endswith('.thumb'):
-        #                 exc_debug('!!!!!!!!! find file_path: '+file_path)
-        #                 return file_path
-        #     elif len(node_list) < 1:
-        #         return
-        #     file_path = node_list[0].AbsolutePath
-        #     exc_debug('!!!!!!!!! find file_path: '+file_path)
-        #     return file_path
-        # except:
-        #     exc()
-        #     return 
-
     def _get_msg_media_path(self, CHAT_DICT, msg_ZCHAT, msg_ZID):
         ''' 获取聊天 media_path
         
             rec['ZCHAT'].Value  
             rec['ZID'].Value      
         '''
-        # self.root + '/Library/Application Support/PrivateStore/P_u423af962f1456db6cba8465cf82bb91b/Message Attachments'
-        # + /u1f49041c24a3b489dbf90163f8bcb293/8785959165675.mp4
-
-        # /u1f49041c24a3b489dbf90163f8bcb293 是 ZMESSAGE ZCHAT 对应的 ZCHAT - ZMID
-        # 8785959165675 是 ZMESSAGE - ZID
-
-        # file_pattern = self.root.AbsolutePath \
-        #                + '/Library/Application Support/PrivateStore/P_' \
-        #                + self.cur_account_id + r'/Message Attachments/' \
-        #                + CHAT_DICT.get(rec['ZCHAT'].Value, {}).get('ZMID', '') + r'/' \
-        #                + rec['ZID'].Value + r'.*'
-        # file_pattern1 = CHAT_DICT.get(rec['ZCHAT'].Value, {}).get('ZMID', '') + r'/' + rec['ZID'].Value + '.*'
-
         media_path = '/Library/Application Support/PrivateStore/P_' \
                         + self.cur_account_id + r'/Message Attachments/' \
                         + CHAT_DICT.get(msg_ZCHAT, {}).get('ZMID', '')
@@ -999,20 +972,6 @@ class LineParser(object):
                     # exc_debug(file_path)
                     return file_path
         return 
-
-        # fs.Search 方法
-        # try:
-        #     if len(node_list) > 1:
-        #         for i in node_list:
-        #             file_path = i.AbsolutePath
-        #             if not file_path.endswith('.thumb'):
-        #                 exc_debug('!!!!!!!!! find file_path: '+file_path)
-        #                 return file_path
-        #     elif len(node_list) < 1:
-        #         return
-        #     file_path = node_list[0].AbsolutePath
-        #     exc_debug('!!!!!!!!! find file_path: '+file_path)
-        #     return file_path
 
     @staticmethod
     def _convert_ArrayByte_2_str(ab):
@@ -1046,7 +1005,6 @@ class LineParser(object):
         """
         try:
             tb = SQLiteParser.TableSignature(table_name)  
-            exc_debug(dir(self.cur_db.ReadTableRecords(tb, self.extract_deleted, True)))
             return self.cur_db.ReadTableRecords(tb, self.extract_deleted, True)
         except:
             exc()         
@@ -1069,7 +1027,7 @@ class LineParser(object):
                 return False      
             return True      
         except:
-            exc_debug('match email', rec[key].Value)
+            # exc_debug('match email', rec[key].Value)
             exc()
             return False
 
