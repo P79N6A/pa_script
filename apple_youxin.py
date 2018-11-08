@@ -119,6 +119,7 @@ class YouXinParser():
 
                 obj = json.loads(rec['[info]'].Value)
                 account.username = obj['name']
+                self.username = account.username
                 if rec['[type]'].Value == '2':
                     account.photo = obj['picture']
                     account.signature = obj['signature']
@@ -218,7 +219,7 @@ class YouXinParser():
                     message.talker_type = model_im.CHAT_TYPE_FRIEND
                     message.is_sender = model_im.MESSAGE_TYPE_SEND if rec['[msgtype]'].Value else model_im.MESSAGE_TYPE_RECEIVE
                     message.sender_id = self.user if message.is_sender == model_im.MESSAGE_TYPE_SEND else contact_id
-                    message.sender_name = contact.nickname
+                    message.sender_name = contact.nickname if message.sender_id == contact_id else self.username
                     message.type = self.parse_message_type(rec['[msgcontype]'].Value)
                     message.content = self.decode_url_message(rec['[msgcontent]'].Value)
                     message.send_time = int(time.mktime(time.strptime(rec['[msgtime]'].Value, '%Y-%m-%d %H:%M:%S')))
@@ -252,7 +253,7 @@ class YouXinParser():
                     message.talker_type = model_im.CHAT_TYPE_FRIEND
                     message.is_sender = model_im.MESSAGE_TYPE_SEND if rec['[calltype]'].Value == 0 else model_im.MESSAGE_TYPE_RECEIVE
                     message.sender_id = self.user if message.is_sender == model_im.MESSAGE_TYPE_SEND else contact_id
-                    message.sender_name = contact.nickname
+                    message.sender_name = contact.nickname if message.sender_id == contact_id else self.username
                     message.type = model_im.MESSAGE_CONTENT_TYPE_VOIP
                     if IsDBNull(rec['[telephone]'].Value):
                         if(rec['[calltime]'].Value == '00:00'):
