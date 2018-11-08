@@ -114,7 +114,12 @@ class YiXinParser():
                 if account.account_id != rec['uid'].Value:
                     continue
                 account.username = rec['nickname'].Value
+                self.username = account.username
                 account.gender = 2 if rec['gender'].Value == 0 else 1
+                account.email = rec['email'].Value
+                account.birthday = rec['birthday'].Value
+                account.signature = rec['signature'].Value
+                account.address = rec['address']
         self.im.db_insert_table_account(account)
         self.im.db_commit()
 
@@ -259,9 +264,9 @@ class YiXinParser():
                     message.talker_id = id
                     message.talker_type = model_im.CHAT_TYPE_FRIEND if id in self.friends.keys() else model_im.CHAT_TYPE_GROUP
                     message.talker_name = friend.nickname
-                    message.sender_id = message.talker_id
-                    message.sender_name = message.talker_name
                     message.is_sender = model_im.MESSAGE_TYPE_SEND if rec['fromid'].Value == self.user else model_im.MESSAGE_TYPE_RECEIVE
+                    message.sender_id = rec['fromid'].Value
+                    message.sender_name = self.username if message.is_sender == model_im.MESSAGE_TYPE_SEND else message.talker_name 
                     message.msg_id = rec['msgid'].Value
                     message.type = self.parse_message_type(rec['msgtype'].Value)
                     message.send_time = rec['time'].Value
