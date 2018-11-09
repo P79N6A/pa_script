@@ -20,7 +20,7 @@ import hashlib
 import shutil
 import traceback
 
-VERSION_APP_VALUE = 1
+VERSION_APP_VALUE = 2
 
 class BeeTalkParser(model_im.IM, model_callrecord.MC):
     def __init__(self, node, extract_deleted, extract_source):
@@ -130,7 +130,7 @@ class BeeTalkParser(model_im.IM, model_callrecord.MC):
                     friend.account_id = self._db_reader_get_int_value(sr, 1)
                     friend.deleted = self._db_reader_get_int_value(sr, 4)
                     friend.friend_id = '手机联系人' + str(sr[0]) if not IsDBNull(sr[0]) else 0
-                    friend.nickname = self._db_reader_get_string_value(sr, 3)
+                    friend.fullname = self._db_reader_get_string_value(sr, 3)
                     friend.source = self.node.AbsolutePath
                     friend.telephone = self._db_reader_get_string_value(sr, 2)
                     friend.type = model_im.FRIEND_TYPE_FRIEND
@@ -319,6 +319,7 @@ class BeeTalkParser(model_im.IM, model_callrecord.MC):
                                 message.type = model_im.MESSAGE_CONTENT_TYPE_TEXT
                             elif test_Key == 'kLocationLat':
                                 latitude = test_Value
+                                message.type = model_im.MESSAGE_CONTENT_TYPE_LOCATION
                             elif test_Key == 'kLocationTitle':
                                 location_name = test_Value
                             elif test_Key == 'kLocationLong':
