@@ -1074,6 +1074,27 @@
       </array>
     </dict>    
 
+    
+    <dict>
+      <key>Module</key>
+      <string>apple_beetalk</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_apple_beetalk</string>
+          <key>RunnerType</key>
+          <integer>0</integer>
+          <key>Patterns</key>
+          <array>
+            <string>/main-\d+$</string>
+          </array>
+          <key>Category</key>
+          <string>Taobao</string>
+        </dict>
+      </array>
+    </dict>    
+
     <!--安卓运行插件从这里开始-->
 
     <dict>
