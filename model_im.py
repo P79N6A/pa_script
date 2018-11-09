@@ -21,7 +21,7 @@ import sqlite3
 import json
 import uuid
 
-VERSION_VALUE_DB = 8
+VERSION_VALUE_DB = 9
 
 GENDER_NONE = 0
 GENDER_MALE = 1
@@ -49,8 +49,9 @@ CHAT_TYPE_OFFICIAL = 4  # 公众号
 CHAT_TYPE_SUBSCRIBE = 5  # 订阅号
 CHAT_TYPE_SHOP = 6  # 商家
 
-MESSAGE_TYPE_SEND = 1
-MESSAGE_TYPE_RECEIVE = 2
+MESSAGE_TYPE_SYSTEM = 1
+MESSAGE_TYPE_SEND = 2
+MESSAGE_TYPE_RECEIVE = 3
 
 MESSAGE_CONTENT_TYPE_TEXT = 1  # 文本
 MESSAGE_CONTENT_TYPE_IMAGE = 2  # 图片
@@ -89,6 +90,15 @@ DEAL_TYPE_AA_RECEIPT = 3  # 群收款
 RECEIPT_STATUS_UNRECEIVE = 1  # 未领取
 RECEIPT_STATUS_RECEIVE = 2  # 已领取
 RECEIPT_STATUS_EXPIRE = 3  # 已失效
+
+FAVORITE_TYPE_TEXT = 1  # 文本
+FAVORITE_TYPE_IMAGE = 2  # 图片
+FAVORITE_TYPE_VOICE = 3  # 语音
+FAVORITE_TYPE_VIDEO = 4  # 视频
+FAVORITE_TYPE_LINK = 5  # 链接
+FAVORITE_TYPE_LOCATION = 6  # 位置
+FAVORITE_TYPE_ATTACHMENT = 7  # 附件
+FAVORITE_TYPE_CHAT = 8  # 聊天记录
 
 VERSION_KEY_DB = 'db'
 VERSION_KEY_APP = 'app'
@@ -325,6 +335,43 @@ SQL_INSERT_TABLE_SEARCH = '''
     insert into search(account_id, key, create_time, source, deleted, repeated) 
         values(?, ?, ?, ?, ?, ?)'''
 
+SQL_CREATE_TABLE_FAVORITE = '''
+    create table if not exists favorite(
+        account_id TEXT, 
+        favorite_id TEXT,
+        type INT,
+        talker TEXT,
+        talker_name TEXT,
+        talker_type INT,
+        timestamp INT,
+        source TEXT,
+        deleted INT DEFAULT 0, 
+        repeated INT DEFAULT 0)'''
+
+SQL_INSERT_TABLE_FAVORITE = '''
+    insert into favorite(account_id, favorite_id, type, talker, talker_name, talker_type, 
+            timestamp, source, deleted, repeated) 
+        values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
+
+SQL_CREATE_TABLE_FAVORITE_ITEM = '''
+    create table if not exists favorite_item(
+        favorite_id TEXT, 
+        type INT,
+        sender TEXT,
+        sender_name TEXT,
+        content TEXT,
+        url TEXT,
+        media_path TEXT,
+        timestamp INT,
+        source TEXT,
+        deleted INT DEFAULT 0, 
+        repeated INT DEFAULT 0)'''
+
+SQL_INSERT_TABLE_FAVORITE_ITEM = '''
+    insert into favorite_item(favorite_id, type, sender, sender_name,
+            content, url, media_path, timestamp, source, deleted, repeated) 
+        values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
+
 SQL_CREATE_TABLE_VERSION = '''
     create table if not exists version(
         key TEXT primary key,
@@ -332,6 +379,7 @@ SQL_CREATE_TABLE_VERSION = '''
 
 SQL_INSERT_TABLE_VERSION = '''
     insert into version(key, version) values(?, ?)'''
+
 SQL_CREATE_TABLE_LOGS = '''
     create table if not exists tb_logs(log_id int, log_description text, log_content text, log_result int, log_time int)
 '''
@@ -400,6 +448,10 @@ class IM(object):
             self.db_cmd.ExecuteNonQuery()
             self.db_cmd.CommandText = SQL_CREATE_TABLE_SEARCH
             self.db_cmd.ExecuteNonQuery()
+            self.db_cmd.CommandText = SQL_CREATE_TABLE_FAVORITE
+            self.db_cmd.ExecuteNonQuery()
+            self.db_cmd.CommandText = SQL_CREATE_TABLE_FAVORITE_ITEM
+            self.db_cmd.ExecuteNonQuery()
             self.db_cmd.CommandText = SQL_CREATE_TABLE_VERSION
             self.db_cmd.ExecuteNonQuery()
             self.db_cmd.CommandText = SQL_CREATE_TABLE_LOGS
@@ -447,6 +499,12 @@ class IM(object):
 
     def db_insert_table_search(self, column):
         self.db_insert_table(SQL_INSERT_TABLE_SEARCH, column.get_values())
+
+    def db_insert_table_favorite(self, column):
+        self.db_insert_table(SQL_INSERT_TABLE_FAVORITE, column.get_values())
+
+    def db_insert_table_favorite_item(self, column):
+        self.db_insert_table(SQL_INSERT_TABLE_FAVORITE_ITEM, column.get_values())
 
     def db_insert_table_version(self, key, version):
         self.db_insert_table(SQL_INSERT_TABLE_VERSION, (key, version))
@@ -700,6 +758,51 @@ class Deal(Column):
         return (self.deal_id, self.type, self.money, self.description, self.remark, self.status,
                 self.create_time, self.expire_time, self.receive_info) + super(Deal, self).get_values()
 
+
+class Search(Column):
+    def __init__(self):
+        super(Search, self).__init__()
+        self.account_id = None  # 账号ID[TEXT]
+        self.key = None  # 搜索关键字[TEXT]
+        self.create_time = None  # 搜索时间[INT]
+
+    def get_values(self):
+        return (self.account_id, self.key, self.create_time) + super(Search, self).get_values()
+
+
+class Favorite(Column):
+    def __init__(self):
+        super(Favorite, self).__init__()
+        self.account_id = None  # 账号ID[TEXT]
+        self.favorite_id = str(uuid.uuid1())  # ID[TEXT]
+        self.type = None  # 类型[INT] FAVORITE_TYPE
+        self.talker = None  # 会话ID[TEXT]
+        self.talker_name = None  # 会话昵称[TEXT]
+        self.talker_type = None  # 聊天类型[INT] CHAT_TYPE
+        self.timestamp = None  # 时间戳[TEXT]
+
+    def get_values(self):
+        return (self.account_id, self.favorite_id, self.type, self.talker, self.talker_name, self.talker_type,
+                self.timestamp) + super(Favorite, self).get_values()
+
+
+class FavoriteItem(Column):
+    def __init__(self):
+        super(FavoriteItem, self).__init__()
+        self.favorite_id = None  # ID[TEXT]
+        self.type = None  # 类型[INT] FAVORITE_TYPE
+        self.sender = None  # 发送者[TEXT]
+        self.sender_name = None  # 发送者昵称[TEXT]
+        self.content = None  # 内容[TEXT]
+        self.url = None  # 链接[TEXT]
+        self.media_path = None  # 文件路径[TEXT]
+        self.timestamp = None  # 时间戳[TEXT]
+
+    def get_values(self):
+        return (self.favorite_id, self.type, self.sender, self.sender_name, self.content, self.url, 
+                self.media_path, self.timestamp) + super(FavoriteItem, self).get_values()
+
+
 class APPLog(Column):
     def __init__(self):
         super(APPLog, self).__init__()
@@ -711,16 +814,6 @@ class APPLog(Column):
     
     def get_values(self):
         return (self.log_id, self.log_description, self.log_content, self.log_result, self.log_time)
-
-class Search(Column):
-    def __init__(self):
-        super(Search, self).__init__()
-        self.account_id = None  # 账号ID[TEXT]
-        self.key = None  # 搜索关键字[TEXT]
-        self.create_time = None  # 搜索时间[INT]
-
-    def get_values(self):
-        return (self.account_id, self.key, self.create_time) + super(Search, self).get_values()
 
 
 class GenerateModel(object):
@@ -741,6 +834,7 @@ class GenerateModel(object):
         models.extend(self._get_chat_models())
         models.extend(self._get_feed_models())
         models.extend(self._get_search_models())
+        #models.extend(self._get_favorite_models())
 
         self.cursor.close()
         self.db.close()
@@ -1041,8 +1135,8 @@ class GenerateModel(object):
             #    pass
             #elif msg_type == MESSAGE_CONTENT_TYPE_VOIP:
             #    pass
-            #elif msg_type == MESSAGE_CONTENT_TYPE_SYSTEM:
-            #    pass
+            elif msg_type == MESSAGE_CONTENT_TYPE_SYSTEM:
+                message.Type.Value = MessageType.System
 
             if account_id is not None and talker_id is not None:
                 key = self._get_user_key(account_id, talker_id)
@@ -1157,8 +1251,8 @@ class GenerateModel(object):
                     pass
             #if row[6]:
             #    moment.PreviewUris.Add(row[6])
-            if row[13]:
-                location = self._get_location(row[13])
+            if row[17]:
+                location = self._get_location(row[17])
                 moment.Location.Value = location
             if row[10]:
                 ts = self._get_timestamp(row[10])
@@ -1213,6 +1307,43 @@ class GenerateModel(object):
                 if ts:
                     search.TimeStamp.Value = ts
             models.append(search)
+
+            row = self.cursor.fetchone()
+
+        return models 
+
+    def _get_favorite_models(self):
+        if canceller.IsCancellationRequested:
+            return []
+        models = []
+
+        sql = '''select account_id, type, from_user, from_user_name, to_user, to_user_name,
+                        item_ids, timestamp, source, deleted, repeated
+                 from favorite'''
+        row = None
+        try:
+            self.cursor.execute(sql)
+            row = self.cursor.fetchone()
+        except Exception as e:
+            print(e)
+
+        while row is not None:
+            if canceller.IsCancellationRequested:
+                break
+            favorite = Common.Collection()
+            if row[8] not in [None, '']:
+                search.SourceFile.Value = row[8]
+            if row[9]:
+                search.Deleted = self._convert_deleted_status(row[9])
+            if row[0]:
+                search.OwnerUserID.Value = row[0]
+            if row[1]:
+                search.Value.Value = row[1]
+            if row[7]:
+                ts = self._get_timestamp(row[7])
+                if ts:
+                    search.TimeStamp.Value = ts
+            models.append(favorite)
 
             row = self.cursor.fetchone()
 
