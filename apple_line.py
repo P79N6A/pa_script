@@ -109,13 +109,7 @@ class LineParser(object):
         self.friend_list = {} # friend_pk: Friend()
 
     def parse(self):
-        ''' account
-            contact
-            mail
-            attachment
-            search
-            vsersion
-        ''' 
+        
         if DEBUG or self.im.need_parse(self.cache_db, VERSION_APP_VALUE):
 
             # if self.preparse_plist(plist_node=self.user_plist_node) == False:
@@ -223,7 +217,6 @@ class LineParser(object):
                 uid                      # username     chrisnaruto
                 statusMessage            # signatue
                 tel                      # telephone
-
             Library\Preferences\group.com.linecorp.line.plist
             keys:
                 LineAccountType             
@@ -285,7 +278,7 @@ class LineParser(object):
                     MEMBER_PK_CHATROOM_PKS[member_id].append(group_id)
             else:
                 MEMBER_PK_CHATROOM_PKS[member_id] = [group_id]
-        for member_pk, chatroom_pk_list in  MEMBER_PK_CHATROOM_PKS.iteritems():
+        for _, chatroom_pk_list in  MEMBER_PK_CHATROOM_PKS.iteritems():
             for chatroom_pk in chatroom_pk_list:
                 if CHATROOM_MEMBER_COUNT.has_key(chatroom_pk):
                     CHATROOM_MEMBER_COUNT[chatroom_pk] += 1    
@@ -437,6 +430,8 @@ class LineParser(object):
             :rtype CHATROOM_MID_NAME:
             :rtype CHATROOM_PK_MID:
 
+        '''
+        '''
                             RecNo	FieldName	SQLType	Size
                             1	Z_PK	                INTEGER
                             2	Z_ENT	                INTEGER
@@ -510,7 +505,8 @@ class LineParser(object):
     @print_run_time
     def parse_Friend(self, table_name, FRIEND_MID_TEL):
         ''' 'Line.sqlite', 'ZUSER'
-
+        '''
+        '''
                             RecNo	FieldName	SQLType	
                             1	Z_PK	        INTEGER
                             2	Z_ENT	        INTEGER
@@ -612,7 +608,8 @@ class LineParser(object):
 
             :type friend: model_im.Friend()
             :type chatroom_mid: group mid
-
+        '''
+        '''
             'Z_4MEMBERS' Z_4GROUPS 
                         
             RecNo	FieldName	SQLType	Size
@@ -667,7 +664,8 @@ class LineParser(object):
     @print_run_time
     def parse_Message(self, table_name, FRIEND_PK_MID_MAP, FRIEND_PK_NAME_MAP, CHAT_DICT, CHAT_PK_FRIEND_PKS):
         ''' 'P_'+account_id+'/Messages/Line.sqlite', 'ZMESSAGE'
-
+        '''
+        '''
                             RecNo	FieldName	SQLType	Size	
                             1	Z_PK	            INTEGER
                 chatroom_id 2	Z_ENT	            INTEGER       # FK 关联 ZGROUP
@@ -737,8 +735,6 @@ class LineParser(object):
             if message.talker_type == model_im.CHAT_TYPE_GROUP:
                 # CHAT_PK_CHATROOM_MID
                 msg_chat_pk = rec['ZCHAT'].Value
-                if msg_chat_pk ==3:
-                    pass
                 if sender_pk and CHAT_DICT.get(msg_chat_pk, {}).get('chat_name', '').startswith('已退出'):
                     DEL_FRIEND_PK_CHATROOM_MID[sender_pk] = CHAT_DICT.get(msg_chat_pk, {}).get('ZMID', None)
                 message.talker_name = CHAT_DICT.get(msg_chat_pk, {}).get('chat_name', None)
@@ -788,7 +784,8 @@ class LineParser(object):
                     P_u423af962f1456db6cba8465cf82bb91b\jp.naver.myhome.MBDataResults\
             myhomelist  
             timeline
-
+        '''
+        '''
             self.account_id = None  # 账号ID[TEXT]
             self.sender_id  = None  # 发布者ID[TEXT]
             self.type       = None  # 动态类型[INT]
@@ -1051,8 +1048,7 @@ class LineParser(object):
         :type ZTYPE: int
         :rtype: int
         '''
-        if not ZTYPE:
-            return
+
         type_map = {
             0: model_im.CHAT_TYPE_FRIEND,
             2: model_im.CHAT_TYPE_GROUP,
@@ -1069,8 +1065,6 @@ class LineParser(object):
         :type ZTYPE: int
         :rtype: int
         '''
-        if not ZCONTENTTYPE:
-            return        
         type_map = {
             0: model_im.MESSAGE_CONTENT_TYPE_TEXT,        # TEXT
             1: model_im.MESSAGE_CONTENT_TYPE_IMAGE,       # 图片
@@ -1161,7 +1155,7 @@ class LineParser(object):
         try:
             return type_map[ZSENDSTATUS]
         except:
-            exc_debug('new ZCONTENTTYPE {}!!!!!!!!!!!!!!!!!'.format(ZSENDSTATUS))
+            exc_debug('new ZSENDSTATUS {}!!!!!!!!!!!!!!!!!'.format(ZSENDSTATUS))
 
     @staticmethod
     def _convert_ios_time(timestamp):
