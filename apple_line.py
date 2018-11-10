@@ -112,9 +112,6 @@ class LineParser(object):
         
         if DEBUG or self.im.need_parse(self.cache_db, VERSION_APP_VALUE):
 
-            # if self.preparse_plist(plist_node=self.user_plist_node) == False:
-            #     return []
-            # exc_debug(self.account_list)
             if not self.user_plist_node:
                 return []
             
@@ -138,7 +135,7 @@ class LineParser(object):
     def parse_main(self):
         ''' 
             # self.CHAT_DICT              = {}   # table ZCHAT, keys: 'ZTYPE', 'ZMID', 'chat_name'
-            # self.CHAT_PK_FRIEND_PKS      = {}   # chat pk: friend pk            Z_1MEMBERS
+            # self.CHAT_PK_FRIEND_PKS     = {}   # chat pk: friend pk            Z_1MEMBERS
             # self.CHAT_PK_CHATROOM_MID   = {}   # chat pk: chatroom_mid
             # self.CHATROOM_MID_NAME      = {}   # 群 ZID: ZNAME
             # self.CHATROOM_PK_MID        = {}   # 群 pk: ZID
@@ -195,7 +192,6 @@ class LineParser(object):
                                           CHATROOM_PK_MID)
                 # self.parse_FeedLike('', '')
                 # self.parse_FeedComment('', '')
-                # self.parse_Location('', '')
                 # self.parse_Deal('', '')
             ######### Data 目录下 jp.naver.line ##############
             search_db_path = '/Library/Application Support/PrivateStore/'+account_file_name+'/Search Data/SearchData.sqlite'
@@ -683,7 +679,6 @@ class LineParser(object):
                 content     14	ZTEXT	            VARCHAR
                             15	ZCONTENTMETADATA	BLOB          
                             16	ZTHUMBNAIL	            BLOB
-
             self.account_id  = None  # 账号ID[TEXT]
             self.talker_id   = None  # 会话ID[TEXT]
             self.talker_name = None  # 会话昵称[TEXT]
@@ -713,15 +708,19 @@ class LineParser(object):
             message.sender_id   = FRIEND_PK_MID_MAP.get(sender_pk, None)
             message.sender_name = FRIEND_PK_NAME_MAP.get(sender_pk, None)
             message.content     = rec['ZTEXT'].Value
-            message.send_time   = rec['ZTIMESTAMP'].Value if len(str(rec['ZTIMESTAMP'].Value)) == 13 else None
-            message.type        = self._convert_msg_type(rec['ZCONTENTTYPE'].Value)
+            message.send_time   = self._get_im_ts(rec['ZTIMESTAMP'].Value)
             message.status      = self._convert_msg_status(rec['ZSENDSTATUS'].Value)
+
+            # MESSAGE_CONTENT_TYPE
+            if IsDBNull(rec['ZSENDER'].Value) and IsDBNull(rec['ZID'].Value):
+                message.type = model_im.MESSAGE_CONTENT_TYPE_SYSTEM
+            else:            
+                message.type = self._convert_msg_type(rec['ZCONTENTTYPE'].Value)
 
             if rec['Z_OPT'].Value==3 or (rec['ZCONTENTTYPE'].Value!=18 and not sender_pk and rec['ZID'].Value):
                 message.is_sender = 1
                 message.sender_id = self.cur_account_id
-
-            # 区分是 好友聊天还是群聊天 CHAT_TYPE, 2 是群, 0 是好友
+            # CHAT_TYPE 区分是 好友聊天还是群聊天 CHAT_TYPE, 2 是群, 0 是好友
             try:
                 ZCHAT_ZTYPE = CHAT_DICT.get(rec['ZCHAT'].Value, {}).get('ZTYPE', None)
                 message.talker_type = self._convert_chat_type(ZCHAT_ZTYPE)
@@ -731,21 +730,19 @@ class LineParser(object):
 
             # 获取已删除的群与群成员关系, 即 ZMESSAGE.ZCHAT: ZMESSAGE.sender_mid
             # 如果 ZCHAT 对应的 ZCHAT 对应的 chatroom mid 不存在于 ZGROUP 表中, 即已删除
-            # self.message.sender_id
             if message.talker_type == model_im.CHAT_TYPE_GROUP:
                 # CHAT_PK_CHATROOM_MID
                 msg_chat_pk = rec['ZCHAT'].Value
                 if sender_pk and CHAT_DICT.get(msg_chat_pk, {}).get('chat_name', '').startswith('已退出'):
                     DEL_FRIEND_PK_CHATROOM_MID[sender_pk] = CHAT_DICT.get(msg_chat_pk, {}).get('ZMID', None)
                 message.talker_name = CHAT_DICT.get(msg_chat_pk, {}).get('chat_name', None)
-            # elif message.talker_type == model_im.CHAT_TYPE_FRIEND:
             else: # 非群聊
                 chat_pk   = rec['ZCHAT'].Value
                 friend_pks = CHAT_PK_FRIEND_PKS.get(chat_pk, None)
                 message.talker_name = FRIEND_PK_NAME_MAP.get(friend_pks[0], None)
 
             if message.content and message.content[-4:] in ['.m4a', '.mp4']:
-                # 自己发的语音, 视频, 保留在 /tmp, 文件名不变 self.root + tmp/_3997735.m4a
+                # 本人发的语音, 视频, 保留在 /tmp, 文件名不变 self.root + tmp/_3997735.m4a
                 message.media_path = message.content
             elif message.type in [model_im.MESSAGE_CONTENT_TYPE_IMAGE, 
                                   model_im.MESSAGE_CONTENT_TYPE_VOICE,
@@ -762,7 +759,7 @@ class LineParser(object):
                 location.latitude  = rec['ZLATITUDE'].Value
                 location.longitude = rec['ZLONGITUDE'].Value
                 location.address   = rec['ZTEXT'].Value
-                location.timestamp = rec['ZTIMESTAMP'].Value
+                location.timestamp = self._get_im_ts(rec['ZTIMESTAMP'].Value)
                 location.source    = self.cur_db_source
                 try:
                     self.im.db_insert_table_location(location)
@@ -864,7 +861,6 @@ class LineParser(object):
                 except:
                     exc()            
                 feed.location = location.location_id  # 地址ID[TEXT]
-
             feed.source = plist_node.AbsolutePath
             try:
                 self.im.db_insert_table_feed(feed)
@@ -878,7 +874,6 @@ class LineParser(object):
             # \SearchData.sqlite
 
             ZRECENTSEARCHKEYWORD
-
             RecNo	FieldName	SQLType	Size	Precision	PKDisplay	DefaultValue	NotNull	NotNullConflictClause	Unique	UniqueConflictClause	CollateValue	FKDisplay
             1	Z_PK	        INTEGER
             2	Z_ENT	        INTEGER
@@ -951,23 +946,37 @@ class LineParser(object):
                 if file_path.split('/')[-1].endswith('.jpg'):
                     # exc_debug(file_path)
                     return file_path
+        return 
 
     def _get_msg_media_path(self, CHAT_DICT, msg_ZCHAT, msg_ZID):
         ''' 获取聊天 media_path
         
             rec['ZCHAT'].Value  
-            rec['ZID'].Value      
+            rec['ZID'].Value  
+            
+            下载的图片:
+            5A24...\Library\Application Support\PrivateStore\P_u423...\Message Attachments\u1f...
+            缓存的聊天图片:
+            F8B8...\Library\Application Support\PrivateStore\P_u423...\Message Thumbnails\u1f...         
         '''
-        media_path = '/Library/Application Support/PrivateStore/P_' \
+        download_media_path = '/Library/Application Support/PrivateStore/P_' \
                         + self.cur_account_id + r'/Message Attachments/' \
                         + CHAT_DICT.get(msg_ZCHAT, {}).get('ZMID', '')
-        _node = self.root.GetByPath(media_path)
-        if _node:
-            for file_node in _node.Children:
+        download_media_node = self.root.GetByPath(download_media_path)
+        if download_media_node:
+            for file_node in download_media_node.Children:
                 file_path = file_node.AbsolutePath
                 if file_path.split('/')[-1].startswith(msg_ZID):
                     # exc_debug(file_path)
                     return file_path
+        cache_media_path = '/Library/Application Support/PrivateStore/P_' \
+                        + self.cur_account_id + r'/Message Thumbnails/' \
+                        + CHAT_DICT.get(msg_ZCHAT, {}).get('ZMID', '') \
+                        + '/' + msg_ZID + '.thumb'
+        cache_media_node = self.group_root.GetByPath(cache_media_path)
+        if cache_media_node:
+            file_path = cache_media_node.AbsolutePath
+            return file_path        
         return 
 
     @staticmethod
@@ -1008,27 +1017,6 @@ class LineParser(object):
             return []
 
     @staticmethod
-    def _is_email_format(rec, key):
-        """ 匹配邮箱地址
-
-        :type rec: type: <rec>
-        :type key: str
-        :rtype: bool        
-        """
-        try:
-            if IsDBNull(rec[key].Value) or len(rec[key].Value.strip()) < 5:
-                return False
-            reg_str = r'^\w+([-+.]\w+)*@\w+([-.]\w+)*\.\w+([-.]\w+)*$'
-            match_obj = re.match(reg_str, rec[key].Value)
-            if match_obj is None:
-                return False      
-            return True      
-        except:
-            # exc_debug('match email', rec[key].Value)
-            exc()
-            return False
-
-    @staticmethod
     def _is_empty(rec, *args):
         ''' 过滤 DBNull 空数据, 有一空值就跳过
         
@@ -1048,7 +1036,6 @@ class LineParser(object):
         :type ZTYPE: int
         :rtype: int
         '''
-
         type_map = {
             0: model_im.CHAT_TYPE_FRIEND,
             2: model_im.CHAT_TYPE_GROUP,
@@ -1076,7 +1063,7 @@ class LineParser(object):
             # 13: model_im.MESSAGE_CONTENT_TYPE_,
             14: model_im.MESSAGE_CONTENT_TYPE_ATTACHMENT, # 附件
             # 16: model_im.MESSAGE_CONTENT_TYPE_,
-            # 18: model_im.MESSAGE_CONTENT_TYPE_,         # 删除图片
+            18: model_im.MESSAGE_CONTENT_TYPE_SYSTEM,     # 删除图片
             100: model_im.MESSAGE_CONTENT_TYPE_LOCATION,  # 位置
         }
         try:
@@ -1170,3 +1157,15 @@ class LineParser(object):
         cdate = TimeStampFormats.GetTimeStampEpoch1Jan2001(timestamp)
         uinixtime = int((cdate - dstart).TotalSeconds)
         return uinixtime
+
+    @staticmethod
+    def _get_im_ts(timestamp):
+        ''' convert_ts 13=>10
+        '''
+        try:
+            if isinstance(timestamp, (int, long, float, Int64)) and len(str(timestamp))==13:
+                return int(str(timestamp)[:10])
+        except:
+            exc()
+            return 
+        
