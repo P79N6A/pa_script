@@ -20,8 +20,11 @@ clr.AddReference('System.Data.SQLite')
 try:
     clr.AddReference('unity_c37r')
     clr.AddReference('model_eb')
+    clr.AddReference('model_im')
+    clr.AddReference('bcp_im')
 except Exception as e:
     print("debug", e)
+
 del clr
 
 # CONST

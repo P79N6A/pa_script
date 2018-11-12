@@ -6,12 +6,17 @@ import json
 import base64
 import shutil
 
-import xml.etree.ElementTree as ET
 import clr
 
 clr.AddReference('System.Core')
 clr.AddReference('System.Xml.Linq')
 clr.AddReference('System.Data.SQLite')
+
+try:
+    clr.AddReference('model_im')
+    clr.AddReference('bcp_im')
+except:
+    pass
 
 del clr
 

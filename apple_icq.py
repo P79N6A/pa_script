@@ -13,6 +13,12 @@ clr.AddReference('System.Core')
 clr.AddReference('System.Xml.Linq')
 clr.AddReference('System.Data.SQLite')
 
+try:
+    clr.AddReference('model_im')
+    clr.AddReference('bcp_im')
+except:
+    pass
+
 del clr
 
 import model_im
