@@ -9,6 +9,12 @@ import shutil
 import xml.etree.ElementTree as ET
 import clr
 
+try:
+    clr.AddReference('model_im')
+    clr.AddReference('bcp_im')
+except:
+    pass
+
 clr.AddReference('System.Core')
 clr.AddReference('System.Xml.Linq')
 clr.AddReference('System.Data.SQLite')
