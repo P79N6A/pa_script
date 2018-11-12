@@ -203,7 +203,7 @@ class KeyChainParser():
                             elif key_0 == 'inet' or key_0 == 'InternetPassword':
                                 inet = Generic.KeychainProfile.InternetPassword()
                                 inet.Deleted = DeletedState.Intact
-                                inet.SourceFile = self.root.AbsolutePath
+                                inet.SourceFile.Value = self.root.AbsolutePath
                                 inet.KeychainID.Value = extra_id
                                 if key_0 == 'inet':
                                     inet.UUID.Value = self._get_map_value(map_1, 'UUID', 'str')
@@ -232,7 +232,7 @@ class KeyChainParser():
                                 keys = Generic.KeychainProfile.Key()
                                 keys.KeychainID.Value = extra_id
                                 keys.Deleted = DeletedState.Intact
-                                keys.SourceFile = self.root.AbsolutePath
+                                keys.SourceFile.Value = self.root.AbsolutePath
                                 if key_0 == 'keys':
                                     keys.UUID.Value = self._get_map_value(map_1, 'UUID', 'str')
                                     keys.AccessGroup.Value = self._get_map_value(map_1, 'agrp', 'str')
