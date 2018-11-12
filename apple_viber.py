@@ -23,7 +23,7 @@ import traceback
 import time
 import datetime
 
-VERSION_APP_VALUE = 2
+VERSION_APP_VALUE = 4
 
 class ViberParser(model_im.IM, model_callrecord.MC):
     def __init__(self, node, extract_deleted, extract_source):
@@ -408,6 +408,7 @@ class ViberParser(model_im.IM, model_callrecord.MC):
                     record.id = self._db_reader_get_int_value(sr, 0)
                     record.name = self._db_reader_get_string_value(sr, 5)
                     record.phone_number = self._db_reader_get_string_value(sr, 4)
+                    record.local_number = self.accountphone
                     record.source = self.node.AbsolutePath
                     callType = 0
                     if not IsDBNull(sr[3]):

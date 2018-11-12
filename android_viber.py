@@ -18,7 +18,7 @@ import hashlib
 import shutil
 import traceback
 
-VERSION_APP_VALUE = 2
+VERSION_APP_VALUE = 3
 
 class ViberParser(model_im.IM, model_callrecord.MC):
     def __init__(self, node, extract_deleted, extract_source):
@@ -81,6 +81,7 @@ class ViberParser(model_im.IM, model_callrecord.MC):
                     self.db_insert_table_account(account)
             except:
                 traceback.print_exc()
+            self.local_number = account.telephone
             self.db_commit()
             db_cmd.Dispose()
             db.Close()
@@ -318,6 +319,7 @@ class ViberParser(model_im.IM, model_callrecord.MC):
                     record.id = self._db_reader_get_int_value(sr, 0)
                     record.name = self._db_reader_get_string_value(sr, 5)
                     record.phone_number = self._db_reader_get_string_value(sr, 4)
+                    record.local_number = self.local_number
                     record.source = self.node.AbsolutePath
                     record.type = self._db_reader_get_int_value(sr, 3)
                     self.db_insert_table_call_records(record)
