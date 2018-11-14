@@ -339,6 +339,7 @@ class Ding(object):
                 f.deleted = 0
                 f.email = GetString(reader, 8)
                 f.address = GetString(reader, 6)
+                f.type = model_im.FRIEND_TYPE_FRIEND
                 r = GetString(reader, 7)
                 if r is  '':
                     pass

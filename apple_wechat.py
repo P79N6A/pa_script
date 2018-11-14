@@ -59,6 +59,17 @@ MOMENT_TYPE_MUSIC = 4  # 带音乐的（存的是封面）
 MOMENT_TYPE_EMOJI = 10  # 分享了表情包
 MOMENT_TYPE_VIDEO = 15  # 视频
 
+# 收藏类型
+FAV_TYPE_TEXT = 1  # 文本
+FAV_TYPE_IMAGE = 2  # 图片
+FAV_TYPE_VOICE = 3  # 语音
+FAV_TYPE_VIDEO = 4  # 视频
+FAV_TYPE_LINK = 5  # 链接
+FAV_TYPE_LOCATION = 6  # 位置
+FAV_TYPE_ATTACHMENT = 8  # 附件
+FAV_TYPE_CHAT = 14  # 聊天记录
+FAV_TYPE_VIDEO_2 = 16 # 视频
+
 def analyze_wechat(root, extract_deleted, extract_source):
     pr = ParserResults()
     pr.Categories = DescripCategories.Wechat #声明这是微信应用解析的数据集
@@ -83,6 +94,7 @@ class WeChatParser(model_im.IM):
         self.extract_source = extract_source
 
         self.user_hash = self.get_user_hash()
+        self.private_root = self.root.Parent.Parent.GetByPath('/Library/WechatPrivate/'+self.user_hash)
         self.cache_path = os.path.join(ds.OpenCachePath('wechat'), self.get_user_guid())
         if not os.path.exists(self.cache_path):
             os.makedirs(self.cache_path)
@@ -105,6 +117,9 @@ class WeChatParser(model_im.IM):
             self._parse_user_mm_db(self.root.GetByPath('/DB/MM.sqlite'))
             self._parse_user_wc_db(self.root.GetByPath('/wc/wc005_008.db'))
             self._parse_user_fts_db(self.root.GetByPath('/fts/fts_message.db'))
+            if self.private_root is not None:
+                self._parse_user_fav_db(self.private_root.GetByPath('/Favorites/fav.db'))
+                self._parse_user_search(self.private_root.GetByPath('/searchH5/cache/wshistory.pb'))
 
             # 数据库填充完毕，请将中间数据库版本和app数据库版本插入数据库，用来检测app是否需要重新解析
             if not canceller.IsCancellationRequested:
@@ -159,6 +174,14 @@ class WeChatParser(model_im.IM):
         self.user_account.source = user_plist.AbsolutePath
         self.db_insert_table_account(self.user_account)
         self.db_commit()
+
+        if self.user_account.account_id:
+            contact = {}
+            if self.user_account.nickname:
+                contact['nickname'] = self.user_account.nickname
+            if self.user_account.photo:
+                contact['photo'] = self.user_account.photo
+            self.contacts[self.user_account.account_id] = contact
 
         return True
 
@@ -637,6 +660,340 @@ class WeChatParser(model_im.IM):
             feed.comments = ','.join(str(item) for item in comments)
             feed.commentcount = len(comments)
             self.db_insert_table_feed(feed)
+
+    def _parse_user_fav_db(self, node):
+        if node is None:
+            return False
+        if canceller.IsCancellationRequested:
+            return False
+
+        db_path = os.path.join(self.cache_path, 'cache.db')
+        self.db_mapping(node.PathWithMountPoint, db_path)
+        if not os.path.exists(db_path):
+            return False
+        db = sqlite3.connect(db_path)
+        if db is None:
+            return False
+        cursor = db.cursor()
+        sql = '''select LocalId,Type,Time,FromUsr,ToUsr,RealChatName,SourceType,Xml
+                 from FavoritesItemTable '''
+        row = None
+        try:
+            cursor.execute(sql)
+            row = cursor.fetchone()
+        except Exception as e:
+            print(e)
+
+        while row is not None:
+            if canceller.IsCancellationRequested:
+                break
+            local_id = self._db_column_get_int_value(row[0])
+            fav_type = self._db_column_get_int_value(row[1])
+            timestamp = self._db_column_get_int_value(row[2])
+            from_user = self._db_column_get_string_value(row[3])
+            to_user = self._db_column_get_string_value(row[4])
+            real_name = self._db_column_get_string_value(row[5])
+            source_type = self._db_column_get_int_value(row[6])
+            xml = self._db_column_get_string_value(row[7])
+            self._parse_user_fav_db_with_value(0, node.AbsolutePath, fav_type, timestamp, from_user, xml)
+            row = cursor.fetchone()
+        self.db_commit()
+        cursor.close()
+        db.close()
+        self.db_remove_mapping(db_path)
+
+        if self.extract_deleted:
+            if canceller.IsCancellationRequested:
+                return False
+            try:
+                db = SQLiteParser.Database.FromNode(node, canceller)
+            except Exception as e:
+                return False
+            if not db:
+                return False
+
+            if 'FavoritesItemTable' in db.Tables:
+                ts = SQLiteParser.TableSignature('FavoritesItemTable')
+                SQLiteParser.Tools.AddSignatureToTable(ts, "Xml", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
+                for rec in db.ReadTableDeletedRecords(ts, False):
+                    if canceller.IsCancellationRequested:
+                        break
+                    local_id = self._db_record_get_int_value(rec, 'LocalId')
+                    fav_type = self._db_record_get_int_value(rec, 'Type')
+                    timestamp = self._db_record_get_int_value(rec, 'Time')
+                    from_user = self._db_record_get_string_value(rec, 'FromUsr')
+                    to_user = self._db_record_get_string_value(rec, 'ToUsr')
+                    real_name = self._db_record_get_string_value(rec, 'RealChatName')
+                    source_type = self._db_record_get_int_value(rec, 'SourceType')
+                    xml = self._db_record_get_string_value(rec, 'Xml')
+                    deleted = 0 if rec.Deleted == DeletedState.Intact else 1
+                    self._parse_user_fav_db_with_value(deleted, node.AbsolutePath, fav_type, timestamp, from_user, xml)
+                self.db_commit()
+        return True
+
+    def _parse_user_fav_db_with_value(self, deleted, source, fav_type, timestamp, from_user, xml):
+        favorite = model_im.Favorite()
+        favorite.source = source
+        favorite.deleted = deleted
+        favorite.account_id = self.user_account.account_id
+        favorite.type = self._convert_fav_type(fav_type)
+        favorite.talker = from_user
+        favorite.talker_name = self.contacts.get(from_user, {}).get('nickname')
+        if from_user.endswith('@chatroom'):
+            favorite.talker_type = model_im.CHAT_TYPE_GROUP
+        else:
+            favorite.talker_type = model_im.CHAT_TYPE_FRIEND
+        favorite.timestamp = timestamp
+        self._parse_user_fav_xml(xml, favorite.favorite_id, source, deleted)
+        self.db_insert_table_favorite(favorite)
+
+    def _parse_user_fav_xml(self, xml_str, favorite_id, source, deleted):
+        xml = None
+        try:
+            xml = XElement.Parse(xml_str)
+        except Exception as e:
+            pass
+        if xml is not None and xml.Name.LocalName == 'favitem':
+            try:
+                fav_type = int(xml.Attribute('type').Value) if xml.Attribute('type') else 0
+            except Exception as e:
+                fav_type = 0
+            if fav_type == FAV_TYPE_TEXT:
+                fav_item = model_im.FavoriteItem()
+                fav_item.favorite_id = favorite_id
+                fav_item.source = source
+                fav_item.deleted = deleted
+                fav_item.type = fav_type
+                if xml.Element('source'):
+                    source_info = xml.Element('source')
+                    if source_info.Element('createtime'):
+                        try:
+                            fav_item.timestamp = int(source_info.Element('createtime').Value)
+                        except Exception as e:
+                            pass
+                    if source_info.Element('realchatname'):
+                        fav_item.sender = source_info.Element('realchatname').Value
+                        fav_item.sender_name = self.contacts.get(fav_item.sender, {}).get('nickname')
+                    elif source_info.Element('fromusr'):
+                        fav_item.sender = source_info.Element('fromusr').Value
+                        fav_item.sender_name = self.contacts.get(fav_item.sender, {}).get('nickname')
+                if xml.Element('desc'):
+                    fav_item.content = xml.Element('desc').Value
+                self.db_insert_table_favorite_item(fav_item)
+            elif fav_type in [FAV_TYPE_IMAGE, FAV_TYPE_VOICE, FAV_TYPE_VIDEO, FAV_TYPE_VIDEO_2, FAV_TYPE_ATTACHMENT]:
+                fav_item = model_im.FavoriteItem()
+                fav_item.favorite_id = favorite_id
+                fav_item.source = source
+                fav_item.deleted = deleted
+                fav_item.type = fav_type
+                if xml.Element('source'):
+                    source_info = xml.Element('source')
+                    if source_info.Element('createtime'):
+                        try:
+                            fav_item.timestamp = int(source_info.Element('createtime').Value)
+                        except Exception as e:
+                            pass
+                    if source_info.Element('realchatname'):
+                        fav_item.sender = source_info.Element('realchatname').Value
+                        fav_item.sender_name = self.contacts.get(fav_item.sender, {}).get('nickname')
+                    elif source_info.Element('fromusr'):
+                        fav_item.sender = source_info.Element('fromusr').Value
+                        fav_item.sender_name = self.contacts.get(fav_item.sender, {}).get('nickname')
+                if xml.Element('title'):
+                    fav_item.content = xml.Element('title').Value
+                if xml.Element('datalist') and xml.Element('datalist').Element('dataitem'):
+                    item = xml.Element('datalist').Element('dataitem')
+                    if item.Element('sourcedatapath'):
+                        fav_item.media_path = self._parse_user_fav_path(item.Element('sourcedatapath').Value)
+                    elif item.Element('sourcethumbpath'):
+                        fav_item.media_path = self._parse_user_fav_path(item.Element('sourcedatapath').Value)
+                self.db_insert_table_favorite_item(fav_item)
+            elif fav_type == FAV_TYPE_LINK:
+                fav_item = model_im.FavoriteItem()
+                fav_item.favorite_id = favorite_id
+                fav_item.source = source
+                fav_item.deleted = deleted
+                fav_item.type = fav_type
+                if xml.Element('source'):
+                    source_info = xml.Element('source')
+                    if source_info.Element('createtime'):
+                        try:
+                            fav_item.timestamp = int(source_info.Element('createtime').Value)
+                        except Exception as e:
+                            pass
+                    if source_info.Element('realchatname'):
+                        fav_item.sender = source_info.Element('realchatname').Value
+                        fav_item.sender_name = self.contacts.get(fav_item.sender, {}).get('nickname')
+                    elif source_info.Element('fromusr'):
+                        fav_item.sender = source_info.Element('fromusr').Value
+                        fav_item.sender_name = self.contacts.get(fav_item.sender, {}).get('nickname')
+                    if source_info.Element('link'):
+                        fav_item.url = source_info.Element('link').Value
+                if xml.Element('weburlitem'):
+                    weburlitem = xml.Element('weburlitem')
+                    if weburlitem.Element('pagetitle'):
+                        fav_item.content = weburlitem.Element('pagetitle').Value
+                    if weburlitem.Element('pagethumb_url'):
+                        fav_item.media_path = weburlitem.Element('pagethumb_url').Value
+                self.db_insert_table_favorite_item(fav_item)
+            elif fav_type == FAV_TYPE_LOCATION:
+                fav_item = model_im.FavoriteItem()
+                fav_item.favorite_id = favorite_id
+                fav_item.source = source
+                fav_item.deleted = deleted
+                fav_item.type = fav_type
+                if xml.Element('source'):
+                    source_info = xml.Element('source')
+                    if source_info.Element('createtime'):
+                        try:
+                            fav_item.timestamp = int(source_info.Element('createtime').Value)
+                        except Exception as e:
+                            pass
+                    if source_info.Element('realchatname'):
+                        fav_item.sender = source_info.Element('realchatname').Value
+                        fav_item.sender_name = self.contacts.get(fav_item.sender, {}).get('nickname')
+                    elif source_info.Element('fromusr'):
+                        fav_item.sender = source_info.Element('fromusr').Value
+                        fav_item.sender_name = self.contacts.get(fav_item.sender, {}).get('nickname')
+                if xml.Element('locitem'):
+                    location = model_im.Location()
+                    location.deleted = deleted
+                    location.source = source
+
+                    locitem = xml.Element('locitem')
+                    if locitem.Element('lat'):
+                        try:
+                            location.latitude = float(locitem.Element('lat').Value)
+                        except Exception as e:
+                            pass
+                    if locitem.Element('lng'):
+                        try:
+                            location.longitude = float(locitem.Element('lng').Value)
+                        except Exception as e:
+                            pass
+                    if locitem.Element('label'):
+                        location.address = locitem.Element('label').Value
+                    if locitem.Element('poiname'):
+                        location.address = locitem.Element('poiname').Value
+
+                    fav_item.content = location.location_id
+                    self.db_insert_table_location(location)
+                self.db_insert_table_favorite_item(fav_item)
+            elif fav_type == FAV_TYPE_CHAT:
+                if xml.Element('datalist'):
+                    for item in xml.Element('datalist').Elements('dataitem'):
+                        fav_item = model_im.FavoriteItem()
+                        fav_item.favorite_id = favorite_id
+                        fav_item.source = source
+                        fav_item.deleted = deleted
+                        if item.Attribute('datatype'):
+                            try:
+                                fav_item.type = int(item.Attribute('datatype').Value)
+                            except Exception as e:
+                                 pass
+                        if item.Element('dataitemsource'):
+                            source_info = item.Element('dataitemsource')
+                            if source_info.Element('createtime'):
+                                try:
+                                    fav_item.timestamp = int(source_info.Element('createtime').Value)
+                                except Exception as e:
+                                    pass
+                            if source_info.Element('realchatname'):
+                                fav_item.sender = source_info.Element('realchatname').Value
+                                fav_item.sender_name = self.contacts.get(fav_item.sender, {}).get('nickname')
+                            elif source_info.Element('fromusr'):
+                                fav_item.sender = source_info.Element('fromusr').Value
+                                fav_item.sender_name = self.contacts.get(fav_item.sender, {}).get('nickname')
+                        if fav_item.type == FAV_TYPE_TEXT:
+                            if item.Element('datadesc'):
+                                fav_item.content = item.Element('datadesc').Value
+                        elif fav_item.type in [FAV_TYPE_IMAGE, FAV_TYPE_VOICE, FAV_TYPE_VIDEO, FAV_TYPE_VIDEO_2, FAV_TYPE_ATTACHMENT]:
+                            if item.Element('sourcedatapath'):
+                                fav_item.media_path = self._parse_user_fav_path(item.Element('sourcedatapath').Value)
+                            elif item.Element('sourcethumbpath'):
+                                fav_item.media_path = self._parse_user_fav_path(item.Element('sourcedatapath').Value)
+                        elif fav_item.type == FAV_TYPE_LINK:
+                            if item.Element('dataitemsource'):
+                                source_info = item.Element('dataitemsource')
+                                if source_info.Element('link'):
+                                    fav_item.url = source_info.Element('link').Value
+                            if item.Element('weburlitem') and item.Element('weburlitem').Element('pagetitle'):
+                                fav_item.content = item.Element('weburlitem').Element('pagetitle').Value
+                            if item.Element('sourcethumbpath'):
+                                fav_item.media_path = self._parse_user_fav_path(item.Element('sourcethumbpath').Value)
+                        elif fav_item.type == FAV_TYPE_LOCATION:
+                            if item.Element('locitem'):
+                                location = model_im.Location()
+                                location.deleted = deleted
+                                location.source = source
+
+                                locitem = item.Element('locitem')
+                                if locitem.Element('lat'):
+                                    try:
+                                        location.latitude = float(locitem.Element('lat').Value)
+                                    except Exception as e:
+                                        pass
+                                if locitem.Element('lng'):
+                                    try:
+                                        location.longitude = float(locitem.Element('lng').Value)
+                                    except Exception as e:
+                                        pass
+                                if locitem.Element('label'):
+                                    location.address = locitem.Element('label').Value
+                                if locitem.Element('poiname'):
+                                    location.address = locitem.Element('poiname').Value
+
+                                fav_item.content = location.location_id
+                                self.db_insert_table_location(location)
+                        else:
+                            fav_item.content = xml_str
+                        if item.Element('datasrcname'):
+                            fav_item.sender_name = item.Element('datasrcname').Value
+                        self.db_insert_table_favorite_item(fav_item)
+            else:
+                fav_item = model_im.FavoriteItem()
+                fav_item.favorite_id = favorite_id
+                fav_item.source = source
+                fav_item.deleted = deleted
+                fav_item.type = fav_type
+                fav_item.content = xml_str
+                self.db_insert_table_favorite_item(fav_item)
+        return True
+
+    def _parse_user_fav_path(self, path):
+        if path.startswith('/var'):
+            return '/private' + path
+        return path
+
+    def _parse_user_search(self, node):
+        if node is None:
+            return False
+        try:
+            node.Data.seek(0)
+            content = node.read()
+            if content[-2:] == '\x10\x04':
+                index = 1
+                while index + 5 < len(content):
+                    if canceller.IsCancellationRequested:
+                        break
+                    index += 2
+                    size = ord(content[index])
+                    index += 1
+                    if index + size < len(content):
+                        key = content[index:index+size].decode('utf-8')
+                        if key is not None and len(key) > 0:
+                            search = model_im.Search()
+                            search.account_id = self.user_account.account_id
+                            search.key = key
+                            search.source = node.AbsolutePath
+                            self.db_insert_table_search(search)
+                    index += size
+                    if content[index:index+2] != '\x10\x04':
+                        break
+                    index += 2
+        except e as Exception:
+            pass
+        self.db_commit()
 
     def _parse_user_fts_db(self, node):
         if node is None:
@@ -1298,6 +1655,25 @@ class WeChatParser(model_im.IM):
             return model_im.MESSAGE_CONTENT_TYPE_SYSTEM
         else:
             return model_im.MESSAGE_CONTENT_TYPE_LINK
+
+    @staticmethod
+    def _convert_fav_type(fav_type):
+        if fav_type == FAV_TYPE_IMAGE:
+            return model_im.FAVORITE_TYPE_IMAGE
+        elif fav_type == FAV_TYPE_VOICE:
+            return model_im.FAVORITE_TYPE_VOICE
+        elif fav_type == FAV_TYPE_VIDEO:
+            return model_im.FAVORITE_TYPE_VIDEO
+        elif fav_type == FAV_TYPE_LINK:
+            return model_im.FAVORITE_TYPE_LINK
+        elif fav_type == FAV_TYPE_LOCATION:
+            return model_im.FAVORITE_TYPE_LOCATION
+        elif fav_type == FAV_TYPE_ATTACHMENT:
+            return model_im.FAVORITE_TYPE_ATTACHMENT
+        elif fav_type == FAV_TYPE_CHAT:
+            return model_im.FAVORITE_TYPE_CHAT
+        else:
+            return model_im.FAVORITE_TYPE_TEXT
 
     @staticmethod
     def _convert_gender_type(gender_type):

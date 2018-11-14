@@ -81,7 +81,11 @@ class Apps(object):
 
     def db_insert_table_applists(self, column):
         if self.cursor is not None:
-            self.cursor.execute(SQL_INSERT_TABLE_APPLISTS, column.get_values())    
+            self.cursor.execute(SQL_INSERT_TABLE_APPLISTS, column.get_values())
+
+    def db_insert_table_applists(self, column):
+        if self.cursor is not None:
+            self.cursor.execute(SQL_INSERT_TABLE_APPLISTS, column.get_values())     
 
 
 class Column(object):
@@ -146,8 +150,12 @@ class Generate(object):
         while row is not None:
             if canceller.IsCancellationRequested:
                 return
-
-            application = InstalledApplication()
+            if row[12] == 0:
+                application = InstalledApplication()
+            elif row[12] == 1:
+                application = ApplicationLog()
+            else:
+                return []
             application.IsAndroid.Value = True
             if row[0]:
                 application.AppGUID.Value = row[0]
@@ -184,6 +192,7 @@ class Generate(object):
             models.append(application)
 
         return models
+        
     
     @staticmethod
     def _convert_delete_status(deleted):

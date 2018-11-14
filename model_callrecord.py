@@ -36,12 +36,13 @@ SQL_CREATE_TABLE_RECORDS = '''
         country_code TEXT,
         source TEXT,
         deleted INTEGER,
-        repeated INTEGER
+        repeated INTEGER,
+        local_number TEXT
     )'''
 
 SQL_INSERT_TABLE_RECORDS = '''
-    INSERT INTO records(id, phone_number, date, duration, type, name, geocoded_location, ring_times, mark_type, mark_content, country_code, source, deleted, repeated)
-        values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO records(id, phone_number, date, duration, type, name, geocoded_location, ring_times, mark_type, mark_content, country_code, source, deleted, repeated, local_number)
+        values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     '''
 
 SQL_FIND_TABLE_RECORDS = '''
@@ -181,10 +182,11 @@ class Records(Column):
         self.mark_type = None
         self.mark_content = None
         self.country_code = None
+        self.local_number = None
 
     def get_values(self):
         return (self.id, self.phone_number, self.date, self.duration, self.type, self.name, self.geocoded_location,
-            self.ring_times, self.mark_type, self.mark_content, self.country_code) + super(Records, self).get_values()
+            self.ring_times, self.mark_type, self.mark_content, self.country_code, self.source, self.deleted, self.repeated, self.local_number)
 
 
 class Generate(object):
@@ -231,6 +233,11 @@ class Generate(object):
                 if not IsDBNull(sr[4]):
                     party.Role.Value = PartyRole.From if sr[4] == 1 or sr[4] == 3 else PartyRole.To
                 c.Parties.Add(party)
+                party = Generic.Party()
+                if not IsDBNull(sr[14]):
+                    party.Identifier.Value = sr[14]
+                if not IsDBNull(sr[4]):
+                    party.Role.Value = PartyRole.To if sr[4] == 1 or sr[4] == 3 else PartyRole.From
                 if not IsDBNull(sr[11]):
                     c.SourceFile.Value = self._get_source_file(str(sr[11]))
                 if not IsDBNull(sr[12]):

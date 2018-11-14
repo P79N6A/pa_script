@@ -188,7 +188,7 @@ class YiXinParser():
                     message.account_id = self.user
                     message.is_sender = model_im.MESSAGE_TYPE_SEND if rec['msg_from_id'].Value == message.account_id else model_im.MESSAGE_TYPE_RECEIVE
                     message.talker_id = rec['id'].Value if message.is_sender else rec['msg_from_id'].Value
-                    message.send_id = rec['msg_from_id'].Value if message.is_sender == model_im.MESSAGE_TYPE_SEND else rec['id'].Value
+                    message.sender_id = rec['msg_from_id'].Value
                     type = rec['msg_content_type'].Value
                     message.type = self.get_message_type(type)
                     message.send_time = rec['msg_time'].Value

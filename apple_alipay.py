@@ -289,7 +289,9 @@ class AlipayParser():
                 g = re.match('\d{16}', rec['userID'].Value, re.M | re.I)
                 if g is not None:
                     friend.friend_id = g.group(0)
-                friend.displayname = self.aes_decode(rec['displayName'].Value)
+                memoryRange = MemoryRange.FromBytes(self.aes_decode(rec['displayName'].Value))
+                obj = BPReader.GetTree(memoryRange)
+                friend.nickname = obj.Value
                 friend.photo = rec['headUrl'].Value
                 friend.create_time = rec['createTime'].Value
                 friend.type = model_im.FRIEND_TYPE_FOLLOW
@@ -420,7 +422,7 @@ class AlipayParser():
             contact = self.contacts.get(id)
 
             if recentContact[id]['userType'] == '107' or recentContact[id]['userType'] == '11':
-                dbPath = self.root.GetByPath('/Documents/life/' + self.md5_encode(self.user)[8:24] + '.db')
+                dbPath = self.root.GetByPath('/Documents/Life/' + self.md5_encode(self.user)[8:24] + '.db')
                 db = SQLiteParser.Database.FromNode(dbPath)
                 if db is None:
                     return
@@ -465,7 +467,7 @@ class AlipayParser():
                             message.talker_id = contact.friend_id
                             message.talker_name = contact.nickname
                             message.talker_type = model_im.CHAT_TYPE_FRIEND
-                            message.sender_id = message.talker_id
+                            message.sender_id = rec['fromUId'].Value
                             message.sender_name = message.talker_name
                         if recentContact[id]['userType'] == '2':
                             message.talker_id = contact.chatroom_id
@@ -473,7 +475,7 @@ class AlipayParser():
                             message.talker_type = model_im.CHAT_TYPE_GROUP
                             fromUId = rec['fromUId'].Value
                             toUId = rec['toUId'].Value
-                            message.sender_id = fromUId if fromUId != id else toUId
+                            message.sender_id = fromUId
                             if self.contacts.get(message.sender_id) is not None:
                                 message.sender_name = self.contacts.get(message.sender_id).nickname
                             if message.sender_id == self.user:
