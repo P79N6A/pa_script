@@ -2,6 +2,16 @@
 import os
 import PA_runtime
 from PA_runtime import *
+import re
+from PA.Common.Utilities.Types import TimeStampFormats
+
+
+def isValidMac(mac):
+    if re.match(r"^\s*([0-9a-fA-F]{2,2}-){5,5}[0-9a-fA-F]{2,2}\s*$", mac): 
+        return True
+    else:
+        return False
+
 
 class LocationsParser(object):
 
@@ -14,15 +24,37 @@ class LocationsParser(object):
         self.ds = node.FileSystem.DataStore
 
     @staticmethod
-    def normalize_mac(mac):
-        temp_mac = mac.split(':')
-        mac = ''
-        for b in temp_mac:
-            if len(b) == 1:
-                mac += '0{0}:'.format(b)
-            elif len(b) == 2:
-                mac += '{0}:'.format(b)
-        return mac[:-1].upper()
+    def normalize_mac(value):
+        max_value = 281474976710655
+        min_value = 0
+        if (type(value) == long or type(value) == int) and value <= max_value and value >= min_value:
+            mac_hex = hex(value)
+            mac_str = str(mac_hex).replace("0x","").replace("L","")
+            mac_str_len = len(mac_str)
+            if mac_str_len < 12:
+                add_len = 12 - mac_str_len
+                add_str = "0"
+                mac_str = add_str * add_len + mac_str
+            mac_list = []
+            for i in range(0,12,2):
+                mac_list.append(mac_str[i:i+2])
+            mac_addr = ":".join(mac_list)
+            if(isValidMac(mac_addr)):
+                return mac_addr.upper()
+            else:
+                return False
+        elif type(value) == str:
+            if value.find(":") != -1:
+                temp_mac = value.split(':')
+            elif value.find("-") != -1:
+                temp_mac = value.split('-')
+            mac = ''
+            for b in temp_mac:
+                if len(b) == 1:
+                    mac += '0{0}:'.format(b)
+                elif len(b) == 2:
+                    mac += '{0}:'.format(b)
+            return mac[:-1].upper()
 
     def validate_coordinate(self, record):
         if IsDBNull(record['Longitude'].Value) or IsDBNull(record['Latitude'].Value):
@@ -74,7 +106,7 @@ class LocationsParser(object):
     def get_mac_from_record(self, record, field):
         if not IsDBNull(record['MAC'].Value):
             mac = record['MAC'].Value
-            if self.VALID_MAC_RE.match(mac) is None:
+            if self.VALID_MAC_RE.match(str(mac)) is None:
                 return
             field.Value = self.normalize_mac(mac)
             if self.extract_source:
@@ -428,8 +460,52 @@ class FrequentLocationsParser(object):
 
         results.extend(self.parseLocationsDB())
         results.extend(self.parseStateModels())
+        results.extend(self.parse_new_version_locations())
         return results
 
+    # ios 11 常去地理位置存放在cache.sqlite,cloud.sqlite,local.sqlite 
+    # herf = https://blog.elcomsoft.com/2018/06/apple-probably-knows-what-you-did-last-summer/
+    def parse_new_version_locations(self):
+        results = []
+        dbNodes = self.root.Files
+        if dbNodes is None:
+            return
+        for dbFile in dbNodes:
+            if not dbFile.Name.endswith("sqlite"):
+                continue
+            db = SQLiteParser.Database.FromNode(dbFile, canceller)
+            if db is None:
+                continue
+            if "ZRTHINTMO" not in db.Tables:
+                continue
+            tb = SQLiteParser.TableSignature('ZRTHINTMO')
+            for rec in db.ReadTableRecords(tb, self.extractDeleted, True):
+                try:
+                    if canceller.IsCancellationRequested:
+                        return
+                    loc = Location()
+                    loc.Category.Value = self.category
+                    loc.Deleted = rec.Deleted
+                    coor = Coordinate()
+                    if "ZLATITUDE" in rec and(not rec["ZLATITUDE"].IsDBNull):
+                        coor.Latitude.Value = float(rec["ZLATITUDE"].Value)
+                    if "ZLONGITUDE" in rec and(not rec["ZLONGITUDE"].IsDBNull):
+                        coor.Longitude.Value = float(rec["ZLONGITUDE"].Value)
+                    loc.Position.Value = coor
+                    if "ZDATE" in rec and(not rec["ZDATE"].IsDBNull):
+                        pass
+                        #dstart = DateTime(1970,1,1,0,0,0)
+                        #cdate = TimeStampFormats.GetTimeStampEpoch1Jan2001(rec["ZDATE"].Value)
+                        #loc.TimeStamp.Value = TimeStamp.FromUnixTime(int((cdate - dstart).TotalSeconds), False)
+                    results.append(loc)
+                except Exception as e:
+                    print(e)
+
+        return results
+
+    # ios 10之前存放在：
+    # >   private/var/mobile/Library/Caches/com.apple.routined/StateModel1.archive
+    # >   private/var/mobile/Library/Caches/com.apple.routined/StateModel2.archive
     def parseLocationsDB(self):
         results = []
 
