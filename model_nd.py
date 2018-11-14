@@ -1,9 +1,10 @@
-#coding:utf-8
+# coding:utf-8
 #
 # According to model_eb, we use model_nd for file related solution and bcp, and model_im for chat related, as most of applications today contain a chat-plugin.
 # when you create a model_nd object, given name will append a suffix '.im', means the db of im-system. when debuging, delete both of them each time
 # C37R, PWNZEN Infomation.
 import clr
+
 try:
     clr.AddReference('unity_c37r')
     clr.AddReference('model_im')
@@ -19,23 +20,25 @@ import sys
 import traceback
 from PA.InfraLib.Models import Cloud
 
+
 class NDBasic(object):
     def __init__(self):
         self.account = 0
         self.res = list()
-    
+
     def get_values(self):
         return self.res
-    
+
     def set_value_with_idx(self, idx, val):
         if idx >= len(self.res):
             return
         self.res[idx] = val
-    
+
     def get_value_with_idx(self, idx):
         if idx >= len(self.res):
             return None
         return self.res[idx]
+
 
 TBL_CREATE_TRANSFER = '''
     create table if not exists tb_transfer(account_id text, file_name text, file_size int, hash_code text, local_path text, server_path text, url text, torrent_name text, status int, 
@@ -48,6 +51,7 @@ TBL_INSERT_TRANSFER = '''
 
 NDFileProcessing = 1
 NDFileDone = 2
+
 
 class NDFileTransfer(NDBasic):
     def __init__(self):
@@ -67,6 +71,7 @@ class NDFileTransfer(NDBasic):
         self.deleted = 13
         self.res = [None] * 14
 
+
 TBL_CREATE_FILE_LIST = '''
     create table if not exists tbl_filelist(account_id text, file_name text, file_type int, file_size int, file_hash text, server_path text, url text, create_time int, update_time int, cache_time int, deleted text)
 '''
@@ -74,6 +79,7 @@ TBL_CREATE_FILE_LIST = '''
 TBL_INSERT_FILE_LIST = '''
     insert into tbl_filelist values(?,?,?,?,?,?,?,?,?,?,?)
 '''
+
 
 class NDFileList(NDBasic):
     def __init__(self):
@@ -90,13 +96,15 @@ class NDFileList(NDBasic):
         self.deleted = 10
         self.res = [None] * 11
 
+
 TBL_CREATE_SHARED_FILE = '''
-    create table if not exists tb_shared(account_id text, file_name text, server_path text, file_size int, update_time int, create_time int, url text, sender_id text, sender_name text, send_time int)
+    create table if not exists tb_shared(account_id text, file_name text, server_path text, file_size int, update_time int, create_time int, url text, sender_id text, sender_name text, send_time int, deleted int)
 '''
 
 TBL_INSERT_SHARED_FILE = '''
-    insert into tb_shared values(?,?,?,?,?,?,?,?,?,?)
+    insert into tb_shared values(?,?,?,?,?,?,?,?,?,?,?)
 '''
+
 
 class NDFileShared(NDBasic):
     def __init__(self):
@@ -110,7 +118,9 @@ class NDFileShared(NDBasic):
         self.sender_id = 7
         self.sender_name = 8
         self.send_time = 9
-        self.res = [None] * 10
+        self.deleted = 10
+        self.res = [None] * 11
+
 
 TBL_CREATE_VERSION = '''
     create table if not exists tbl_version(v_key text, v_value int)
@@ -121,8 +131,7 @@ TBL_INSERT_VERSION = '''
 '''
 
 NDDBVersionKey = 'NDDBV'
-NDDBVersionValue = 1
-
+NDDBVersionValue = 2
 NDDBApplicationVersionKey = 'NDDBAPPV'
 
 
@@ -130,14 +139,14 @@ NDDBApplicationVersionKey = 'NDDBAPPV'
 # 透心凉，心飞扬
 #
 class NetDisk(object):
-    def __init__(self, db_name, app_version = 1):
+    def __init__(self, db_name, app_version=1):
         self.db_name = db_name
         self.need_parse = True
         self.conn = None
         self.cmd = None
         self.im = None
         if os.path.exists(self.db_name):
-           self.need_parse = NetDisk.checkout(db_name, app_version)
+            self.need_parse = NetDisk.checkout(db_name, app_version)
         if self.need_parse:
             self.conn = unity_c37r.create_connection(db_name, False)
             self.cmd = sql.SQLiteCommand(self.conn)
@@ -145,7 +154,7 @@ class NetDisk(object):
             self.im.db_create(db_name + '.IM')
             self.events = None
             self.create_tables()
-            
+
     @staticmethod
     def checkout(db_name, app_version):
         res = 0x0
@@ -200,20 +209,20 @@ class NetDisk(object):
 
     def begin_events(self):
         self.events = self.conn.BeginTransaction()
-    
+
     def end_events(self):
         self.events.Commit()
         self.events = None
-    
+
     def db_commit(self):
         self.events.Commit()
         self.begin_events()
-    
+
     def db_close(self):
         self.im.db_close()
         self.cmd.Dispose()
         self.conn.Close()
-    
+
     def db_execute(self, command, values):
         self.cmd.CommandText = command
         self.cmd.Parameters.Clear()
@@ -225,13 +234,13 @@ class NetDisk(object):
 
     def db_insert_transfer(self, values):
         self.db_execute(TBL_INSERT_TRANSFER, values)
-    
+
     def db_insert_filelist(self, values):
         self.db_execute(TBL_INSERT_FILE_LIST, values)
-    
+
     def db_insert_version(self, key, value):
         self.db_execute(TBL_INSERT_VERSION, [key, value])
-    
+
     def db_insert_im_version(self, value):
         self.im.db_insert_table_version(model_im.VERSION_KEY_DB, model_im.VERSION_VALUE_DB)
         self.im.db_insert_table_version(model_im.VERSION_KEY_APP, value)
@@ -245,14 +254,13 @@ class NDModel(object):
     def __init__(self, cache_db):
         self.conn = None
         self.cmd = None
-        self.cache_db = cache_db
         if not os.path.exists(cache_db):
             return
         if not os.path.exists(cache_db + ".IM"):
             return
         self.conn = unity_c37r.create_connection(cache_db)
         self.cmd = sql.SQLiteCommand(self.conn)
-    
+
     @staticmethod
     def set_model_value(m, v):
         try:
@@ -274,9 +282,9 @@ class NDModel(object):
             fb.FileSize.Value = unity_c37r.c_sharp_get_long(reader, f.file_size)
             fb.HashCode.Value = unity_c37r.c_sharp_get_string(reader, f.file_hash)
             self.set_model_value(fb.FileSize, unity_c37r.c_sharp_get_long(reader, f.file_size))
-            #self.set_model_value(fb.Url, unity_c37r.c_sharp_get_string(reader, f.url))
+            # self.set_model_value(fb.Url, unity_c37r.c_sharp_get_string(reader, f.url))
             m_str = unity_c37r.c_sharp_get_string(reader, f.url)
-            self.set_model_value(fb.Url,unity_c37r.get_c_sharp_uri(m_str))
+            self.set_model_value(fb.Url, unity_c37r.get_c_sharp_uri(m_str))
             self.set_model_value(fb.ServerPath, unity_c37r.c_sharp_get_string(reader, f.server_path))
             tp = unity_c37r.c_sharp_get_long(reader, f.file_type)
             if tp == 0:
@@ -296,7 +304,7 @@ class NDModel(object):
             models.append(fb)
         reader.Close()
         return models
-    
+
     def __generate_file_transfer_model(self):
         self.cmd.CommandText = '''
             select * from tb_transfer
@@ -310,7 +318,7 @@ class NDModel(object):
             self.set_model_value(fts.FileName, unity_c37r.c_sharp_get_string(reader, ft.file_name))
             self.set_model_value(fts.FileSize, unity_c37r.c_sharp_get_long(reader, ft.file_size))
             self.set_model_value(fts.HashCode, unity_c37r.c_sharp_get_string(reader, ft.hash_code))
-            #self.set_model_value(fts.Url, unity_c37r.c_sharp_get_string(reader, ft.url))
+            # self.set_model_value(fts.Url, unity_c37r.c_sharp_get_string(reader, ft.url))
             uri = unity_c37r.c_sharp_get_string(reader, ft.url)
             uri = unity_c37r.get_c_sharp_uri(uri)
             self.set_model_value(fts.Url, uri)
@@ -328,13 +336,15 @@ class NDModel(object):
                 self.set_model_value(fts.IsDownload, True)
             else:
                 self.set_model_value(fts.IsDownload, False)
-            self.set_model_value(fts.BeginTime, unity_c37r.get_c_sharp_ts(unity_c37r.c_sharp_try_get_time(reader, ft.begin_time)))
-            self.set_model_value(fts.EndTime, unity_c37r.get_c_sharp_ts(unity_c37r.c_sharp_try_get_time(reader, ft.end_time)))
+            self.set_model_value(fts.BeginTime,
+                                 unity_c37r.get_c_sharp_ts(unity_c37r.c_sharp_try_get_time(reader, ft.begin_time)))
+            self.set_model_value(fts.EndTime,
+                                 unity_c37r.get_c_sharp_ts(unity_c37r.c_sharp_try_get_time(reader, ft.end_time)))
             self.set_model_value(fts.CachedSize, unity_c37r.c_sharp_get_long(reader, ft.cached_size))
             models.append(fts)
         reader.Close()
         return models
-    
+
     def __generate_file_share_model(self):
         self.cmd.CommandText = '''
             select * from tb_shared
@@ -362,10 +372,9 @@ class NDModel(object):
             models.append(fts)
         reader.Close()
         return models
-    
+
     def generate_models(self):
         models = []
-        models.extend(model_im.GenerateModel(self.cache_db + '.IM').get_models())
         models.extend(self.__generate_file_basic_model())
         models.extend(self.__generate_file_share_model())
         models.extend(self.__generate_file_transfer_model())
@@ -373,25 +382,27 @@ class NDModel(object):
         self.conn.Close()
         return models
 
+
 class NDBCPBASIC(object):
     def __init__(self):
         self.collect_id = 0
         self.app_type = 1
         self.account_id = 2
         self.res = list()
-    
+
     def set_value_with_idx(self, idx, val):
         if idx >= len(self.res):
             return
         self.res[idx] = val
-    
+
     def get_value_with_idx(self, idx):
         if idx >= len(self.res):
             return None
         return self.res[idx]
-    
+
     def get_values(self):
         return self.res
+
 
 TBL_BCP_CREATE_ACCOUNT = '''
     create table if not exists WA_MFORENSICS_110100(COLLECT_TARGET_ID text,
@@ -436,6 +447,7 @@ TBL_BCP_INSERT_ACCOUNT = '''
     insert into WA_MFORENSICS_110100 values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
 '''
 
+
 class NDBCPACCOUNT(NDBCPBASIC):
     def __init__(self):
         super(NDBCPACCOUNT, self).__init__()
@@ -473,6 +485,7 @@ class NDBCPACCOUNT(NDBCPBASIC):
         self.delete_time = 34
         self.res = [None] * 35
 
+
 TBL_BCP_CREATE_TRANSFER = '''
 create table if not exists WA_MFORENSICS_110200(COLLECT_TARGET_ID text,
                                                 NETWORK_APP text,
@@ -502,6 +515,7 @@ TBL_BCP_INSERT_TRANSFER = '''
 insert into WA_MFORENSICS_110200 values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
 '''
 
+
 class NDBCPTRANSFER(NDBCPBASIC):
     def __init__(self):
         super(NDBCPTRANSFER, self).__init__()
@@ -524,6 +538,7 @@ class NDBCPTRANSFER(NDBCPBASIC):
         self.delete_status = 19
         self.delete_time = 20
         self.res = [None] * 21
+
 
 TBL_BCP_CREATE_FILELIST = '''
     create table if not exists WA_MFORENSICS_110300(COLLECT_TARGET_ID text,
@@ -552,6 +567,7 @@ TBL_BCP_INSERT_FILELIST = '''
     insert into WA_MFORENSICS_110300 values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
 '''
 
+
 class NDBCPFILELIST(NDBCPBASIC):
     def __init__(self):
         super(NDBCPFILELIST, self).__init__()
@@ -573,17 +589,18 @@ class NDBCPFILELIST(NDBCPBASIC):
         self.delete_time = 18
         self.res = [None] * 19
 
+
 class NDBCP(object):
     def __init__(self, bcp_path, mount_path, cache_db, bcp_db, collect_target_id, contact_account_type):
         self.bcp_path = bcp_path
         self.db = bcp_db
-        self.mnt =  mount_path
-        self.cache_db =  cache_db 
+        self.mnt = mount_path
+        self.cache_db = cache_db
         self.cid = collect_target_id
         self.app_type = contact_account_type
         if os.path.exists(self.db):
             os.remove(self.db)
-        self.conn = unity_c37r.create_connection(self.db,  False)
+        self.conn = unity_c37r.create_connection(self.db, False)
         self.cmd = sql.SQLiteCommand(self.conn)
         self.transaciton = None
         self.create_tables()
@@ -596,26 +613,26 @@ class NDBCP(object):
         self.cmd.CommandText = TBL_BCP_CREATE_TRANSFER
         self.cmd.ExecuteNonQuery()
         self.begin_transaction()
-    
+
     def begin_transaction(self):
         if self.transaciton is None:
             self.transaciton = self.conn.BeginTransaction()
-    
+
     def db_commit(self):
         self.transaciton.Commit()
         self.transaciton = None
         self.begin_transaction()
-    
+
     def db_close(self):
         self.cmd.Dispose()
         self.conn.Close()
 
     def db_insert_account(self, a):
         unity_c37r.execute_query(self.cmd, TBL_BCP_INSERT_ACCOUNT, a.get_values())
-    
+
     def db_insert_transfer(self, t):
         unity_c37r.execute_query(self.cmd, TBL_BCP_INSERT_TRANSFER, t.get_values())
-    
+
     def db_insert_file_list(self, fl):
         unity_c37r.execute_query(self.cmd, TBL_BCP_INSERT_FILELIST, fl.get_values())
 
@@ -641,7 +658,7 @@ class NDBCP(object):
             photo = unity_c37r.c_sharp_get_string(reader, 4)
             photo = os.path.join(self.mnt, photo)
             if os.path.exists(photo):
-                pass #===>copy file fix that
+                pass  # ===>copy file fix that
             else:
                 a.set_value_with_idx(a.photo, photo)
             a.set_value_with_idx(a.telephone, unity_c37r.c_sharp_get_string(reader, 5))
@@ -694,7 +711,7 @@ class NDBCP(object):
         reader.Close()
         cmd.Dispose()
         connection.Close()
-    
+
     def __generate_file_list(self):
         connection = unity_c37r.create_connection(self.cache_db)
         cmd = sql.SQLiteCommand(connection)
@@ -740,4 +757,3 @@ class NDBCP(object):
         reader.Close()
         cmd.Dispose()
         connection.Close()
-        

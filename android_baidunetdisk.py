@@ -348,6 +348,7 @@ class BaiduNetDiskParser(object):
                     message.content = db_col.get_string(5)
                     message.send_time = Utils.convert_timestamp(db_col.get_int64(7))
                     message.is_sender = 1 if message.sender_id == self.using_account.uk else 0
+                    message.talker_type = model_im.CHAT_TYPE_FRIEND
 
                     if db_col.get_int64(11) > 0:
                         self.__add_media_path(message, db_col.get_string(13))
@@ -392,6 +393,7 @@ class BaiduNetDiskParser(object):
                     message.content = db_col.get_string(5)
                     message.send_time = Utils.convert_timestamp(db_col.get_int64(7))
                     message.is_sender = 1 if message.sender_id == self.using_account.uk else 0
+                    message.talker_type = model_im.CHAT_TYPE_GROUP
                     if db_col.get_int64(11) > 0:
                         self.__add_media_path(message, db_col.get_string(13))
 
@@ -620,6 +622,7 @@ class BaiduNetDiskParser(object):
                 message.sender_id = rec['uk'].Value
                 message.send_time = Utils.convert_timestamp(rec['ctime'].Value)
                 message.is_sender = 1 if rec['uk'].Value == self.using_account.uk else 0
+                message.talker_type = model_im.CHAT_TYPE_GROUP
 
                 self.model_im_col.db_insert_table_message(message)
             except Exception as e:
@@ -655,6 +658,7 @@ class BaiduNetDiskParser(object):
                 message.content = rec['msg_content'].Value
                 message.send_time = Utils.convert_timestamp(rec['ctime'].Value)
                 message.is_sender = 1 if message.sender_id == self.using_account.uk else 0
+                message.talker_type = model_im.CHAT_TYPE_FRIEND
 
                 self.model_im_col.db_insert_table_message(message)
             except Exception as e:
@@ -820,9 +824,9 @@ class BaiduNetDiskParser(object):
 
 def analyze_nd(root, extract_deleted, extract_source):
     pr = ParserResults()
-    pr.Categories = DescripCategories.BaiduNetDisk
+    pr.Categories = DescripCategories.BDY
     results = BaiduNetDiskParser(root, extract_deleted, extract_source).parse()
     if results:
         pr.Models.AddRange(results)
-        pr.Build("BaiduNetDisk")
+        pr.Build("百度云网盘")
     return pr
