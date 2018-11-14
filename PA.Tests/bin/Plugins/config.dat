@@ -1091,7 +1091,7 @@
             <string>/main-\d+$</string>
           </array>
           <key>Category</key>
-          <string>Taobao</string>
+          <string>BeeTalk</string>
         </dict>
       </array>
     </dict>    
@@ -1658,6 +1658,26 @@
           </array>
           <key>Category</key>
           <string>Skype</string>
+        </dict>
+      </array>
+    </dict>
+
+    <dict>
+      <key>Module</key>
+      <string>android_baidunetdisk</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_nd</string>
+          <key>RunnerType</key>
+          <integer>2</integer>
+          <key>Patterns</key>
+          <array>
+            <string>com.baidu.netdisk$</string>
+          </array>
+          <key>Category</key>
+          <string>BaiduNetDisk</string>
         </dict>
       </array>
     </dict>
