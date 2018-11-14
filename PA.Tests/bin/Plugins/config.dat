@@ -278,6 +278,7 @@
           <array>
             <string>com.skype.skype</string>
             <string>com.skype.SkypeForiPad</string>
+            <string>com.skype.tomskype</string>
           </array>
           <key>Category</key>
           <string>Skype</string>

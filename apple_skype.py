@@ -123,7 +123,11 @@ class SkypeParser(object):
         self.extract_source = extract_source
         self.model_im_col = model_im.IM()
         self.cache_db = self.__get_cache_db()
-        self.model_im_col.db_create(self.cache_db)
+        if self.model_im_col.need_parse(self.cache_db, Skype_VERSION):
+            self.model_im_col.db_create(self.cache_db)
+            self.model_im_col.db_insert_table_version(model_im.VERSION_KEY_DB, model_im.VERSION_VALUE_DB)
+            self.model_im_col.db_insert_table_version(model_im.VERSION_KEY_APP, Skype_VERSION)
+            self.model_im_col.db_commit()
         self.account_db_nodes = self.__fetch_data_path()
         self.recovering_helper = None
         self.checking_col = None
