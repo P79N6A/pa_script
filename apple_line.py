@@ -812,7 +812,7 @@ class LineParser(object):
             else:
                 print ind+'val:{}'.format(n.Value)
                 
-        bplist = BPReader.GetTree(plist_node.Data)
+        bplist = BPReader.GetTree(plist_node.Data) if plist_node else None
         if not bplist:
             return 
             

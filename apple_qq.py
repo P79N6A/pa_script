@@ -386,6 +386,7 @@ class QQParser(object):
                 if canceller.IsCancellationRequested:
                     return            
                 friend = Friend()
+                friend.type = FRIEND_TYPE_FRIEND
                 friend.account_id = acc_id
                 friend.friend_id = k
                 friend.nickname =self.friendsNickname[k][0]
