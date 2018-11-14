@@ -8,7 +8,7 @@
     <key>EntryPoint</key>
     <string>analyze_qq</string> //脚本内入口函数
     <key>RunnerType</key>
-    <integer>1</integer> 匹配类型 0 安卓正则 1 苹果bungule id 2 苹果正则
+    <integer>1</integer> 匹配类型 0 苹果正则 1 苹果bungule id 2 安卓正则
     <key>Patterns</key>
     <array>
     <string>com.tencent.mqq</string> //匹配规则的具体内容

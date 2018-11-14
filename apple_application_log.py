@@ -58,6 +58,7 @@ class InstallationLog(object):
         dicts = self.get_apps_info()
         for item in dicts:
             app_info = model_applists.Info()
+            app_info.repeated = 1
             app_imgs, app_desc, app_name = self._get_info_by_bundleid(item)
             time.sleep(2)
             install_info, unstalled_info = self._get_install_uninstall_time(dicts[item])
