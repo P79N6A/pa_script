@@ -233,7 +233,7 @@ class Parser():
 
     def parse_page_header(self, buf):
         magic = buf[0:4]
-        size = struct.unpack('I', buf[8:12])[0]
+        size = struct.unpack('<I', buf[8:12])[0]
         return (magic, size)
 
     def parse_page_body(self, magic, buf, source):
@@ -261,13 +261,13 @@ class Parser():
             else:
                 path = self.path_prefix + '/' + path
             # path = filter(lambda x: x in string.printable, path)
-            event_id = struct.unpack('Q', buf[offset:offset+8])[0]
+            event_id = struct.unpack('<Q', buf[offset:offset+8])[0]
             offset += 8
             flags = struct.unpack('>I', buf[offset:offset+4])[0]
             offset += 4
 
             if magic == '2SLD':
-                node_id = struct.unpack('Q', buf[offset:offset+8])[0]
+                node_id = struct.unpack('<Q', buf[offset:offset+8])[0]
                 offset += 8
 
             # fs_flags = self.enumerate_flags(flags, EVENTMASK)
@@ -308,19 +308,22 @@ class GenerateModel():
             if canceller.IsCancellationRequested:
                 break
 
-            model = Generic.FileSystemLog()
-            if row[0]:
-                model.EventId.Value = row[0]
-            if row[1]:
-                model.Path.Value = row[1]
-            if row[2]:
-                model.Flags.Value = row[2]
-            if row[3]:
-                model.NodeId.Value = row[3]
-            if row[4]:
-                model.LogSource.Value = row[4]
+            try:
+                model = Generic.FileSystemLog()
+                if row[0]:
+                    model.EventId.Value = row[0]
+                if row[1]:
+                    model.Path.Value = row[1]
+                if row[2]:
+                    model.Flags.Value = row[2]
+                if row[3]:
+                    model.NodeId.Value = row[3]
+                if row[4]:
+                    model.LogSource.Value = row[4]
 
-            models.append(model)
+                models.append(model)
+            except Exception as e:
+                print(e)
             row = cursor.fetchone()
 
         cursor.close()

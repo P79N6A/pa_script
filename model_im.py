@@ -817,8 +817,9 @@ class APPLog(Column):
 
 
 class GenerateModel(object):
-    def __init__(self, cache_db):
+    def __init__(self, cache_db, mount_dir=None):
         self.cache_db = cache_db
+        self.mount_dir = mount_dir
         self.friends = {}
         self.chatrooms = {}
 
@@ -834,7 +835,7 @@ class GenerateModel(object):
         models.extend(self._get_chat_models())
         models.extend(self._get_feed_models())
         models.extend(self._get_search_models())
-        #models.extend(self._get_favorite_models())
+        models.extend(self._get_favorite_models())
 
         self.cursor.close()
         self.db.close()
@@ -1317,8 +1318,8 @@ class GenerateModel(object):
             return []
         models = []
 
-        sql = '''select account_id, type, from_user, from_user_name, to_user, to_user_name,
-                        item_ids, timestamp, source, deleted, repeated
+        sql = '''select account_id, favorite_id, type, talker, talker_name, talker_type,
+                        timestamp, source, deleted, repeated
                  from favorite'''
         row = None
         try:
@@ -1331,23 +1332,93 @@ class GenerateModel(object):
             if canceller.IsCancellationRequested:
                 break
             favorite = Common.Collection()
-            if row[8] not in [None, '']:
-                search.SourceFile.Value = row[8]
-            if row[9]:
-                search.Deleted = self._convert_deleted_status(row[9])
+            account_id = row[0]
+            if row[7] not in [None, '']:
+                favorite.SourceFile.Value = row[7]
+            if row[8]:
+                favorite.Deleted = self._convert_deleted_status(row[8])
             if row[0]:
-                search.OwnerUserID.Value = row[0]
+                favorite.OwnerUserID.Value = row[0]
             if row[1]:
-                search.Value.Value = row[1]
-            if row[7]:
-                ts = self._get_timestamp(row[7])
+                items = self._get_favorite_item_models(row[1], account_id)
+                for item in items:
+                    favorite.Content.Add(item)
+            if row[3]:
+                favorite.From.Value = self._get_user_intro(account_id, row[3], row[4], row[5] == CHAT_TYPE_GROUP)
+            if row[6]:
+                ts = self._get_timestamp(row[6])
                 if ts:
-                    search.TimeStamp.Value = ts
+                    favorite.CreateTime.Value = ts
             models.append(favorite)
-
             row = self.cursor.fetchone()
 
         return models 
+
+    def _get_favorite_item_models(self, favorite_id, account_id):
+        if canceller.IsCancellationRequested:
+            return []
+        models = []
+
+        sql = '''select favorite_id, type, sender, sender_name, content, url, media_path,
+                        timestamp, source, deleted, repeated
+                 from favorite_item 
+                 where favorite_id = {} '''.format(favorite_id)
+        row = None
+        cursor = self.db.cursor()
+        try:
+            cursor.execute(sql)
+            row = cursor.fetchone()
+        except Exception as e:
+            print(e)
+
+        while row is not None:
+            if canceller.IsCancellationRequested:
+                break
+            message = Common.Message()
+            message.OwnerUserID.Value = account_id
+            if row[8] not in [None, '']:
+                message.SourceFile.Value = row[8]
+            if row[9]:
+                message.Deleted = self._convert_deleted_status(row[9])
+            if row[2]:
+                message.Sender.Value = self._get_user_intro(account_id, row[2], row[3])
+            if row[7]:
+                ts = self._get_timestamp(row[7])
+                if ts:
+                    message.TimeStamp.Value = ts
+            if row[1]:
+                fav_type = row[1]
+                content = row[4]
+                media_path = row[5]
+                url = row[6]
+
+                if fav_type == FAVORITE_TYPE_IMAGE:
+                    if media_path and len(media_path) > 0:
+                        message.Content.Value.Image.Value = self._get_uri(media_path)
+                elif fav_type == FAVORITE_TYPE_VOICE:
+                    if media_path and len(media_path) > 0:
+                        message.Content.Value.Voice.Value = self._get_uri(media_path)
+                elif fav_type == FAVORITE_TYPE_VIDEO:
+                    if media_path and len(media_path) > 0:
+                        message.Content.Value.Video.Value = self._get_uri(media_path)
+                elif fav_type == FAVORITE_TYPE_LINK:
+                    pass
+                elif fav_type == FAVORITE_TYPE_LOCATION:
+                    location = self._get_location(content)
+                    message.Content.Value.Location.Value = location
+                elif fav_type == FAVORITE_TYPE_ATTACHMENT:
+                    if media_path and len(media_path) > 0:
+                        message.Content.Value.File.Value = self._get_uri(media_path)
+
+                if content:
+                    message.Content.Value.Text.Value = content
+            
+            models.append(message)
+            row = cursor.fetchone()
+
+        if cursor is not None:
+            cursor.close()
+        return models
 
     def _get_user_key(self, account_id, user_id):
         return account_id + "#*#" + user_id
@@ -1387,7 +1458,10 @@ class GenerateModel(object):
         if path.startswith('http') or len(path) == 0:
             return ConvertHelper.ToUri(path)
         else:
-            return ConvertHelper.ToUri(path)
+            if self.mount_dir:
+                return ConvertHelper.ToUri(self.mount_dir + path.replace("/", "\\"))
+            else:
+                return ConvertHelper.ToUri(path)
 
     def _get_feed_likes(self, account_id, likes):
         models = []

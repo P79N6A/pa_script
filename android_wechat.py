@@ -122,7 +122,7 @@ class WeChatParser(model_im.IM):
         return models
 
     def get_models_from_cache_db(self):
-        models = model_im.GenerateModel(self.cache_db).get_models()
+        models = model_im.GenerateModel(self.cache_db, self.root.FileSystem.MountPoint).get_models()
         return models
 
     def _is_valid_user_dir(self):
@@ -242,10 +242,13 @@ class WeChatParser(model_im.IM):
         while row is not None:
             if canceller.IsCancellationRequested:
                 break
-            username = self._db_column_get_string_value(row[0])
-            content = self._db_column_get_blob_value(row[1])
-            attr = self._db_column_get_blob_value(row[2])
-            self._parse_wc_db_with_value(0, node.AbsolutePath, username, content, attr)
+            try:
+                username = self._db_column_get_string_value(row[0])
+                content = self._db_column_get_blob_value(row[1])
+                attr = self._db_column_get_blob_value(row[2])
+                self._parse_wc_db_with_value(0, node.AbsolutePath, username, content, attr)
+            except Exception as e:
+                print(e)
             row = cursor.fetchone()
         self.db_commit()
         cursor.close()
@@ -269,11 +272,14 @@ class WeChatParser(model_im.IM):
                 for rec in db.ReadTableDeletedRecords(ts, False):
                     if canceller.IsCancellationRequested:
                         break
-                    username = self._db_record_get_string_value(rec, 'userName')
-                    content = self._db_record_get_blob_value(rec, 'content')
-                    attr = self._db_record_get_blob_value(rec, 'attrBuf')
-                    deleted = 0 if rec.Deleted == DeletedState.Intact else 1
-                    self._parse_wc_db_with_value(deleted, node.AbsolutePath, username, content, attr)
+                    try:
+                        username = self._db_record_get_string_value(rec, 'userName')
+                        content = self._db_record_get_blob_value(rec, 'content')
+                        attr = self._db_record_get_blob_value(rec, 'attrBuf')
+                        deleted = 0 if rec.Deleted == DeletedState.Intact else 1
+                        self._parse_wc_db_with_value(deleted, node.AbsolutePath, username, content, attr)
+                    except Exception as e:
+                        print(e)
                 self.db_commit()
 
     def _parse_wc_db_with_value(self, deleted, source, username, content_blob, attr_blob):
