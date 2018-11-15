@@ -28,6 +28,7 @@ import base64
 import json
 
 en_recover = True
+on_c_sharp_platform = True
 
 def md5(string):
     return hashlib.md5(string).hexdigest()
@@ -713,7 +714,7 @@ def parse_ding(root, extract_deleted, extract_source):
             d.parse()
             d.im.db_insert_table_version(model_im.VERSION_KEY_APP, APP_V)
             d.im.db_insert_table_version(model_im.VERSION_KEY_DB, model_im.VERSION_VALUE_DB)
-        models = model_im.GenerateModel(d.cache_res).get_models()
+        models = model_im.GenerateModel(d.cache_res, root.MountPoint).get_models()
         mlm = ModelListMerger()
         pr = ParserResults()
         pr.Categories = DescripCategories.QQ

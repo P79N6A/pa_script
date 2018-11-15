@@ -896,23 +896,41 @@
     </dict>
     <dict>
       <key>Module</key>
-      <string>input_method_all_in_one</string>
+      <string>apple_sysime</string>
       <key>Runners</key>
       <array>
         <dict>
           <key>EntryPoint</key>
-          <string>go</string>
+          <string>parse</string>
+          <key>RunnerType</key>
+          <integer>0</integer>
+          <key>Patterns</key>
+          <array>
+          <!-- 系统输入法 不支持备份提取 逻辑提取 提权提取 -->
+          <string>private/var/mobile/Library/Keyboard$</string>
+          </array>
+          <key>Category</key>
+          <string>IOSSystemIme</string>
+        </dict>
+      </array>
+    </dict>
+      <dict>
+      <key>Module</key>
+      <string>apple_sougouime</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>parse</string>
           <key>RunnerType</key>
           <integer>0</integer>
           <key>Patterns</key>
           <array>
           <!-- 搜狗输入法  暂测 备份提取 逻辑提取 提权提取 都支持 -->
           <string>Library/Preferences/com.sogou.sogouinput.plist$</string>
-          <!-- 系统输入法 不支持备份提取 逻辑提取 提权提取 -->
-          <string>private/var/mobile/Library/Keyboard$</string>
           </array>
           <key>Category</key>
-          <string>QQ</string>
+          <string>SougouIme</string>
         </dict>
       </array>
     </dict>
@@ -1798,6 +1816,26 @@
         </dict>
       </array>
     </dict>
+
+    <dict>
+      <key>Module</key>
+      <string>android_line</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_line</string>
+          <key>RunnerType</key>
+          <integer>2</integer>
+          <key>Patterns</key>
+          <array>
+            <string>jp.naver.line.android/databases/naver_line$</string>
+          </array>
+          <key>Category</key>
+          <string>Line</string>
+        </dict>
+      </array>
+    </dict>    
 
   </array>
 </plist>
