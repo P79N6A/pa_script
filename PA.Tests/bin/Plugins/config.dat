@@ -894,7 +894,28 @@
         </dict>
       </array>
     </dict>
-
+    <dict>
+      <key>Module</key>
+      <string>input_method_all_in_one</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>go</string>
+          <key>RunnerType</key>
+          <integer>0</integer>
+          <key>Patterns</key>
+          <array>
+          <!-- 搜狗输入法  暂测 备份提取 逻辑提取 提权提取 都支持 -->
+          <string>Library/Preferences/com.sogou.sogouinput.plist$</string>
+          <!-- 系统输入法 不支持备份提取 逻辑提取 提权提取 -->
+          <string>private/var/mobile/Library/Keyboard$</string>
+          </array>
+          <key>Category</key>
+          <string>QQ</string>
+        </dict>
+      </array>
+    </dict>
     <dict>
       <key>Module</key>
       <string>apple_youxin</string>
