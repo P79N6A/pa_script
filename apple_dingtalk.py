@@ -28,6 +28,7 @@ import base64
 import json
 
 en_recover = True
+on_c_sharp_platform = True
 
 def md5(string):
     return hashlib.md5(string).hexdigest()
