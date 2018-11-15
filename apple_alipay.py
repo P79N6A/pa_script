@@ -448,7 +448,7 @@ class AlipayParser():
                         message.content = '[标题]:' + rec['mSum'].Value
                         message.send_time = rec['msgTime'].Value
                         self.im.db_insert_table_message(message)
-            else:
+            elif recentContact[id]['userType'] == '1' or recentContact[id]['userType'] == '2':
                 dbPath = self.root.GetByPath('/Documents/Chat/' + self.md5_encode(self.user)[8:24] + '.db')
                 db = SQLiteParser.Database.FromNode(dbPath)
                 if db is None:
