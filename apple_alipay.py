@@ -414,7 +414,7 @@ class AlipayParser():
                 if type != '107' and type != '11':
                     contact['chatTable'] = "chat_" + self.md5_encode(id + '_' + type)[8:24]
                 recentContact[id] = contact
-                
+        
         for id in recentContact.keys():
             if canceller.IsCancellationRequested:
                 return
@@ -643,8 +643,7 @@ class AlipayParser():
         for deal in self.msg_deals:
             trade = model_eb.EBDeal()
             trade.set_value_with_idx(trade.account_id, self.user)
-            if deal.money != None:
-                trade.set_value_with_idx(trade.money, deal.money.replace(',', ''))
+            trade.set_value_with_idx(trade.money, deal.money.replace(',', '') if deal.money is not None else None)
             trade.set_value_with_idx(trade.deal_type, model_eb.EBDEAL_TYPE_OTHER)
             trade.set_value_with_idx(trade.status, deal.status)
             trade.set_value_with_idx(trade.begin_time, deal.create_time)
