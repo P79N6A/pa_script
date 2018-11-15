@@ -457,21 +457,6 @@ class Ctrip(object):
                                 order_ticket.materials_name = item["OrderName"]
                             if "OrderTotalPrice" in item:
                                 order_ticket.purchase_price = item["OrderTotalPrice"]
-                            # if "OrderStatusName" in tmp_data:
-                            #     if tmp_data["OrderStatusName"] == "已取消":
-                            #         order_ticket.ticket_status = "99"
-                            #     elif tmp_data["OrderStatusName"] == "待付款":
-                            #         order_ticket.ticket_status = "99"
-                            #     elif tmp_data["OrderStatusName"] == "未提交":
-                            #         order_ticket.ticket_status = "99"
-                            #     elif tmp_data["OrderStatusName"] == "确认中":
-                            #         order_ticket.ticket_status = "99"
-                            #     elif tmp_data["OrderStatusName"] == "已确认":
-                            #         order_ticket.ticket_status = "99"
-                            #     elif tmp_data["OrderStatusName"] == "已付款":
-                            #         order_ticket.ticket_status = "99"
-                            #     elif tmp_data["OrderStatusName"] == "已成交":
-                            #         order_ticket.ticket_status = "99"
                             if "Longitude" in item:
                                 order_ticket.destination_longitude = item["Longitude"]
                             if "Latitude" in item:
