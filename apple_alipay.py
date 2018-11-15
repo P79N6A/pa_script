@@ -643,7 +643,8 @@ class AlipayParser():
         for deal in self.msg_deals:
             trade = model_eb.EBDeal()
             trade.set_value_with_idx(trade.account_id, self.user)
-            trade.set_value_with_idx(trade.money, deal.money.replace(',', ''))
+            if deal.money != None:
+                trade.set_value_with_idx(trade.money, deal.money.replace(',', ''))
             trade.set_value_with_idx(trade.deal_type, model_eb.EBDEAL_TYPE_OTHER)
             trade.set_value_with_idx(trade.status, deal.status)
             trade.set_value_with_idx(trade.begin_time, deal.create_time)

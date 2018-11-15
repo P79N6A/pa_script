@@ -497,6 +497,7 @@ class FrequentLocationsParser(object):
                         #dstart = DateTime(1970,1,1,0,0,0)
                         #cdate = TimeStampFormats.GetTimeStampEpoch1Jan2001(rec["ZDATE"].Value)
                         #loc.TimeStamp.Value = TimeStamp.FromUnixTime(int((cdate - dstart).TotalSeconds), False)
+                    
                     results.append(loc)
                 except Exception as e:
                     print(e)
@@ -650,7 +651,7 @@ class FrequentLocationsParser(object):
 常去地地点数据解析(iOS7+)
 """
 def analyze_frequent_locations(root, extractDeleted, extractSource):
-    #extractDeleted = False #暂时禁用位置相关的数据恢复
+    extractDeleted = False #暂时禁用位置相关的数据恢复
     pr = ParserResults()
     pr.Models.AddRange(FrequentLocationsParser(root, extractDeleted, extractSource).parse())
     pr.Build('常去地点')

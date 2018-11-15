@@ -308,19 +308,22 @@ class GenerateModel():
             if canceller.IsCancellationRequested:
                 break
 
-            model = Generic.FileSystemLog()
-            if row[0]:
-                model.EventId.Value = row[0]
-            if row[1]:
-                model.Path.Value = row[1]
-            if row[2]:
-                model.Flags.Value = row[2]
-            if row[3]:
-                model.NodeId.Value = row[3]
-            if row[4]:
-                model.LogSource.Value = row[4]
+            try:
+                model = Generic.FileSystemLog()
+                if row[0]:
+                    model.EventId.Value = row[0]
+                if row[1]:
+                    model.Path.Value = row[1]
+                if row[2]:
+                    model.Flags.Value = row[2]
+                if row[3]:
+                    model.NodeId.Value = row[3]
+                if row[4]:
+                    model.LogSource.Value = row[4]
 
-            models.append(model)
+                models.append(model)
+            except:
+                pass
             row = cursor.fetchone()
 
         cursor.close()

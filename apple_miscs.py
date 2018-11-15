@@ -3,7 +3,7 @@ import os
 import re
 import PA_runtime
 from PA_runtime import *
-
+from System.Globalization import *
 import clr
 clr.AddReference('PNFA.iPhoneApps')
 del clr
