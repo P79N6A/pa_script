@@ -376,6 +376,7 @@ class SystemIME(IMEBase):
     def __init__(self, node, extract_source, extract_deleted):
         super(SystemIME, self).__init__(node, extract_source, extract_deleted, 'SystemIme')
         self.version = 0 # =>通过version 来区分不同的版本的情况，这里从11.4.1开始 到 12.01
+        self.hitted = False
         self.hitted = self.judge()
         #self.version = -1 # =>通过version 来区分不同的版本的情况，这里从11.4.1开始 到 12.01
         self.ime = IME(self.cache + "/C37R", 1)
@@ -460,9 +461,7 @@ class SystemIME(IMEBase):
         return pr
 
 SUPPORTTED_APP_LIST = [SougouIME, SystemIME]
-#
-# 烈酒入肠，千忧何妨!
-#
+
 def go(root, extract_source, extract_deleted):
     pr = ParserResults()
     for apps in SUPPORTTED_APP_LIST:
