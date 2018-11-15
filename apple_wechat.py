@@ -132,7 +132,7 @@ class WeChatParser(model_im.IM):
         return models
 
     def get_models_from_cache_db(self):
-        models = model_im.GenerateModel(self.cache_db).get_models()
+        models = model_im.GenerateModel(self.cache_db, self.root.FileSystem.MountPoint).get_models()
         return models
 
     def get_user_hash(self):
@@ -211,14 +211,17 @@ class WeChatParser(model_im.IM):
         while row is not None:
             if canceller.IsCancellationRequested:
                 break
-            username = self._db_column_get_string_value(row[0])
-            if username not in [None, '']:
-                contact_type = self._db_column_get_int_value(row[1])
-                certification_flag = self._db_column_get_int_value(row[2])
-                contact_remark = self._db_column_get_blob_value(row[3])
-                contact_head_image = self._db_column_get_blob_value(row[4])
-                contact_chatroom = self._db_column_get_blob_value(row[5])
-                self._parse_user_contact_db_with_value(0, node.AbsolutePath, username, contact_type, certification_flag, contact_remark, contact_head_image, contact_chatroom)
+            try:
+                username = self._db_column_get_string_value(row[0])
+                if username not in [None, '']:
+                    contact_type = self._db_column_get_int_value(row[1])
+                    certification_flag = self._db_column_get_int_value(row[2])
+                    contact_remark = self._db_column_get_blob_value(row[3])
+                    contact_head_image = self._db_column_get_blob_value(row[4])
+                    contact_chatroom = self._db_column_get_blob_value(row[5])
+                    self._parse_user_contact_db_with_value(0, node.AbsolutePath, username, contact_type, certification_flag, contact_remark, contact_head_image, contact_chatroom)
+            except Exception as e:
+                print(e)
             row = cursor.fetchone()
         self.db_commit()
         cursor.close()
@@ -241,16 +244,19 @@ class WeChatParser(model_im.IM):
                 for rec in db.ReadTableDeletedRecords(ts, False):
                     if canceller.IsCancellationRequested:
                         break
-                    username = self._db_record_get_string_value(rec, 'userName')
-                    if username in [None, '']:
-                        continue
-                    contact_type = self._db_record_get_int_value(rec, 'type')
-                    certification_flag = self._db_record_get_int_value(rec, 'certificationFlag')
-                    contact_remark = self._db_record_get_blob_value(rec, 'dbContactRemark')
-                    contact_head_image = self._db_record_get_blob_value(rec, 'dbContactHeadImage')
-                    contact_chatroom = self._db_record_get_blob_value(rec, 'dbContactChatRoom')
-                    deleted = 0 if rec.Deleted == DeletedState.Intact else 1
-                    self._parse_user_contact_db_with_value(deleted, node.AbsolutePath, username, contact_type, certification_flag, contact_remark, contact_head_image, contact_chatroom)
+                    try:
+                        username = self._db_record_get_string_value(rec, 'userName')
+                        if username in [None, '']:
+                            continue
+                        contact_type = self._db_record_get_int_value(rec, 'type')
+                        certification_flag = self._db_record_get_int_value(rec, 'certificationFlag')
+                        contact_remark = self._db_record_get_blob_value(rec, 'dbContactRemark')
+                        contact_head_image = self._db_record_get_blob_value(rec, 'dbContactHeadImage')
+                        contact_chatroom = self._db_record_get_blob_value(rec, 'dbContactChatRoom')
+                        deleted = 0 if rec.Deleted == DeletedState.Intact else 1
+                        self._parse_user_contact_db_with_value(deleted, node.AbsolutePath, username, contact_type, certification_flag, contact_remark, contact_head_image, contact_chatroom)
+                    except Exception as e:
+                        print(e)
                 self.db_commit()
         return True
 
@@ -298,14 +304,17 @@ class WeChatParser(model_im.IM):
             for member in members:
                 if canceller.IsCancellationRequested:
                     break
-                cm = model_im.ChatroomMember()
-                cm.deleted = deleted
-                cm.source = source
-                cm.account_id = self.user_account.account_id
-                cm.chatroom_id = username
-                cm.member_id = member.get('username')
-                cm.display_name = member.get('display_name')
-                self.db_insert_table_chatroom_member(cm)
+                try:
+                    cm = model_im.ChatroomMember()
+                    cm.deleted = deleted
+                    cm.source = source
+                    cm.account_id = self.user_account.account_id
+                    cm.chatroom_id = username
+                    cm.member_id = member.get('username')
+                    cm.display_name = member.get('display_name')
+                    self.db_insert_table_chatroom_member(cm)
+                except Exception as e:
+                    print(e)
 
             if len(members) > 0:
                 chatroom.owner_id = members[0].get('username')
@@ -399,12 +408,15 @@ class WeChatParser(model_im.IM):
             while row is not None:
                 if canceller.IsCancellationRequested:
                     break
-                msg = self._db_column_get_string_value(row[0])
-                msg_type = self._db_column_get_int_value(row[1], MSG_TYPE_TEXT)
-                msg_local_id = self._db_column_get_string_value(row[2])
-                is_sender = 1 if self._db_column_get_int_value(row[3]) == 0 else 0
-                create_time = self._db_column_get_int_value(row[4], None)
-                self._parse_user_mm_db_with_value(0, node.AbsolutePath, username, msg, msg_type, msg_local_id, is_sender, create_time, user_hash)
+                try:
+                    msg = self._db_column_get_string_value(row[0])
+                    msg_type = self._db_column_get_int_value(row[1], MSG_TYPE_TEXT)
+                    msg_local_id = self._db_column_get_string_value(row[2])
+                    is_sender = 1 if self._db_column_get_int_value(row[3]) == 0 else 0
+                    create_time = self._db_column_get_int_value(row[4], None)
+                    self._parse_user_mm_db_with_value(0, node.AbsolutePath, username, msg, msg_type, msg_local_id, is_sender, create_time, user_hash)
+                except Exception as e:
+                    print(e)
                 row = cursor.fetchone()
             self.db_commit()
             cursor.close()
@@ -437,13 +449,16 @@ class WeChatParser(model_im.IM):
                 for rec in db.ReadTableDeletedRecords(ts, False):
                     if canceller.IsCancellationRequested:
                         break
-                    msg = self._db_record_get_string_value(rec, 'Message')
-                    msg_type = self._db_record_get_int_value(rec, 'Type', MSG_TYPE_TEXT)
-                    msg_local_id = self._db_record_get_string_value(rec, 'MesLocalID')
-                    is_sender = 1 if self._db_record_get_int_value(rec, 'Des') == 0 else 0
-                    create_time = self._db_record_get_int_value(rec, 'CreateTime', None)
-                    deleted = 0 if rec.Deleted == DeletedState.Intact else 1
-                    self._parse_user_mm_db_with_value(deleted, node.AbsolutePath, username, msg, msg_type, msg_local_id, is_sender, create_time, user_hash)
+                    try:
+                        msg = self._db_record_get_string_value(rec, 'Message')
+                        msg_type = self._db_record_get_int_value(rec, 'Type', MSG_TYPE_TEXT)
+                        msg_local_id = self._db_record_get_string_value(rec, 'MesLocalID')
+                        is_sender = 1 if self._db_record_get_int_value(rec, 'Des') == 0 else 0
+                        create_time = self._db_record_get_int_value(rec, 'CreateTime', None)
+                        deleted = 0 if rec.Deleted == DeletedState.Intact else 1
+                        self._parse_user_mm_db_with_value(deleted, node.AbsolutePath, username, msg, msg_type, msg_local_id, is_sender, create_time, user_hash)
+                    except Exception as e:
+                        print(e)
                 self.db_commit()
         return True
 
@@ -516,11 +531,14 @@ class WeChatParser(model_im.IM):
             while row is not None:
                 if canceller.IsCancellationRequested:
                     break
-                username = self._db_column_get_string_value(row[0])
-                buffer = self._db_column_get_blob_value(row[1])
-                self._parse_user_wc_db_with_value(0, node.AbsolutePath, username, buffer)
+                try:
+                    username = self._db_column_get_string_value(row[0])
+                    buffer = self._db_column_get_blob_value(row[1])
+                    self._parse_user_wc_db_with_value(0, node.AbsolutePath, username, buffer)
+                except Exception as e:
+                    print(e)
                 row = cursor.fetchone()
-            self.db_commit()
+        self.db_commit()
         cursor.close()
         db.close()
         self.db_remove_mapping(db_path)
@@ -546,11 +564,14 @@ class WeChatParser(model_im.IM):
                 for rec in db.ReadTableDeletedRecords(ts, False):
                     if canceller.IsCancellationRequested:
                         break
-                    username = self._db_record_get_string_value(rec, 'FromUser')
-                    buffer = self._db_record_get_blob_value(rec, 'Buffer')
-                    deleted = 0 if rec.Deleted == DeletedState.Intact else 1
-                    self._parse_user_wc_db_with_value(deleted, node.AbsolutePath, username, buffer)
-                self.db_commit()
+                    try:
+                        username = self._db_record_get_string_value(rec, 'FromUser')
+                        buffer = self._db_record_get_blob_value(rec, 'Buffer')
+                        deleted = 0 if rec.Deleted == DeletedState.Intact else 1
+                        self._parse_user_wc_db_with_value(deleted, node.AbsolutePath, username, buffer)
+                    except Exception as e:
+                        print(e)
+            self.db_commit()
         return True
 
     def _parse_user_wc_db_with_value(self, deleted, source, username, buffer):
@@ -601,8 +622,11 @@ class WeChatParser(model_im.IM):
                             for url_node in media_node.Children['previewUrls'].Values:
                                 if 'url' in url_node.Children:
                                     preview_urls.append(url_node.Children['url'].Value)
-                    feed.urls = json.dumps(urls)
-                    feed.preview_urls = json.dumps(preview_urls)
+                    try:
+                        feed.urls = json.dumps(urls)
+                        feed.preview_urls = json.dumps(preview_urls)
+                    except Exception as e:
+                        pass
 
                 if feed.type == MOMENT_TYPE_MUSIC:
                     feed.attachment_title = self._bpreader_node_get_string_value(content_node, 'title', deleted = feed.deleted)
@@ -687,15 +711,18 @@ class WeChatParser(model_im.IM):
         while row is not None:
             if canceller.IsCancellationRequested:
                 break
-            local_id = self._db_column_get_int_value(row[0])
-            fav_type = self._db_column_get_int_value(row[1])
-            timestamp = self._db_column_get_int_value(row[2])
-            from_user = self._db_column_get_string_value(row[3])
-            to_user = self._db_column_get_string_value(row[4])
-            real_name = self._db_column_get_string_value(row[5])
-            source_type = self._db_column_get_int_value(row[6])
-            xml = self._db_column_get_string_value(row[7])
-            self._parse_user_fav_db_with_value(0, node.AbsolutePath, fav_type, timestamp, from_user, xml)
+            try:
+                local_id = self._db_column_get_int_value(row[0])
+                fav_type = self._db_column_get_int_value(row[1])
+                timestamp = self._db_column_get_int_value(row[2])
+                from_user = self._db_column_get_string_value(row[3])
+                to_user = self._db_column_get_string_value(row[4])
+                real_name = self._db_column_get_string_value(row[5])
+                source_type = self._db_column_get_int_value(row[6])
+                xml = self._db_column_get_string_value(row[7])
+                self._parse_user_fav_db_with_value(0, node.AbsolutePath, fav_type, timestamp, from_user, xml)
+            except Exception as e:
+                print(e)
             row = cursor.fetchone()
         self.db_commit()
         cursor.close()
@@ -718,16 +745,19 @@ class WeChatParser(model_im.IM):
                 for rec in db.ReadTableDeletedRecords(ts, False):
                     if canceller.IsCancellationRequested:
                         break
-                    local_id = self._db_record_get_int_value(rec, 'LocalId')
-                    fav_type = self._db_record_get_int_value(rec, 'Type')
-                    timestamp = self._db_record_get_int_value(rec, 'Time')
-                    from_user = self._db_record_get_string_value(rec, 'FromUsr')
-                    to_user = self._db_record_get_string_value(rec, 'ToUsr')
-                    real_name = self._db_record_get_string_value(rec, 'RealChatName')
-                    source_type = self._db_record_get_int_value(rec, 'SourceType')
-                    xml = self._db_record_get_string_value(rec, 'Xml')
-                    deleted = 0 if rec.Deleted == DeletedState.Intact else 1
-                    self._parse_user_fav_db_with_value(deleted, node.AbsolutePath, fav_type, timestamp, from_user, xml)
+                    try:
+                        local_id = self._db_record_get_int_value(rec, 'LocalId')
+                        fav_type = self._db_record_get_int_value(rec, 'Type')
+                        timestamp = self._db_record_get_int_value(rec, 'Time')
+                        from_user = self._db_record_get_string_value(rec, 'FromUsr')
+                        to_user = self._db_record_get_string_value(rec, 'ToUsr')
+                        real_name = self._db_record_get_string_value(rec, 'RealChatName')
+                        source_type = self._db_record_get_int_value(rec, 'SourceType')
+                        xml = self._db_record_get_string_value(rec, 'Xml')
+                        deleted = 0 if rec.Deleted == DeletedState.Intact else 1
+                        self._parse_user_fav_db_with_value(deleted, node.AbsolutePath, fav_type, timestamp, from_user, xml)
+                    except Exception as e:
+                        print(e)
                 self.db_commit()
         return True
 
@@ -1067,13 +1097,16 @@ class WeChatParser(model_im.IM):
                 while reader.Read():
                     if canceller.IsCancellationRequested:
                         break
-                    id = self._db_reader_get_int_value(reader, 0)
-                    content = self._db_reader_get_string_value(reader, 1)
-                    if id in username_ids:
-                        username = username_ids.get(id)
-                    else:
-                        username = id
-                    self._parse_user_fts_db_with_value(1, node.AbsolutePath, username, content)
+                    try:
+                        id = self._db_reader_get_int_value(reader, 0)
+                        content = self._db_reader_get_string_value(reader, 1)
+                        if id in username_ids:
+                            username = username_ids.get(id)
+                        else:
+                            username = id
+                        self._parse_user_fts_db_with_value(1, node.AbsolutePath, username, content)
+                    except Exception as e:
+                        print(e)
                 self.db_commit()
                 reader.Close()
                 del reader
