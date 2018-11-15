@@ -1817,5 +1817,25 @@
       </array>
     </dict>
 
+    <dict>
+      <key>Module</key>
+      <string>android_line</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_line</string>
+          <key>RunnerType</key>
+          <integer>2</integer>
+          <key>Patterns</key>
+          <array>
+            <string>jp.naver.line.android/databases/naver_line$</string>
+          </array>
+          <key>Category</key>
+          <string>Line</string>
+        </dict>
+      </array>
+    </dict>    
+
   </array>
 </plist>
