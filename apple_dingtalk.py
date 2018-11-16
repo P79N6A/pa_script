@@ -705,9 +705,18 @@ class Ding(object):
         self.im.db_commit()
 
 
+def judge_node(root):
+    node = root.Parent.Parent.Parent
+    sub = node.GetByPath('Documents')
+    if sub is None:
+        return None
+    return node
 
 def parse_ding(root, extract_deleted, extract_source):
     try:
+        root = judge_node(root)
+        if root is None:
+            raise IOError('e')
         d = Ding(root, extract_deleted, extract_source)
         if d.need_parse:
             d.search_account()
