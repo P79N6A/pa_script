@@ -484,7 +484,7 @@ class KeyChainParser():
             if format == 'bool':
                 return bool(bytes(map[key].Bytes))
             if format == 'int':
-                return int(bytes(map[key].Bytes))
+                return int(str(bytes(map[key].Bytes)))
             return map[key].Bytes
         if format == 'data':
             return UnicodeEncoding.UTF8.GetBytes(str(map[key]))

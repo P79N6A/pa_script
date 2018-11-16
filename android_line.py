@@ -45,7 +45,7 @@ def exc_debug(*e):
 def analyze_line(node, extract_deleted, extract_source):
     """ android LINE 
 
-        jp.naver.line.android   
+        jp.naver.line     
     """
     exc_debug('android_line.py is running ...')
     pr = ParserResults()
@@ -105,28 +105,56 @@ class LineParser(object):
         return models
 
     def parse_main(self):
-        ''' nvar_line
+        ''' 
+            nvar_line
         '''
-        # if self._read_db('/things_user_device'):
-
         if self._read_db('/naver_line'):
             self.account_list = self.parse_Account()
-
             for account_id in self.account_list:
+
                 # self.cur_account_id = account.account_id
                 self.cur_account_id = account_id
 
-                CHAT_DICT   = self.parse_chat('chat')
-                FRIEND_CHATROOMS = self.preparse_group_member('membership')
+                if self._read_db('/naver_line'):
+                    CHAT_DICT        = self.parse_chat('chat')
+                    FRIEND_CHATROOMS = self.preparse_group_member('membership')
+                    CHATROOM_ID_NAME = self.parse_Chatroom('groups')
+                    FRIEND_ID_NAME   = self.parse_Friend('contacts', FRIEND_CHATROOMS)
+                    self.parse_Message('chat_history', CHAT_DICT, CHATROOM_ID_NAME, FRIEND_ID_NAME)
+                    #self.parse_Feed('', '')
+                    #self.parse_FeedLike('', '')
+                    #self.parse_FeedComment('', '')
+                    #self.parse_Location('', '')
+                    #self.parse_Deal('', '')
+                self.parse_Search('line_general_key_value', 'key_value_text')
 
-                FRIEND_ID_NAME   = self.parse_Friend('contacts', FRIEND_CHATROOMS)
-                CHATROOM_ID_NAME = self.parse_Chatroom('groups')
-                self.parse_Message('chat_history', CHAT_DICT, CHATROOM_ID_NAME, FRIEND_ID_NAME)
-                #self.parse_Feed('', '')
-                #self.parse_FeedLike('', '')
-                #self.parse_FeedComment('', '')
-                #self.parse_Location('', '')
-                #self.parse_Deal('', '')
+    def parse_Search(self, db_name, table_name):
+        ''' line_general_key_value', 'key_value_text
+                FieldName	   SQLType
+                key	           TEXT
+                value	       TEXT
+        '''
+        if not self._read_db(db_name):
+            return 
+        for rec in self._read_table(table_name):
+            if rec['key'].Value != 'SEARCH_RECENT_KEYWORDS':
+                continue
+            if canceller.IsCancellationRequested:
+                return
+            search_words = rec['value'].Value.split(u'\x1e')[:-1] if rec['value'].Value else None
+            exc_debug(search_words)
+            if search_words:
+                for search_word in search_words:
+                    search = model_im.Search()
+                    search.account_id = self.cur_account_id
+                    search.key        = search_word
+                    search.source     = self.cur_db_source
+                    search.deleted    = 1 if rec.IsDeleted else 0               
+                    try:
+                        self.im.db_insert_table_search(search)
+                    except:
+                        exc()
+            self.im.db_commit()    
 
     def parse_Account(self):
         ''' LINE 通过以下来来确定本人 mid
@@ -157,6 +185,7 @@ class LineParser(object):
             if canceller.IsCancellationRequested:
                 return                  
             if rec['m_id'].Value == account_id:
+
                 account = model_im.Account()
                 account.account_id = account_id
                 account.nickname   = rec['server_name'].Value
@@ -169,7 +198,6 @@ class LineParser(object):
                 account.photo = self._get_profile_img(rec['m_id'].Value)                
                 account.deleted = 1 if rec.IsDeleted else 0
                 account.source  = self.cur_db_source
-
                 account_list.append(account_id)
                 try:
                     self.im.db_insert_table_account(account)
@@ -459,12 +487,12 @@ class LineParser(object):
             friend = model_im.Friend()
             friend.account_id = self.cur_account_id
             friend.friend_id  = rec['m_id'].Value
+            friend.remark     = rec['custom_name'].Value
             friend.nickname   = rec['server_name'].Value
             friend.username   = rec['addressbook_name'].Value if rec['addressbook_name'].Value else rec['server_name'].Value 
             friend.signature  = rec['status_msg'].Value
             FRIEND_ID_NAME[rec['m_id'].Value] = friend.nickname if friend.nickname else friend.username
             friend.photo = self._get_profile_img(friend.friend_id)
-
             ''' relation
                 1 好友
                 2 陌生人
