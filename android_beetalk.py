@@ -20,7 +20,7 @@ import hashlib
 import shutil
 import traceback
 
-VERSION_APP_VALUE = 2
+VERSION_APP_VALUE = 1
 
 class BeeTalkParser(model_im.IM, model_callrecord.MC):
     def __init__(self, node, extract_deleted, extract_source):
@@ -40,6 +40,7 @@ class BeeTalkParser(model_im.IM, model_callrecord.MC):
         self.recoverDB = self.cachepath + "\\" +md5_rdb.hexdigest().upper() + ".db"
         self.sourceDB = self.cachepath + '\\BeetalkSourceDB'
         self.account_id = None
+        self.account_name = ''
 
     def db_create_table(self):
         model_im.IM.db_create_table(self)
@@ -86,11 +87,11 @@ class BeeTalkParser(model_im.IM, model_callrecord.MC):
                     account.signature = self._db_reader_get_string_value(sr, 5)
                     account.source = self.node.AbsolutePath
                     account.deleted = self._db_reader_get_int_value(sr, 6)
+                    self.account_id = account.account_id
+                    self.account_name = account.username
                     self.db_insert_table_account(account)
             except:
                 traceback.print_exc()
-            self.account_id = account.account_id
-            self.account_name = account.username
             self.db_commit()
             db_cmd.Dispose()
             db.Close()
@@ -680,8 +681,8 @@ class BeeTalkParser(model_im.IM, model_callrecord.MC):
                     if canceller.IsCancellationRequested:
                         break
                     if not IsDBNull(rec['`msgid`'].Value) and rec['`msgid`'].Value != 0:
-                        param = (rec['`msgid`'].Value, rec['`content`'].Value, rec['`fromId`'].Value, rec['`metatag`'].Value, rec['`userid`'].Value, rec.IsDeleted)
-                        self.db_insert_to_deleted_table('''insert into bb_chat_msg_info(msgid, content, fromId, metatag, userid, deleted) values(?, ?, ?, ?, ?, ?)''', param)
+                        param = (rec['`msgid`'].Value, rec['`content`'].Value, rec['`fromId`'].Value, rec['`metatag`'].Value, rec['`timestamp`'].Value, rec['`userid`'].Value, rec.IsDeleted)
+                        self.db_insert_to_deleted_table('''insert into bb_chat_msg_info(msgid, content, fromId, metatag, timestamp, userid, deleted) values(?, ?, ?, ?, ?, ?, ?)''', param)
                 except:
                     traceback.print_exc()
         except Exception as e:
