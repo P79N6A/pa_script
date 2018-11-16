@@ -602,7 +602,7 @@ class FrequentLocationsParser(object):
                     connection.Close()
             except Exception as e:
                 pass
-       return results
+        return results
 
     # ios 10之前存放在：
     # >   private/var/mobile/Library/Caches/com.apple.routined/StateModel1.archive

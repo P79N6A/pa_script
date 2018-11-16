@@ -24,7 +24,7 @@
       </array>
     </dict>
 	
-	<dict>
+    <dict>
       <key>Module</key>
       <string>apple_ctrip</string>
       <key>Runners</key>
@@ -205,7 +205,7 @@
       </array>
     </dict>
 	
-	<dict>
+    <dict>
       <key>Module</key>
       <string>apple_application_log</string>
       <key>Runners</key>
@@ -369,7 +369,7 @@
           <array>
             <string>/Library/Caches/locationd/consolidated\.db$</string>
             <string>/Library/Caches/locationd/cache\.db$</string>
-            <string>/Library/Caches/locationd/cache_encryptedA\.db$</string>
+            <string>/Library/Caches/locationd/cache_encrypted.*\.db$</string>
           </array>
           <key>Category</key>
           <string>Locations</string>
