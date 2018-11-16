@@ -554,47 +554,54 @@ class FrequentLocationsParser(object):
             if "ZRTLEARNEDLOCATIONOFINTERESTVISITMO" not in db.Tables:
                 continue
             connection = System.Data.SQLite.SQLiteConnection('Data Source = {0}; ReadOnly = True'.format(dbFile.PathWithMountPoint))
-            connection.Open()
-            cmd = System.Data.SQLite.SQLiteCommand(connection)
-            cmd.CommandText = "select ZLOCATIONOFINTEREST from ZRTLEARNEDLOCATIONOFINTERESTVISITMO group by ZLOCATIONOFINTEREST"
-            reader = cmd.ExecuteReader()
-            frequent_groups = []
-            while reader.Read():
-                frequent_groups.append(GetInt64(reader,0))
-            cmd.Dispose()
-            g_results = None
-            for frequent_item in frequent_groups:
-                cmd.CommandText  = "select ZENTRYDATE,ZEXITDATE,ZLOCATIONLATITUDE,ZLOCATIONLONGITUDE from ZRTLEARNEDLOCATIONOFINTERESTVISITMO where ZLOCATIONOFINTEREST = " + str(frequent_item)
-                g_results = cmd.ExecuteReader()
-                frequent_journey = Journey()
-                frequent_journey.Source.Value = self.category
-                while g_results.Read():
-                    loc = Location()
-                    coor = Coordinate()
-                    coor.Latitude.Value = GetFloat(g_results,2)
-                    coor.Longitude.Value = GetFloat(g_results,3)
-                    loc.Position.Value = coor
-                    try:
-                        s_dates = GetFloat(g_results,0)
-                        dstart = DateTime(1970,1,1,0,0,0)
-                        cdate = TimeStampFormats.GetTimeStampEpoch1Jan2001(s_dates)
-                        loc.TimeStamp.Value = TimeStamp.FromUnixTime(int((cdate - dstart).TotalSeconds), False)
-                    except Exception as e:
-                        print(e)
-                    try:
-                        e_dates = GetFloat(g_results,1)
-                        dstart = DateTime(1970,1,1,0,0,0)
-                        cdate = TimeStampFormats.GetTimeStampEpoch1Jan2001(e_dates)
-                        loc.EndTime.Value = TimeStamp.FromUnixTime(int((cdate - dstart).TotalSeconds), False)
-                    except Exception as e:
-                        print(e)
-                    frequent_journey.WayPoints.Add(loc)
+            try:
+                connection.Open()
+                cmd = System.Data.SQLite.SQLiteCommand(connection)
+                cmd.CommandText = "select ZLOCATIONOFINTEREST from ZRTLEARNEDLOCATIONOFINTERESTVISITMO group by ZLOCATIONOFINTEREST"
+                reader = cmd.ExecuteReader()
+                frequent_groups = []
+                while reader.Read():
+                    frequent_groups.append(GetInt64(reader,0))
                 cmd.Dispose()
-                results.append(frequent_journey)
-            if g_results != None:
-                g_results.Close()
-            if connection != None:
-                connection.Close()
+                g_results = None
+                for frequent_item in frequent_groups:
+                    try:
+                        cmd.CommandText  = "select ZENTRYDATE,ZEXITDATE,ZLOCATIONLATITUDE,ZLOCATIONLONGITUDE from ZRTLEARNEDLOCATIONOFINTERESTVISITMO where ZLOCATIONOFINTEREST = " + str(frequent_item)
+                        g_results = cmd.ExecuteReader()
+                        frequent_journey = Journey()
+                        frequent_journey.SourceFile.Value = dbFile.AbsolutePath
+                        frequent_journey.Source.Value = self.category
+                        while g_results.Read():
+                            loc = Location()
+                            coor = Coordinate()
+                            coor.Latitude.Value = GetFloat(g_results,2)
+                            coor.Longitude.Value = GetFloat(g_results,3)
+                            loc.Position.Value = coor
+                            try:
+                                s_dates = GetFloat(g_results,0)
+                                dstart = DateTime(1970,1,1,0,0,0)
+                                cdate = TimeStampFormats.GetTimeStampEpoch1Jan2001(s_dates)
+                                loc.TimeStamp.Value = TimeStamp.FromUnixTime(int((cdate - dstart).TotalSeconds), False)
+                            except Exception as e:
+                                TraceService.Debug("Time Transfer Failed!")
+                            try:
+                                e_dates = GetFloat(g_results,1)
+                                dstart = DateTime(1970,1,1,0,0,0)
+                                cdate = TimeStampFormats.GetTimeStampEpoch1Jan2001(e_dates)
+                                loc.EndTime.Value = TimeStamp.FromUnixTime(int((cdate - dstart).TotalSeconds), False)
+                            except Exception as e:
+                                TraceService.Debug("Time Transfer Failed!")
+                            frequent_journey.WayPoints.Add(loc)
+                        cmd.Dispose()
+                        results.append(frequent_journey)
+                    except Exception as e:
+                        pass
+                if g_results != None:
+                    g_results.Close()
+                if connection != None:
+                    connection.Close()
+            except Exception as e:
+                pass
         return results
 
     # ios 10之前存放在：
