@@ -566,7 +566,7 @@ class FrequentLocationsParser(object):
                 g_results = None
                 for frequent_item in frequent_groups:
                     try:
-                        cmd.CommandText  = "select ZENTRYDATE,ZEXITDATE,ZLOCATIONLATITUDE,ZLOCATIONLONGITUDE from ZRTLEARNEDLOCATIONOFINTERESTVISITMO where ZLOCATIONOFINTEREST = " + str(frequent_item)
+                        cmd.CommandText  = "select ZENTRYDATE,ZEXITDATE,ZLOCATIONLATITUDE,ZLOCATIONLONGITUDE from ZRTLEARNEDLOCATIONOFINTERESTVISITMO where ZLOCATIONOFINTEREST = " + str(frequent_item) + "  order by ZENTRYDATE"
                         g_results = cmd.ExecuteReader()
                         frequent_journey = Journey()
                         frequent_journey.SourceFile.Value = dbFile.AbsolutePath
@@ -602,7 +602,7 @@ class FrequentLocationsParser(object):
                     connection.Close()
             except Exception as e:
                 pass
-        return results
+       return results
 
     # ios 10之前存放在：
     # >   private/var/mobile/Library/Caches/com.apple.routined/StateModel1.archive
