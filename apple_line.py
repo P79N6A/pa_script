@@ -60,6 +60,8 @@ def analyze_line(node, extract_deleted, extract_source):
 
         jp.naver.line     
     """
+    exc_debug('apple_line.py runing ...!')
+
     pr = ParserResults()
     res = []
     try:
@@ -69,7 +71,7 @@ def analyze_line(node, extract_deleted, extract_source):
     if res:
         pr.Models.AddRange(res)
         pr.Build('LINE')
-        exc_debug('apple_line.py 解析完毕!')
+        exc_debug('apple_line.py completed!')
     return pr
 
 class LineParser(object):
@@ -103,29 +105,23 @@ class LineParser(object):
         self.im = model_im.IM()        
         self.cachepath = ds.OpenCachePath("LINE")
 
-        hash_str = hashlib.md5(self.root.AbsolutePath).hexdigest()
-        self.cache_db = self.cachepath + '\\line_{}.db'.format(hash_str)
+        hash_str = hashlib.md5(self.root.AbsolutePath).hexdigest()[8:-8]
+        self.cache_db = self.cachepath + '\\i_line_{}.db'.format(hash_str)
 
         self.friend_list = {} # friend_pk: Friend()
 
     def parse(self):
         
         if DEBUG or self.im.need_parse(self.cache_db, VERSION_APP_VALUE):
-
             if not self.user_plist_node:
                 return []
-            
             self.im.db_create(self.cache_db) 
-            
             self.parse_main()
-
             if not canceller.IsCancellationRequested:
                 self.im.db_insert_table_version(model_im.VERSION_KEY_DB, model_im.VERSION_VALUE_DB)
                 self.im.db_insert_table_version(model_im.VERSION_KEY_APP, VERSION_APP_VALUE)
                 self.im.db_commit()
-                
             self.im.db_close()
-
         tmp_dir = ds.OpenCachePath('tmp')
         save_cache_path(bcp_im.CONTACT_ACCOUNT_TYPE_IM_LINE, self.cache_db, tmp_dir)
 
@@ -190,9 +186,6 @@ class LineParser(object):
                                           DEL_FRIEND_PK_CHATROOM_MID,
                                           MEMBER_PK_CHATROOM_PKS, 
                                           CHATROOM_PK_MID)
-                # self.parse_FeedLike('', '')
-                # self.parse_FeedComment('', '')
-                # self.parse_Deal('', '')
             ######### Data 目录下 jp.naver.line ##############
             search_db_path = '/Library/Application Support/PrivateStore/'+account_file_name+'/Search Data/SearchData.sqlite'
             if self._read_db(self.root, search_db_path):
@@ -235,10 +228,7 @@ class LineParser(object):
         pic_url = group_plist_res['LineProfilePicturePath']
         if pic_url and pic_url.startswith('/'):
             account.photo = self._search_profile_img(pic_url)        
-
-        # account.deleted   =
         account.source     = self.user_plist_node.AbsolutePath
-
         account_list.append(account)
         try:
             self.im.db_insert_table_account(account)
@@ -393,7 +383,6 @@ class LineParser(object):
                     CHATROOM_MID_NAME[chat_zmid]  = chat_name
                     CHAT_PK_CHATROOM_MID[chat_pk] = chat_zmid
                     CHATROOM_QUIT_PK += 1
-
                     # 已经删除的群
                     chatroom = model_im.Chatroom()
                     chatroom.account_id  = self.cur_account_id
@@ -401,7 +390,6 @@ class LineParser(object):
                     chatroom.name        = chat_name
                     chatroom.source      = self.cur_db_source
                     chatroom.deleted     = 1
-
                     try:
                         self.im.db_insert_table_chatroom(chatroom)
                     except:
@@ -470,18 +458,10 @@ class LineParser(object):
             chatroom.chatroom_id = rec['ZID'].Value 
             chatroom.name        = rec['ZNAME'].Value
             pic_url = rec['ZPICTURESTATUS'].Value
-            
             chatroom.photo = self._search_profile_img(pic_url) if pic_url else None 
-            # chatroom.type             = rec['Z_PK'].Value
-            # chatroom.notice           = rec['Z_PK'].Value
-            # chatroom.description      = rec['Z_PK'].Value
             chatroom.creator_id       = str(rec['ZCREATOR'].Value)
-            # chatroom.owner_id         = rec['Z_PK'].Value
-            # chatroom.member_count     = rec['Z_PK'].Value
-            # chatroom.max_member_count = rec['Z_PK'].Value TODO
             chatroom.create_time      = self._convert_ios_time(rec['ZCREATEDTIME'].Value)
-            chatroom.max_member_count = CHATROOM_MEMBER_COUNT.get(rec['Z_PK'].Value, None)
-
+            chatroom.member_count = CHATROOM_MEMBER_COUNT.get(rec['Z_PK'].Value, None)
             chatroom.deleted = 1 if rec.IsDeleted else 0
             chatroom.source  = self.cur_db_source            
             try:
@@ -561,15 +541,14 @@ class LineParser(object):
             if self._is_empty(rec, 'ZNAME', 'ZSORTABLENAME', 'ZMID'):
                 continue
             friend = model_im.Friend()
-            friend_pk = rec['Z_PK'].Value   # 关联 ZGROUP 表
             friend.account_id = self.cur_account_id
             friend.friend_id  = rec['ZMID'].Value
-            # friend.friend_id  = rec['Z_PK'].Value
-            FRIEND_PK_MID_MAP[friend_pk] = friend.friend_id
             friend.nickname   = rec['ZNAME'].Value
             friend.username   = rec['ZSORTABLENAME'].Value
             friend.remark     = rec['ZCUSTOMNAME'].Value    # 备注[TEXT]
             friend.signature  = rec['ZSTATUSMESSAGE'].Value
+            friend_pk                    = rec['Z_PK'].Value   # 关联 ZGROUP 表
+            FRIEND_PK_MID_MAP[friend_pk] = friend.friend_id
             pic_url = rec['ZPICTUREURL'].Value
             if pic_url and pic_url.startswith('/'):
                 friend.photo = self._search_profile_img(pic_url)
@@ -584,11 +563,8 @@ class LineParser(object):
                 friend.type = self._convert_friend_type(rec['ZCONTACTTYPE'].Value)
             friend.deleted = 1 if rec.IsDeleted or rec['ZISREMOVED'].Value else 0         
             friend.source  = self.cur_db_source
-
             # provide talker_name
             FRIEND_PK_NAME_MAP[friend_pk] = friend.nickname
-            # parse_ChatroomMember
-            # self.parse_ChatroomMember(friend, friend_pk, MEMBER_PK_CHATROOM_PKS, CHATROOM_PK_MID)
             self.friend_list[friend_pk] = friend
             try:
                 self.im.db_insert_table_friend(friend)
@@ -703,7 +679,6 @@ class LineParser(object):
             message = model_im.Message()
             message.account_id  = self.cur_account_id
             message.msg_id      = rec['ZID'].Value
-
             sender_pk           = rec['ZSENDER'].Value
             message.sender_id   = FRIEND_PK_MID_MAP.get(sender_pk, None)
             message.sender_name = FRIEND_PK_NAME_MAP.get(sender_pk, None)
@@ -774,9 +749,8 @@ class LineParser(object):
         self.im.db_commit()  
         return DEL_FRIEND_PK_CHATROOM_MID
 
-
     def parse_Feed(self, plist_node=None):
-        ''' \5A249183-668C-4CC0-B983-C0A7EA2E657F\
+        ''' 5A249183-668C-4CC0-B983-C0A7EA2E657F\
                 Library\Caches\PrivateStore\
                     P_u423af962f1456db6cba8465cf82bb91b\jp.naver.myhome.MBDataResults\
             myhomelist  
@@ -810,7 +784,7 @@ class LineParser(object):
                 for chch in n.Values:
                     _print_plist(chch, ind=ind+'|----')
             else:
-                print ind+'val:{}'.format(n.Value)
+                exc_debug(ind+'val:{}'.format(n.Value))
                 
         bplist = BPReader.GetTree(plist_node.Data) if plist_node else None
         if not bplist:
@@ -833,28 +807,20 @@ class LineParser(object):
                 exc()
                 # _print_plist(feed_node)
 
-            exc_debug(feed.media_path)
-
             if feed_node['contents']['additionalContents']['url']:
                 feed.urls = feed_node['contents']['additionalContents']['url']['targetUrl'].Value   # 动态内容[TEXT]
-            # feed.preview_urls     = None  # 预览地址[json TEXT] json string ['url1', 'url2'...]
-            # feed.attachment_title = None  # 附件标题[TEXT]
-            # feed.attachment_link  = None  # 附件链接[TEXT]
-            # feed.attachment_desc  = None  # 附件描述[TEXT]
-            feed.send_time    = feed_node['postInfo']['createdTime'].Value  # 发布时间[INT]
-            # feed.likes        = None  # 赞[TEXT] 逗号分隔like_id 例如：like_id, like_id, like_id, ...
-            feed.likecount    = feed_node['postInfo']['likeCount'].Value  # 赞数量[INT]
-            feed.rtcount = feed_node['postInfo']['sharedCount']['toPost'].Value \
-                        + feed_node['postInfo']['sharedCount']['toTalk'].Value  # 转发数量[INT]
-            # feed.comments     = None # [TEXT] 逗号分隔comment_id 例如：comment_id,comment_id,comment_id,...
+            feed.send_time = feed_node['postInfo']['createdTime'].Value  # 发布时间[INT]
+            feed.likecount = feed_node['postInfo']['likeCount'].Value  # 赞数量[INT]
+            feed.rtcount   = feed_node['postInfo']['sharedCount']['toPost'].Value \
+                           + feed_node['postInfo']['sharedCount']['toTalk'].Value  # 转发数量[INT]
             feed.commentcount = feed_node['postInfo']['commentCount'].Value   # 评论数量[INT]
-            # feed.device       = None  # 设备名称[TEXT]
             # feed.type = MOMENT_TYPE_IMAGE  # 动态类型[INT] MOMENT_TYPE
 
+            # location
             loc_node = feed_node['contents']['textLocation']['location']
             if loc_node and loc_node['latitude'] and loc_node['longitude']:
                 location = model_im.Location()
-                location.latitude = loc_node['latitude'].Value
+                location.latitude  = loc_node['latitude'].Value
                 location.longitude = loc_node['longitude'].Value
                 try:
                     self.im.db_insert_table_location(location)
@@ -893,11 +859,10 @@ class LineParser(object):
             if self._is_empty(rec, 'ZSEARCHKEYWORD'):
                 continue              
             search = model_im.Search()
-            search.account_id  = self.cur_account_id
-            search.key         = rec['ZSEARCHKEYWORD'].Value
-            # search.create_time = rec['ZTIME'].Value   # TODO
-            search.source  = self.cur_db_source
-            search.deleted = 1 if rec.IsDeleted else 0               
+            search.account_id = self.cur_account_id
+            search.key        = rec['ZSEARCHKEYWORD'].Value
+            search.source     = self.cur_db_source
+            search.deleted    = 1 if rec.IsDeleted else 0               
             try:
                 self.im.db_insert_table_search(search)
             except:
@@ -914,10 +879,6 @@ class LineParser(object):
         '''
         res = {}
         bp = BPReader(plist_node.Data).top    
-        # bp = BPReader.GetTree(plist_node.Data)
-        # exc_debug(dir(BPReader))
-        # exc_debug(type(bp))
-        #exc_debug(bp)
         try:
             for k in keys:
                 # exc_debug(k)
@@ -930,7 +891,7 @@ class LineParser(object):
             return res
 
     def _search_profile_img(self, file_name):
-        # 用户, 好友, 群 头像 存储位置: \F8B82034-8474-4CB9-AD1E-3A703CB7C65B
+        # 用户, 好友, 群 头像 存储位置: \F8B8...
         # \Library\Caches\PrivateStore\P_u423af962f1456db6cba8465cf82bb91b\Profile Images\ZMID
         if file_name[0] != '/':
             file_name = '/' + file_name
@@ -978,17 +939,6 @@ class LineParser(object):
             file_path = cache_media_node.AbsolutePath
             return file_path        
         return 
-
-    @staticmethod
-    def _convert_ArrayByte_2_str(ab):
-        # exc_debug(ab.ToString())
-        # exc_debug(type(ab))
-        # exc_debug(type(ab[0]))
-        buf = ''.join([chr(x) for x in ab])
-        buf = ''.join(ab).decode('utf-8')
-
-        buf = str(buf, 'utf-8', errors='ignore')
-        return buf
 
     def _read_db(self, db_root, db_path):
         """ 读取手机数据库

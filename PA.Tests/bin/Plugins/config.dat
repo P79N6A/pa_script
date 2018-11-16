@@ -234,10 +234,10 @@
           <key>EntryPoint</key>
           <string>analyse_twitter</string>
           <key>RunnerType</key>
-          <integer>1</integer>
+          <integer>0</integer>
           <key>Patterns</key>
           <array>
-            <string>com.atebits.Tweetie2</string>
+          <string>Library/Preferences/com.atebits.Tweetie2.plist$</string>
           </array>
           <key>Category</key>
           <string>Twitter</string>
@@ -1004,10 +1004,10 @@
           <key>EntryPoint</key>
           <string>parse_ding</string>
           <key>RunnerType</key>
-          <integer>1</integer>
+          <integer>0</integer>
           <key>Patterns</key>
           <array>
-            <string>com.laiwang.DingTalk</string>
+            <string>Library/Preferences/com.laiwang.DingTalk.plist$</string>
           </array>
           <key>Category</key>
           <string>DingTalk</string>
@@ -1024,10 +1024,10 @@
           <key>EntryPoint</key>
           <string>parse_tb</string>
           <key>RunnerType</key>
-          <integer>1</integer>
+          <integer>0</integer>
           <key>Patterns</key>
           <array>
-            <string>com.taobao.taobao4iphone</string>
+            <string>Library/Preferences/com.taobao.taobao4iphone.plist$</string>
           </array>
           <key>Category</key>
           <string>Taobao</string>
@@ -1044,10 +1044,10 @@
           <key>EntryPoint</key>
           <string>parse_xy</string>
           <key>RunnerType</key>
-          <integer>1</integer>
+          <integer>0</integer>
           <key>Patterns</key>
           <array>
-            <string>com.taobao.fleamarket</string>
+            <string>Library/Preferences/com.taobao.fleamarket.plist$</string>
           </array>
           <key>Category</key>
           <string>XianYu</string>
@@ -1717,7 +1717,7 @@
             <string>com.baidu.netdisk$</string>
           </array>
           <key>Category</key>
-          <string>BaiduNetDisk</string>
+          <string>BDY</string>
         </dict>
       </array>
     </dict>
