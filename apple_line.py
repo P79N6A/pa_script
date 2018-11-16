@@ -160,7 +160,8 @@ class LineParser(object):
             需要: FRIEND_MID_PK_MAP
         '''
         account_list = self.parse_Account(self.user_plist_node, self.group_plist_node)
-
+        if not account_list:
+            return 
         for account in account_list:
             self.cur_account_id = account.account_id
             account_file_name = 'P_' + account.account_id
@@ -810,7 +811,7 @@ class LineParser(object):
             if feed_node['contents']['additionalContents']['url']:
                 feed.urls = feed_node['contents']['additionalContents']['url']['targetUrl'].Value   # 动态内容[TEXT]
             feed.send_time = feed_node['postInfo']['createdTime'].Value  # 发布时间[INT]
-            feed.likecount = feed_node['postInfo']['likeCount'].Value  # 赞数量[INT]
+            feed.likecount = feed_node['postInfo']['likeCount'].Value    # 赞数量[INT]
             feed.rtcount   = feed_node['postInfo']['sharedCount']['toPost'].Value \
                            + feed_node['postInfo']['sharedCount']['toTalk'].Value  # 转发数量[INT]
             feed.commentcount = feed_node['postInfo']['commentCount'].Value   # 评论数量[INT]
@@ -882,7 +883,7 @@ class LineParser(object):
         try:
             for k in keys:
                 # exc_debug(k)
-                if bp[k]:
+                if bp and bp[k]:
                     res[k] = bp[k].Value
                     # exc_debug(res[k])
             return res
