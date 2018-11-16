@@ -1832,4 +1832,26 @@
       </array>
     </dict>    
   </array>
+
+  <dict>
+      <key>Module</key>
+      <string>android_beetalk</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_android_beetalk</string>
+          <key>RunnerType</key>
+          <integer>2</integer>
+          <key>Patterns</key>
+          <array>
+            <string>/data/com.beetalk/databases/user_\d+.db$</string>
+            <string>/Apps/com.beetalk/databases/user_\d+.db$</string>
+          </array>
+          <key>Category</key>
+          <string>BeeTalk</string>
+        </dict>
+      </array>
+    </dict> 
+
 </plist>
