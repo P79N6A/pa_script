@@ -23,7 +23,7 @@
         </dict>
       </array>
     </dict>
-	
+
     <dict>
       <key>Module</key>
       <string>apple_ctrip</string>
@@ -43,7 +43,6 @@
         </dict>
       </array>
     </dict>
-	
     <dict>
       <key>Module</key>
       <string>apple_copy</string>
@@ -83,7 +82,7 @@
         </dict>
       </array>
     </dict>
-    
+
     <dict>
       <key>Module</key>
       <string>apple_voicemail</string>
@@ -204,7 +203,7 @@
         </dict>
       </array>
     </dict>
-	
+
     <dict>
       <key>Module</key>
       <string>apple_application_log</string>
@@ -224,7 +223,6 @@
         </dict>
       </array>
     </dict>
-	
     <dict>
       <key>Module</key>
       <string>apple_twr</string>
@@ -304,7 +302,7 @@
         </dict>
       </array>
     </dict>
-    
+
     <dict>
       <key>Module</key>
       <string>apple_telegram</string>
@@ -1114,7 +1112,6 @@
         </dict>
       </array>
     </dict>    
-
     
     <dict>
       <key>Module</key>
@@ -1134,8 +1131,7 @@
           <string>BeeTalk</string>
         </dict>
       </array>
-    </dict>    
-
+    </dict>
     <!--安卓运行插件从这里开始-->
 
     <dict>
@@ -1157,7 +1153,6 @@
         </dict>
       </array>
     </dict>
-    
     <dict>
       <key>Module</key>
       <string>android_wechat</string>
@@ -1796,8 +1791,8 @@
         </dict>
       </array>
     </dict>
-	
-	<dict>
+
+    <dict>
       <key>Module</key>
       <string>android_ctrip</string>
       <key>Runners</key>
@@ -1816,7 +1811,7 @@
         </dict>
       </array>
     </dict>
-
+    
     <dict>
       <key>Module</key>
       <string>android_line</string>
@@ -1836,6 +1831,5 @@
         </dict>
       </array>
     </dict>    
-
   </array>
 </plist>
