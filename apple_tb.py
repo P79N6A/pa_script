@@ -731,10 +731,20 @@ class Taobao(object):
                 continue
         self.eb.db_commit()
 
+def judge_node(node):
+    root = node.Parent.Parent.Parent
+    sub_node = root.GetByPath('Documents')
+    #防止命中到group
+    if sub_node is None:
+        return None
+    else:
+        return root
 
 def parse_tb(root, extract_deleted, extract_source):
-    #root = FileSystem.FromLocalDir(r"D:\ios_case\taobao\C0B97359-E334-4838-93F1-A40BC2A5DF0B")
     try:
+        root = judge_node(root)
+        if root is None:
+            raise IOError('E')
         t = Taobao(root, extract_source, extract_deleted)
         if t.need_parse:
             t.search()
