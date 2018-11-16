@@ -45,7 +45,7 @@ def exc_debug(*e):
 def analyze_line(node, extract_deleted, extract_source):
     """ android LINE 
 
-        jp.naver.line     
+        jp.naver.line.android
     """
     exc_debug('android_line.py is running ...')
     pr = ParserResults()
@@ -64,9 +64,6 @@ class LineParser(object):
 
     def __init__(self, node, extract_deleted, extract_source):
         ''' node: /data/data/jp.naver.line.android/databases/naver_line
-
-            Library\Preferences\jp.naver.line.plist
-
         '''
         self.root = node.Parent
         self.extract_deleted = extract_deleted
@@ -86,21 +83,16 @@ class LineParser(object):
             vsersion
         ''' 
         if DEBUG or self.im.need_parse(self.cache_db, VERSION_APP_VALUE):
-
             self.im.db_create(self.cache_db) 
-            
             self.parse_main()
-
             if not canceller.IsCancellationRequested:
                 self.im.db_insert_table_version(model_im.VERSION_KEY_DB, model_im.VERSION_VALUE_DB)
                 self.im.db_insert_table_version(model_im.VERSION_KEY_APP, VERSION_APP_VALUE)
                 self.im.db_commit()
-                
             self.im.db_close()
 
         tmp_dir = ds.OpenCachePath('tmp')
         save_cache_path(bcp_im.CONTACT_ACCOUNT_TYPE_IM_LINE, self.cache_db, tmp_dir)
-
         models = model_im.GenerateModel(self.cache_db).get_models()
         return models
 
@@ -111,14 +103,11 @@ class LineParser(object):
         if self._read_db('/naver_line'):
             self.account_list = self.parse_Account()
             for account_id in self.account_list:
-
-                # self.cur_account_id = account.account_id
                 self.cur_account_id = account_id
-
                 if self._read_db('/naver_line'):
+                    FRIEND_CHATROOMS, CHATROOM_MEMBER_COUNT = self.preparse_group_member('membership')
                     CHAT_DICT        = self.parse_chat('chat')
-                    FRIEND_CHATROOMS = self.preparse_group_member('membership')
-                    CHATROOM_ID_NAME = self.parse_Chatroom('groups')
+                    CHATROOM_ID_NAME = self.parse_Chatroom('groups', CHATROOM_MEMBER_COUNT)
                     FRIEND_ID_NAME   = self.parse_Friend('contacts', FRIEND_CHATROOMS)
                     self.parse_Message('chat_history', CHAT_DICT, CHATROOM_ID_NAME, FRIEND_ID_NAME)
                     #self.parse_Feed('', '')
@@ -216,12 +205,15 @@ class LineParser(object):
             updated_time	    INTEGER
             created_time	    INTEGER
         '''
-        FRIEND_CHATROOMS = {}
+        FRIEND_CHATROOMS      = {}
+        CHATROOM_MEMBER_COUNT = {}
         for rec in self._read_table(table_name):
             if canceller.IsCancellationRequested:
                 return
             if self._is_empty(rec, 'id', 'm_id') or not rec['id'].Value.startswith('c') or not rec['m_id'].Value.startswith('u'):
                 continue    
+            if rec['is_accepted'].Value != 1:
+                continue
             group_id = rec['id'].Value
             member_id = rec['m_id'].Value
 
@@ -229,10 +221,16 @@ class LineParser(object):
                 FRIEND_CHATROOMS[member_id].append(group_id)
             else:
                 FRIEND_CHATROOMS[member_id] = [group_id]
-        print(FRIEND_CHATROOMS)
-        return FRIEND_CHATROOMS
 
-    def parse_Chatroom(self, table_name):
+        for _, chatroom_pk_list in FRIEND_CHATROOMS.iteritems():
+            for chatroom_pk in chatroom_pk_list:
+                if CHATROOM_MEMBER_COUNT.has_key(chatroom_pk):
+                    CHATROOM_MEMBER_COUNT[chatroom_pk] += 1    
+                else:
+                    CHATROOM_MEMBER_COUNT[chatroom_pk] = 1
+        return FRIEND_CHATROOMS, CHATROOM_MEMBER_COUNT
+
+    def parse_Chatroom(self, table_name, CHATROOM_MEMBER_COUNT):
         ''' naver_line group 
         '''
         '''     FieldName	    SQLType		             	
@@ -271,26 +269,21 @@ class LineParser(object):
             if self._is_empty(rec, 'id', 'name'):
                 continue        
             chatroom = model_im.Chatroom()
-            chatroom.account_id        = self.cur_account_id
-            chatroom.chatroom_id       = rec['id'].Value
-            chatroom.name              = rec['name'].Value
-            chatroom.photo             = rec['picture_status'].Value
-            # chatroom.type              = rec['Z_PK'].Value
-            # chatroom.notice            = rec['Z_PK'].Value
-            # chatroom.description       = rec['Z_PK'].Value
-            chatroom.creator_id        = rec['creator'].Value
-            # chatroom.owner_id          = rec['Z_PK'].Value
-            # chatroom.member_count      = rec['Z_PK'].Value
-            # chatroom.max_member_count  = rec['Z_PK'].Value
-            chatroom.create_time       = self._get_im_ts(rec['created_time'].Value)
-                
-            chatroom.deleted    = 1 if rec.IsDeleted else 0         
-            chatroom.source     = self.cur_db_source            
+            chatroom.account_id   = self.cur_account_id
+            chatroom.chatroom_id  = rec['id'].Value
+            chatroom.name         = rec['name'].Value
+            chatroom.photo        = rec['picture_status'].Value
+            chatroom.creator_id   = rec['creator'].Value
+            # chatroom.owner_id     = rec['Z_PK'].Value
+            chatroom.member_count = CHATROOM_MEMBER_COUNT.get(chatroom.chatroom_id, None)
+            chatroom.create_time  = self._get_im_ts(rec['created_time'].Value)
+            chatroom.deleted      = 1 if rec.IsDeleted else 0         
+            chatroom.source       = self.cur_db_source            
             try:
                 CHATROOM_ID_NAME[chatroom.chatroom_id] = chatroom.name
             except:
-                print 'CHATROOM_ID_NAME', CHATROOM_ID_NAME
-                print 'chatroom.chatroom_id', chatroom.chatroom_id
+                # print 'CHATROOM_ID_NAME', CHATROOM_ID_NAME
+                # print 'chatroom.chatroom_id', chatroom.chatroom_id
                 exc()
             try:
                 self.im.db_insert_table_chatroom(chatroom)
@@ -663,7 +656,6 @@ class LineParser(object):
             # exc_debug('not found')
             return 
 
-
     @staticmethod
     def _is_empty(rec, *args):
         ''' 过滤 DBNull 空数据, 有一空值就跳过
@@ -764,17 +756,19 @@ class LineParser(object):
         status: 2 屏蔽
         '''
         type_map = {
-            # 1: model_im.FRIEND_TYPE_ ,             # = 0   通讯录好友
+            # 1: model_im.FRIEND_TYPE_ ,              # = 0   通讯录好友
             # 0: model_im.FRIEND_TYPE_NONE,           # = 0   未知
-            # 1: model_im.FRIEND_TYPE_FRIEND,         # = 1   好友
+            7: model_im.FRIEND_TYPE_FRIEND,         # = 1   好友
             # 3: model_im.FRIEND_TYPE_FANS,           # = 3   粉丝
             # 4: model_im.FRIEND_TYPE_FOLLOW,         # = 4   关注
-            5: model_im.FRIEND_TYPE_GROUP_FRIEND,   # = 2   群好友
+            5: model_im.FRIEND_TYPE_GROUP_FRIEND,    # = 2   群好友
             # 6: model_im.FRIEND_TYPE_SPECAIL_FOLLOW, # = 5   特别关注
             # 7: model_im.FRIEND_TYPE_MUTUAL_FOLLOW,  # = 6   互相关注
-            8: model_im.FRIEND_TYPE_SUBSCRIBE,      # = 8   官方账号 - 公众号
-            # 9: model_im.FRIEND_TYPE_RECENT,         # = 7   最近
-            2: model_im.FRIEND_TYPE_STRANGER,       # = 9   陌生人       
+            8: model_im.FRIEND_TYPE_SUBSCRIBE,       # = 8   官方账号 - 公众号
+            # 9: model_im.FRIEND_TYPE_RECENT,        # = 7   最近
+            # 0: model_im.FRIEND_TYPE_STRANGER,       # = 9   陌生人       
+            2: model_im.FRIEND_TYPE_STRANGER,        # = 9   陌生人       
+            -1: model_im.FRIEND_TYPE_STRANGER,       # = 9   陌生人       
         }
         try:
             return type_map[contact_type]
