@@ -234,10 +234,10 @@
           <key>EntryPoint</key>
           <string>analyse_twitter</string>
           <key>RunnerType</key>
-          <integer>1</integer>
+          <integer>0</integer>
           <key>Patterns</key>
           <array>
-            <string>com.atebits.Tweetie2</string>
+          <string>Library/Preferences/com.atebits.Tweetie2.plist$</string>
           </array>
           <key>Category</key>
           <string>Twitter</string>
@@ -894,7 +894,46 @@
         </dict>
       </array>
     </dict>
-
+    <dict>
+      <key>Module</key>
+      <string>apple_sysime</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>parse</string>
+          <key>RunnerType</key>
+          <integer>0</integer>
+          <key>Patterns</key>
+          <array>
+          <!-- 系统输入法 不支持备份提取 逻辑提取 提权提取 -->
+          <string>private/var/mobile/Library/Keyboard$</string>
+          </array>
+          <key>Category</key>
+          <string>IOSSystemIme</string>
+        </dict>
+      </array>
+    </dict>
+      <dict>
+      <key>Module</key>
+      <string>apple_sougouime</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>parse</string>
+          <key>RunnerType</key>
+          <integer>0</integer>
+          <key>Patterns</key>
+          <array>
+          <!-- 搜狗输入法  暂测 备份提取 逻辑提取 提权提取 都支持 -->
+          <string>Library/Preferences/com.sogou.sogouinput.plist$</string>
+          </array>
+          <key>Category</key>
+          <string>SougouIme</string>
+        </dict>
+      </array>
+    </dict>
     <dict>
       <key>Module</key>
       <string>apple_youxin</string>
@@ -965,10 +1004,10 @@
           <key>EntryPoint</key>
           <string>parse_ding</string>
           <key>RunnerType</key>
-          <integer>1</integer>
+          <integer>0</integer>
           <key>Patterns</key>
           <array>
-            <string>com.laiwang.DingTalk</string>
+            <string>Library/Preferences/com.laiwang.DingTalk.plist$</string>
           </array>
           <key>Category</key>
           <string>DingTalk</string>
@@ -985,10 +1024,10 @@
           <key>EntryPoint</key>
           <string>parse_tb</string>
           <key>RunnerType</key>
-          <integer>1</integer>
+          <integer>0</integer>
           <key>Patterns</key>
           <array>
-            <string>com.taobao.taobao4iphone</string>
+            <string>Library/Preferences/com.taobao.taobao4iphone.plist$</string>
           </array>
           <key>Category</key>
           <string>Taobao</string>
@@ -1005,10 +1044,10 @@
           <key>EntryPoint</key>
           <string>parse_xy</string>
           <key>RunnerType</key>
-          <integer>1</integer>
+          <integer>0</integer>
           <key>Patterns</key>
           <array>
-            <string>com.taobao.fleamarket</string>
+            <string>Library/Preferences/com.taobao.fleamarket.plist$</string>
           </array>
           <key>Category</key>
           <string>XianYu</string>
@@ -1777,6 +1816,26 @@
         </dict>
       </array>
     </dict>
+
+    <dict>
+      <key>Module</key>
+      <string>android_line</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_line</string>
+          <key>RunnerType</key>
+          <integer>2</integer>
+          <key>Patterns</key>
+          <array>
+            <string>jp.naver.line.android/databases/naver_line$</string>
+          </array>
+          <key>Category</key>
+          <string>Line</string>
+        </dict>
+      </array>
+    </dict>    
 
   </array>
 </plist>

@@ -248,10 +248,18 @@ class xianyu(object):
         cmd.Dispose()
         conn.Close()
 
+def judge_node(root):
+    node = root.Parent.Parent.Parent
+    sub = node.GetByPath('Documents')
+    if sub is None:
+        return None
+    return node
+
 def parse_xy(root, extract_deleted, extract_source):
-    node = root
-    #node = FileSystem.FromLocalDir(r'D:\ios_case\xianyu\C533806C-8FB4-459D-8127-B1BA7A345E28')
     try:
+        node = judge_node(root)
+        if node is None:
+            raise IOError('E')
         x = xianyu(node, extract_deleted, extract_deleted)
         x.search()
         x.parse()

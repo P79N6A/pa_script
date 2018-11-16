@@ -414,7 +414,7 @@ class AlipayParser():
                 if type != '107' and type != '11':
                     contact['chatTable'] = "chat_" + self.md5_encode(id + '_' + type)[8:24]
                 recentContact[id] = contact
-                
+        
         for id in recentContact.keys():
             if canceller.IsCancellationRequested:
                 return
@@ -448,7 +448,7 @@ class AlipayParser():
                         message.content = '[标题]:' + rec['mSum'].Value
                         message.send_time = rec['msgTime'].Value
                         self.im.db_insert_table_message(message)
-            else:
+            elif recentContact[id]['userType'] == '1' or recentContact[id]['userType'] == '2':
                 dbPath = self.root.GetByPath('/Documents/Chat/' + self.md5_encode(self.user)[8:24] + '.db')
                 db = SQLiteParser.Database.FromNode(dbPath)
                 if db is None:
@@ -643,7 +643,7 @@ class AlipayParser():
         for deal in self.msg_deals:
             trade = model_eb.EBDeal()
             trade.set_value_with_idx(trade.account_id, self.user)
-            trade.set_value_with_idx(trade.money, deal.money.replace(',', ''))
+            trade.set_value_with_idx(trade.money, deal.money.replace(',', '') if deal.money is not None else None)
             trade.set_value_with_idx(trade.deal_type, model_eb.EBDEAL_TYPE_OTHER)
             trade.set_value_with_idx(trade.status, deal.status)
             trade.set_value_with_idx(trade.begin_time, deal.create_time)

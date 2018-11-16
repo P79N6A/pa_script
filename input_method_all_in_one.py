@@ -30,7 +30,7 @@ import os
 import codecs
 import re
 
-EN_DEBUG = True
+EN_DEBUG = False
 
 TBL_CREATE_IME_ACCOUNT = '''
     create table if not exists WA_MFORENSICS_120100(COLLECT_TARGET_ID text,
@@ -284,14 +284,22 @@ class SougouIME(IMEBase):
         if not self.ime.need_parse:
             return
 
+    #此命中方式存在问题，要么采取附着式的命中
+    #要么采取正则命中，并逐层寻找到顶层的parent node
     def judge(self):
         global EN_DEBUG
         if EN_DEBUG:
             return True
+        try:
+            self.node = self.node.Parent.Parent.Parent # ->get top folder Node
+        except:
+            self.node = None
+            return False
         plist_node = self.node.GetByPath('Library/Preferences/com.sogou.sogouinput.plist')
         if plist_node is None:
             return False
         else:
+            print('Sougou Ime: hitted!')
             return True
 
     def generate_model_container(self):
@@ -367,8 +375,10 @@ class SougouIME(IMEBase):
 class SystemIME(IMEBase):
     def __init__(self, node, extract_source, extract_deleted):
         super(SystemIME, self).__init__(node, extract_source, extract_deleted, 'SystemIme')
+        self.version = 0 # =>通过version 来区分不同的版本的情况，这里从11.4.1开始 到 12.01
         self.hitted = False
-        self.version = -1 # =>通过version 来区分不同的版本的情况，这里从11.4.1开始 到 12.01
+        self.hitted = self.judge()
+        #self.version = -1 # =>通过version 来区分不同的版本的情况，这里从11.4.1开始 到 12.01
         self.ime = IME(self.cache + "/C37R", 1)
         self.need_parse = self.ime.need_parse
         
@@ -382,15 +392,19 @@ class SystemIME(IMEBase):
         dm_node = self.node.GetByPath('en-dynamic.lm/dynamic-lexicon.dat')
         if dm_node is not None:
             print 'detect ios-10 upper system input method'
+            self.hitted = True
             res |= 0x2
         self.version = res
+        if self.hitted:
+            return True
+        return False
     
     def parse_sys_ver_1141(self):
         #if the sys ime does not contain zh.db
         if self.version & 0x1 == 0:
             return
         sql_node = self.node.GetByPath('DynamicPhraseLexicon_zh_Hans.db')
-        db = unity_c37r.create_connection_tentatively(sql_node.PathWithMountPoint, True)
+        db = unity_c37r.create_connection_tentatively(sql_node, True)
         cmd = sql.SQLiteCommand(db)
         cmd.CommandText = '''
             select Reading, Surface, Seed from Words
@@ -399,13 +413,17 @@ class SystemIME(IMEBase):
         while reader.Read():
             pharse = unity_c37r.c_sharp_get_blob(reader, 0)
             pharse = pharse.decode('utf_16_le', 'ignore') # => TODO:add pharse to sqlite
-            bts = unity_c37r.c_sharp_get_blob(reade, 1)
+            bts = unity_c37r.c_sharp_get_blob(reader, 1)
             idx = 0
             words = ''
             while idx < len(bts):
-                m_string = r'\u%x%x' %(bts[idx + 1], bts[idx]) # => note little ending
-                m_string = m_string.decode('unicode_escape')
-                words += ''
+                m_string = r'\u%02x%02x' %(bts[idx + 1], bts[idx]) # => note little ending
+                try:
+                    m_string = m_string.decode('unicode_escape')
+                except:
+                    idx += 2
+                    continue
+                words += m_string
                 idx += 2
             kw = IMEKeyword()
             kw.set_value_with_idx(kw.key_word, words)
@@ -431,29 +449,35 @@ class SystemIME(IMEBase):
     def go(self):
         self.parse_sys_ver_1141()
         self.parse_dynamic_file()
+        self.ime.db_insert_version(IME_DB_KEY, IME_DB_VAL)
+        self.ime.db_insert_version(IME_APP_KEY, 1)
+        self.ime.db_commit()
+        self.ime.db_close()
 
     def generate_model_container(self):
         pr = ParserResults()
-        pr.Categories = DescripCategories.IOSSysIme
+        pr.Categories = DescripCategories.IOSSystemIme
         pr.Build(u'IOS系统输入法')
         return pr
 
 SUPPORTTED_APP_LIST = [SougouIME, SystemIME]
-#
-# 烈酒入肠，千忧何妨!
-#
+
 def go(root, extract_source, extract_deleted):
-    root = FileSystem.FromLocalDir(r'D:\Cases\iPhone 7 plus_12.0.1_201811072014_EXP\Image\private\var\mobile\Containers\Shared\AppGroup\51629415-AB93-43C9-8165-D1104D6AA6AA')
     pr = ParserResults()
     for apps in SUPPORTTED_APP_LIST:
         a = apps(root, extract_source, extract_deleted)
         if not a.hitted:
             continue
         else: # 每次app命中的节点只会传入一个进来，因此我们单次只返回一个结果。
-            if a.need_parse:
-                a.go()
-            mlm = ModelListMerger()
-            models = IMEModel(a.cache + '/C37R').get_models()
-            container = a.generate_model_container()
-            pr.Models.AddRange(list(mlm.GetUnique(models)))
-            return pr
+            try:
+                if a.need_parse:
+                    a.go()
+                mlm = ModelListMerger()
+                models = IMEModel(a.cache + '/C37R').get_models()
+                container = a.generate_model_container()
+                pr.Models.AddRange(list(mlm.GetUnique(models)))
+                return pr
+            except Exception as e:
+                traceback.print_exc()
+                pr = ParserResults()
+                return pr

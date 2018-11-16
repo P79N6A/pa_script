@@ -348,3 +348,86 @@ def create_user_intro(uid, name, photo):
     usr.Name.Value = name
     usr.Photo.Value = get_c_sharp_uri(photo)
     return usr
+
+#
+# 所有c37r系列的类型的基类型
+#
+
+class C37RBasic(object):
+    
+    def __init__(self):
+        self.idx = -1
+        self.res = list()
+    
+    def set_value_with_idx(self, idx, val):
+        if idx >= len(self.res):
+            return
+        self.res[idx] = val
+    
+    def get_value_with_idx(self, idx):
+        if idx >= len(self.res):
+            return None
+        return self.res[idx]
+    
+    def get_values(self):
+        return self.res
+#
+# check db-version is newest version or not
+# db_name: sqlite path
+# v_key: version key
+# v_value: desired version value
+# result : false if check version failed, you may delete this sqlite file, then regenerate it.
+#
+
+TBL_CREATE_VERSION = '''
+    create table if not exists tb_version(v_key text, v_val int)
+'''
+
+TBL_INSERT_VERSION = '''
+    insert into tb_version values (?,?)
+'''
+
+def CheckVersion(db_name, v_key, v_value):
+    try:
+        if not os.path.exists(db_name):
+            return False
+        conn = None
+        cmd = None
+        reader = None
+        res = False
+        conn = create_connection(db_name)
+        cmd = sql.SQLiteCommand(conn)
+        cmd.CommandText = '''
+            select v_val from tb_version where v_key = '{}'
+        '''.format(v_key)
+        reader = cmd.ExecuteReader()
+        if reader.Read():
+            value = c_sharp_get_long(reader, 0)
+            if value == v_value:
+                res = True
+            else:
+                res = False
+        reader.Close()
+        cmd.Dispose()
+        conn.Close()
+        return res
+    except:
+        if reader is not None:
+            reader.Close()
+        if cmd is not None:
+            cmd.Dispose()
+        if conn is not None:
+            conn.Close()
+        return False
+
+#
+# like unix "strings" command-line tool
+# returns readable strings list
+#
+def py_strings(file):
+    chars = r"A-Za-z0-9/\-:.,_$%'()[\]<> "
+    shortestReturnChar = 4
+    regExp = '[%s]{%d,}' % (chars, shortestReturnChar)
+    pattern = re.compile(regExp) # accelerate regularexpression match speed.
+    with open(file, 'rb') as f:
+        return pattern.findall(f.read())

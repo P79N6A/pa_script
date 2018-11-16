@@ -67,13 +67,16 @@ TICKET_STATUS_OTHER = "9"
 
 
 def convert_to_unixtime(timestamp):
-    if len(str(timestamp)) == 13:
-        timestamp = int(str(timestamp)[0:10])
-    elif len(str(timestamp)) != 13 and len(str(timestamp)) != 10:
-        timestamp = 0
-    elif len(str(timestamp)) == 10:
-        timestamp = timestamp
-    return timestamp
+    try:
+        if len(str(timestamp)) == 13:
+            timestamp = int(str(timestamp)[0:10])
+        elif len(str(timestamp)) != 13 and len(str(timestamp)) != 10:
+            timestamp = 0
+        elif len(str(timestamp)) == 10:
+            timestamp = timestamp
+        return timestamp
+    except Exception as e:
+        pass
         
 
 class Ctrip(object):
@@ -91,6 +94,8 @@ class Ctrip(object):
     # 账户信息
     def get_account(self):
         account_node = self.root.GetByPath("Documents/CTChatV2")
+        if account_node is None:
+            return
         for filename in account_node.Files:
             if filename.Name.startswith("m"):
                 try:
@@ -130,6 +135,8 @@ class Ctrip(object):
 
     def get_contact_name(self):
         contact_node = self.root.GetByPath("Documents/CTChatV2")
+        if contact_node is None:
+            return
         for filename in contact_node.Files:
             if filename.Name.startswith("m"):
                 try:
@@ -149,6 +156,8 @@ class Ctrip(object):
 
     def get_groups_member(self):
         groups_member_node = self.root.GetByPath("Documents/CTChatV2")
+        if groups_member_node is None:
+            return
         for filename in groups_member_node.Files:
             if filename.Name.startswith("m"):
                 try:
@@ -187,6 +196,8 @@ class Ctrip(object):
 
     def get_groups(self):
         groups_node = self.root.GetByPath("Documents/CTChatV2")
+        if groups_node is None:
+            return
         for filename in groups_node.Files:
             if filename.Name.startswith("m"):
                 try:
@@ -209,7 +220,7 @@ class Ctrip(object):
                             if "conversationID" in rec and (not rec["conversationID"].IsDBNull):
                                 groups.chatroom_id = rec["conversationID"].Value
                             if "groupName" in rec and (not rec["groupName"].IsDBNull):
-                                groups.chatroom_id = rec["groupName"].Value
+                                groups.name = rec["groupName"].Value
                             if "memberCount" in rec and (not rec["memberCount"].IsDBNull):
                                 groups.member_count = rec["memberCount"].Value
                         except Exception as e:
@@ -223,6 +234,8 @@ class Ctrip(object):
 
     def get_messages(self):
         messages_node = self.root.GetByPath("Documents/CTChatV2")
+        if messages_node is None:
+            return
         for filename in messages_node.Files:
             if filename.Name.startswith("m"):
                 try:
@@ -343,6 +356,8 @@ class Ctrip(object):
     # 订单信息
     def get_order_ticket(self):
         order_node = self.root.GetByPath("Documents/ctrip_scheduleinfo.db")
+        if order_node is None:
+            return
         try:
             db = SQLiteParser.Database.FromNode(order_node, canceller)
             if db is None:
@@ -365,7 +380,7 @@ class Ctrip(object):
                                         if rec.Deleted ==  DeletedState.Deleted:
                                             order_ticket.deleted = 1
                                         if "userId" in rec and (not rec["userId"].IsDBNull):
-                                            order_ticket.account_id = rec["userId"].Value
+                                            order_ticket.account_id = rec["userId"].Value.lower()
                                         if "ticketCard" in order and "scenicSpotName" in order["ticketCard"]:
                                             order_ticket.materials_name =  order["ticketCard"]["scenicSpotName"]
                                         if "ticketCard" in order and "orderId" in order["ticketCard"]:
@@ -437,26 +452,11 @@ class Ctrip(object):
                             order_ticket.source = "携程"
                             order_ticket.sourceFile = result.AbsolutePath
                             if auth_value in self.auth_dicts:
-                                order_ticket.account_id = self.auth_dicts[auth_value]
+                                order_ticket.account_id = self.auth_dicts[auth_value].lower()
                             if "OrderName" in item:
                                 order_ticket.materials_name = item["OrderName"]
                             if "OrderTotalPrice" in item:
                                 order_ticket.purchase_price = item["OrderTotalPrice"]
-                            # if "OrderStatusName" in tmp_data:
-                            #     if tmp_data["OrderStatusName"] == "已取消":
-                            #         order_ticket.ticket_status = "99"
-                            #     elif tmp_data["OrderStatusName"] == "待付款":
-                            #         order_ticket.ticket_status = "99"
-                            #     elif tmp_data["OrderStatusName"] == "未提交":
-                            #         order_ticket.ticket_status = "99"
-                            #     elif tmp_data["OrderStatusName"] == "确认中":
-                            #         order_ticket.ticket_status = "99"
-                            #     elif tmp_data["OrderStatusName"] == "已确认":
-                            #         order_ticket.ticket_status = "99"
-                            #     elif tmp_data["OrderStatusName"] == "已付款":
-                            #         order_ticket.ticket_status = "99"
-                            #     elif tmp_data["OrderStatusName"] == "已成交":
-                            #         order_ticket.ticket_status = "99"
                             if "Longitude" in item:
                                 order_ticket.destination_longitude = item["Longitude"]
                             if "Latitude" in item:

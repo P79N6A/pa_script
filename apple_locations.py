@@ -4,13 +4,32 @@ import PA_runtime
 from PA_runtime import *
 import re
 from PA.Common.Utilities.Types import TimeStampFormats
-
+import sqlite3
+import clr
+clr.AddReference('System.Core')
+clr.AddReference('System.Xml.Linq')
+clr.AddReference('System.Data.SQLite')
+del clr
+from System.Data.SQLite import *
+import System
 
 def isValidMac(mac):
     if re.match(r"^\s*([0-9a-fA-F]{2,2}-){5,5}[0-9a-fA-F]{2,2}\s*$", mac): 
         return True
     else:
         return False
+
+def GetString(reader, idx):
+    return reader.GetString(idx) if not reader.IsDBNull(idx) else ""
+
+def GetInt64(reader, idx):
+    return reader.GetInt64(idx) if not reader.IsDBNull(idx) else 0
+
+def GetBlob(reader, idx):
+    return reader.GetValue(idx) if not reader.IsDBNull(idx) else None
+
+def GetFloat(reader, idx):
+    return reader.GetFloat(idx) if not reader.IsDBNull(idx) else 0
 
 
 class LocationsParser(object):
@@ -461,10 +480,20 @@ class FrequentLocationsParser(object):
         results.extend(self.parseLocationsDB())
         results.extend(self.parseStateModels())
         results.extend(self.parse_new_version_locations())
+        results.extend(self.get_waypoint())
         return results
 
-    # ios 11 常去地理位置存放在cache.sqlite,cloud.sqlite,local.sqlite 
-    # herf = https://blog.elcomsoft.com/2018/06/apple-probably-knows-what-you-did-last-summer/
+    @staticmethod
+    def is_valid_coordinate(lat,longtitude):
+        if lat and long:
+            if lat > 0 and lat < 90 and longtitude > 0 and longtitude < 180 and str(lat).find(".") != -1 and str(longtitude) != -1:
+                return True
+            else:
+                return False
+
+    # ios 10之前存放在：
+    # >   private/var/mobile/Library/Caches/com.apple.routined/StateModel1.archive
+    # >   private/var/mobile/Library/Caches/com.apple.routined/StateModel2.archive
     def parse_new_version_locations(self):
         results = []
         dbNodes = self.root.Files
@@ -484,24 +513,96 @@ class FrequentLocationsParser(object):
                     if canceller.IsCancellationRequested:
                         return
                     loc = Location()
-                    loc.Category.Value = self.category
                     loc.Deleted = rec.Deleted
                     coor = Coordinate()
                     if "ZLATITUDE" in rec and(not rec["ZLATITUDE"].IsDBNull):
                         coor.Latitude.Value = float(rec["ZLATITUDE"].Value)
                     if "ZLONGITUDE" in rec and(not rec["ZLONGITUDE"].IsDBNull):
                         coor.Longitude.Value = float(rec["ZLONGITUDE"].Value)
+                    if "ZLATITUDE" in rec and "ZLONGITUDE" in rec:
+                        if self.is_valid_coordinate(rec["ZLATITUDE"].Value, rec["ZLONGITUDE"].Value):
+                            pass
+                        else:
+                            continue
+                    else:
+                        continue
                     loc.Position.Value = coor
-                    if "ZDATE" in rec and(not rec["ZDATE"].IsDBNull):
-                        pass
-                        #dstart = DateTime(1970,1,1,0,0,0)
-                        #cdate = TimeStampFormats.GetTimeStampEpoch1Jan2001(rec["ZDATE"].Value)
-                        #loc.TimeStamp.Value = TimeStamp.FromUnixTime(int((cdate - dstart).TotalSeconds), False)
+                    if "ZDATE" in rec and(not rec["ZDATE"].IsDBNull) and type(rec["ZDATE"].Value) == float:
+                        try:
+                            dates = rec["ZDATE"].Value
+                            dstart = DateTime(1970,1,1,0,0,0)
+                            cdate = TimeStampFormats.GetTimeStampEpoch1Jan2001(rec["ZDATE"].Value)
+                            loc.TimeStamp.Value = TimeStamp.FromUnixTime(int((cdate - dstart).TotalSeconds), False)
+                        except Exception as e:
+                            print(e)
                     results.append(loc)
                 except Exception as e:
                     print(e)
 
         return results
+    def get_waypoint(self):
+        results = []
+        dbNodes = self.root.Files
+        if dbNodes is None:
+            return
+        for dbFile in dbNodes:
+            if not dbFile.Name.endswith("sqlite"):
+                continue
+            db = SQLiteParser.Database.FromNode(dbFile, canceller)
+            if db is None:
+                continue
+            if "ZRTLEARNEDLOCATIONOFINTERESTVISITMO" not in db.Tables:
+                continue
+            connection = System.Data.SQLite.SQLiteConnection('Data Source = {0}; ReadOnly = True'.format(dbFile.PathWithMountPoint))
+            try:
+                connection.Open()
+                cmd = System.Data.SQLite.SQLiteCommand(connection)
+                cmd.CommandText = "select ZLOCATIONOFINTEREST from ZRTLEARNEDLOCATIONOFINTERESTVISITMO group by ZLOCATIONOFINTEREST"
+                reader = cmd.ExecuteReader()
+                frequent_groups = []
+                while reader.Read():
+                    frequent_groups.append(GetInt64(reader,0))
+                cmd.Dispose()
+                g_results = None
+                for frequent_item in frequent_groups:
+                    try:
+                        cmd.CommandText  = "select ZENTRYDATE,ZEXITDATE,ZLOCATIONLATITUDE,ZLOCATIONLONGITUDE from ZRTLEARNEDLOCATIONOFINTERESTVISITMO where ZLOCATIONOFINTEREST = " + str(frequent_item) + "  order by ZENTRYDATE"
+                        g_results = cmd.ExecuteReader()
+                        frequent_journey = Journey()
+                        frequent_journey.SourceFile.Value = dbFile.AbsolutePath
+                        frequent_journey.Source.Value = self.category
+                        while g_results.Read():
+                            loc = Location()
+                            coor = Coordinate()
+                            coor.Latitude.Value = GetFloat(g_results,2)
+                            coor.Longitude.Value = GetFloat(g_results,3)
+                            loc.Position.Value = coor
+                            try:
+                                s_dates = GetFloat(g_results,0)
+                                dstart = DateTime(1970,1,1,0,0,0)
+                                cdate = TimeStampFormats.GetTimeStampEpoch1Jan2001(s_dates)
+                                loc.TimeStamp.Value = TimeStamp.FromUnixTime(int((cdate - dstart).TotalSeconds), False)
+                            except Exception as e:
+                                TraceService.Debug("Time Transfer Failed!")
+                            try:
+                                e_dates = GetFloat(g_results,1)
+                                dstart = DateTime(1970,1,1,0,0,0)
+                                cdate = TimeStampFormats.GetTimeStampEpoch1Jan2001(e_dates)
+                                loc.EndTime.Value = TimeStamp.FromUnixTime(int((cdate - dstart).TotalSeconds), False)
+                            except Exception as e:
+                                TraceService.Debug("Time Transfer Failed!")
+                            frequent_journey.WayPoints.Add(loc)
+                        cmd.Dispose()
+                        results.append(frequent_journey)
+                    except Exception as e:
+                        pass
+                if g_results != None:
+                    g_results.Close()
+                if connection != None:
+                    connection.Close()
+            except Exception as e:
+                pass
+       return results
 
     # ios 10之前存放在：
     # >   private/var/mobile/Library/Caches/com.apple.routined/StateModel1.archive

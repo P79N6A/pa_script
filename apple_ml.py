@@ -135,6 +135,7 @@ class MiLiao(object):
             pic = unity_c37r.c_sharp_get_string(reader, 3)
             f.icon = self.__get_media_path(pic, -1)
             f.source = f_sql_node.AbsolutePath
+            f.type = model_im.FRIEND_TYPE_FRIEND
             friends.append(f)
         cmd.Dispose()
         db.Close()
@@ -555,7 +556,6 @@ class MiLiao(object):
             return ""
 
 def parse_miliao(root, extract_deleted, extract_source):
-    #root = FileSystem.FromLocalDir(r"D:\BaiduNetdiskDownload\miliao6_0")
     try:
         ml = MiLiao(root, extract_deleted, extract_source)
         if ml.need_parse:

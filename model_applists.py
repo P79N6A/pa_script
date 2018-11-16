@@ -158,7 +158,7 @@ class Generate(object):
                 return []
             application.IsAndroid.Value = True
             if row[0]:
-                application.AppGUID.Value = row[0]
+                application.Identifier.Value = row[0]
             if row[1]:
                 application.Name.Value = row[1]
             if row[2]:

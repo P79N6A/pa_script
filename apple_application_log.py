@@ -74,6 +74,7 @@ class InstallationLog(object):
                 app_info.version = install_info[2]
             if unstalled_info:
                 app_info.deletedDate = self._convert_to_unixtime(unstalled_info[0])
+                app_info.deleted = 1
 
             self.apps_db.db_insert_table_applists(app_info)
         self.apps_db.db_commit()
