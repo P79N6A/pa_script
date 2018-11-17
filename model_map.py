@@ -4,6 +4,10 @@ import clr
 clr.AddReference('System.Core')
 clr.AddReference('System.Xml.Linq')
 clr.AddReference('System.Data.SQLite')
+try:
+    clr.AddReference('coordTransform_utils')
+except:
+    pass
 del clr
 
 import pickle
@@ -13,6 +17,7 @@ import System.Data.SQLite as SQLite
 import os
 import sqlite3
 import hashlib
+import coordTransform_utils
 
 SQL_CREATE_TABLE_ACCOUNT = '''
     create table if not exists account(
@@ -505,19 +510,37 @@ class Genetate(object):
             fromcoo = Coordinate()
             tocoo = Coordinate()
             if row[12]:
+                if row[12] == "百度地图":
+                    fromcoo.Type.Value = CoordinateType.Baidumc
+                    tocoo.Type.Value = CoordinateType.Baidumc
+                elif row[12] == "高德地图" or row[12] == "腾讯地图":
+                    fromcoo.Type.Value = CoordinateType.Googlemc
+                    tocoo.Type.Value = CoordinateType.Googlemc
+                elif row[12] == "搜狗地图":
+                    fromcoo.Type.Value = CoordinateType.GPSmc
+                    tocoo.Type.Value = CoordinateType.GPSmc
+            if row[12]:
                 fromcoo.Source.Value = row[12]
-            if row[4]:
+            if row[4] and (row[12] == "高德地图" or row[12] == "腾讯地图"):
+                fromcoo.Longitude.Value = coordTransform_utils.pixelXTolng(row[4])
+            else:
                 fromcoo.Longitude.Value = row[4]
-            if row[5]:
+            if row[5] and (row[12] == "高德地图" or row[12] == "腾讯地图"):
+                fromcoo.Latitude.Value = coordTransform_utils.pixelYToLat(row[5])
+            else:
                 fromcoo.Latitude.Value = row[5]
             if row[3]:
                 fromcoo.PositionAddress.Value = row[3]
             tocoo.Source.Value = row[12]
             if row[7]:
                 tocoo.PositionAddress.Value = row[7]
-            if row[8]:
+            if row[8] and (row[12] == "高德地图" or row[12] == "腾讯地图"):
+                tocoo.Longitude.Value == coordTransform_utils.pixelXTolng(row[8])
+            else:
                 tocoo.Longitude.Value = row[8]
-            if row[9]:
+            if row[9] and (row[12] == "高德地图" or row[12] == "腾讯地图"):
+                tocoo.Latitude.Value = coordTransform_utils.pixelYToLat(row[9])
+            else:
                 tocoo.Latitude.Value = row[9]
 
             frompoint.Position.Value = fromcoo
