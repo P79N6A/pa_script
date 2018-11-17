@@ -138,17 +138,33 @@ def math_sinh(x):
 def getMapSize(level):
     return math.pow(2, level)
 
-def pixelXTolng(pixelX, level):
-    pixelXToTileAddition = pixelX / 256.0
-    lngitude = pixelXToTileAddition / getMapSize(level) * 360 - 180
+def pixelXTolng(pixelX, level=20):
+    if len(str(pixelX)) == 9:
+        try:
+            pixelXToTileAddition = pixelX / 256.0
+            lngitude = pixelXToTileAddition / getMapSize(level) * 360 - 180
+            if lngitude < 180 and lngitude > 0:
+                return lngitude
+            else:
+                return pixelX
+        except Exception as e:
+            return pixelX
+    else:
+        return pixelX
 
-    return lngitude
-
-def pixelYToLat(pixelY, level):
-    pixelYToTileAddition = pixelY / 256.0
-    latitude = math.atan(math_sinh(math.pi * (1 - 2 * (pixelYToTileAddition) / getMapSize(level)))) * 180.0 / math.pi
-
-    return latitude
+def pixelYToLat(pixelY, level=20):
+    if len(str(pixelY)) == 9:    
+        try:
+            pixelYToTileAddition = pixelY / 256.0
+            latitude = math.atan(math_sinh(math.pi * (1 - 2 * (pixelYToTileAddition) / getMapSize(level)))) * 180.0 / math.pi
+            if latitude < 90 and latitude > 0:
+                return latitude
+            else:
+                return pixelY
+        except Exception as e:
+            return pixelY
+    else:
+        return pixelY
 
 
 def pixelToLnglat(pixelX, pixelY, level=20):
@@ -156,4 +172,3 @@ def pixelToLnglat(pixelX, pixelY, level=20):
         lng = pixelXTolng(pixelX, level)
         lat = pixelYToLat(pixelY, level)
         return lng,lat
-
