@@ -714,7 +714,7 @@ class LineParser(object):
                 message.talker_name = CHAT_DICT.get(msg_chat_pk, {}).get('chat_name', None)
             else: # 非群聊
                 chat_pk   = rec['ZCHAT'].Value
-                friend_pks = CHAT_PK_FRIEND_PKS.get(chat_pk, None)
+                friend_pks = CHAT_PK_FRIEND_PKS.get(chat_pk, [])
                 message.talker_name = FRIEND_PK_NAME_MAP.get(friend_pks[0], None)
 
             if message.content and message.content[-4:] in ['.m4a', '.mp4']:
