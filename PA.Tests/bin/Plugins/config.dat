@@ -1830,10 +1830,9 @@
           <string>Line</string>
         </dict>
       </array>
-    </dict>    
-  </array>
+    </dict>
 
-  <dict>
+    <dict>
       <key>Module</key>
       <string>android_beetalk</string>
       <key>Runners</key>
@@ -1852,6 +1851,7 @@
           <string>BeeTalk</string>
         </dict>
       </array>
-    </dict> 
+    </dict>
 
+  </array>
 </plist>
