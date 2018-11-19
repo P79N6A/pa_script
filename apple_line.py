@@ -43,35 +43,35 @@ def print_run_time(func):
     return wrapper
 
 def exc(e=''):
+    ''' Exception output '''
     if DEBUG:
-        TraceService.Trace(TraceLevel.Warning, "解析出错: LINE {}, {}".format(traceback.format_exc(), e))
-        # traceback.print_exc()
+        TraceService.Trace(TraceLevel.Warning, "apple_line.py DEBUG: LINE {}".format(traceback.format_exc()))
     else:
         pass 
-
-def exc_debug(*e):
+def exc_p(*e):
+    ''' Highlight print in vs '''
     if DEBUG:
         TraceService.Trace(TraceLevel.Warning, "{}".format(e))
     else:
-        pass
+        pass    
 
 def analyze_line(node, extract_deleted, extract_source):
     """ ios LINE 
 
         jp.naver.line     
     """
-    exc_debug('apple_line.py runing ...!')
+    exc_p('apple_line.py runing ...!')
 
     pr = ParserResults()
     res = []
     try:
         res = LineParser(node, extract_deleted, extract_source).parse()
     except:
-        exc()
+        TraceService.Trace(TraceLevel.Error, "apple_line.py 解析出错:  {}".format(traceback.format_exc()))
     if res:
         pr.Models.AddRange(res)
         pr.Build('LINE')
-        exc_debug('apple_line.py completed!')
+        exc_p('apple_line.py completed!')
     return pr
 
 class LineParser(object):
@@ -87,15 +87,15 @@ class LineParser(object):
                 Library\Preferences\group.com.linecorp.line.plist
                 Library\\Application Support\\PrivateStore\\P_u423af962f1456db6cba8465cf82bb91b\\Messages\\Line.sqlite    
         '''
-        # exc_debug('node.AbsolutePath:', node.AbsolutePath)
+        # exc_p('node.AbsolutePath:', node.AbsolutePath)
         self.root = node
         self.user_plist_node = self.root.GetByPath('Library/Preferences/jp.naver.line.plist')
 
         ################# group.com.linecorp.line ################
         # Library\Preferences\group.com.linecorp.line.plist
         self.group_plist_node = list(self.root.FileSystem.Search('group.com.linecorp.line.plist$'))[0]
-        # exc_debug(type(self.group_plist_node)) 
-        # exc_debug(self.group_plist_node.AbsolutePath)
+        # exc_p(type(self.group_plist_node)) 
+        # exc_p(self.group_plist_node.AbsolutePath)
         # Library\\Application Support\\PrivateStore
         self.group_root = self.group_plist_node.Parent.Parent.Parent
         self.group_db_root = self.group_root.GetByPath('Library/Application Support/PrivateStore')
@@ -469,8 +469,8 @@ class LineParser(object):
                 CHATROOM_MID_NAME[chatroom.chatroom_id] = chatroom.name
                 CHATROOM_PK_MID[rec['Z_PK'].Value] = chatroom.chatroom_id
             except:
-                exc_debug('self.CHATROOM_MID_NAME', CHATROOM_MID_NAME)
-                exc_debug('chatroom.chatroom_id', chatroom.chatroom_id)
+                exc_p('self.CHATROOM_MID_NAME', CHATROOM_MID_NAME)
+                exc_p('chatroom.chatroom_id', chatroom.chatroom_id)
                 exc()
             try:
                 self.im.db_insert_table_chatroom(chatroom)
@@ -785,7 +785,7 @@ class LineParser(object):
                 for chch in n.Values:
                     _print_plist(chch, ind=ind+'|----')
             else:
-                exc_debug(ind+'val:{}'.format(n.Value))
+                exc_p(ind+'val:{}'.format(n.Value))
                 
         bplist = BPReader.GetTree(plist_node.Data) if plist_node else None
         if not bplist:
@@ -882,10 +882,10 @@ class LineParser(object):
         bp = BPReader(plist_node.Data).top    
         try:
             for k in keys:
-                # exc_debug(k)
+                # exc_p(k)
                 if bp and bp[k]:
                     res[k] = bp[k].Value
-                    # exc_debug(res[k])
+                    # exc_p(res[k])
             return res
         except:
             exc()
@@ -899,14 +899,14 @@ class LineParser(object):
         pp = '/Library/Caches/PrivateStore/P_' \
              + self.cur_account_id + r'/Profile Images' \
              + file_name
-        #exc_debug('friend pic url pattern ', pp)
+        #exc_p('friend pic url pattern ', pp)
 
         _node = self.group_root.GetByPath(pp)
         if _node:
             for file_node in _node.Children:
                 file_path = file_node.AbsolutePath
                 if file_path.split('/')[-1].endswith('.jpg'):
-                    # exc_debug(file_path)
+                    # exc_p(file_path)
                     return file_path
         return 
 
@@ -929,7 +929,7 @@ class LineParser(object):
             for file_node in download_media_node.Children:
                 file_path = file_node.AbsolutePath
                 if file_path.split('/')[-1].startswith(msg_ZID):
-                    # exc_debug(file_path)
+                    # exc_p(file_path)
                     return file_path
         cache_media_path = '/Library/Application Support/PrivateStore/P_' \
                         + self.cur_account_id + r'/Message Thumbnails/' \
@@ -994,7 +994,7 @@ class LineParser(object):
         try:
             return type_map[ZTYPE]
         except:
-            exc_debug('new CHAT_TYPE {}!!!!!!!!!!!!!!!!!'.format(ZTYPE))
+            exc_p('new CHAT_TYPE {}!!!!!!!!!!!!!!!!!'.format(ZTYPE))
 
     @staticmethod
     def _convert_msg_type(ZCONTENTTYPE):
@@ -1020,7 +1020,7 @@ class LineParser(object):
         try:
             return type_map[ZCONTENTTYPE]
         except:
-            exc_debug('new ZCONTENTTYPE {}!!!!!!!!!!!!!!!!!'.format(ZCONTENTTYPE))
+            exc_p('new ZCONTENTTYPE {}!!!!!!!!!!!!!!!!!'.format(ZCONTENTTYPE))
 
     @staticmethod
     def _convert_msg_status(ZSENDSTATUS):
@@ -1041,7 +1041,7 @@ class LineParser(object):
         try:
             return type_map[ZSENDSTATUS]
         except:
-            exc_debug('new ZSENDSTATUS {}!!!!!!!!!!!!!!!!!'.format(ZSENDSTATUS))
+            exc_p('new ZSENDSTATUS {}!!!!!!!!!!!!!!!!!'.format(ZSENDSTATUS))
 
     @staticmethod
     def _convert_friend_type(ZCONTACTTYPE):
@@ -1068,7 +1068,7 @@ class LineParser(object):
         try:
             return type_map[ZCONTACTTYPE]
         except:
-            exc_debug('new ZCONTACTTYPE {}!!!!!!!!!!!!!!!!!'.format(ZCONTACTTYPE))
+            exc_p('new ZCONTACTTYPE {}!!!!!!!!!!!!!!!!!'.format(ZCONTACTTYPE))
 
     @staticmethod
     def _convert_send_status(ZSENDSTATUS):
@@ -1093,7 +1093,7 @@ class LineParser(object):
         try:
             return type_map[ZSENDSTATUS]
         except:
-            exc_debug('new ZSENDSTATUS {}!!!!!!!!!!!!!!!!!'.format(ZSENDSTATUS))
+            exc_p('new ZSENDSTATUS {}!!!!!!!!!!!!!!!!!'.format(ZSENDSTATUS))
 
     @staticmethod
     def _convert_ios_time(timestamp):

@@ -33,31 +33,34 @@ def print_run_time(func):
     return wrapper
 
 def exc(e=''):
+    ''' Exception output '''
     if DEBUG:
-        TraceService.Trace(TraceLevel.Warning, "解析出错: LINE {}".format(traceback.format_exc()))
+        TraceService.Trace(TraceLevel.Warning, "android_line.py DEBUG: LINE {}".format(traceback.format_exc()))
     else:
         pass 
-
-def exc_debug(*e):
-    TraceService.Trace(TraceLevel.Warning, "{}".format(e))
-
+def exc_p(*e):
+    ''' Highlight print in vs '''
+    if DEBUG:
+        TraceService.Trace(TraceLevel.Warning, "{}".format(e))
+    else:
+        pass     
 
 def analyze_line(node, extract_deleted, extract_source):
     """ android LINE 
 
         jp.naver.line.android
     """
-    exc_debug('android_line.py is running ...')
+    exc_p('android_line.py is running ...')
     pr = ParserResults()
     res = []
     try:
         res = LineParser(node, extract_deleted, extract_source).parse()
     except:
-        exc()
+        TraceService.Trace(TraceLevel.Error, "android_line.py 解析出错:  {}".format(traceback.format_exc()))
     if res:
         pr.Models.AddRange(res)
         pr.Build('LINE')
-        exc_debug('android_line.py completed!')
+        exc_p('android_line.py completed!')
     return pr
 
 class LineParser(object):
@@ -110,11 +113,6 @@ class LineParser(object):
                     CHATROOM_ID_NAME = self.parse_Chatroom('groups', CHATROOM_MEMBER_COUNT)
                     FRIEND_ID_NAME   = self.parse_Friend('contacts', FRIEND_CHATROOMS)
                     self.parse_Message('chat_history', CHAT_DICT, CHATROOM_ID_NAME, FRIEND_ID_NAME)
-                    #self.parse_Feed('', '')
-                    #self.parse_FeedLike('', '')
-                    #self.parse_FeedComment('', '')
-                    #self.parse_Location('', '')
-                    #self.parse_Deal('', '')
                 self.parse_Search('line_general_key_value', 'key_value_text')
 
     def parse_Search(self, db_name, table_name):
@@ -131,7 +129,6 @@ class LineParser(object):
             if canceller.IsCancellationRequested:
                 return
             search_words = rec['value'].Value.split(u'\x1e')[:-1] if rec['value'].Value else None
-            exc_debug(search_words)
             if search_words:
                 for search_word in search_words:
                     search = model_im.Search()
@@ -149,9 +146,11 @@ class LineParser(object):
         ''' LINE 通过以下来来确定本人 mid
                 1 无法和自己聊天
                 2 status=3 为已发送 (if server_id != null)
+
         '''
         account_list = []
         friend_chat_ids = []
+
         for rec in self._read_table('chat_history'):
             if canceller.IsCancellationRequested:
                 return
@@ -180,10 +179,6 @@ class LineParser(object):
                 account.nickname   = rec['server_name'].Value
                 account.username   = rec['addressbook_name'].Value if rec['addressbook_name'].Value else rec['server_name'].Value 
                 account.signature  = rec['status_msg'].Value         
-
-                # pic_url = rec['picture_path'].Value
-                # if pic_url and pic_url.startswith('/'):
-                # picture_path  useless, profile_img file name is m_id
                 account.photo = self._get_profile_img(rec['m_id'].Value)                
                 account.deleted = 1 if rec.IsDeleted else 0
                 account.source  = self.cur_db_source
@@ -274,7 +269,6 @@ class LineParser(object):
             chatroom.name         = rec['name'].Value
             chatroom.photo        = rec['picture_status'].Value
             chatroom.creator_id   = rec['creator'].Value
-            # chatroom.owner_id     = rec['Z_PK'].Value
             chatroom.member_count = CHATROOM_MEMBER_COUNT.get(chatroom.chatroom_id, None)
             chatroom.create_time  = self._get_im_ts(rec['created_time'].Value)
             chatroom.deleted      = 1 if rec.IsDeleted else 0         
@@ -282,8 +276,6 @@ class LineParser(object):
             try:
                 CHATROOM_ID_NAME[chatroom.chatroom_id] = chatroom.name
             except:
-                # print 'CHATROOM_ID_NAME', CHATROOM_ID_NAME
-                # print 'chatroom.chatroom_id', chatroom.chatroom_id
                 exc()
             try:
                 self.im.db_insert_table_chatroom(chatroom)
@@ -492,8 +484,6 @@ class LineParser(object):
             '''
             if rec['relation'].Value == 1: # 好友
                 friend.type = model_im.FRIEND_TYPE_FRIEND
-                # if rec['ZFAVORITEORDER'].Value: # 特别关注
-                #     friend.type = model_im.FRIEND_TYPE_SPECAIL_FOLLOW
             else:
                 friend.type = self._convert_friend_type(rec['contact_type'].Value)
             
@@ -582,12 +572,13 @@ class LineParser(object):
         storage/emulated/0/Android/data
                 /jp.naver.line.android/storage/mo
         '''
-        # msg_media_pattern_1 = 'jp.naver.line.android/storage/mo/' + msg_CHAT_ID + '/' + msg_PK + '$'
-        # msg_media_pattern_2 = msg_media_pattern_1 + '.thumb' + '$'
+        msg_media_pattern_1 = 'jp.naver.line.android/storage/mo/' + msg_CHAT_ID + '/' + msg_PK + '$'
+        msg_media_pattern_2 = msg_media_pattern_1 + '.thumb' + '$'
         msg_media_pattern_3 = 'jp.naver.line.android/storage/mo/' + msg_CHAT_ID + '/f/' + msg_PK
-
-        file_path = self._search_file(msg_media_pattern_3)
-        return file_path        
+        for mmp in (msg_media_pattern_1, msg_media_pattern_2, msg_media_pattern_3):
+            file_path = self._search_file(mmp)
+            if file_path:
+                return file_path        
 
     def _get_profile_img(self, file_name):
         ''' 附件路径 db:
@@ -620,9 +611,9 @@ class LineParser(object):
                         /本人动态原图
         '''
         img_pattern =  '/jp.naver.line.android/storage/p/' + file_name
-        #exc_debug('friend pic url pattern ', pattern)
+        #exc_p('friend pic url pattern ', pattern)
         res = self._search_file(img_pattern +'$')
-        exc_debug('res', res)
+        # exc_p('_get_profile_img', res)
         return res if res else self._search_file(img_pattern + '.thumb')
 
     def _search_file(self, raw_file_path):
@@ -637,23 +628,18 @@ class LineParser(object):
             视频:       \jp.naver.line.android\cache\ad2
             实际图片:    /storage/emulated/0/DCIM/LINE/line_ + id(15....)
         '''
-        # if raw_file_path.startswith('file://'):
-            # /storage/emulated/0/DCIM/LINE/line_1541057697077.jpg
         if IsDBNull(raw_file_path):
             return 
         file_path = raw_file_path.replace('file://', '').replace('content://', '')
-        # elif raw_file_path.startswith('content://'):
-
-        # exc_debug('file_path:', file_path)
 
         fs = self.root.FileSystem
         node_list = list(fs.Search(file_path))
         try:
             res_file_path = node_list[0].AbsolutePath
-            exc_debug('!!!!!!!!! find file_path:', res_file_path)
+            exc_p('!!!!!!!!! find file_path:', res_file_path)
             return res_file_path
         except:
-            # exc_debug('not found')
+            # exc_p('not found')
             return 
 
     @staticmethod
@@ -683,7 +669,7 @@ class LineParser(object):
         try:
             return type_map[ZTYPE]
         except:
-            exc_debug('new CHAT_TYPE {}!!!!!!!!!!!!!!!!!'.format(ZTYPE))
+            exc_p('new CHAT_TYPE {}!!!!!!!!!!!!!!!!!'.format(ZTYPE))
 
     @staticmethod
     def _convert_msg_type(msg_type, msg_attachement_type):
@@ -773,7 +759,7 @@ class LineParser(object):
         try:
             return type_map[contact_type]
         except:
-            exc_debug('new contact_type {}!!!!!!!!!!!!!!!!!'.format(contact_type))
+            exc_p('new contact_type {}!!!!!!!!!!!!!!!!!'.format(contact_type))
 
     @staticmethod
     def _convert_send_status(status):
@@ -803,7 +789,7 @@ class LineParser(object):
         try:
             return type_map[status]
         except:
-            exc_debug('new ZCONTENTTYPE {}!!!!!!!!!!!!!!!!!'.format(status))
+            exc_p('new ZCONTENTTYPE {}!!!!!!!!!!!!!!!!!'.format(status))
 
     @staticmethod
     def _get_im_ts(timestamp):
