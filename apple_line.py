@@ -459,9 +459,9 @@ class LineParser(object):
             chatroom.chatroom_id = rec['ZID'].Value 
             chatroom.name        = rec['ZNAME'].Value
             pic_url = rec['ZPICTURESTATUS'].Value
-            chatroom.photo = self._search_profile_img(pic_url) if pic_url else None 
-            chatroom.creator_id       = str(rec['ZCREATOR'].Value)
-            chatroom.create_time      = self._convert_ios_time(rec['ZCREATEDTIME'].Value)
+            chatroom.photo        = self._search_profile_img(pic_url) if pic_url else None 
+            chatroom.creator_id   = str(rec['ZCREATOR'].Value)
+            chatroom.create_time  = self._convert_ios_time(rec['ZCREATEDTIME'].Value)
             chatroom.member_count = CHATROOM_MEMBER_COUNT.get(rec['Z_PK'].Value, None)
             chatroom.deleted = 1 if rec.IsDeleted else 0
             chatroom.source  = self.cur_db_source            
@@ -548,14 +548,14 @@ class LineParser(object):
             friend.username   = rec['ZSORTABLENAME'].Value
             friend.remark     = rec['ZCUSTOMNAME'].Value    # 备注[TEXT]
             friend.signature  = rec['ZSTATUSMESSAGE'].Value
-            friend_pk                    = rec['Z_PK'].Value   # 关联 ZGROUP 表
+            friend_pk         = rec['Z_PK'].Value   # 关联 ZGROUP 表
             FRIEND_PK_MID_MAP[friend_pk] = friend.friend_id
             pic_url = rec['ZPICTUREURL'].Value
             if pic_url and pic_url.startswith('/'):
                 friend.photo = self._search_profile_img(pic_url)
             # telephone 只取第一个
             if rec['ZISINADDRESSBOOK'].Value and rec['ZMID'].Value :  
-                friend.telephone = FRIEND_MID_TEL.get(rec['ZMID'].Value, '')[0]
+                friend.telephone = FRIEND_MID_TEL.get(rec['ZMID'].Value, [None])[0]
             if rec['ZISFRIEND'].Value: # 好友
                 friend.type = model_im.FRIEND_TYPE_FRIEND
                 if rec['ZFAVORITEORDER'].Value: # 特别关注
@@ -713,8 +713,8 @@ class LineParser(object):
                     DEL_FRIEND_PK_CHATROOM_MID[sender_pk] = CHAT_DICT.get(msg_chat_pk, {}).get('ZMID', None)
                 message.talker_name = CHAT_DICT.get(msg_chat_pk, {}).get('chat_name', None)
             else: # 非群聊
-                chat_pk   = rec['ZCHAT'].Value
-                friend_pks = CHAT_PK_FRIEND_PKS.get(chat_pk, None)
+                chat_pk    = rec['ZCHAT'].Value
+                friend_pks = CHAT_PK_FRIEND_PKS.get(chat_pk, [None])
                 message.talker_name = FRIEND_PK_NAME_MAP.get(friend_pks[0], None)
 
             if message.content and message.content[-4:] in ['.m4a', '.mp4']:
