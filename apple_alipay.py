@@ -218,7 +218,7 @@ class AlipayParser():
                 if rec['userID'].Value == self.user:
                     continue
                 
-                if rec['noAliPay'].Value == 1:
+                if rec['noAliPay'].Value == '1':
                     continue
 
                 friend = model_im.Friend()
