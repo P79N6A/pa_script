@@ -794,7 +794,7 @@ class LineParser(object):
             return 
             
         for feed_node in bplist:
-            _print_plist(feed_node)
+            # _print_plist(feed_node)
             feed = model_im.Feed()
             feed.account_id = self.cur_account_id                   # 账号ID[TEXT]
             feed.sender_id  = feed_node['fromUser'].Value           # 发布者ID[TEXT]
@@ -810,13 +810,13 @@ class LineParser(object):
                 exc()
                 # _print_plist(feed_node)
             if feed_node['contents']['additionalContents']['url']:
-                feed.url = feed_node['contents']['additionalContents']['url']['targetUrl'].Value  # 动态内容[TEXT]
+                feed.urls = feed_node['contents']['additionalContents']['url']['targetUrl'].Value  # 动态内容[TEXT]
             feed.send_time = feed_node['postInfo']['createdTime'].Value  # 发布时间[INT]
             feed.likecount = feed_node['postInfo']['likeCount'].Value    # 赞数量[INT]
             feed.rtcount   = feed_node['postInfo']['sharedCount']['toPost'].Value \
                            + feed_node['postInfo']['sharedCount']['toTalk'].Value # 转发数量[INT]
             feed.commentcount = feed_node['postInfo']['commentCount'].Value       # 评论数量[INT]
-            feed.type = model_im.FEED_TYPE_IMAGE
+            # feed.type = model_im.FEED_TYPE_IMAGE
 
             # location
             loc_node = feed_node['contents']['textLocation']['location']
@@ -828,7 +828,7 @@ class LineParser(object):
                     self.im.db_insert_table_location(location)
                 except:
                     exc()            
-                feed.location_id = location.location_id    # 地址ID[TEXT]
+                feed.location = location.location_id    # 地址ID[TEXT]
             feed.source = plist_node.AbsolutePath
             try:
                 self.im.db_insert_table_feed(feed)
