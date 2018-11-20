@@ -486,7 +486,7 @@ class KeyChainParser():
                     return bool(bytes(map[key].Bytes))
                 if format == 'int':
                     return int(str(bytes(map[key].Bytes)))
-            pass:
+            except:
                 return None
             return map[key].Bytes
         try:
@@ -496,7 +496,7 @@ class KeyChainParser():
                 return bool(map[key])
             if format == 'int':
                 return int(str(map[key]))
-        pass:
+        except:
             return None
         return str(map[key])
         

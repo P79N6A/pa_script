@@ -514,11 +514,11 @@ class Genetate(object):
                     fromcoo.Type.Value = CoordinateType.Baidumc
                     tocoo.Type.Value = CoordinateType.Baidumc
                 elif row[12] == "高德地图" or row[12] == "腾讯地图":
-                    fromcoo.Type.Value = CoordinateType.Googlemc
-                    tocoo.Type.Value = CoordinateType.Googlemc
+                    fromcoo.Type.Value = CoordinateType.Google
+                    tocoo.Type.Value = CoordinateType.Google
                 elif row[12] == "搜狗地图":
-                    fromcoo.Type.Value = CoordinateType.GPSmc
-                    tocoo.Type.Value = CoordinateType.GPSmc
+                    fromcoo.Type.Value = CoordinateType.Google
+                    tocoo.Type.Value = CoordinateType.Google
             if row[12]:
                 fromcoo.Source.Value = row[12]
             if row[4] and (row[12] == "高德地图" or row[12] == "腾讯地图"):

@@ -12,6 +12,12 @@ clr.AddReference('System.Data.SQLite')
 del clr
 from System.Data.SQLite import *
 import System
+from System.Text import *
+import shutil
+
+def moveFileto(sourceDir,  targetDir): 
+    shutil.copy(sourceDir,  targetDir)
+
 
 def isValidMac(mac):
     if re.match(r"^\s*([0-9a-fA-F]{2,2}-){5,5}[0-9a-fA-F]{2,2}\s*$", mac): 
@@ -473,6 +479,7 @@ class FrequentLocationsParser(object):
         self.extractSource = extractSource
         self.extractDeleted = extractDeleted
         self.category = LocationCategories.FREQUENT_LOCATIONS
+        self.cache = ds.OpenCachePath("Frequent_locations")
 
     def parse(self):
         results = []
@@ -491,9 +498,17 @@ class FrequentLocationsParser(object):
             else:
                 return False
 
-    # ios 10之前存放在：
-    # >   private/var/mobile/Library/Caches/com.apple.routined/StateModel1.archive
-    # >   private/var/mobile/Library/Caches/com.apple.routined/StateModel2.archive
+    def read_file_path(self,node):
+        wal_path = node.PathWithMountPoint + "-wal"
+        if os.path.exists(wal_path):
+            file_name = os.path.basename(node.PathWithMountPoint)
+            dest_file = self.cache + "/{0}".format(file_name)
+            dest_wal_file = self.cache +"/{0}-wal".format(file_name)
+            moveFileto(node.PathWithMountPoint, dest_file)
+            moveFileto(wal_path, dest_wal_file)
+            return dest_file
+    # ios 11 常去地理位置存放在cache.sqlite,cloud.sqlite,local.sqlite 
+    # herf = https://blog.elcomsoft.com/2018/06/apple-probably-knows-what-you-did-last-summer/
     def parse_new_version_locations(self):
         results = []
         dbNodes = self.root.Files
@@ -538,8 +553,53 @@ class FrequentLocationsParser(object):
                     results.append(loc)
                 except Exception as e:
                     print(e)
-
         return results
+
+    def convert_to_timestamp(self,value):
+        try:
+            dstart = DateTime(1970,1,1,0,0,0)
+            cdate = TimeStampFormats.GetTimeStampEpoch1Jan2001(value)
+            return TimeStamp.FromUnixTime(int((cdate - dstart).TotalSeconds), False)
+        except Exception as e:
+            pass
+
+    def get_all_frequent_groups(self,node):
+        db = SQLiteParser.Database.FromNode(node, canceller)
+        if db is None:
+            return
+        if "ZRTLEARNEDLOCATIONOFINTERESTMO" not in db.Tables:
+            return
+        dicts = defaultdict(list)
+        reader = None
+        if self.read_file_path(node) is None:
+            connection = System.Data.SQLite.SQLiteConnection('Data Source = {0}; ReadOnly = True'.format(node.PathWithMountPoint))
+        else:
+            connection = System.Data.SQLite.SQLiteConnection('Data Source = {0}; ReadOnly = True'.format(self.read_file_path(node)))
+        try:
+            connection.Open()
+            cmd = System.Data.SQLite.SQLiteCommand(connection)
+            cmd.CommandText = "select Z_PK,ZLOCATIONLATITUDE,ZLOCATIONLONGITUDE,ZPLACEMAPITEMGEOMAPITEM,ZPLACECREATIONDATE from ZRTLEARNEDLOCATIONOFINTERESTMO"
+            reader = cmd.ExecuteReader()
+            while reader.Read():
+                try:
+                    b = Encoding.UTF8.GetString(GetBlob(reader,3))
+                    pattrn = re.compile(r'"lng":"(.*?)".*"name":"(.*)","id".*?"lat":"(.*)"}"')
+                    results = re.search(pattrn, b)
+                    d = results.group(2)
+                    dicts[GetInt64(reader,0)].append(d)
+                    dicts[GetInt64(reader,0)].append(GetFloat(reader,1))
+                    dicts[GetInt64(reader,0)].append(GetFloat(reader,2))
+                    dicts[GetInt64(reader,0)].append(GetFloat(reader,4))
+                except Exception as e:
+                    print(e)
+        except Exception as e:
+            print(e)
+        if reader != None:
+            reader.Close()
+        if connection != None:
+            connection.Close()
+        return dicts
+
     def get_waypoint(self):
         results = []
         dbNodes = self.root.Files
@@ -553,7 +613,13 @@ class FrequentLocationsParser(object):
                 continue
             if "ZRTLEARNEDLOCATIONOFINTERESTVISITMO" not in db.Tables:
                 continue
-            connection = System.Data.SQLite.SQLiteConnection('Data Source = {0}; ReadOnly = True'.format(dbFile.PathWithMountPoint))
+            if self.read_file_path(dbFile) is None:
+                connection = System.Data.SQLite.SQLiteConnection('Data Source = {0}; ReadOnly = True'.format(dbFile.PathWithMountPoint))
+            else:
+                connection = System.Data.SQLite.SQLiteConnection('Data Source = {0}; ReadOnly = True'.format(self.read_file_path(dbFile)))
+            dicts = self.get_all_frequent_groups(dbFile)
+            if dicts is None:
+                dicts = []
             try:
                 connection.Open()
                 cmd = System.Data.SQLite.SQLiteCommand(connection)
@@ -569,6 +635,19 @@ class FrequentLocationsParser(object):
                         cmd.CommandText  = "select ZENTRYDATE,ZEXITDATE,ZLOCATIONLATITUDE,ZLOCATIONLONGITUDE from ZRTLEARNEDLOCATIONOFINTERESTVISITMO where ZLOCATIONOFINTEREST = " + str(frequent_item) + "  order by ZENTRYDATE"
                         g_results = cmd.ExecuteReader()
                         frequent_journey = Journey()
+                        if frequent_item in dicts:
+                            try:
+                                frequent_journey.Name.Value = dicts[frequent_item][0]
+                                center_loc = Location()
+                                center_coor = Coordinate()
+                                center_coor.Latitude.Value = dicts[frequent_item][1]
+                                center_coor.Longitude.Value = dicts[frequent_item][2]
+                                center_loc.Position.Value = center_coor
+                                frequent_journey.FromPoint.Value = center_loc
+                                if self.convert_to_timestamp(dicts[frequent_item][3]):
+                                    frequent_journey.StartTime.Value = self.convert_to_timestamp(dicts[frequent_item][3])
+                            except Exception as e:
+                                pass
                         frequent_journey.SourceFile.Value = dbFile.AbsolutePath
                         frequent_journey.Source.Value = self.category
                         while g_results.Read():

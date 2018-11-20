@@ -212,7 +212,10 @@ class ViberParser(model_im.IM, model_callrecord.MC):
                     chatroom.chatroom_id = self._db_reader_get_int_value(sr, 0)
                     self.chatgroupid.append(chatroom.chatroom_id)
                     dstart = DateTime(1970,1,1,0,0,0)
-                    cdate = TimeStampFormats.GetTimeStampEpoch1Jan2001(sr.GetDouble(2))
+                    try:
+                        cdate = TimeStampFormats.GetTimeStampEpoch1Jan2001(sr.GetDouble(2))
+                    except:
+                        cdate = TimeStampFormats.GetTimeStampEpoch1Jan2001(sr.GetInt32(2))
                     chatroom.create_time = int((cdate - dstart).TotalSeconds)
                     chatroom.deleted = deleteFlag
                     chatroom.member_count = self._db_reader_get_int_value(sr, 3) + 1
@@ -325,7 +328,10 @@ class ViberParser(model_im.IM, model_callrecord.MC):
                     message.media_path = mediaPath
                     message.msg_id = self._db_reader_get_int_value(sr, 0)
                     dstart = DateTime(1970,1,1,0,0,0)
-                    cdate = TimeStampFormats.GetTimeStampEpoch1Jan2001(sr.GetDouble(5))
+                    try:
+                        cdate = TimeStampFormats.GetTimeStampEpoch1Jan2001(sr.GetDouble(5))
+                    except:
+                        cdate = TimeStampFormats.GetTimeStampEpoch1Jan2001(sr.GetInt32(5))
                     message.send_time = int((cdate - dstart).TotalSeconds)
                     message.sender_id = self._db_reader_get_int_value(sr, 6) if message.is_sender != 1 else -1
                     message.sender_name = self._db_reader_get_string_value(sr, 8) if message.is_sender != 1 else '我'
@@ -371,7 +377,10 @@ class ViberParser(model_im.IM, model_callrecord.MC):
                     location.longitude = sr[4]
                     location.source = self.node.AbsolutePath
                     dstart = DateTime(1970,1,1,0,0,0)
-                    cdate = TimeStampFormats.GetTimeStampEpoch1Jan2001(sr.GetDouble(2))
+                    try:
+                        cdate = TimeStampFormats.GetTimeStampEpoch1Jan2001(sr.GetDouble(2))
+                    except:
+                        cdate = TimeStampFormats.GetTimeStampEpoch1Jan2001(sr.GetInt32(2))
                     location.timestamp = int((cdate - dstart).TotalSeconds)
                     self.db_insert_table_location(location)
                 except:
@@ -401,7 +410,10 @@ class ViberParser(model_im.IM, model_callrecord.MC):
                     if canceller.IsCancellationRequested:
                         break
                     dstart = DateTime(1970,1,1,0,0,0)
-                    cdate = TimeStampFormats.GetTimeStampEpoch1Jan2001(sr.GetDouble(1))
+                    try:
+                        cdate = TimeStampFormats.GetTimeStampEpoch1Jan2001(sr.GetDouble(1))
+                    except:
+                        cdate = TimeStampFormats.GetTimeStampEpoch1Jan2001(sr.GetInt32(1))
                     record.date = int((cdate - dstart).TotalSeconds)
                     record.deleted = deleteFlag
                     record.duration = self._db_reader_get_int_value(sr, 2)
