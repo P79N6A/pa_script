@@ -476,29 +476,31 @@ class KeyChainParser():
 
     @staticmethod
     def _get_map_value(map, key, format = None):
-        if key not in map.Keys:
-            return None
-        if str(type(map[key])) == "<type 'NSData'>":
-            try:
+        try:
+            if str(type(map[key])) == "<type 'NSData'>":
                 if format == 'str':
                     return str(bytes(map[key].Bytes))
                 if format == 'bool':
                     return bool(bytes(map[key].Bytes))
                 if format == 'int':
                     return int(str(bytes(map[key].Bytes)))
-            except:
-                return None
-            return map[key].Bytes
-        try:
+                return map[key].Bytes
             if format == 'data':
                 return UnicodeEncoding.UTF8.GetBytes(str(map[key]))
             if format == 'bool':
                 return bool(map[key])
             if format == 'int':
                 return int(str(map[key]))
+            return str(map[key])
         except:
-            return None
-        return str(map[key])
+            if format == 'bool':
+                return False
+            elif format == 'int':
+                return 0
+            elif format == 'str':
+                return ""
+            elif format == 'data':
+                return bytes(0)
         
     @staticmethod
     def _get_timestamp(str):
