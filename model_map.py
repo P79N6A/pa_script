@@ -535,7 +535,7 @@ class Genetate(object):
             if row[7]:
                 tocoo.PositionAddress.Value = row[7]
             if row[8] and (row[12] == "高德地图" or row[12] == "腾讯地图"):
-                tocoo.Longitude.Value == coordTransform_utils.pixelXTolng(row[8])
+                tocoo.Longitude.Value = coordTransform_utils.pixelXTolng(row[8])
             else:
                 tocoo.Longitude.Value = row[8]
             if row[9] and (row[12] == "高德地图" or row[12] == "腾讯地图"):
