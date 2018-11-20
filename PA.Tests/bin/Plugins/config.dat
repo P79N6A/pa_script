@@ -20,6 +20,10 @@
           </array>
           <key>Category</key>
           <string>ApplePush</string>
+          <key>Name</key>
+          <string>推送通知(苹果)</string>
+          <key>Filter</key>
+          <string>基础数据</string>
         </dict>
       </array>
     </dict>
@@ -40,6 +44,10 @@
           </array>
           <key>Category</key>
           <string>Ctrip</string>
+          <key>Name</key>
+          <string>携程(苹果)</string>
+          <key>Filter</key>
+          <string>应用>商旅</string>
         </dict>
       </array>
     </dict>
@@ -59,6 +67,10 @@
           </array>
           <key>Category</key>
           <string>Clipboard</string>
+          <key>Name</key>
+          <string>粘贴板(苹果)</string>
+          <key>Filter</key>
+          <string>基础数据</string>
         </dict>
       </array>
     </dict>
@@ -79,6 +91,10 @@
           </array>
           <key>Category</key>
           <string>Messages</string>
+          <key>Name</key>
+          <string>短信(苹果)</string>
+          <key>Filter</key>
+          <string>基础数据</string>
         </dict>
       </array>
     </dict>
@@ -99,6 +115,10 @@
           </array>
           <key>Category</key>
           <string>VoiceMail</string>
+          <key>Name</key>
+          <string>语音信箱(苹果)</string>
+          <key>Filter</key>
+          <string>基础数据</string>
         </dict>
       </array>
     </dict>
@@ -120,6 +140,10 @@
           </array>
           <key>Category</key>
           <string>KeyChains</string>
+          <key>Name</key>
+          <string>钥匙串(苹果)</string>
+          <key>Filter</key>
+          <string>基础数据</string>
         </dict>
       </array>
     </dict>
@@ -140,6 +164,10 @@
           </array>
           <key>Category</key>
           <string>RenRen</string>
+          <key>Name</key>
+          <string>人人网(苹果)</string>
+          <key>Filter</key>
+          <string>应用>社交</string>
         </dict>
       </array>
     </dict>
@@ -160,6 +188,10 @@
           </array>
           <key>Category</key>
           <string>Locations</string>
+          <key>Name</key>
+          <string>QuickTime位置(苹果)</string>
+          <key>Filter</key>
+          <string>基础数据</string>
         </dict>
       </array>
     </dict>
@@ -180,6 +212,10 @@
           </array>
           <key>Category</key>
           <string>Logs</string>
+          <key>Name</key>
+          <string>文件日志(苹果)</string>
+          <key>Filter</key>
+          <string>基础数据</string>
         </dict>
       </array>
     </dict>
@@ -200,6 +236,10 @@
           </array>
           <key>Category</key>
           <string>Wifi</string>
+          <key>Name</key>
+          <string>Wifi日志(苹果)</string>
+          <key>Filter</key>
+          <string>基础数据</string>
         </dict>
       </array>
     </dict>
@@ -220,6 +260,10 @@
           </array>
           <key>Category</key>
           <string>ApplicationLog</string>
+          <key>Name</key>
+          <string>应用日志(苹果)</string>
+          <key>Filter</key>
+          <string>基础数据</string>
         </dict>
       </array>
     </dict>
@@ -239,6 +283,10 @@
           </array>
           <key>Category</key>
           <string>Twitter</string>
+          <key>Name</key>
+          <string>Twitter(苹果)</string>
+          <key>Filter</key>
+          <string>应用>社交</string>
         </dict>
       </array>
     </dict>
@@ -259,6 +307,10 @@
           </array>
           <key>Category</key>
           <string>ICQ</string>
+          <key>Name</key>
+          <string>ICQ(苹果)</string>
+          <key>Filter</key>
+          <string>应用>即时通讯</string>
         </dict>
       </array>
     </dict>
@@ -280,6 +332,10 @@
           </array>
           <key>Category</key>
           <string>Skype</string>
+          <key>Name</key>
+          <string>Skype(苹果)</string>
+          <key>Filter</key>
+          <string>应用>即时通讯</string>
         </dict>
       </array>
     </dict>
@@ -299,6 +355,10 @@
           </array>
           <key>Category</key>
           <string>Viber</string>
+          <key>Name</key>
+          <string>Viber(苹果)</string>
+          <key>Filter</key>
+          <string>应用>即时通讯</string>
         </dict>
       </array>
     </dict>
@@ -319,6 +379,10 @@
           </array>
           <key>Category</key>
           <string>Telegram</string>
+          <key>Name</key>
+          <string>Telegram(苹果)</string>
+          <key>Filter</key>
+          <string>应用>即时通讯</string>
         </dict>
       </array>
     </dict>
@@ -338,6 +402,10 @@
           </array>
           <key>Category</key>
           <string>MiLiao</string>
+          <key>Name</key>
+          <string>米聊(苹果)</string>
+          <key>Filter</key>
+          <string>应用>即时通讯</string>
         </dict>
       </array>
     </dict>
@@ -357,6 +425,10 @@
           </array>
           <key>Category</key>
           <string>Locations</string>
+          <key>Name</key>
+          <string>手机卡包(苹果)</string>
+          <key>Filter</key>
+          <string>基础数据</string>
         </dict>
         <dict>
           <key>EntryPoint</key>
@@ -371,6 +443,10 @@
           </array>
           <key>Category</key>
           <string>Locations</string>
+          <key>Name</key>
+          <string>地理位置(苹果)</string>
+          <key>Filter</key>
+          <string>基础数据</string>
         </dict>
         <dict>
           <key>EntryPoint</key>
@@ -383,6 +459,10 @@
           </array>
           <key>Category</key>
           <string>Locations</string>
+          <key>Name</key>
+          <string>常去地点(苹果)</string>
+          <key>Filter</key>
+          <string>基础数据</string>
         </dict>
         <dict>
           <key>EntryPoint</key>
@@ -395,6 +475,10 @@
           </array>
           <key>Category</key>
           <string>Maps</string>
+          <key>Name</key>
+          <string>苹果地图(新)</string>
+          <key>Filter</key>
+          <string>基础数据</string>
         </dict>
         <dict>
           <key>EntryPoint</key>
@@ -407,6 +491,10 @@
           </array>
           <key>Category</key>
           <string>Maps</string>
+          <key>Name</key>
+          <string>苹果地图(旧)</string>
+          <key>Filter</key>
+          <string>基础数据</string>
         </dict>
         <dict>
           <key>EntryPoint</key>
@@ -419,6 +507,10 @@
           </array>
           <key>Category</key>
           <string>Locations</string>
+          <key>Name</key>
+          <string>删除照片位置恢复(苹果)</string>
+          <key>Filter</key>
+          <string>基础数据</string>
         </dict>
         <dict>
           <key>EntryPoint</key>
@@ -431,6 +523,10 @@
           </array>
           <key>Category</key>
           <string>Locations</string>
+          <key>Name</key>
+          <string>基站探测(苹果)</string>
+          <key>Filter</key>
+          <string>基础数据</string>
         </dict>
         <dict>
           <key>EntryPoint</key>
@@ -443,6 +539,10 @@
           </array>
           <key>Category</key>
           <string>Locations</string>
+          <key>Name</key>
+          <string>Wifi探测(苹果)</string>
+          <key>Filter</key>
+          <string>基础数据</string>
         </dict>
         <dict>
           <key>EntryPoint</key>
@@ -455,6 +555,10 @@
           </array>
           <key>Category</key>
           <string>Wifi</string>
+          <key>Name</key>
+          <string>Wifi记录(苹果)</string>
+          <key>Filter</key>
+          <string>基础数据</string>
         </dict>
       </array>
     </dict>
@@ -475,6 +579,10 @@
           </array>
           <key>Category</key>
           <string>Network</string>
+          <key>Name</key>
+          <string>网络连接(苹果)</string>
+          <key>Filter</key>
+          <string>基础数据</string>
         </dict>
         <dict>
           <key>EntryPoint</key>
@@ -487,6 +595,10 @@
           </array>
           <key>Category</key>
           <string>StartupTime</string>
+          <key>Name</key>
+          <string>开机时间(苹果)</string>
+          <key>Filter</key>
+          <string>基础数据</string>
         </dict>
         <dict>
           <key>EntryPoint</key>
@@ -499,6 +611,10 @@
           </array>
           <key>Category</key>
           <string>Tethring</string>
+          <key>Name</key>
+          <string>手机热点(苹果)</string>
+          <key>Filter</key>
+          <string>基础数据</string>
         </dict>
         <dict>
           <key>EntryPoint</key>
@@ -511,6 +627,10 @@
           </array>
           <key>Category</key>
           <string>Photos</string>
+          <key>Name</key>
+          <string>缩略图解码(苹果)</string>
+          <key>Filter</key>
+          <string>基础数据</string>
         </dict>
         <dict>
           <key>EntryPoint</key>
@@ -523,6 +643,10 @@
           </array>
           <key>Category</key>
           <string>Bluetooth</string>
+          <key>Name</key>
+          <string>蓝牙记录(苹果)</string>
+          <key>Filter</key>
+          <string>基础数据</string>
         </dict>
       </array>
     </dict>
@@ -543,6 +667,10 @@
           </array>
           <key>Category</key>
           <string>Notes</string>
+          <key>Name</key>
+          <string>备忘录V2(苹果)</string>
+          <key>Filter</key>
+          <string>基础数据</string>
         </dict>
         <dict>
           <key>EntryPoint</key>
@@ -555,6 +683,10 @@
           </array>
           <key>Category</key>
           <string>Notes</string>
+          <key>Name</key>
+          <string>备忘录V1(苹果)</string>
+          <key>Filter</key>
+          <string>基础数据</string>
         </dict>
       </array>
     </dict>
@@ -575,6 +707,10 @@
           </array>
           <key>Category</key>
           <string>Accounts</string>
+          <key>Name</key>
+          <string>账号挖掘(苹果)</string>
+          <key>Filter</key>
+          <string>基础数据</string>
         </dict>
         <dict>
           <key>EntryPoint</key>
@@ -587,6 +723,10 @@
           </array>
           <key>Category</key>
           <string>Accounts</string>
+          <key>Name</key>
+          <string>账号记录(苹果)</string>
+          <key>Filter</key>
+          <string>基础数据</string>
         </dict>
       </array>
     </dict>
@@ -607,6 +747,10 @@
           </array>
           <key>Category</key>
           <string>Safari</string>
+          <key>Name</key>
+          <string>Safari(苹果)</string>
+          <key>Filter</key>
+          <string>应用>浏览器</string>
         </dict>
       </array>
     </dict>
@@ -627,6 +771,10 @@
           </array>
           <key>Category</key>
           <string>Mails</string>
+          <key>Name</key>
+          <string>系统邮箱(苹果)</string>
+          <key>Filter</key>
+          <string>基础数据</string>
         </dict>
       </array>
     </dict>
@@ -647,6 +795,10 @@
           </array>
           <key>Category</key>
           <string>Calls</string>
+          <key>Name</key>
+          <string>通话记录(苹果)</string>
+          <key>Filter</key>
+          <string>基础数据</string>
         </dict>
       </array>
     </dict>
@@ -667,6 +819,10 @@
           </array>
           <key>Category</key>
           <string>Cookies</string>
+          <key>Name</key>
+          <string>Cookies(苹果)</string>
+          <key>Filter</key>
+          <string>基础数据</string>
         </dict>
       </array>
     </dict>
@@ -687,6 +843,10 @@
           </array>
           <key>Category</key>
           <string>Recents</string>
+          <key>Name</key>
+          <string>Recents(苹果)</string>
+          <key>Filter</key>
+          <string>基础数据</string>
         </dict>
       </array>
     </dict>
@@ -707,6 +867,10 @@
           </array>
           <key>Category</key>
           <string>Calenders</string>
+          <key>Name</key>
+          <string>日历(苹果)</string>
+          <key>Filter</key>
+          <string>基础数据</string>
         </dict>
       </array>
     </dict>
@@ -727,6 +891,10 @@
           </array>
           <key>Category</key>
           <string>Contacts</string>
+          <key>Name</key>
+          <string>通讯录(苹果)</string>
+          <key>Filter</key>
+          <string>基础数据</string>
         </dict>
       </array>
     </dict>
@@ -747,6 +915,10 @@
           </array>
           <key>Category</key>
           <string>Wechat</string>
+          <key>Name</key>
+          <string>微信(苹果)</string>
+          <key>Filter</key>
+          <string>应用>即时通讯</string>
         </dict>
       </array>
     </dict>
@@ -769,6 +941,10 @@
           </array>
           <key>Category</key>
           <string>QQ</string>
+          <key>Name</key>
+          <string>QQ(苹果)</string>
+          <key>Filter</key>
+          <string>应用>即时通讯</string>
         </dict>
       </array>
     </dict>
@@ -789,6 +965,10 @@
           </array>
           <key>Category</key>
           <string>SogouMap</string>
+          <key>Name</key>
+          <string>搜狗地图(苹果)</string>
+          <key>Filter</key>
+          <string>应用>地图</string>
         </dict>
       </array>
     </dict>
@@ -809,6 +989,10 @@
           </array>
           <key>Category</key>
           <string>BaiduMap</string>
+          <key>Name</key>
+          <string>百度地图(苹果)</string>
+          <key>Filter</key>
+          <string>应用>地图</string>
         </dict>
       </array>
     </dict>
@@ -829,6 +1013,10 @@
           </array>
           <key>Category</key>
           <string>TencentMap</string>
+          <key>Name</key>
+          <string>腾讯地图(苹果)</string>
+          <key>Filter</key>
+          <string>应用>地图</string>
         </dict>
       </array>
     </dict>
@@ -849,6 +1037,10 @@
           </array>
           <key>Category</key>
           <string>AMap</string>
+          <key>Name</key>
+          <string>高德地图(苹果)</string>
+          <key>Filter</key>
+          <string>应用>地图</string>
         </dict>
       </array>
     </dict>
@@ -869,6 +1061,10 @@
           </array>
           <key>Category</key>
           <string>NeteaseMail</string>
+          <key>Name</key>
+          <string>网易邮箱(苹果)</string>
+          <key>Filter</key>
+          <string>应用>邮箱</string>
         </dict>
       </array>
     </dict>
@@ -889,6 +1085,10 @@
           </array>
           <key>Category</key>
           <string>QQMail</string>
+          <key>Name</key>
+          <string>QQ邮箱(苹果)</string>
+          <key>Filter</key>
+          <string>应用>邮箱</string>
         </dict>
       </array>
     </dict>
@@ -909,6 +1109,10 @@
           </array>
           <key>Category</key>
           <string>IOSSystemIme</string>
+          <key>Name</key>
+          <string>系统输入法(苹果)</string>
+          <key>Filter</key>
+          <string>应用>输入法</string>
         </dict>
       </array>
     </dict>
@@ -929,6 +1133,10 @@
           </array>
           <key>Category</key>
           <string>SougouIme</string>
+          <key>Name</key>
+          <string>搜狗输入法(苹果)</string>
+          <key>Filter</key>
+          <string>应用>输入法</string>
         </dict>
       </array>
     </dict>
@@ -949,6 +1157,10 @@
           </array>
           <key>Category</key>
           <string>YouXin</string>
+          <key>Name</key>
+          <string>有信(苹果)</string>
+          <key>Filter</key>
+          <string>应用>即时通讯</string>
         </dict>
       </array>
     </dict>
@@ -969,6 +1181,10 @@
           </array>
           <key>Category</key>
           <string>YiXin</string>
+          <key>Name</key>
+          <string>易信(苹果)</string>
+          <key>Filter</key>
+          <string>应用>即时通讯</string>
         </dict>
       </array>
     </dict>
@@ -989,6 +1205,10 @@
           </array>
           <key>Category</key>
           <string>Alipay</string>
+          <key>Name</key>
+          <string>支付宝(苹果)</string>
+          <key>Filter</key>
+          <string>应用>电子商务</string>
         </dict>
       </array>
     </dict>
@@ -1009,6 +1229,10 @@
           </array>
           <key>Category</key>
           <string>DingTalk</string>
+          <key>Name</key>
+          <string>钉钉(苹果)</string>
+          <key>Filter</key>
+          <string>应用>即时通讯</string>
         </dict>
       </array>
     </dict>
@@ -1029,6 +1253,10 @@
           </array>
           <key>Category</key>
           <string>Taobao</string>
+          <key>Name</key>
+          <string>淘宝(苹果)</string>
+          <key>Filter</key>
+          <string>应用>电子商务</string>
         </dict>
       </array>
     </dict>
@@ -1049,6 +1277,10 @@
           </array>
           <key>Category</key>
           <string>XianYu</string>
+          <key>Name</key>
+          <string>咸鱼(苹果)</string>
+          <key>Filter</key>
+          <string>应用>电子商务</string>
         </dict>
       </array>
     </dict>
@@ -1069,6 +1301,10 @@
           </array>
           <key>Category</key>
           <string>Sim</string>
+          <key>Name</key>
+          <string>手机卡记录(苹果)</string>
+          <key>Filter</key>
+          <string>基础数据</string>
         </dict>
       </array>
     </dict>
@@ -1089,6 +1325,10 @@
           </array>
           <key>Category</key>
           <string>WangXin</string>
+          <key>Name</key>
+          <string>旺信(苹果)</string>
+          <key>Filter</key>
+          <string>应用>即时通讯</string>
         </dict>
       </array>
     </dict>
@@ -1109,6 +1349,10 @@
           </array>
           <key>Category</key>
           <string>Line</string>
+          <key>Name</key>
+          <string>Line(苹果)</string>
+          <key>Filter</key>
+          <string>应用>即时通讯</string>
         </dict>
       </array>
     </dict>    
@@ -1129,6 +1373,10 @@
           </array>
           <key>Category</key>
           <string>BeeTalk</string>
+          <key>Name</key>
+          <string>蜜语(苹果)</string>
+          <key>Filter</key>
+          <string>应用>社交</string>
         </dict>
       </array>
     </dict>
@@ -1150,6 +1398,10 @@
           </array>
           <key>Category</key>
           <string>Keychains</string>
+          <key>Name</key>
+          <string>钥匙串(安卓)</string>
+          <key>Filter</key>
+          <string>基础数据</string>
         </dict>
       </array>
     </dict>
@@ -1169,6 +1421,10 @@
           </array>
           <key>Category</key>
           <string>Wechat</string>
+          <key>Name</key>
+          <string>微信(安卓)</string>
+          <key>Filter</key>
+          <string>应用>即时通讯</string>
         </dict>
       </array>
     </dict>
@@ -1189,6 +1445,10 @@
           </array>
           <key>Category</key>
           <string>BaiduMap</string>
+          <key>Name</key>
+          <string>百度地图(安卓)</string>
+          <key>Filter</key>
+          <string>应用>地图</string>
         </dict>
       </array>
     </dict>
@@ -1209,6 +1469,10 @@
           </array>
           <key>Category</key>
           <string>TencentMap</string>
+          <key>Name</key>
+          <string>腾讯地图(安卓)</string>
+          <key>Filter</key>
+          <string>应用>地图</string>
         </dict>
       </array>
     </dict>
@@ -1229,6 +1493,10 @@
           </array>
           <key>Category</key>
           <string>AMap</string>
+          <key>Name</key>
+          <string>高德地图(安卓)</string>
+          <key>Filter</key>
+          <string>应用>地图</string>
         </dict>
       </array>
     </dict>
@@ -1249,6 +1517,10 @@
           </array>
           <key>Category</key>
           <string>SogouMap</string>
+          <key>Name</key>
+          <string>搜头地图(安卓)</string>
+          <key>Filter</key>
+          <string>应用>地图</string>
         </dict>
       </array>
     </dict>
@@ -1270,6 +1542,10 @@
           </array>
           <key>Category</key>
           <string>WhatsApp</string>
+          <key>Name</key>
+          <string>WhatsApp(安卓)</string>
+          <key>Filter</key>
+          <string>应用>即时通讯</string>
         </dict>
       </array>
     </dict>
@@ -1291,6 +1567,10 @@
           </array>
           <key>Category</key>
           <string>YiXin</string>
+          <key>Name</key>
+          <string>易信(安卓)</string>
+          <key>Filter</key>
+          <string>应用>即时通讯</string>
         </dict>
       </array>
     </dict>
@@ -1311,6 +1591,10 @@
           </array>
           <key>Category</key>
           <string>YouXin</string>
+          <key>Name</key>
+          <string>有信(安卓)</string>
+          <key>Filter</key>
+          <string>应用>即时通讯</string>
         </dict>
       </array>
     </dict>
@@ -1335,6 +1619,10 @@
           </array>
           <key>Category</key>
           <string>QQ</string>
+          <key>Name</key>
+          <string>QQ(安卓)</string>
+          <key>Filter</key>
+          <string>应用>即时通讯</string>
         </dict>
       </array>
     </dict>
@@ -1356,6 +1644,10 @@
           </array>
           <key>Category</key>
           <string>Facebook</string>
+          <key>Name</key>
+          <string>Facebook(安卓)</string>
+          <key>Filter</key>
+          <string>应用>社交</string>
         </dict>
       </array>
     </dict>
@@ -1378,6 +1670,10 @@
           </array>
           <key>Category</key>
           <string>QQMail</string>
+          <key>Name</key>
+          <string>QQ邮箱(安卓)</string>
+          <key>Filter</key>
+          <string>应用>邮箱</string>
         </dict>
       </array>
     </dict>
@@ -1399,6 +1695,10 @@
           </array>
           <key>Category</key>
           <string>QQBrowser</string>
+          <key>Name</key>
+          <string>QQ浏览器(安卓)</string>
+          <key>Filter</key>
+          <string>应用>浏览器</string>
         </dict>
       </array>
     </dict>
@@ -1420,6 +1720,10 @@
           </array>
           <key>Category</key>
           <string>Calenders</string>
+          <key>Name</key>
+          <string>日历(安卓)</string>
+          <key>Filter</key>
+          <string>基础数据</string>
         </dict>
       </array>
     </dict>
@@ -1442,6 +1746,10 @@
           </array>
           <key>Category</key>
           <string>Contacts</string>
+          <key>Name</key>
+          <string>通讯录(安卓)</string>
+          <key>Filter</key>
+          <string>基础数据</string>
         </dict>
       </array>
     </dict>
@@ -1464,6 +1772,10 @@
           </array>
           <key>Category</key>
           <string>Calls</string>
+          <key>Name</key>
+          <string>通话记录(安卓)</string>
+          <key>Filter</key>
+          <string>基础数据</string>
         </dict>
       </array>
     </dict>
@@ -1485,6 +1797,10 @@
           </array>
           <key>Category</key>
           <string>Notes</string>
+          <key>Name</key>
+          <string>备忘录(安卓)</string>
+          <key>Filter</key>
+          <string>基础数据</string>
         </dict>
       </array>
     </dict>
@@ -1506,6 +1822,10 @@
           </array>
           <key>Category</key>
           <string>Recordings</string>
+          <key>Name</key>
+          <string>录音(安卓)</string>
+          <key>Filter</key>
+          <string>基础数据</string>
         </dict>
       </array>
     </dict>
@@ -1526,7 +1846,11 @@
             <string>/Apps/com.android.providers.media/databases/internal.db$</string>
           </array>
           <key>Category</key>
-          <string>Notes</string>
+          <string>Photos</string>
+          <key>Name</key>
+          <string>多媒体(安卓)</string>
+          <key>Filter</key>
+          <string>基础数据</string>
         </dict>
       </array>
     </dict>
@@ -1547,6 +1871,10 @@
           </array>
           <key>Category</key>
           <string>NeteaseMail</string>
+          <key>Name</key>
+          <string>网易邮箱(安卓)</string>
+          <key>Filter</key>
+          <string>应用>邮箱</string>
         </dict>
       </array>
     </dict>
@@ -1567,6 +1895,10 @@
           </array>
           <key>Category</key>
           <string>Mails</string>
+          <key>Name</key>
+          <string>系统邮箱(安卓)</string>
+          <key>Filter</key>
+          <string>基础数据</string>
         </dict>
       </array>
     </dict>
@@ -1588,6 +1920,10 @@
           </array>
           <key>Category</key>
           <string>Sim</string>
+          <key>Name</key>
+          <string>手机卡记录(安卓)</string>
+          <key>Filter</key>
+          <string>基础数据</string>
         </dict>
       </array>
     </dict>
@@ -1609,6 +1945,10 @@
           </array>
           <key>Category</key>
           <string>Messages</string>
+          <key>Name</key>
+          <string>短信(安卓)</string>
+          <key>Filter</key>
+          <string>基础数据</string>
           <key>Dependents</key>
           <array>
             <string>analyze_android_calls@android_contact</string>
@@ -1633,6 +1973,10 @@
           </array>
           <key>Category</key>
           <string>BaiduBrowser</string>
+          <key>Name</key>
+          <string>百度浏览器(安卓)</string>
+          <key>Filter</key>
+          <string>应用>浏览器</string>
         </dict>
       </array>
     </dict>
@@ -1653,6 +1997,10 @@
           </array>
           <key>Category</key>
           <string>Telegram</string>
+          <key>Name</key>
+          <string>Telegram(安卓)</string>
+          <key>Filter</key>
+          <string>应用>即时通讯</string>
         </dict>
       </array>
     </dict>
@@ -1673,6 +2021,10 @@
           </array>
           <key>Category</key>
           <string>Jingdong</string>
+          <key>Name</key>
+          <string>手机京东(安卓)</string>
+          <key>Filter</key>
+          <string>应用>电子商务</string>
         </dict>
       </array>
     </dict>
@@ -1693,6 +2045,10 @@
           </array>
           <key>Category</key>
           <string>Skype</string>
+          <key>Name</key>
+          <string>Skype(安卓)</string>
+          <key>Filter</key>
+          <string>应用>即时通讯</string>
         </dict>
       </array>
     </dict>
@@ -1713,6 +2069,10 @@
           </array>
           <key>Category</key>
           <string>BDY</string>
+          <key>Name</key>
+          <string>百度网盘(安卓)</string>
+          <key>Filter</key>
+          <string>应用>其他</string>
         </dict>
       </array>
     </dict>
@@ -1733,6 +2093,10 @@
           </array>
           <key>Category</key>
           <string>BaiduMobile</string>
+          <key>Name</key>
+          <string>手机百度(安卓)</string>
+          <key>Filter</key>
+          <string>应用>其他</string>
         </dict>
 
         <dict>
@@ -1746,6 +2110,10 @@
           </array>
           <key>Category</key>
           <string>BaiduMobile</string>
+          <key>Name</key>
+          <string>百度迷你版(安卓)</string>
+          <key>Filter</key>
+          <string>应用>其他</string>
         </dict>
       </array>
     </dict>
@@ -1767,6 +2135,10 @@
           </array>
           <key>Category</key>
           <string>Applications</string>
+          <key>Name</key>
+          <string>应用列表(安卓)</string>
+          <key>Filter</key>
+          <string>基础数据</string>
         </dict>
       </array>
     </dict>
@@ -1787,7 +2159,11 @@
             <string>/Apps/com.viber.voip/databases/viber_messages$</string>
           </array>
           <key>Category</key>
-          <string>Applications</string>
+          <string>Viber</string>
+          <key>Name</key>
+          <string>Viber(安卓)</string>
+          <key>Filter</key>
+          <string>应用>即时通讯</string>
         </dict>
       </array>
     </dict>
@@ -1808,6 +2184,10 @@
           </array>
           <key>Category</key>
           <string>Ctrip</string>
+          <key>Name</key>
+          <string>携程(安卓)</string>
+          <key>Filter</key>
+          <string>应用>商旅</string>
         </dict>
       </array>
     </dict>
@@ -1828,6 +2208,10 @@
           </array>
           <key>Category</key>
           <string>Line</string>
+          <key>Name</key>
+          <string>Line(安卓)</string>
+          <key>Filter</key>
+          <string>应用>即时通讯</string>
         </dict>
       </array>
     </dict>
@@ -1849,6 +2233,10 @@
           </array>
           <key>Category</key>
           <string>BeeTalk</string>
+          <key>Name</key>
+          <string>蜜语(安卓)</string>
+          <key>Filter</key>
+          <string>应用>社交</string>
         </dict>
       </array>
     </dict>
