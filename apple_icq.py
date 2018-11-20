@@ -30,7 +30,6 @@ from System.Xml.Linq import *
 from System.Xml.XPath import Extensions as XPathExtensions
 from PA.Common.Utilities.Types import TimeStampFormats
 
-
 __author__ = "TaoJianping"
 
 # CONST
@@ -109,6 +108,72 @@ class Utils(object):
         with codecs.open(file_path, 'r', encoding=encoding) as f:
             return f.read()
 
+    @staticmethod
+    def copy_file(old_path, new_path):
+        try:
+            shutil.copyfile(old_path, new_path)
+            return True
+        except Exception as e:
+            return False
+
+    @staticmethod
+    def copy_dir(old_path, new_path):
+        try:
+            if os.path.exists(new_path):
+                shutil.rmtree(new_path)
+            shutil.copytree(old_path, new_path)
+            return True
+        except Exception as e:
+            print(e)
+            return False
+
+    @staticmethod
+    def list_dir(path):
+        return os.listdir(path)
+
+    @staticmethod
+    def convert_timestamp(ts):
+        if not ts:
+            return
+        ts = str(ts)
+        if len(ts) > 13:
+            return
+        elif int(ts) < 0:
+            return
+        elif len(ts) == 13:
+            return int(ts[:-3])
+        elif len(ts) <= 10:
+            return int(ts)
+        else:
+            return
+
+    @staticmethod
+    def convert_ts_for_ios(ts):
+        try:
+            dstart = DateTime(1970, 1, 1, 0, 0, 0)
+            cdate = TimeStampFormats.GetTimeStampEpoch1Jan2001(ts)
+            return int((cdate - dstart).TotalSeconds)
+        except Exception as e:
+            return None
+
+
+class Logger(object):
+    def __init__(self, module, class_name):
+        self.module = module
+        self.class_name = class_name
+
+    def error(self):
+        file_name = sys._getframe().f_code.co_filename  # 当前文件名，可以通过__file__获得
+        func_name = sys._getframe().f_code.co_name  # 当前函数名
+        line = sys._getframe().f_lineno  # 当前行号
+        TraceService.Trace(TraceLevel.Error, "{module} error: {class_name} {func} in line:{line} ==> {log_info}".format(
+            module=file_name,
+            class_name=self.class_name,
+            func=func_name,
+            line=line,
+            log_info=traceback.format_exc()
+        ))
+
 
 class ICQParser(object):
     def __init__(self, root, extract_deleted, extract_source):
@@ -125,6 +190,7 @@ class ICQParser(object):
         # self.message_recover_helper = RecoverTableHelper(self.agent_db_path)
         # self.cl_recover_helper = RecoverTableHelper(self.cl_db_path)
         self.using_account = None
+        self.logger = Logger(module=__name__, class_name=self.__class__)
 
     def __fetch_data_node(self):
         account_info_node = self.root.GetByPath(r"/Documents/profiles")
@@ -165,8 +231,9 @@ class ICQParser(object):
         account.gender = self.__convert_gender(user_info["gender"])
         account.telephone = user_info.get("attachedPhoneNumber")
         account.nickname = user_info.get("displayId", "").decode("utf-8")
-        account.birthday = self.__convert_timestamp(user_info.get("birthDate"))
-        account.signature = user_info.get("about", None)
+        account.birthday = Utils.convert_timestamp(user_info.get("birthDate"))
+        if user_info.get("about", None):
+            account.signature = user_info.get("about", "").decode("utf-8")
         if user_info["homeAddress"].get("city", None):
             account.city = user_info["homeAddress"].get("city").decode("utf-8")
         if user_info["homeAddress"].get("country", None):
@@ -200,7 +267,7 @@ class ICQParser(object):
                     if friend.account_id == friend.friend_id:
                         continue
                     friend.signature = db_col.get_string(1)
-                    friend.birthday = self.__convert_timestamp(db_col.get_int64(2))
+                    friend.birthday = Utils.convert_timestamp(db_col.get_int64(2))
                     friend.address = db_col.get_string(4) + db_col.get_string(3)
                     friend.email = db_col.get_string(5)
                     friend.gender = self.__convert_gender(db_col.get_int64(6))
@@ -209,7 +276,7 @@ class ICQParser(object):
                     friend.type = model_im.FRIEND_TYPE_FRIEND
                     self.model_im_col.db_insert_table_friend(friend)
                 except Exception as e:
-                    print("debug error", e)
+                    self.logger.error()
             self.model_im_col.db_commit()
 
     def _get_chatroom_table(self):
@@ -238,7 +305,7 @@ class ICQParser(object):
                         2) == 0 else model_im.CHATROOM_TYPE_TEMP
                     self.model_im_col.db_insert_table_chatroom(chatroom)
                 except Exception as e:
-                    print("debug error", e)
+                    self.logger.error()
             self.model_im_col.db_commit()
 
     def _get_message_table(self):
@@ -275,27 +342,33 @@ class ICQParser(object):
                         else:
                             message.sender_id = message.talker_id
 
+                    message.sender_name = self.__query_member_name(message.sender_id)
+
                     _type = db_col.get_int64(1)
                     if _type == 510:
                         file_id = db_col.get_int64(8)
                         file_info = self.__query_file_info(file_id)
-                        message.media_path = file_info[0] if not file_info[0] else file_info[2]
-                        if file_info[1] is not None:
-                            file_type = file_info[1].split("/")[0]
-                            if file_type == "image":
-                                message.type = model_im.MESSAGE_CONTENT_TYPE_IMAGE
-                            elif file_type == "audio":
-                                message.type = model_im.MESSAGE_CONTENT_TYPE_VOICE
-                            elif file_type == "video":
-                                message.type = model_im.MESSAGE_CONTENT_TYPE_VIDEO
+                        if file_info:
+                            message.media_path = file_info[0] if file_info[0] else file_info[4]
+                            if file_info[1] is not None:
+                                file_type = file_info[1].split("/")[0]
+                                if file_type == "image":
+                                    message.type = model_im.MESSAGE_CONTENT_TYPE_IMAGE
+                                elif file_type == "audio":
+                                    message.type = model_im.MESSAGE_CONTENT_TYPE_VOICE
+                                elif file_type == "video":
+                                    message.type = model_im.MESSAGE_CONTENT_TYPE_VIDEO
+                                else:
+                                    message.type = None
                             else:
-                                message.type = None
-                    else:
-                        message.type = self.__convert_message_content_type(_type)
+                                message.type = self.__convert_message_content_type(_type)
+
+                            if file_info[3]:
+                                self.__add_media_path(message, file_info[3])
 
                     self.model_im_col.db_insert_table_message(message)
                 except Exception as e:
-                    print("debug error", e)
+                    self.logger.error()
             self.model_im_col.db_commit()
 
     def _get_chatroom_member_table(self):
@@ -337,7 +410,7 @@ class ICQParser(object):
                 friend = model_im.Friend()
                 friend.source = self.cl_db_path
                 friend.signature = rec["about"].Value
-                friend.birthday = self.__convert_timestamp(rec["birthdate"].Value)
+                friend.birthday = Utils.convert_timestamp(rec["birthdate"].Value)
                 friend.address = rec["country"].Value + rec["city"].Value
                 friend.email = rec["emails"].Value
                 friend.gender = self.__convert_gender(rec["gender"].Value)
@@ -347,7 +420,7 @@ class ICQParser(object):
                 friend.deleted = 1
                 self.model_im_col.db_insert_table_friend(friend)
             except Exception as e:
-                print("debug error", e)
+                self.logger.error()
         self.model_im_col.db_commit()
 
     def decode_recover_chatroom(self):
@@ -374,8 +447,33 @@ class ICQParser(object):
                 chatroom.deleted = 1
                 self.model_im_col.db_insert_table_chatroom(chatroom)
             except Exception as e:
-                print("debug error", e)
+                self.logger.error()
         self.model_im_col.db_commit()
+
+    def __add_media_path(self, obj, file_name):
+        try:
+            searchkey = file_name
+            nodes = self.root.FileSystem.Search(searchkey + '$')
+            for node in nodes:
+                obj.media_path = node.AbsolutePath
+                if obj.media_path.endswith('.mp3'):
+                    obj.type = model_im.MESSAGE_CONTENT_TYPE_VOICE
+                elif obj.media_path.endswith('.amr'):
+                    obj.type = model_im.MESSAGE_CONTENT_TYPE_VOICE
+                elif obj.media_path.endswith('.slk'):
+                    obj.type = model_im.MESSAGE_CONTENT_TYPE_VOICE
+                elif obj.media_path.endswith('.mp4'):
+                    obj.type = model_im.MESSAGE_CONTENT_TYPE_VIDEO
+                elif obj.media_path.endswith('.jpg'):
+                    obj.type = model_im.MESSAGE_CONTENT_TYPE_IMAGE
+                elif obj.media_path.endswith('.png'):
+                    obj.type = model_im.MESSAGE_CONTENT_TYPE_IMAGE
+                else:
+                    obj.type = model_im.MESSAGE_CONTENT_TYPE_ATTACHMENT
+                return True
+        except Exception as e:
+            print (e)
+        return False
 
     def decode_recover_message(self):
         if not self.message_recover_helper.is_valid():
@@ -409,7 +507,7 @@ class ICQParser(object):
                     file_id = rec["ZFILEID"].Value
                     file_info = self.__query_file_info(file_id)
                     if file_info:
-                        message.media_path = file_info[0] if not file_info[0] else file_info[2]
+                        message.media_path = file_info[0] if file_info[0] else file_info[4]
                         if file_info[1] is not None:
                             file_type = file_info[1].split("/")[0]
                             if file_type == "image":
@@ -423,9 +521,12 @@ class ICQParser(object):
                         else:
                             message.type = self.__convert_message_content_type(_type)
 
+                        if file_info[3]:
+                            self.__add_media_path(message, file_info[3])
+
                 self.model_im_col.db_insert_table_message(message)
             except Exception as e:
-                print("debug error", e)
+                self.logger.error()
         self.model_im_col.db_commit()
 
     def __query_file_info(self, file_id):
@@ -435,7 +536,8 @@ class ICQParser(object):
                             filename,
                             mimetype,
                             storage_content_filename,
-                            url
+                            url,
+                            preview_url
                     FROM file
                     WHERE file_id = {};""".format(file_id)
             db_col.execute_sql(sql)
@@ -445,14 +547,16 @@ class ICQParser(object):
                     mime_type = db_col.get_string(3)
                     url = db_col.get_string(5)
                     storage_content_filename = db_col.get_string(4)
+                    preview_url = db_col.get_string(6)
                     return (
                         content_url,
                         mime_type,
                         url,
-                        storage_content_filename
+                        storage_content_filename,
+                        preview_url
                     )
                 except Exception as e:
-                    print("debug error", e)
+                    self.logger.error()
 
     def __query_chatroom_list(self):
         with self.agent_db_col as db_col:
@@ -473,7 +577,7 @@ class ICQParser(object):
                         "conversation_id": conversation_id,
                     }
                 except Exception as e:
-                    print("debug error", e)
+                    self.logger.error()
 
     def __query_member_name(self, member_id):
         with self.cl_db_col as db_col:
@@ -486,7 +590,7 @@ class ICQParser(object):
                     display_name = db_col.get_string(0)
                     return display_name
                 except Exception as e:
-                    print("debug error", e)
+                    self.logger.error()
 
     @staticmethod
     def __convert_gender(gender):
@@ -496,25 +600,6 @@ class ICQParser(object):
             return model_im.GENDER_FEMALE
         else:
             return model_im.GENDER_NONE
-
-    @staticmethod
-    def __convert_timestamp(ts):
-        try:
-            ts = str(ts)
-            if len(ts) > 13:
-                return
-            elif int(ts) < 0:
-                return
-            elif len(ts) == 13:
-                return int(ts[:-3])
-            elif len(ts) <= 10:
-                return int(ts)
-            else:
-                return
-        except Exception as e:
-            print("__convert_timestamp error", ts)
-            print(e)
-            return None
 
     @staticmethod
     def __convert_message_content_type(type):

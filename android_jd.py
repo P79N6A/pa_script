@@ -469,7 +469,7 @@ class JDParser(object):
 def parse_jd(root, extract_deleted, extract_source):
 
     pr = ParserResults()
-    pr.Categories = DescripCategories.Telegram
+    pr.Categories = DescripCategories.JingDong
     results = JDParser(root, extract_deleted, extract_source).parse()
     if results:
         pr.Models.AddRange(results)
