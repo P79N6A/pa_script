@@ -323,6 +323,7 @@ class SkypeParser(object):
 
                 friend = model_im.Friend()
                 friend.source = self.checking_col.db_path
+                friend.deleted = 1
                 friend.account_id = self.using_account.account_id
                 friend_type, friend.friend_id = friend_info["mri"].split(":", 1)
                 if friend.account_id == friend.friend_id:
