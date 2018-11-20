@@ -60,18 +60,20 @@ def analyze_line(node, extract_deleted, extract_source):
 
         jp.naver.line     
     """
-    exc_p('apple_line.py runing ...!')
+    exc_p('apple_line.py is running ...')
 
     pr = ParserResults()
     res = []
     try:
         res = LineParser(node, extract_deleted, extract_source).parse()
     except:
-        TraceService.Trace(TraceLevel.Error, "apple_line.py 解析出错:  {}".format(traceback.format_exc()))
+        case_name = node.FileSystem.Name + ' <' + node.FileSystem.Id.ToString() + '>'
+        TraceService.Trace(TraceLevel.Error, 
+                           'apple_line.py 解析新案例"{}"出错: {}'.format(case_name, traceback.format_exc()))
     if res:
         pr.Models.AddRange(res)
         pr.Build('LINE')
-        exc_p('apple_line.py completed!')
+        exc_p('apple_line.py is finished !')
     return pr
 
 class LineParser(object):
@@ -785,14 +787,14 @@ class LineParser(object):
                 for chch in n.Values:
                     _print_plist(chch, ind=ind+'|----')
             else:
-                exc_p(ind+'val:{}'.format(n.Value))
+                print ind+'val:{}'.format(n.Value)
                 
         bplist = BPReader.GetTree(plist_node.Data) if plist_node else None
         if not bplist:
             return 
             
         for feed_node in bplist:
-            # _print_plist(feed_node)
+            _print_plist(feed_node)
             feed = model_im.Feed()
             feed.account_id = self.cur_account_id                   # 账号ID[TEXT]
             feed.sender_id  = feed_node['fromUser'].Value           # 发布者ID[TEXT]
@@ -807,15 +809,14 @@ class LineParser(object):
             except:
                 exc()
                 # _print_plist(feed_node)
-
             if feed_node['contents']['additionalContents']['url']:
-                feed.urls = feed_node['contents']['additionalContents']['url']['targetUrl'].Value   # 动态内容[TEXT]
+                feed.url = feed_node['contents']['additionalContents']['url']['targetUrl'].Value  # 动态内容[TEXT]
             feed.send_time = feed_node['postInfo']['createdTime'].Value  # 发布时间[INT]
             feed.likecount = feed_node['postInfo']['likeCount'].Value    # 赞数量[INT]
             feed.rtcount   = feed_node['postInfo']['sharedCount']['toPost'].Value \
-                           + feed_node['postInfo']['sharedCount']['toTalk'].Value  # 转发数量[INT]
-            feed.commentcount = feed_node['postInfo']['commentCount'].Value   # 评论数量[INT]
-            # feed.type = MOMENT_TYPE_IMAGE  # 动态类型[INT] MOMENT_TYPE
+                           + feed_node['postInfo']['sharedCount']['toTalk'].Value # 转发数量[INT]
+            feed.commentcount = feed_node['postInfo']['commentCount'].Value       # 评论数量[INT]
+            feed.type = model_im.FEED_TYPE_IMAGE
 
             # location
             loc_node = feed_node['contents']['textLocation']['location']
@@ -827,7 +828,7 @@ class LineParser(object):
                     self.im.db_insert_table_location(location)
                 except:
                     exc()            
-                feed.location = location.location_id  # 地址ID[TEXT]
+                feed.location_id = location.location_id    # 地址ID[TEXT]
             feed.source = plist_node.AbsolutePath
             try:
                 self.im.db_insert_table_feed(feed)
@@ -894,6 +895,7 @@ class LineParser(object):
     def _search_profile_img(self, file_name):
         # 用户, 好友, 群 头像 存储位置: \F8B8...
         # \Library\Caches\PrivateStore\P_u423af962f1456db6cba8465cf82bb91b\Profile Images\ZMID
+
         if file_name[0] != '/':
             file_name = '/' + file_name
         pp = '/Library/Caches/PrivateStore/P_' \
@@ -1011,9 +1013,9 @@ class LineParser(object):
             # 5: model_im.MESSAGE_CONTENT_TYPE_,            
             6: model_im.MESSAGE_CONTENT_TYPE_VOIP,        # 网络电话
             7: model_im.MESSAGE_CONTENT_TYPE_EMOJI,       # 表情
-            # 13: model_im.MESSAGE_CONTENT_TYPE_,
+            13: None,                                     # 推荐好友名片
             14: model_im.MESSAGE_CONTENT_TYPE_ATTACHMENT, # 附件
-            # 16: model_im.MESSAGE_CONTENT_TYPE_,
+            16: None,                                     # 群系统消息, 群记事本/添加群相册...
             18: model_im.MESSAGE_CONTENT_TYPE_SYSTEM,     # 删除图片
             100: model_im.MESSAGE_CONTENT_TYPE_LOCATION,  # 位置
         }

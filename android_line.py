@@ -56,11 +56,13 @@ def analyze_line(node, extract_deleted, extract_source):
     try:
         res = LineParser(node, extract_deleted, extract_source).parse()
     except:
-        TraceService.Trace(TraceLevel.Error, "android_line.py 解析出错:  {}".format(traceback.format_exc()))
+        case_name = node.FileSystem.Name + ' <' + node.FileSystem.Id.ToString() + '>'
+        TraceService.Trace(TraceLevel.Error, 
+                           'android_line.py 解析新案例"{}"出错: {}'.format(case_name, traceback.format_exc()))
     if res:
         pr.Models.AddRange(res)
         pr.Build('LINE')
-        exc_p('android_line.py completed!')
+        exc_p('android_line.py is finished !')
     return pr
 
 class LineParser(object):
@@ -146,7 +148,6 @@ class LineParser(object):
         ''' LINE 通过以下来来确定本人 mid
                 1 无法和自己聊天
                 2 status=3 为已发送 (if server_id != null)
-
         '''
         account_list = []
         friend_chat_ids = []
