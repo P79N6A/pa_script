@@ -142,28 +142,6 @@ class YouXinParser():
         if db is None:
             return
 
-        if 'contact' in db.Tables:
-            ts = SQLiteParser.TableSignature('contact')
-            SQLiteParser.Tools.AddSignatureToTable(ts, 'UID', SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
-            for rec in db.ReadTableRecords(ts, self.extract_deleted):
-                if canceller.IsCancellationRequested:
-                    return
-                friend = model_im.Friend()
-                self.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
-                friend.source = dbPath.AbsolutePath
-                friend.account_id = self.user
-                friend.friend_id = rec['UID'].Value
-                friend.nickname = rec['NAME'].Value
-                friend.telephone = rec['NUMBER'].Value
-                friend.photo = rec['HEAD_URL'].Value
-                friend.address = rec['LOCATION'].Value
-                friend.type = model_im.FRIEND_TYPE_FRIEND
-                if IsDBNull(friend.photo):
-                    friend.photo = None
-                if friend.friend_id != '':
-                    self.contacts[friend.friend_id] = friend
-                self.im.db_insert_table_friend(friend)
-
         if 'PROFILE_TABLE' in db.Tables:
             ts = SQLiteParser.TableSignature('PROFILE_TABLE')
             SQLiteParser.Tools.AddSignatureToTable(ts, 'UID', SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
@@ -186,6 +164,35 @@ class YouXinParser():
                 friend.city = rec['CITY'].Value
                 friend.telephone = rec['MOBILE_NUMBER'].Value
                 friend.photo = rec['PICTURE'].Value
+                friend.type = model_im.FRIEND_TYPE_FRIEND
+                if IsDBNull(friend.photo):
+                    friend.photo = None
+                self.contacts[id] = friend
+                self.im.db_insert_table_friend(friend)
+
+        if 'contact' in db.Tables:
+            ts = SQLiteParser.TableSignature('contact')
+            SQLiteParser.Tools.AddSignatureToTable(ts, 'UID', SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
+            for rec in db.ReadTableRecords(ts, self.extract_deleted):
+                if canceller.IsCancellationRequested:
+                    return
+
+                id = rec['UID'].Value
+                if id == '':
+                    id = rec['NUMBER'].Value
+
+                if id in self.contacts.keys():
+                    continue
+
+                friend = model_im.Friend()
+                self.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
+                friend.source = dbPath.AbsolutePath
+                friend.account_id = self.user
+                friend.friend_id = rec['UID'].Value
+                friend.nickname = rec['NAME'].Value
+                friend.telephone = rec['NUMBER'].Value
+                friend.photo = rec['HEAD_URL'].Value
+                friend.address = rec['LOCATION'].Value
                 friend.type = model_im.FRIEND_TYPE_FRIEND
                 if IsDBNull(friend.photo):
                     friend.photo = None
