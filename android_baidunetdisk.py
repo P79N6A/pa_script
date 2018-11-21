@@ -42,7 +42,6 @@ BaiduNetDisk_VERSION = 1
 class ColBase(object):
     def __init__(self, db_path):
         self.db_path = db_path
-        print(db_path)
         self.conn = System.Data.SQLite.SQLiteConnection(
             'Data Source = {}; Readonly = True'.format(db_path))
         self.reader = None
@@ -129,7 +128,6 @@ class Utils(object):
             shutil.copytree(old_path, new_path)
             return True
         except Exception as e:
-            print(e)
             return False
 
     @staticmethod
@@ -245,7 +243,7 @@ class BaiduNetDiskParser(object):
                     self.model_im_col.db_insert_table_account(account)
                     yield account
                 except Exception as e:
-                    print("_get_friend_table error", e)
+                    pass
             self.model_im_col.db_commit()
 
     def _generate_friend_table(self):
@@ -273,7 +271,7 @@ class BaiduNetDiskParser(object):
 
                     self.model_im_col.db_insert_table_friend(friend)
                 except Exception as e:
-                    print("_get_friend_table error", e)
+                    pass
             self.model_im_col.db_commit()
 
     def _generate_chatroom_table(self):
@@ -309,7 +307,7 @@ class BaiduNetDiskParser(object):
 
                     self.model_im_col.db_insert_table_chatroom(chatroom)
                 except Exception as e:
-                    print("_get_chatroom_table error", e)
+                    pass
 
             self.model_im_col.db_commit()
 
@@ -355,7 +353,7 @@ class BaiduNetDiskParser(object):
 
                     self.model_im_col.db_insert_table_message(message)
                 except Exception as e:
-                    print("__insert_people_messages error", e)
+                    pass
             self.model_im_col.db_commit()
 
     def __insert_chatroom_messages(self):
@@ -399,7 +397,7 @@ class BaiduNetDiskParser(object):
 
                     self.model_im_col.db_insert_table_message(message)
                 except Exception as e:
-                    print("__insert_chatroom_messages error", e)
+                    pass
             self.model_im_col.db_commit()
 
     def _generate_message_table(self):
@@ -429,7 +427,7 @@ class BaiduNetDiskParser(object):
 
                     self.model_im_col.db_insert_table_chatroom_member(chatroom_member)
                 except Exception as e:
-                    print("_generate_chatroom_member_table error", e)
+                    pass
             self.model_im_col.db_commit()
 
     def _generate_file_list_table(self):
@@ -462,7 +460,7 @@ class BaiduNetDiskParser(object):
 
                     self.model_nd_col.db_insert_filelist(f.get_values())
                 except Exception as e:
-                    print("_generate_file_list_table error", e)
+                    pass
             self.model_nd_col.db_commit()
 
     def _generate_download_task_table(self):
@@ -493,7 +491,7 @@ class BaiduNetDiskParser(object):
 
                     self.model_nd_col.db_insert_transfer(t.get_values())
                 except Exception as e:
-                    print("_generate_download_task_table error", e)
+                    pass
             self.model_nd_col.db_commit()
 
     def _generate_share_file_table(self):
@@ -536,7 +534,7 @@ class BaiduNetDiskParser(object):
 
                     self.model_nd_col.db_insert_shared(s.get_values())
                 except Exception as e:
-                    print("_generate_share_file_table error", e)
+                    pass
             self.model_nd_col.db_commit()
 
     def decode_recover_chatroom(self):
@@ -566,7 +564,7 @@ class BaiduNetDiskParser(object):
 
                 self.model_im_col.db_insert_table_chatroom(chatroom)
             except Exception as e:
-                print("decode_recover_chatroom debug error", e)
+                pass
         self.model_im_col.db_commit()
 
     def decode_recover_chatroom_member(self):
@@ -592,7 +590,7 @@ class BaiduNetDiskParser(object):
 
                 self.model_im_col.db_insert_table_chatroom_member(m)
             except Exception as e:
-                print("decode_recover_chatroom debug error", e)
+                pass
         self.model_im_col.db_commit()
 
     def decode_recover_groups_messages(self):
@@ -626,7 +624,7 @@ class BaiduNetDiskParser(object):
 
                 self.model_im_col.db_insert_table_message(message)
             except Exception as e:
-                print("decode_recover_groups_messages debug error", e)
+                pass
         self.model_im_col.db_commit()
 
     def decode_recover_people_messages(self):
@@ -662,7 +660,7 @@ class BaiduNetDiskParser(object):
 
                 self.model_im_col.db_insert_table_message(message)
             except Exception as e:
-                print("decode_recover_groups_messages debug error", e)
+                pass
         self.model_im_col.db_commit()
 
     def decode_recover_file_list(self):
@@ -699,7 +697,7 @@ class BaiduNetDiskParser(object):
 
                 self.model_nd_col.db_insert_filelist(f.get_values())
             except Exception as e:
-                print("decode_recover_file_list error", e)
+                pass
         self.model_nd_col.db_commit()
 
     def decode_recover_download_task(self):
@@ -734,7 +732,7 @@ class BaiduNetDiskParser(object):
 
                 self.model_nd_col.db_insert_transfer(t.get_values())
             except Exception as e:
-                print("decode_recover_download_task error", e)
+                pass
         self.model_nd_col.db_commit()
 
     def decode_recover_share_file(self):
@@ -777,7 +775,7 @@ class BaiduNetDiskParser(object):
 
                 self.model_nd_col.db_insert_shared(s.get_values())
             except Exception as e:
-                print("decode_recover_share_file error", e)
+                pass
         self.model_nd_col.db_commit()
 
     def __add_media_path(self, m_obj, file_name):
