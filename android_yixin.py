@@ -29,9 +29,10 @@ import gc
 VERSION_APP_VALUE = 1
 
 def analyze_yixin(root, extract_deleted, extract_source):
-    pr = ParserResults()
-    if root.AbsolutePath != '/data/data/im.yixin':
+    if root.AbsolutePath == '/data/media/0/Android/data/im.yixin':
         return
+
+    pr = ParserResults()
 
     models = YiXinParser(root, extract_deleted, extract_source).parse()
 
