@@ -525,12 +525,14 @@ class Generate(object):
 
     def get_models(self):
         models = []
-        self.db = SQLite.SQLiteConnection('Data Source = {}'.format(self.db_cache))
+        self.db = SQLite.SQLiteConnection('Data Source = {}; ReadOnly = True'.format(self.db_cache))
         self.db.Open()
         self.db_cmd = SQLite.SQLiteCommand(self.db)
+
+        ATTACHMENTS = self._get_attachments()
         models.extend(self._get_account_model())
         models.extend(self._get_contact_model())
-        models.extend(self._get_mail_model())
+        models.extend(self._get_mail_model(ATTACHMENTS))
         self.db_cmd.Dispose()
         self.db.Close()
         return models
@@ -601,13 +603,58 @@ class Generate(object):
         except Exception:
             traceback.print_exc()
 
-    def _get_mail_model(self):
+    def _get_mail_model(self, ATTACHMENTS):
         model = []
-        sql = '''select distinct a.mail_group, a.mail_send_status, a.mail_subject, a.mail_content, a.mail_sent_date, 
-            a.mail_from, a.mail_ip, a.mail_to, a.mail_cc, a.mail_bcc, b.attachment_name, b.attachment_save_dir, b.attachment_download_date, b.attachment_size,
-            a.mail_abstract, a.mail_size, a.mail_recall_status, c.account_alias, c.account_user, c.account_last_login, c.account_email, c.account_id, a.mail_read_status, a.source, a.deleted
-            from mail as a left join attachment as b on a.mail_id = b.mail_id left join account as c on a.owner_account_id = c.account_id where a.mail_id is not 0 
+        sql = '''
+            select distinct 
+                a.mail_id, 
+                a.mail_group, 
+                a.mail_send_status, 
+                a.mail_subject, 
+                a.mail_content, 
+                a.mail_sent_date, 
+                a.mail_from,    
+                a.mail_ip, 
+                a.mail_to, 
+                a.mail_cc, 
+                a.mail_bcc,                 
+                a.mail_abstract,            
+                a.mail_size, 
+                a.mail_recall_status, 
+                c.account_alias, 
+                c.account_user, 
+                c.account_last_login, 
+                c.account_email, 
+                c.account_id, 
+                a.mail_read_status, 
+                a.source, 
+                a.deleted
+            from mail as a left join account as c on a.owner_account_id = c.account_id where a.mail_id is not 0
             '''
+        ''' 
+            0    a.mail_id, 
+            1    a.mail_group, 
+            2    a.mail_send_status, 
+            3    a.mail_subject, 
+            4    a.mail_content, 
+            5    a.mail_sent_date, 
+            6    a.mail_from,    
+            7    a.mail_ip, 
+            8    a.mail_to, 
+            9     a.mail_cc, 
+            10    a.mail_bcc,               # 9 以下 +1
+            11    a.mail_abstract,          # 14 以上 -3
+            12    a.mail_size, 
+            13    a.mail_recall_status, 
+            14    c.account_alias, 
+            15    c.account_user, 
+            16    c.account_last_login, 
+            17    c.account_email, 
+            18    c.account_id, 
+            19    a.mail_read_status, 
+            20    a.source, 
+            21    a.deleted        
+        '''
         try:
             self.db_cmd.CommandText = sql
             sr = self.db_cmd.ExecuteReader()
@@ -615,98 +662,134 @@ class Generate(object):
                 if canceller.IsCancellationRequested:
                     break
                 email = Generic.Email()
-                if not IsDBNull(sr[0]):
-                    email.Folder.Value = sr[0]  #邮件分类
                 if not IsDBNull(sr[1]):
-                    if sr[1] is SEND_STATUS_SENT:#发送状态（已发送（发件箱）、未发送（草稿箱）、已读、未读）
+                    email.Folder.Value = sr[1]  #邮件分类
+                if not IsDBNull(sr[2]):
+                    if sr[2] is SEND_STATUS_SENT:#发送状态（已发送（发件箱）、未发送（草稿箱）、已读、未读）
                         email.Status.Value = MessageStatus.Sent
-                    elif sr[1] is SEND_STATUS_UNSENT:
+                    elif sr[2] is SEND_STATUS_UNSENT:
                         email.Status.Value = MessageStatus.Unsent
                     else:
-                        if not IsDBNull(sr[22]):
-                            email.Status.Value = MessageStatus.Unread if sr[22] == 0 else MessageStatus.Read
-                if not IsDBNull(sr[2]):
-                    email.Subject.Value = sr[2]  #标题
+                        if not IsDBNull(sr[19]):
+                            email.Status.Value = MessageStatus.Unread if sr[19] == 0 else MessageStatus.Read
                 if not IsDBNull(sr[3]):
-                    email.Body.Value = sr[3]  #正文
+                    email.Subject.Value = sr[3]  #标题
                 if not IsDBNull(sr[4]):
-                    email.TimeStamp.Value = self._get_timestamp(sr[4])  #发件时间
-                party = Generic.Party()  #发件人
+                    email.Body.Value = sr[4]  #正文
                 if not IsDBNull(sr[5]):
-                    party.Identifier.Value = sr[5]  #发件人邮箱
+                    email.TimeStamp.Value = self._get_timestamp(sr[5])  #发件时间
+                party = Generic.Party()  #发件人
                 if not IsDBNull(sr[6]):
-                    party.IPAddresses.Add(sr[6])  #发件人ip
-                if not IsDBNull(sr[4]):
-                    party.DatePlayed.Value = self._get_timestamp(sr[4])  #发送时间
-                email.From.Value = party
+                    party.Identifier.Value = sr[6]  #发件人邮箱
                 if not IsDBNull(sr[7]):
-                    tos = sr[7].split(' ')
+                    party.IPAddresses.Add(sr[7])  #发件人ip
+                if not IsDBNull(sr[5]):
+                    party.DatePlayed.Value = self._get_timestamp(sr[5])  #发送时间
+                email.From.Value = party
+                if not IsDBNull(sr[8]):
+                    tos = sr[8].split(' ')
                     for t in range(len(tos)-1):
                         if t%2 == 0:
                             party = Party()  #收件人，有多个值
                             party.Identifier.Value = tos[t]  #收件人邮箱
                             party.Name.Value = tos[t+1]  #收件人名
-                            party.DatePlayed.Value = self._get_timestamp(sr[4])  #收件时间
+                            party.DatePlayed.Value = self._get_timestamp(sr[5])  #收件时间
                             email.To.Add(party)
-                if not IsDBNull(sr[8]):
-                    cc = sr[8].split(' ')
+                if not IsDBNull(sr[9]):
+                    cc = sr[9].split(' ')
                     for c in range(len(cc)-1):
                         if c%2 == 0:
                             party = Party()  #抄送者，有多个值
-                            party.Identifier.Value = sr[8]  #抄送邮箱
-                            party.Name.Value = sr[8]  #抄送者名
-                            party.DatePlayed.Value = self._get_timestamp(sr[4])  #抄送时间
+                            party.Identifier.Value = sr[9]  #抄送邮箱
+                            party.Name.Value = sr[9]  #抄送者名
+                            party.DatePlayed.Value = self._get_timestamp(sr[5])  #抄送时间
                             email.Cc.Add(party)
-                if not IsDBNull(sr[9]):
-                    bcc = sr[9].split(' ')
+                if not IsDBNull(sr[10]):
+                    bcc = sr[10].split(' ')
                     for b in range(len(bcc)-1):
                         if b%2 == 0:
                             party = Party()  #密送者，有多个值
-                            party.Identifier.Value = sr[9]  #密送邮箱
-                            party.Name.Value = sr[9]  #密送者名
-                            party.DatePlayed.Value = self._get_timestamp(sr[4])  #密送时间
+                            party.Identifier.Value = sr[10]  #密送邮箱
+                            party.Name.Value = sr[10]  #密送者名
+                            party.DatePlayed.Value = self._get_timestamp(sr[5])  #密送时间
                             email.Bcc.Add(party)
-                attachment = Generic.Attachment()  #附件
-                if not IsDBNull(sr[10]):
-                    attachment.Filename.Value = sr[10]  #附件名
-                if not IsDBNull(sr[11]):
-                    attachment.URL.Value = sr[11]  #附件保存路径
-                if not IsDBNull(sr[12]):
-                    attachment.DownloadTime.Value = self._get_timestamp(sr[12])  #附件下载时间
-                if not IsDBNull(sr[13]):
-                    attachment.Size.Value = sr[13]  #附件大小
-                if not IsDBNull(sr[11]):
+                # 附件
+                mail_id = sr[0]
+                for attachment in ATTACHMENTS.get(mail_id, []): 
                     email.Attachments.Add(attachment)
-                if not IsDBNull(sr[14]):
-                    email.Abstract.Value = sr[14]  #摘要
-                if not IsDBNull(sr[15]):
-                    email.Size.Value = sr[15]  #邮件大小
-                if not IsDBNull(sr[16]):
-                    email.IsRecall.Value = sr[16]  #撤回状态
+
+                if not IsDBNull(sr[11]):
+                    email.Abstract.Value = sr[11]  #摘要
+                if not IsDBNull(sr[12]):
+                    email.Size.Value = sr[12]  #邮件大小
+                if not IsDBNull(sr[13]):
+                    email.IsRecall.Value = sr[13]  #撤回状态
                 user = Common.User()
+                if not IsDBNull(sr[14]):
+                    user.Name.Value = sr[14]  #账户昵称
+                if not IsDBNull(sr[15]):
+                    user.Username.Value = sr[15]  #账户
+                if not IsDBNull(sr[16]):
+                    user.LastLoginTime.Value = self._get_timestamp(sr[16])  #最后登录时间
                 if not IsDBNull(sr[17]):
-                    user.Name.Value = sr[17]  #账户昵称
+                    user.Email.Value = sr[17]  #账户邮箱
                 if not IsDBNull(sr[18]):
-                    user.Username.Value = sr[18]  #账户
-                if not IsDBNull(sr[19]):
-                    user.LastLoginTime.Value = self._get_timestamp(sr[19])  #最后登录时间
-                if not IsDBNull(sr[20]):
-                    user.Email.Value = sr[20]  #账户邮箱
-                if not IsDBNull(sr[21]):
-                    user.ID.Value = str(sr[21])  #账户id
-                    email.OwnerUserID.Value = str(sr[21])  #所属账户id
+                    user.ID.Value = str(sr[18])  #账户id
+                    email.OwnerUserID.Value = str(sr[18])  #所属账户id
                 email.OwnerUser.Value = user
-                if not IsDBNull(sr[18]):
-                    email.Account.Value = sr[18]  #所属账户
-                if not IsDBNull(sr[23]):
-                    email.SourceFile.Value = self._get_source_file(sr[23])  #提取源
-                if not IsDBNull(sr[24]):
-                    email.Deleted = self._convert_deleted_status(sr[24])  #删除状态
+                if not IsDBNull(sr[15]):
+                    email.Account.Value = sr[15]  #所属账户
+                if not IsDBNull(sr[20]):
+                    email.SourceFile.Value = self._get_source_file(sr[20])  #提取源
+                if not IsDBNull(sr[21]):
+                    email.Deleted = self._convert_deleted_status(sr[21])  #删除状态
                 model.append(email)
             sr.Close()
             return model
         except Exception:
             traceback.print_exc()
+
+    def _get_attachments(self):
+        ''' return {'mail_id': [Generic.Attachment(), ...], } '''
+        sr = None
+        ATTACHMENTS = {}   # {'mail_id', Generic.Attachment()}
+        try:
+            SQL = ''' 
+                    select attachment_name, 
+                           attachment_save_dir, 
+                           attachment_download_date, 
+                           attachment_size, 
+                           mail_id
+                    from attachment
+                  '''
+            self.db_cmd.CommandText = SQL
+            sr = self.db_cmd.ExecuteReader()
+            while(sr.Read()):
+                if canceller.IsCancellationRequested:
+                    break
+                attachment = Generic.Attachment()  #附件
+                if not IsDBNull(sr[0]):
+                    attachment.Filename.Value = sr[0]  #附件名
+                if not IsDBNull(sr[1]):
+                    attachment.URL.Value = sr[1]  #附件保存路径
+                if not IsDBNull(sr[2]):
+                    attachment.DownloadTime.Value = self._get_timestamp(sr[2])  #附件下载时间
+                if not IsDBNull(sr[3]):
+                    attachment.Size.Value = sr[3]  #附件大小
+                if not IsDBNull(sr[4]):
+                    mail_id = sr[4]  #邮件ID
+
+                if mail_id not in ATTACHMENTS:
+                    ATTACHMENTS[mail_id] = [attachment]
+                else:
+                    ATTACHMENTS[mail_id].append(attachment)
+            sr.Close()
+            return ATTACHMENTS
+        except Exception as e:
+            if sr:
+                sr.Close()
+            TraceService.Trace(TraceLevel.Warning, "{}".format(e))
+            return ATTACHMENTS
 
     @staticmethod
     def _convert_deleted_status(deleted):

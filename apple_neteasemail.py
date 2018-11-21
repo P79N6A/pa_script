@@ -1,4 +1,4 @@
-# coding=utf-8
+﻿# coding=utf-8
 import traceback
 import hashlib
 import re
@@ -312,11 +312,15 @@ class NeteaseMailParser(object):
         '''       
         if not self._read_db(db_path):
             return 
+
+        ATTACH_LIST = []
         for rec in self._read_table(table_name):
             if canceller.IsCancellationRequested:
                 return
-            if self._is_empty(rec, 'name', 'mailId'):
+            if self._is_empty(rec, 'name', 'mailId', 'attachmentId') or rec['attachmentId'].Value in ATTACH_LIST:
                 continue
+            ATTACH_LIST.append(rec['attachmentId'].Value)
+
             attach = Attachment()
             attach.attachment_id            = rec['attachmentId'].Value
             # attach.owner_account_id         = rec['mailId'].Value
