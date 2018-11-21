@@ -30,6 +30,8 @@ VERSION_APP_VALUE = 1
 
 def analyze_yixin(root, extract_deleted, extract_source):
     pr = ParserResults()
+    if root.AbsolutePath != '/data/data/im.yixin':
+        return
 
     models = YiXinParser(root, extract_deleted, extract_source).parse()
 
@@ -42,7 +44,7 @@ def analyze_yixin(root, extract_deleted, extract_source):
     return pr
 
 def execute(node,extracteDeleted):
-    return analyze_renren(node, extracteDeleted, False)
+    return analyze_yixin(node, extracteDeleted, False)
 
 class YiXinParser():
     def __init__(self, node, extract_deleted, extract_source):
@@ -233,6 +235,7 @@ class YiXinParser():
                 friend.gender = rec['gender'].Value
                 friend.signature = rec['signature'].Value
                 friend.type = model_im.FRIEND_TYPE_FOLLOW
+                self.friends[friend.friend_id] = friend
                 self.im.db_insert_table_friend(friend)
         self.im.db_commit()
                         
