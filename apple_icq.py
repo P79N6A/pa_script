@@ -423,7 +423,7 @@ class ICQParser(object):
                 friend.deleted = 1
                 self.model_im_col.db_insert_table_friend(friend)
             except Exception as e:
-                self.logger.error()
+                pass
         self.model_im_col.db_commit()
 
     def decode_recover_chatroom(self):
@@ -450,7 +450,7 @@ class ICQParser(object):
                 chatroom.deleted = 1
                 self.model_im_col.db_insert_table_chatroom(chatroom)
             except Exception as e:
-                self.logger.error()
+                pass
         self.model_im_col.db_commit()
 
     def __add_media_path(self, obj, file_name):
@@ -529,7 +529,7 @@ class ICQParser(object):
 
                 self.model_im_col.db_insert_table_message(message)
             except Exception as e:
-                self.logger.error()
+                pass
         self.model_im_col.db_commit()
 
     def __query_file_info(self, file_id):
