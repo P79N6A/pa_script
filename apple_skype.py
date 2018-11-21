@@ -213,7 +213,7 @@ class SkypeParser(object):
 
                     self.model_im_col.db_insert_table_friend(friend)
                 except Exception as e:
-                    print("_get_friend_table error", e)
+                    pass
             self.model_im_col.db_commit()
 
     def _get_chatroom_table(self):
@@ -250,7 +250,7 @@ class SkypeParser(object):
 
                     self.model_im_col.db_insert_table_chatroom(chatroom)
                 except Exception as e:
-                    print("_get_chatroom_table error", e)
+                    pass
 
             self.model_im_col.db_commit()
         return chatroom_member
@@ -280,7 +280,7 @@ class SkypeParser(object):
                         self.__add_media_path(message)
                     self.model_im_col.db_insert_table_message(message)
                 except Exception as e:
-                    print("_get_message_table error", e)
+                    pass
             self.model_im_col.db_commit()
 
     def _get_chatroom_member_table(self, member_list):
@@ -343,7 +343,7 @@ class SkypeParser(object):
 
                 self.model_im_col.db_insert_table_friend(friend)
             except Exception as e:
-                print("decode_recover_friend debug error", e)
+                pass
         self.model_im_col.db_commit()
 
     def decode_recover_chatroom(self):
@@ -376,7 +376,7 @@ class SkypeParser(object):
                         chatroom.creator_id = chatroom_info["conv"]["_threadProps"].get("creator", "").split(":", 1)[1]
                 self.model_im_col.db_insert_table_chatroom(chatroom)
             except Exception as e:
-                print("decode_recover_chatroom debug error", e)
+                pass
         self.model_im_col.db_commit()
 
     def decode_recover_message(self):
@@ -410,7 +410,7 @@ class SkypeParser(object):
 
                 self.model_im_col.db_insert_table_message(message)
             except Exception as e:
-                print("decode_recover_message debug error", e)
+                pass
         self.model_im_col.db_commit()
 
     @staticmethod
@@ -463,7 +463,7 @@ class SkypeParser(object):
                     try:
                         ret[table_name] = db_col.get_string(0)
                     except Exception as e:
-                        print("error:__query_table_names", e)
+                        pass
         return ret
 
     @staticmethod
