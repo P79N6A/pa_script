@@ -133,19 +133,22 @@ class Utils(object):
 
     @staticmethod
     def convert_timestamp(ts):
-        if not ts:
-            return
-        ts = str(ts)
-        if len(ts) > 13:
-            return
-        elif int(ts) < 0:
-            return
-        elif len(ts) == 13:
-            return int(ts[:-3])
-        elif len(ts) <= 10:
-            return int(ts)
-        else:
-            return
+        try:
+            if not ts:
+                return None
+            ts = str(ts)
+            if len(ts) > 13:
+                return None
+            elif float(ts) < 0:
+                return None
+            elif len(ts) == 13:
+                return int(float(ts[:-3]))
+            elif len(ts) <= 10:
+                return int(float(ts))
+            else:
+                return None
+        except:
+            return None
 
     @staticmethod
     def convert_ts_for_ios(ts):

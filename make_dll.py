@@ -3,6 +3,9 @@ import os
 
 DIR = "Builds/makes/"
 
+s = float('123.56')
+i =int(s)
+
 for filename in os.listdir('.'):
     print(filename)
     if not os.path.isfile(filename):
