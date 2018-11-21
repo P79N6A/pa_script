@@ -1,9 +1,10 @@
-#coding=utf-8
+﻿#coding=utf-8
 import os
 import PA_runtime
 import traceback
 import hashlib
 import time
+import re
 
 import clr
 try:
@@ -16,6 +17,9 @@ from model_browser import *
 import bcp_browser
 
 from PA_runtime import *
+
+DEBUG = True
+DEBUG = False
 
 class SafariParser(object):
     def __init__(self, node, extractDeleted, extractSource):
@@ -37,8 +41,8 @@ class SafariParser(object):
         db = SQLiteParser.Tools.GetDatabaseByPath(self.directory, 'Bookmarks.db')
         if db is None:
             return []
-        results = []
-        deleted_results = []
+        results = []         # Intact & Deleted
+        deleted_results = [] # Deleted
         ts = SQLiteParser.TableSignature('bookmarks')
         if self.extractDeleted:
             ts['title'] = ts['url'] = TextNotNull
@@ -47,8 +51,8 @@ class SafariParser(object):
         table = list(db.ReadTableRecords(ts, self.extractDeleted))
         table.sort()
 
-        dirs = {}
-
+        # 书签文件夹
+        dirs = {}   # {dir_id: (bookmark_title, bookmark_title.source)}
         for record in table:
             if record['id'].Value == -1:
                 continue
@@ -58,37 +62,40 @@ class SafariParser(object):
                     path = ("/".join([parent[0], record['title'].Value]), MemoryRange(list(record['title'].Source) + list(parent[1].Chunks)))
                 else:
                     path = (record['title'].Value, MemoryRange(record['title'].Source))
-
                 dirs[record['id'].Value] = path
 
+        # 书签
         for record in table:
             if IsDBNull(record['title'].Value):
                 continue
             if record['type'].Value == 0:
-                result = WebBookmark()
-                result.Deleted = record.Deleted                        
-                result.Source.Value = self.source
+                if not self._is_url(record, 'url'):
+                    continue
+                bookmark = WebBookmark()
+                bookmark.Deleted = record.Deleted                        
+                bookmark.Source.Value = self.source
                 if '\x00' in record['title'].Value:
                     continue            
-                result.Title.Value = record['title'].Value
+                bookmark.Title.Value = record['title'].Value
                 if self.extractSource:
-                    result.Title.Source = MemoryRange(record['title'].Source)
+                    bookmark.Title.Source = MemoryRange(record['title'].Source)
                 if not IsDBNull(record['url'].Value):
-                    result.Url.Value = record['url'].Value
+                    bookmark.Url.Value = record['url'].Value
                     if self.extractSource:
-                        result.Url.Source = MemoryRange(record['url'].Source)
+                        bookmark.Url.Source = MemoryRange(record['url'].Source)
                 if not IsDBNull(record['parent'].Value) and record['parent'].Value in dirs:
-                    result.Path.Value = dirs[record['parent'].Value][0]
+                    bookmark.Path.Value = dirs[record['parent'].Value][0]
                     if self.extractSource:
-                        result.Path.Source = dirs[record['parent'].Value][1]
-                if result.Deleted == DeletedState.Intact and result not in results:
-                    results.append(result)
-                elif result.Deleted == DeletedState.Deleted:
-                    deleted_results.append(result)
-        for del_res in deleted_results:
-            if del_res not in results:
-                results.append(result)
-
+                        bookmark.Path.Source = dirs[record['parent'].Value][1]
+                        
+                if bookmark.Deleted == DeletedState.Intact and bookmark not in results:
+                    results.append(bookmark)
+                elif bookmark.Deleted == DeletedState.Deleted and bookmark not in deleted_results:
+                    deleted_results.append(bookmark)
+                    
+        for del_bookmark in deleted_results:
+            if del_bookmark not in results:
+                results.append(del_bookmark)
         return results
 
     def read_history_plist(self):
@@ -201,7 +208,7 @@ class SafariParser(object):
             SQLiteParser.Tools.AddSignatureToTable(ts, 'visit_count', SQLiteParser.Tools.SignatureType.Byte, SQLiteParser.Tools.SignatureType.Const1)
             SQLiteParser.Tools.AddSignatureToTable(ts, 'should_recompute_derived_visit_counts', SQLiteParser.Tools.SignatureType.Const0, SQLiteParser.Tools.SignatureType.Const1, SQLiteParser.Tools.SignatureType.Byte)
         for rec in histDb.ReadTableRecords(ts, self.extractDeleted, True):
-            if rec['id'].IsDBNull or rec['url'].IsDBNull:
+            if rec['id'].IsDBNull or rec['url'].IsDBNull or not self._is_url(rec, 'url'):
                 continue
             id = rec['id'].Value
             if IdToUrlDict.has_key(id):
@@ -286,6 +293,8 @@ class SafariParser(object):
             SQLiteParser.Tools.AddSignatureToTable(ts, 'daily_visit_counts', SQLiteParser.Tools.SignatureType.Blob)
             SQLiteParser.Tools.AddSignatureToTable(ts, 'should_recompute_derived_visit_counts', SQLiteParser.Tools.SignatureType.Const0, SQLiteParser.Tools.SignatureType.Const1, SQLiteParser.Tools.SignatureType.Byte)
         for rec in histDb.ReadTableRecords(ts, self.extractDeleted, True):
+            if not self._is_url(rec, 'url'):
+                continue
             vp = VisitedPage()
             vp.Deleted = rec.Deleted
             vp.Source.Value = self.source
@@ -350,29 +359,55 @@ class SafariParser(object):
                 searchedItems.append(s)
         return searchedItems
 
+    @staticmethod
+    def _is_url(rec, *args):
+        ''' 匹配 URL IP
+
+        严格匹配
+        :type rec:   rec
+        :type *args: str
+        :rtype: bool
+        '''
+        NON_PATTERN = r'[\x00-\x08\x0b-\x0c\x0e-\x1f]'
+        URL_PATTERN = r'((http|ftp|https)://)(([a-zA-Z0-9\._-]+\.[a-zA-Z]{2,6})|([0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}))(:[0-9]{1,4})*(/[a-zA-Z0-9\&%_\./-~-]*)?'
+        IP_PATTERN  = r'^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$'
+        for i in args:
+            try:
+                raw_str = rec[i].Value
+
+                if re.search(NON_PATTERN, raw_str):
+                    return False
+                match_url = re.match(URL_PATTERN, raw_str)
+                match_ip  = re.match(IP_PATTERN, raw_str)
+                if not match_url and not match_ip:
+                    return False
+            except:
+                exc()
+                return False  
+        return True    
+
 def analyze_safari(node, extractDeleted, extractSource):
     """
 	合并Safari解析
     解析 History.db 文件 (iOS8+)
     旧版本 history.plist通过read_history来解析.
     """
-
     pr = ParserResults()
     res = SafariParser(node, extractDeleted, extractSource).parse()
 
     # 保存到中间数据库, 导出 BCP 
-    Export2db(node, results_model = res).parse()        
+    Export2db(node, results_model = res).parse()     
 
     pr.Models.AddRange(res)
     pr.Build('Safari')
+    if DEBUG:
+        TraceService.Trace(TraceLevel.Warning, 'safari finished !')
     return pr
 
 
 #################################################
 ##                添加中间数据库                 ##
 #################################################
-DEBUG = True
-DEBUG = False
 VERSION_APP_VALUE = 1
 
 def exc():
@@ -392,12 +427,10 @@ class Export2db(object):
         self.bookmark_id = 0
 
     def parse(self):
-
         try:
             if DEBUG or self.mb.need_parse(self.cache_db, VERSION_APP_VALUE):
                 self.mb.db_create(self.cache_db) 
                 self.parse_model()
-
                 if not canceller.IsCancellationRequested:
                     self.mb.db_insert_table_version(VERSION_KEY_DB, VERSION_VALUE_DB)
                     self.mb.db_insert_table_version(VERSION_KEY_APP, VERSION_APP_VALUE)
@@ -438,39 +471,39 @@ class Export2db(object):
                 # SearchResults
         '''
         for item in self.results_model:
-                if item.I18N == "书签":      # WebBookmark
-                    bookmark = Bookmark()
-                    bookmark.id         = self.bookmark_id
-                    self.bookmark_id += 1
-                    # bookmark.owneruser  = 
-                    # bookmark.time       =
-                    bookmark.title      = item.Title.Value
-                    bookmark.url        = item.Url.Value
-                    bookmark.source     = item.Source.Value
-                    bookmark.deleted    = 0 if item.Deleted == DeletedState.Intact else 1
-                    self.mb.db_insert_table_bookmarks(bookmark)
+            if item.I18N == "书签":      # WebBookmark
+                bookmark = Bookmark()
+                bookmark.id         = self.bookmark_id
+                self.bookmark_id += 1
+                # bookmark.owneruser  = 
+                # bookmark.time       =
+                bookmark.title      = item.Title.Value
+                bookmark.url        = item.Url.Value
+                bookmark.source     = item.Source.Value
+                bookmark.deleted    = 0 if item.Deleted == DeletedState.Intact else 1
+                self.mb.db_insert_table_bookmarks(bookmark)
 
-                elif item.I18N == "浏览记录":    # VisitedPage
-                    browser_record = Browserecord()
-                    # browser_record.id       = 
-                    browser_record.name     = item.Title.Value
-                    browser_record.url      = item.Url.Value
-                    browser_record.datetime = self._convert_2_timestamp(item.LastVisited)
-                    browser_record.source   = item.Source.Value  
-                    browser_record.deleted  = 0 if item.Deleted == DeletedState.Intact else 1
+            elif item.I18N == "浏览记录":    # VisitedPage
+                browser_record = Browserecord()
+                # browser_record.id       = 
+                browser_record.name     = item.Title.Value
+                browser_record.url      = item.Url.Value
+                browser_record.datetime = self._convert_2_timestamp(item.LastVisited)
+                browser_record.source   = item.Source.Value  
+                browser_record.deleted  = 0 if item.Deleted == DeletedState.Intact else 1
 
-                    self.mb.db_insert_table_browserecords(browser_record)
+                self.mb.db_insert_table_browserecords(browser_record)
 
-                elif item.I18N == "搜索项":     # SearchedItem
-                    search_history = SearchHistory()
-                    # search_history.id       = 
-                    search_history.name     = item.Value
-                    # search_history.url      = 
-                    search_history.datetime = self._convert_2_timestamp(item.TimeStamp)
-                    search_history.source   = item.Source.Value
-                    search_history.deleted  = 0 if item.Deleted == DeletedState.Intact else 1
+            elif item.I18N == "搜索项":     # SearchedItem
+                search_history = SearchHistory()
+                # search_history.id       = 
+                search_history.name     = item.Value
+                # search_history.url      = 
+                search_history.datetime = self._convert_2_timestamp(item.TimeStamp)
+                search_history.source   = item.Source.Value
+                search_history.deleted  = 0 if item.Deleted == DeletedState.Intact else 1
 
-                    self.mb.db_insert_table_searchhistory(search_history)
+                self.mb.db_insert_table_searchhistory(search_history)
 
     @staticmethod
     def _convert_2_timestamp(_timestamp):
