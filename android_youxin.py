@@ -151,7 +151,7 @@ class YouXinParser():
                 friend = model_im.Friend()
                 self.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
                 friend.source = dbPath.AbsolutePath
-                friend.friend_id = self.user
+                friend.account_id = self.user
                 friend.friend_id = rec['UID'].Value
                 friend.nickname = rec['NAME'].Value
                 friend.telephone = rec['NUMBER'].Value
