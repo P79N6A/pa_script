@@ -6,6 +6,7 @@ clr.AddReference('System.Core')
 clr.AddReference('System.Xml.Linq')
 del clr
 
+from System import Convert
 from System.IO import MemoryStream
 from System.Text import Encoding
 from System.Xml.Linq import *
@@ -61,6 +62,8 @@ class KeyChainParser():
             memoryRange = node.Data
             try:
                 root = BPReader.GetTree(memoryRange)
+                if root is None:
+                    return
                 wifi_list = root.Children['List of known networks'].Value
                 for wifi_obj in wifi_list:
                     param = {}
@@ -90,217 +93,220 @@ class KeyChainParser():
 
                     array = value_0
                     for val in array:
-                        map_1 = val
-                        keyname = key_0
-                        if map_1 is not None and str(type(map_1)) == "<type 'NSDictionary'>":
-                            if len(map_1.Keys) == 2:
-                                continue
-                            srvKey = ['Service', 'svce', 'agrp']
-                            srvValue = { \
-                                'AirPort' : WiFiAcc, \
-                                'com.apple.account.idms.token' : AppleID, \
-                                'com.apple.account.AppleIDAuthentication.token' : AppleID, \
-                                'com.apple.account.POP.password' : MailAcc, \
-                                'com.apple.account.IMAP.password' : MailAcc, \
-                                'com.apple.account.SMTP.password' : MailAcc, \
-                                'com.apple.cfnetwork' : BrowserPsd, \
-                                'EN_KeyChain_ServiceName_*' : Others, \
-                                'sina_cookie' : Others, \
-                                'com.apple.gs.appleid.auth.com.apple.account.AppleIDAuthentication.token' : Others, \
-                                'com.apple.gs.icloud.auth.com.apple.account.AppleIDAuthentication.token' : Others, \
-                                'com.apple.account.idms.heartbeat-token' : Others, \
-                                'com.apple.account.IdentityServices.token' : Others, \
-                                'com.apple.gs.idms.pet.com.apple.account.AppleIDAuthentication.token' : Others, \
-                                'com.apple.gs.supportapp.auth.com.apple.account.AppleIDAuthentication.token' : Others, \
-                                'com.apple.gs.idms.hb.com.apple.account.AppleIDAuthentication.token' : Others, \
-                                'com.apple.gs.pb.auth.com.apple.account.AppleIDAuthentication.token' : Others, \
-                                'com.apple.gs.news.auth.com.apple.account.AppleIDAuthentication.token' : Others, \
-                                'com.apple.account.GameCenter.token' : Others, \
-                                'com.apple.account.AppleAccount.token' : Others, \
-                                'com.apple.account.AppleAccount.maps-token' : Others, \
-                                'com.apple.account.DeviceLocator.token' : Others, \
-                                'com.apple.account.FindMyFriends.find-my-friends-app-token' : Others, \
-                                'com.apple.account.FindMyFriends.find-my-friends-token' : Others, \
-                                'com.apple.account.CloudKit.token' : Others, \
-                                'com.apple.account.IdentityServices.token' : Others, \
-                                'com.apple.twitter.oauth-token-secret' : Others, \
-                                'com.apple.twitter.oauth-token' : Others, \
-                                'AllEncryptedLoginAccountKeyChainService' : Others, \
-                                'com.apple.ProtectedCloudStorage' : Others, \
-                                'BackupAgent' : BackupPsd \
-                                }
+                        try:
+                            map_1 = val
+                            keyname = key_0
+                            if map_1 is not None and str(type(map_1)) == "<type 'NSDictionary'>":
+                                if len(map_1.Keys) == 2:
+                                    continue
+                                srvKey = ['Service', 'svce', 'agrp']
+                                srvValue = { \
+                                    'AirPort' : WiFiAcc, \
+                                    'com.apple.account.idms.token' : AppleID, \
+                                    'com.apple.account.AppleIDAuthentication.token' : AppleID, \
+                                    'com.apple.account.POP.password' : MailAcc, \
+                                    'com.apple.account.IMAP.password' : MailAcc, \
+                                    'com.apple.account.SMTP.password' : MailAcc, \
+                                    'com.apple.cfnetwork' : BrowserPsd, \
+                                    'EN_KeyChain_ServiceName_*' : Others, \
+                                    'sina_cookie' : Others, \
+                                    'com.apple.gs.appleid.auth.com.apple.account.AppleIDAuthentication.token' : Others, \
+                                    'com.apple.gs.icloud.auth.com.apple.account.AppleIDAuthentication.token' : Others, \
+                                    'com.apple.account.idms.heartbeat-token' : Others, \
+                                    'com.apple.account.IdentityServices.token' : Others, \
+                                    'com.apple.gs.idms.pet.com.apple.account.AppleIDAuthentication.token' : Others, \
+                                    'com.apple.gs.supportapp.auth.com.apple.account.AppleIDAuthentication.token' : Others, \
+                                    'com.apple.gs.idms.hb.com.apple.account.AppleIDAuthentication.token' : Others, \
+                                    'com.apple.gs.pb.auth.com.apple.account.AppleIDAuthentication.token' : Others, \
+                                    'com.apple.gs.news.auth.com.apple.account.AppleIDAuthentication.token' : Others, \
+                                    'com.apple.account.GameCenter.token' : Others, \
+                                    'com.apple.account.AppleAccount.token' : Others, \
+                                    'com.apple.account.AppleAccount.maps-token' : Others, \
+                                    'com.apple.account.DeviceLocator.token' : Others, \
+                                    'com.apple.account.FindMyFriends.find-my-friends-app-token' : Others, \
+                                    'com.apple.account.FindMyFriends.find-my-friends-token' : Others, \
+                                    'com.apple.account.CloudKit.token' : Others, \
+                                    'com.apple.account.IdentityServices.token' : Others, \
+                                    'com.apple.twitter.oauth-token-secret' : Others, \
+                                    'com.apple.twitter.oauth-token' : Others, \
+                                    'AllEncryptedLoginAccountKeyChainService' : Others, \
+                                    'com.apple.ProtectedCloudStorage' : Others, \
+                                    'BackupAgent' : BackupPsd \
+                                    }
 
-                            extra_id = None
-                            for key in srvKey:
-                                if key in map_1.Keys:
-                                    for name in srvValue.keys():
-                                        value = self._get_map_value(map_1, key, 'str')
-                                        if '*' in name:
-                                            if name.replace('*', '') in value:
-                                                extra_id = self.getData(map_1, srvValue[name], value)
-                                        else:
-                                            if value == name:
-                                                extra_id = self.getData(map_1, srvValue[name], value)
+                                extra_id = None
+                                for key in srvKey:
+                                    if key in map_1.Keys:
+                                        for name in srvValue.keys():
+                                            value = self._get_map_value(map_1, key, 'str')
+                                            if '*' in name:
+                                                if name.replace('*', '') in value:
+                                                    extra_id = self.getData(map_1, srvValue[name], value)
+                                            else:
+                                                if value == name:
+                                                    extra_id = self.getData(map_1, srvValue[name], value)
 
-                            for name in srvValue.keys():
-                                if name.find(key_0) != -1:
-                                    extra_id = self.getData(map_1, srvValue[name], '')
+                                for name in srvValue.keys():
+                                    if name.find(key_0) != -1:
+                                        extra_id = self.getData(map_1, srvValue[name], '')
 
-                            if key_0 == 'cert' or key_0 == 'certificates':
-                                cert = Generic.KeychainProfile.Certificate()
-                                cert.Deleted = DeletedState.Intact
-                                cert.SourceFile.Value = self.root.AbsolutePath
-                                cert.KeychainID.Value = extra_id
-                                if key_0 == 'cert':
-                                    cert.UUID.Value = self._get_map_value(map_1, 'UUID', 'str')
-                                    cert.AccessGroup.Value = self._get_map_value(map_1, 'agrp', 'str')
-                                    cert.CreationDate.Value = self._get_timestamp(self._get_map_value(map_1, 'cdat', 'str'))
-                                    cert.ModificationDate.Value = self._get_timestamp(self._get_map_value(map_1, 'mdat', 'str'))
-                                    cert.Label.Value = self._get_map_value(map_1, 'labl', 'str')
-                                    cert.Data.Value = self._get_map_value(map_1, 'v_Data', 'data')
-                                else:
-                                    cert.AccessGroup = self._get_map_value(map_1, 'Entitlement Group', 'str')
-                                    cert.CreationDate.Value = self._get_timestamp(self._get_map_value(map_1, 'Create Date', 'str'))
-                                    cert.ModificationDate.Value = self._get_timestamp(self._get_map_value(map_1, 'Modify Date', 'str'))
-                                    cert.Label.Value = self._get_map_value(map_1, 'Label', 'str')
-                                    cert.Data.Value = self._get_map_value(map_1, 'Keychain Data', 'data')
-                                cert.ProtectionDomain.Value = self._get_map_value(map_1, 'pdmn', 'str')
-                                cert.Issuer.Value = self._get_map_value(map_1, 'issr', 'data')
-                                cert.CertificateEncoding.Value = self._get_map_value(map_1, 'cenc', 'int')
-                                cert.CertificateType.Value = self._get_map_value(map_1, 'ctyp', 'int')
-                                cert.PublicKeyHash.Value = self._get_map_value(map_1, 'pkhh', 'data')
-                                cert.SubjectKeyID.Value = self._get_map_value(map_1, 'skid', 'data')
-                                cert.SerialNumber.Value = self._get_map_value(map_1, 'slnr', 'data')
-                                cert.Subject.Value = self._get_map_value(map_1, 'subj')
-                                cert.Synchronizable.Value = self._get_map_value(map_1, 'sync', 'bool')
-                                self.models.append(cert)
-                            elif key_0 == 'genp' or key_0 == 'GenericPassword':
-                                genp = Generic.KeychainProfile.GenericPassword()
-                                genp.Deleted = DeletedState.Intact
-                                genp.SourceFile.Value = self.root.AbsolutePath
-                                genp.KeychainID.Value = extra_id
-                                if key_0 == 'genp':
-                                    genp.UUID.Value = self._get_map_value(map_1, 'UUID', 'str')
-                                    genp.AccessGroup.Value = self._get_map_value(map_1, 'agrp', 'str')
-                                    genp.CreationDate.Value = self._get_timestamp(self._get_map_value(map_1, 'cdat', 'str'))
-                                    genp.ModificationDate.Value = self._get_timestamp(self._get_map_value(map_1, 'mdat', 'str'))
-                                    genp.Account.Value = self._get_map_value(map_1, 'acct', 'str')
-                                    genp.Service.Value = self._get_map_value(map_1, 'srvr', 'str')
-                                    genp.Data.Value = self._get_map_value(map_1, 'v_Data', 'data')
-                                    genp.Label.Value = self._get_map_value(map_1, 'Label', 'str')
-                                else:
-                                    genp.AccessGroup.Value = self._get_map_value(map_1, 'Entitlement Group', 'str')
-                                    genp.CreationDate.Value = self._get_timestamp(self._get_map_value(map_1, 'Create Date', 'str'))
-                                    genp.ModificationDate.Value = self._get_timestamp(self._get_map_value(map_1, 'Modify Date', 'str'))
-                                    genp.Account.Value = self._get_map_value(map_1, 'Account', 'str')
-                                    genp.Service.Value = self._get_map_value(map_1, 'Service', 'str')
-                                    genp.Data.Value = self._get_map_value(map_1, 'Keychain Data', 'data')
-                                    genp.Label.Value = self._get_map_value(map_1, 'labl', 'str')
-                                genp.ProtectionDomain.Value = self._get_map_value(map_1, 'pdmn', 'str')
-                                genp.Synchronizable.Value = self._get_map_value(map_1, 'sync', 'bool')
-                                genp.Description.Value = self._get_map_value(map_1, 'desc', 'str')
-                                self.models.append(genp)
-                            elif key_0 == 'inet' or key_0 == 'InternetPassword':
-                                inet = Generic.KeychainProfile.InternetPassword()
-                                inet.Deleted = DeletedState.Intact
-                                inet.SourceFile.Value = self.root.AbsolutePath
-                                inet.KeychainID.Value = extra_id
-                                if key_0 == 'inet':
-                                    inet.UUID.Value = self._get_map_value(map_1, 'UUID', 'str')
-                                    inet.AccessGroup.Value = self._get_map_value(map_1, 'agrp', 'str')
-                                    inet.CreationDate.Value = self._get_timestamp(self._get_map_value(map_1, 'cdat', 'str'))
-                                    inet.ModificationDate.Value = self._get_timestamp(self._get_map_value(map_1, 'mdat', 'str'))
-                                    inet.Account.Value = self._get_map_value(map_1, 'acct', 'str')
-                                    inet.Server.Value = self._get_map_value(map_1, 'srvr', 'str')
-                                    inet.Data.Value = self._get_map_value(map_1, 'v_Data', 'data')
-                                else:
-                                    inet.AccessGroup.Value = self._get_map_value(map_1, 'Entitlement Group', 'str')
-                                    inet.CreationDate.Value = self._get_timestamp(self._get_map_value(map_1, 'Create Date', 'str'))
-                                    inet.ModificationDate.Value = self._get_timestamp(self._get_map_value(map_1, 'Modify Date', 'str'))
-                                    inet.Account.Value = self._get_map_value(map_1, 'Account', 'str')
-                                    inet.Server.Value = self._get_map_value(map_1, 'Service', 'str')
-                                    inet.Data.Value = self._get_map_value(map_1, 'Keychain Data')
-                                inet.ProtectionDomain.Value = self._get_map_value(map_1, 'pdmn', 'str')
-                                inet.Path.Value = self._get_map_value(map_1, 'path', 'str')
-                                inet.Port.Value = self._get_map_value(map_1, 'port', 'str')
-                                inet.Protocol.Value = self._get_map_value(map_1, 'ptcl', 'str')
-                                inet.SecurityDomain.Value = self._get_map_value(map_1, 'sdmn', 'str')
-                                inet.Synchronizable.Value = self._get_map_value(map_1, 'sync', 'bool')
-                                inet.Description.Value = self._get_map_value(map_1, 'desc', 'str')
-                                self.models.append(inet)
-                            elif key_0 == 'keys' or key_0 == 'Keys':
-                                keys = Generic.KeychainProfile.Key()
-                                keys.KeychainID.Value = extra_id
-                                keys.Deleted = DeletedState.Intact
-                                keys.SourceFile.Value = self.root.AbsolutePath
-                                if key_0 == 'keys':
-                                    keys.UUID.Value = self._get_map_value(map_1, 'UUID', 'str')
-                                    keys.AccessGroup.Value = self._get_map_value(map_1, 'agrp', 'str')
-                                    keys.CreationDate.Value = self._get_timestamp(self._get_map_value(map_1, 'cdat', 'str'))
-                                    keys.ModificationDate.Value = self._get_timestamp(self._get_map_value(map_1, 'mdat', 'str'))
-                                    keys.ApplicationTag.Value = self._get_map_value(map_1, 'atag', 'data')
-                                    keys.CanEncrypt.Value = self._get_map_value(map_1, 'encr', 'bool')
-                                    keys.CanDecrypt.Value = self._get_map_value(map_1, 'decr', 'bool')
-                                    keys.Data.Value = self._get_map_value(map_1, 'v_Data', 'data')
-                                    keys.Label.Value = self._get_map_value(map_1, 'labl', 'str')
-                                else:
-                                    keys.AccessGroup.Value = self._get_map_value(map_1, 'Entitlement Group', 'str')
-                                    keys.CreationDate.Value = self._get_timestamp(self._get_map_value(map_1, 'Create Date', 'str'))
-                                    keys.ModificationDate.Value = self._get_timestamp(self._get_map_value(map_1, 'Modify Date', 'str'))
-                                    keys.Data.Value =  self._get_map_value(map_1, 'keychain Data', 'data')
-                                    keys.Label.Value = self._get_map_value(map_1, 'Label', 'str')
-                                keys.ProtectionDomain.Value = self._get_map_value(map_1, 'pdmn', 'str')
-                                keys.KeySizeInBits.Value = self._get_map_value(map_1, 'bsiz', 'str')
-                                keys.EffectiveKeySize.Value = self._get_map_value(map_1, 'esiz', 'str')
-                                keys.KeyClass.Value = self._get_map_value(map_1, 'kcls', 'int')
-                                keys.ApplicationLabel.Value = self._get_map_value(map_1, 'klbl', 'str')
-                                keys.IsPermanent.Value = self._get_map_value(map_1, 'perm', 'bool')
-                                keys.CanDerive.Value = self._get_map_value(map_1, 'drve', 'bool')
-                                keys.CanSign.Value = self._get_map_value(map_1, 'sign', 'bool')
-                                keys.CanWrap.Value = self._get_map_value(map_1, 'wrap', 'bool')
-                                keys.CanVerify.Value = self._get_map_value(map_1, 'vrfy', 'bool')
-                                keys.CanUnwrap.Value = self._get_map_value(map_1, 'unwp', 'bool')
-                                keys.Synchronizable.Value = self._get_map_value(map_1, 'sync', 'bool')
-                                if 'v_Data' in map_1.Keys or 'Keychain Data' in map_1.Keys:
-                                    keys.KeyType.Value = self._get_map_value(map_1, 'type', 'int')
-                                self.models.append(keys)
-                            elif key_0 == 'idnt':
-                                idnt = Generic.KeychainProfile.Identity()
-                                idnt.Deleted = DeletedState.Intact
-                                idnt.SourceFile.Value = self.root.AbsolutePath
-                                idnt.KeychainID.Value = extra_id
-                                idnt.UUID.Value = self._get_map_value(map_1, 'UUID', 'str')
-                                idnt.AccessGroup.Value = self._get_map_value(map_1, 'agrp', 'str')
-                                idnt.CreationDate.Value = self._get_timestamp(self._get_map_value(map_1, 'cdat', 'str'))
-                                idnt.ModificationDate.Value = self._get_timestamp(self._get_map_value(map_1, 'mdat', 'str'))
-                                idnt.Label.Value = self._get_map_value(map_1, 'labl', 'str')
-                                idnt.Issuer.Value = self._get_map_value(map_1, 'issr', 'data')
-                                idnt.CertificateEncoding.Value = self._get_map_value(map_1, 'cenc', 'int')
-                                idnt.CertificateType.Value = self._get_map_value(map_1, 'ctyp', 'int')
-                                idnt.ProtectionDomain.Value = self._get_map_value(map_1, 'pdmn', 'str')
-                                idnt.PublicKeyHash.Value = self._get_map_value(map_1, 'pkhh', 'data')
-                                idnt.SubjectKeyID.Value = self._get_map_value(map_1, 'skid', 'data')
-                                idnt.SerialNumber.Value = self._get_map_value(map_1, 'slnr', 'data')
-                                idnt.Subject.Value = self._get_map_value(map_1, 'subj', 'data')
-                                idnt.Synchronizable.Value = self._get_map_value(map_1, 'sync', 'bool')
-                                idnt.CertificateData.Value = self._get_map_value(map_1, 'certdata', 'data')
-                                idnt.ApplicationTag.Value = self._get_map_value(map_1, 'atag', 'data')
-                                idnt.KeySizeInBits.Value = self._get_map_value(map_1, 'bsiz', 'str')                                
-                                idnt.CanEncrypt.Value = self._get_map_value(map_1, 'encr', 'bool')
-                                idnt.CanDecrypt.Value = self._get_map_value(map_1, 'decr', 'bool')
-                                idnt.EffectiveKeySize.Value = self._get_map_value(map_1, 'esiz', 'str')
-                                idnt.KeyClass.Value = self._get_map_value(map_1, 'kcls', 'int')
-                                idnt.ApplicationLabel.Value = self._get_map_value(map_1, 'klbl', 'str')
-                                idnt.Data.Value = self._get_map_value(map_1, 'v_Data', 'data')
-                                if 'v_Data' in map_1.Keys:
-                                    idnt.KeyType.Value = self._get_map_value(map_1, 'type', 'int')
-                                idnt.IsPermanent.Value = self._get_map_value(map_1, 'perm', 'bool')
-                                idnt.CanDerive.Value = self._get_map_value(map_1, 'drve', 'bool')
-                                idnt.CanSign.Value = self._get_map_value(map_1, 'sign', 'bool')
-                                idnt.CanWrap.Value = self._get_map_value(map_1, 'wrap', 'bool')
-                                idnt.CanVerify.Value = self._get_map_value(map_1, 'vrfy', 'bool')
-                                idnt.CanUnwrap.Value = self._get_map_value(map_1, 'unwp', 'bool')
-                                self.models.append(idnt)
+                                if key_0 == 'cert' or key_0 == 'certificates':
+                                    cert = Generic.KeychainProfile.Certificate()
+                                    cert.Deleted = DeletedState.Intact
+                                    cert.SourceFile.Value = self.root.AbsolutePath
+                                    cert.KeychainID.Value = extra_id
+                                    if key_0 == 'cert':
+                                        cert.UUID.Value = self._get_map_value(map_1, 'UUID', 'str')
+                                        cert.AccessGroup.Value = self._get_map_value(map_1, 'agrp', 'str')
+                                        cert.CreationDate.Value = self._get_timestamp(self._get_map_value(map_1, 'cdat', 'str'))
+                                        cert.ModificationDate.Value = self._get_timestamp(self._get_map_value(map_1, 'mdat', 'str'))
+                                        cert.Label.Value = self._get_map_value(map_1, 'labl', 'str')
+                                        cert.Data.Value = self._get_map_value(map_1, 'v_Data', 'data')
+                                    else:
+                                        cert.AccessGroup = self._get_map_value(map_1, 'Entitlement Group', 'str')
+                                        cert.CreationDate.Value = self._get_timestamp(self._get_map_value(map_1, 'Create Date', 'str'))
+                                        cert.ModificationDate.Value = self._get_timestamp(self._get_map_value(map_1, 'Modify Date', 'str'))
+                                        cert.Label.Value = self._get_map_value(map_1, 'Label', 'str')
+                                        cert.Data.Value = self._get_map_value(map_1, 'Keychain Data', 'data')
+                                    cert.ProtectionDomain.Value = self._get_map_value(map_1, 'pdmn', 'str')
+                                    cert.Issuer.Value = self._get_map_value(map_1, 'issr', 'data')
+                                    cert.CertificateEncoding.Value = self._get_map_value(map_1, 'cenc', 'int')
+                                    cert.CertificateType.Value = self._get_map_value(map_1, 'ctyp', 'int')
+                                    cert.PublicKeyHash.Value = self._get_map_value(map_1, 'pkhh', 'data')
+                                    cert.SubjectKeyID.Value = self._get_map_value(map_1, 'skid', 'data')
+                                    cert.SerialNumber.Value = self._get_map_value(map_1, 'slnr', 'data')
+                                    cert.Subject.Value = self._get_map_value(map_1, 'subj')
+                                    cert.Synchronizable.Value = self._get_map_value(map_1, 'sync', 'bool')
+                                    self.models.append(cert)
+                                elif key_0 == 'genp' or key_0 == 'GenericPassword':
+                                    genp = Generic.KeychainProfile.GenericPassword()
+                                    genp.Deleted = DeletedState.Intact
+                                    genp.SourceFile.Value = self.root.AbsolutePath
+                                    genp.KeychainID.Value = extra_id
+                                    if key_0 == 'genp':
+                                        genp.UUID.Value = self._get_map_value(map_1, 'UUID', 'str')
+                                        genp.AccessGroup.Value = self._get_map_value(map_1, 'agrp', 'str')
+                                        genp.CreationDate.Value = self._get_timestamp(self._get_map_value(map_1, 'cdat', 'str'))
+                                        genp.ModificationDate.Value = self._get_timestamp(self._get_map_value(map_1, 'mdat', 'str'))
+                                        genp.Account.Value = self._get_map_value(map_1, 'acct', 'str')
+                                        genp.Service.Value = self._get_map_value(map_1, 'srvr', 'str')
+                                        genp.Data.Value = self._get_map_value(map_1, 'v_Data', 'data')
+                                        genp.Label.Value = self._get_map_value(map_1, 'Label', 'str')
+                                    else:
+                                        genp.AccessGroup.Value = self._get_map_value(map_1, 'Entitlement Group', 'str')
+                                        genp.CreationDate.Value = self._get_timestamp(self._get_map_value(map_1, 'Create Date', 'str'))
+                                        genp.ModificationDate.Value = self._get_timestamp(self._get_map_value(map_1, 'Modify Date', 'str'))
+                                        genp.Account.Value = self._get_map_value(map_1, 'Account', 'str')
+                                        genp.Service.Value = self._get_map_value(map_1, 'Service', 'str')
+                                        genp.Data.Value = self._get_map_value(map_1, 'Keychain Data', 'data')
+                                        genp.Label.Value = self._get_map_value(map_1, 'labl', 'str')
+                                    genp.ProtectionDomain.Value = self._get_map_value(map_1, 'pdmn', 'str')
+                                    genp.Synchronizable.Value = self._get_map_value(map_1, 'sync', 'bool')
+                                    genp.Description.Value = self._get_map_value(map_1, 'desc', 'str')
+                                    self.models.append(genp)
+                                elif key_0 == 'inet' or key_0 == 'InternetPassword':
+                                    inet = Generic.KeychainProfile.InternetPassword()
+                                    inet.Deleted = DeletedState.Intact
+                                    inet.SourceFile.Value = self.root.AbsolutePath
+                                    inet.KeychainID.Value = extra_id
+                                    if key_0 == 'inet':
+                                        inet.UUID.Value = self._get_map_value(map_1, 'UUID', 'str')
+                                        inet.AccessGroup.Value = self._get_map_value(map_1, 'agrp', 'str')
+                                        inet.CreationDate.Value = self._get_timestamp(self._get_map_value(map_1, 'cdat', 'str'))
+                                        inet.ModificationDate.Value = self._get_timestamp(self._get_map_value(map_1, 'mdat', 'str'))
+                                        inet.Account.Value = self._get_map_value(map_1, 'acct', 'str')
+                                        inet.Server.Value = self._get_map_value(map_1, 'srvr', 'str')
+                                        inet.Data.Value = self._get_map_value(map_1, 'v_Data', 'data')
+                                    else:
+                                        inet.AccessGroup.Value = self._get_map_value(map_1, 'Entitlement Group', 'str')
+                                        inet.CreationDate.Value = self._get_timestamp(self._get_map_value(map_1, 'Create Date', 'str'))
+                                        inet.ModificationDate.Value = self._get_timestamp(self._get_map_value(map_1, 'Modify Date', 'str'))
+                                        inet.Account.Value = self._get_map_value(map_1, 'Account', 'str')
+                                        inet.Server.Value = self._get_map_value(map_1, 'Service', 'str')
+                                        inet.Data.Value = self._get_map_value(map_1, 'Keychain Data')
+                                    inet.ProtectionDomain.Value = self._get_map_value(map_1, 'pdmn', 'str')
+                                    inet.Path.Value = self._get_map_value(map_1, 'path', 'str')
+                                    inet.Port.Value = self._get_map_value(map_1, 'port', 'str')
+                                    inet.Protocol.Value = self._get_map_value(map_1, 'ptcl', 'str')
+                                    inet.SecurityDomain.Value = self._get_map_value(map_1, 'sdmn', 'str')
+                                    inet.Synchronizable.Value = self._get_map_value(map_1, 'sync', 'bool')
+                                    inet.Description.Value = self._get_map_value(map_1, 'desc', 'str')
+                                    self.models.append(inet)
+                                elif key_0 == 'keys' or key_0 == 'Keys':
+                                    keys = Generic.KeychainProfile.Key()
+                                    keys.KeychainID.Value = extra_id
+                                    keys.Deleted = DeletedState.Intact
+                                    keys.SourceFile.Value = self.root.AbsolutePath
+                                    if key_0 == 'keys':
+                                        keys.UUID.Value = self._get_map_value(map_1, 'UUID', 'str')
+                                        keys.AccessGroup.Value = self._get_map_value(map_1, 'agrp', 'str')
+                                        keys.CreationDate.Value = self._get_timestamp(self._get_map_value(map_1, 'cdat', 'str'))
+                                        keys.ModificationDate.Value = self._get_timestamp(self._get_map_value(map_1, 'mdat', 'str'))
+                                        keys.ApplicationTag.Value = self._get_map_value(map_1, 'atag', 'data')
+                                        keys.CanEncrypt.Value = self._get_map_value(map_1, 'encr', 'bool')
+                                        keys.CanDecrypt.Value = self._get_map_value(map_1, 'decr', 'bool')
+                                        keys.Data.Value = self._get_map_value(map_1, 'v_Data', 'data')
+                                        keys.Label.Value = self._get_map_value(map_1, 'labl', 'str')
+                                    else:
+                                        keys.AccessGroup.Value = self._get_map_value(map_1, 'Entitlement Group', 'str')
+                                        keys.CreationDate.Value = self._get_timestamp(self._get_map_value(map_1, 'Create Date', 'str'))
+                                        keys.ModificationDate.Value = self._get_timestamp(self._get_map_value(map_1, 'Modify Date', 'str'))
+                                        keys.Data.Value =  self._get_map_value(map_1, 'keychain Data', 'data')
+                                        keys.Label.Value = self._get_map_value(map_1, 'Label', 'str')
+                                    keys.ProtectionDomain.Value = self._get_map_value(map_1, 'pdmn', 'str')
+                                    keys.KeySizeInBits.Value = self._get_map_value(map_1, 'bsiz', 'str')
+                                    keys.EffectiveKeySize.Value = self._get_map_value(map_1, 'esiz', 'str')
+                                    keys.KeyClass.Value = self._get_map_value(map_1, 'kcls', 'int')
+                                    keys.ApplicationLabel.Value = self._get_map_value(map_1, 'klbl', 'str')
+                                    keys.IsPermanent.Value = self._get_map_value(map_1, 'perm', 'bool')
+                                    keys.CanDerive.Value = self._get_map_value(map_1, 'drve', 'bool')
+                                    keys.CanSign.Value = self._get_map_value(map_1, 'sign', 'bool')
+                                    keys.CanWrap.Value = self._get_map_value(map_1, 'wrap', 'bool')
+                                    keys.CanVerify.Value = self._get_map_value(map_1, 'vrfy', 'bool')
+                                    keys.CanUnwrap.Value = self._get_map_value(map_1, 'unwp', 'bool')
+                                    keys.Synchronizable.Value = self._get_map_value(map_1, 'sync', 'bool')
+                                    if 'v_Data' in map_1.Keys or 'Keychain Data' in map_1.Keys:
+                                        keys.KeyType.Value = self._get_map_value(map_1, 'type', 'int')
+                                    self.models.append(keys)
+                                elif key_0 == 'idnt':
+                                    idnt = Generic.KeychainProfile.Identity()
+                                    idnt.Deleted = DeletedState.Intact
+                                    idnt.SourceFile.Value = self.root.AbsolutePath
+                                    idnt.KeychainID.Value = extra_id
+                                    idnt.UUID.Value = self._get_map_value(map_1, 'UUID', 'str')
+                                    idnt.AccessGroup.Value = self._get_map_value(map_1, 'agrp', 'str')
+                                    idnt.CreationDate.Value = self._get_timestamp(self._get_map_value(map_1, 'cdat', 'str'))
+                                    idnt.ModificationDate.Value = self._get_timestamp(self._get_map_value(map_1, 'mdat', 'str'))
+                                    idnt.Label.Value = self._get_map_value(map_1, 'labl', 'str')
+                                    idnt.Issuer.Value = self._get_map_value(map_1, 'issr', 'data')
+                                    idnt.CertificateEncoding.Value = self._get_map_value(map_1, 'cenc', 'int')
+                                    idnt.CertificateType.Value = self._get_map_value(map_1, 'ctyp', 'int')
+                                    idnt.ProtectionDomain.Value = self._get_map_value(map_1, 'pdmn', 'str')
+                                    idnt.PublicKeyHash.Value = self._get_map_value(map_1, 'pkhh', 'data')
+                                    idnt.SubjectKeyID.Value = self._get_map_value(map_1, 'skid', 'data')
+                                    idnt.SerialNumber.Value = self._get_map_value(map_1, 'slnr', 'data')
+                                    idnt.Subject.Value = self._get_map_value(map_1, 'subj', 'data')
+                                    idnt.Synchronizable.Value = self._get_map_value(map_1, 'sync', 'bool')
+                                    idnt.CertificateData.Value = self._get_map_value(map_1, 'certdata', 'data')
+                                    idnt.ApplicationTag.Value = self._get_map_value(map_1, 'atag', 'data')
+                                    idnt.KeySizeInBits.Value = self._get_map_value(map_1, 'bsiz', 'str')                                
+                                    idnt.CanEncrypt.Value = self._get_map_value(map_1, 'encr', 'bool')
+                                    idnt.CanDecrypt.Value = self._get_map_value(map_1, 'decr', 'bool')
+                                    idnt.EffectiveKeySize.Value = self._get_map_value(map_1, 'esiz', 'str')
+                                    idnt.KeyClass.Value = self._get_map_value(map_1, 'kcls', 'int')
+                                    idnt.ApplicationLabel.Value = self._get_map_value(map_1, 'klbl', 'str')
+                                    idnt.Data.Value = self._get_map_value(map_1, 'v_Data', 'data')
+                                    if 'v_Data' in map_1.Keys:
+                                        idnt.KeyType.Value = self._get_map_value(map_1, 'type', 'int')
+                                    idnt.IsPermanent.Value = self._get_map_value(map_1, 'perm', 'bool')
+                                    idnt.CanDerive.Value = self._get_map_value(map_1, 'drve', 'bool')
+                                    idnt.CanSign.Value = self._get_map_value(map_1, 'sign', 'bool')
+                                    idnt.CanWrap.Value = self._get_map_value(map_1, 'wrap', 'bool')
+                                    idnt.CanVerify.Value = self._get_map_value(map_1, 'vrfy', 'bool')
+                                    idnt.CanUnwrap.Value = self._get_map_value(map_1, 'unwp', 'bool')
+                                    self.models.append(idnt)
+                        except:
+                            traceback.print_exc()
 
     def get_models(self):
         for param in self.params:
@@ -475,18 +481,18 @@ class KeyChainParser():
         return param.extra_id
 
     @staticmethod
-    def _get_map_value(map, key, format = None):
+    def _get_map_value2(map, key, format = None):
         try:
             if str(type(map[key])) == "<type 'NSData'>":
                 if format == 'str':
-                    return str(bytes(map[key].Bytes))
+                    return Encoding.UTF8.GetString(map[key].Bytes)
                 if format == 'bool':
-                    return bool(bytes(map[key].Bytes))
+                    return Convert.ToBoolean(map[key].Bytes)
                 if format == 'int':
-                    return int(str(bytes(map[key].Bytes)))
+                    return  Convert.ToInt32(map[key].Bytes)
                 return map[key].Bytes
             if format == 'data':
-                return UnicodeEncoding.UTF8.GetBytes(str(map[key]))
+                return Encoding.UTF8.GetBytes(str(map[key]))
             if format == 'bool':
                 return bool(map[key])
             if format == 'int':
@@ -502,6 +508,43 @@ class KeyChainParser():
             elif format == 'data':
                 return bytes(0)
         
+    @staticmethod
+    def _get_map_value(map, key, format = None):
+        try:
+            if hasattr(map[key],"Bytes"):
+                if format == 'str':
+                    return Encoding.UTF8.GetString(map[key].Bytes)
+                if format == 'bool':
+                    return Convert.ToBoolean(map[key].Bytes)
+                if format == 'int':
+                    return  Convert.ToInt32(map[key].Bytes)
+                return map[key].Bytes
+            if format == 'data':
+                if hasattr(map[key],"Bytes"):
+                    return map[key].Bytes
+                else:
+                    return Encoding.UTF8.GetBytes(map[key].ToString())
+            if format == 'bool':
+                if hasattr(map[key],"ToBool"):
+                    return map[key].ToBool()
+                else:
+                    return bool(map[key])
+            if format == 'int':
+                if hasattr(map[key],"ToInt"):
+                    return map[key].ToInt()
+                else:
+                    return Convert.ToInt32(map[key])
+            return map[key].ToString()
+        except:
+            if format == 'bool':
+                return False
+            elif format == 'int':
+                return 0
+            elif format == 'str':
+                return ""
+            elif format == 'data':
+                return Encoding.UTF8.GetBytes("0")
+
     @staticmethod
     def _get_timestamp(str):
         if str is None:
