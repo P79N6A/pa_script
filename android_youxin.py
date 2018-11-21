@@ -34,6 +34,9 @@ import re
 VERSION_APP_VALUE = 1
 
 def analyze_youxin(root, extract_deleted, extract_source):
+    if root.AbsolutePath == '/data/media/0/Android/data/com.yx':
+        return
+
     pr = ParserResults()
 
     models = YouXinParser(root, extract_deleted, extract_source).parse()
@@ -148,7 +151,7 @@ class YouXinParser():
                 friend = model_im.Friend()
                 self.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
                 friend.source = dbPath.AbsolutePath
-                friend.account_id = self.user
+                friend.friend_id = self.user
                 friend.friend_id = rec['UID'].Value
                 friend.nickname = rec['NAME'].Value
                 friend.telephone = rec['NUMBER'].Value
