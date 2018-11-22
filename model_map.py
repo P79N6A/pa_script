@@ -399,7 +399,7 @@ class Genetate(object):
             self.cursor.execute(sql)
             row = self.cursor.fetchone()
         except Exception as e:
-            print(e)
+            TraceService.Trace(TraceLevel.Info, "Table account is not exists")
        
         while row is not None:
             if canceller.IsCancellationRequested:
@@ -493,7 +493,7 @@ class Genetate(object):
             self.cursor.execute(sql)
             row = self.cursor.fetchone()
         except Exception as e:
-            print(e)
+            TraceService.Trace(TraceLevel.Info, "Table address is not exists")
 
         while row is not None:
             if canceller.IsCancellationRequested:
@@ -523,11 +523,11 @@ class Genetate(object):
                 fromcoo.Source.Value = row[12]
             if row[4] and (row[12] == "高德地图" or row[12] == "腾讯地图"):
                 fromcoo.Longitude.Value = coordTransform_utils.pixelXTolng(row[4])
-            else:
+            elif row[4]:
                 fromcoo.Longitude.Value = row[4]
             if row[5] and (row[12] == "高德地图" or row[12] == "腾讯地图"):
                 fromcoo.Latitude.Value = coordTransform_utils.pixelYToLat(row[5])
-            else:
+            elif row[5]:
                 fromcoo.Latitude.Value = row[5]
             if row[3]:
                 fromcoo.PositionAddress.Value = row[3]
@@ -536,11 +536,11 @@ class Genetate(object):
                 tocoo.PositionAddress.Value = row[7]
             if row[8] and (row[12] == "高德地图" or row[12] == "腾讯地图"):
                 tocoo.Longitude.Value = coordTransform_utils.pixelXTolng(row[8])
-            else:
+            elif row[8]:
                 tocoo.Longitude.Value = row[8]
             if row[9] and (row[12] == "高德地图" or row[12] == "腾讯地图"):
                 tocoo.Latitude.Value = coordTransform_utils.pixelYToLat(row[9])
-            else:
+            elif row[9]:
                 tocoo.Latitude.Value = row[9]
 
             frompoint.Position.Value = fromcoo
@@ -595,7 +595,7 @@ class Genetate(object):
             self.cursor.execute(sql)
             row = self.cursor.fetchone()
         except Exception as e:
-            print(e)
+            TraceService.Trace(TraceLevel.Info, "Table search is not exists")
 
         while row is not None:
             if canceller.IsCancellationRequested:
@@ -676,7 +676,7 @@ class Genetate(object):
             self.cursor.execute(sql)
             row = self.cursor.fetchone()
         except Exception as e:
-            print(e)
+            TraceService.Trace(TraceLevel.Info, "Table journey is not exists")
 
         while row is not None:
             if canceller.IsCancellationRequested:
