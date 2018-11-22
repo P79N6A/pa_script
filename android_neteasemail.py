@@ -1,4 +1,6 @@
 # coding=utf-8
+__author__ = 'YangLiyuan'
+
 import traceback
 import re
 import hashlib

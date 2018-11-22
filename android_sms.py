@@ -1,4 +1,6 @@
 # coding=utf-8
+__author__ = 'YangLiyuan'
+
 import time
 import clr
 try:

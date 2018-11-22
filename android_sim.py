@@ -1,4 +1,6 @@
 # coding=utf-8
+__author__ = 'YangLiyuan'
+
 import clr
 try:
     clr.AddReference('model_sim')
