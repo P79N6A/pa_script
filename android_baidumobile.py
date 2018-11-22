@@ -40,9 +40,10 @@ def analyze_baidumobile(node, extract_deleted, extract_source):
     pr = ParserResults()
     cache_db_name = "BaiduSearchbox"
     res = BaiduMobileParser(node, extract_deleted, extract_source, cache_db_name).parse()
-    pr.Models.AddRange(res)
-    pr.Build('手机百度')
-    return pr
+    if res:
+        pr.Models.AddRange(res)
+        pr.Build('手机百度')
+        return pr
 
 def analyze_baidumobile_lite(node, extract_deleted, extract_source):
     """
@@ -51,9 +52,10 @@ def analyze_baidumobile_lite(node, extract_deleted, extract_source):
     pr = ParserResults()
     cache_db_name = "BaiduSearchbox_Lite"
     res = BaiduMobileParser(node, extract_deleted, extract_source, cache_db_name).parse()
-    pr.Models.AddRange(res)
-    pr.Build('手机百度极速版')
-    return pr
+    if res:
+        pr.Models.AddRange(res)
+        pr.Build('手机百度极速版')
+        return pr
 
 class BaiduMobileParser(object):
 
@@ -81,7 +83,7 @@ class BaiduMobileParser(object):
         '''
         if DEBUG or self.mb.need_parse(self.cache_db, VERSION_APP_VALUE):
             if not self._read_db('databases/SearchBox.db'):
-                return              
+                return []             
             self.mb.db_create(self.cache_db)
             self.parse_Account("databases/SearchBox.db", 'account_userinfo')
             if self.uid_list:

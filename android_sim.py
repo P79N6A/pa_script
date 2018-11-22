@@ -23,14 +23,14 @@ def analyze_sim(node, extract_deleted, extract_source):
     """
     node_path = node.AbsolutePath
 
-    res = None
+    res = []
     if node_path.endswith('sim/sim.db'):
         res = SIMParser_no_tar(node, extract_deleted, extract_source).parse()
     elif node_path.endswith('user_de/0/com.android.providers.telephony/databases'):
         res = SIMParser(node, extract_deleted, extract_source).parse()
 
     pr = ParserResults()
-    if res is not None:
+    if res:
         pr.Models.AddRange(res)
     return pr
 
@@ -54,7 +54,7 @@ class SIMParser(object):
             node = self.root.GetByPath("/telephony.db")
             self.db = SQLiteParser.Database.FromNode(node, canceller)
             if self.db is None:
-                return
+                return []
             self.m_sim.db_create(self.cache_db)
             self.source_telephony_db = node.AbsolutePath
             self.parse_siminfo()
@@ -149,7 +149,7 @@ class SIMParser_no_tar(SIMParser):
 
             self.db = SQLiteParser.Database.FromNode(self.root, canceller)
             if self.db is None:
-                return
+                return []
             self.m_sim.db_create(self.cache_db)
             self.source_sim_db = self.root.AbsolutePath
             self.parse_sim()

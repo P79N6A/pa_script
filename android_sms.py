@@ -35,7 +35,7 @@ def analyze_sms(node, extract_deleted, extract_source):
     # print node.AbsolutePath
     node_path = node.AbsolutePath
 
-    res = None
+    res = []
     if node_path.endswith('sms/sms.db'):
         res = SMSParser_no_tar(node, extract_deleted, extract_source).parse()
     #elif node_path.endswith('user_de/0/com.android.providers.telephony/databases'):
@@ -51,7 +51,7 @@ def analyze_sms(node, extract_deleted, extract_source):
             print('res is null')
 
     pr = ParserResults()
-    if res is not None:
+    if res:
         pr.Models.AddRange(res)
         pr.Build('短信')
     return pr
@@ -78,7 +78,7 @@ class SMSParser(object):
             node = self.root.GetByPath("mmssms.db")
             self.db = SQLiteParser.Database.FromNode(node, canceller)
             if self.db is None:
-                return
+                return []
             
             self.m_sms.db_create(self.cache_db)
             self.source_mmmssms_db = node.AbsolutePath
@@ -361,7 +361,7 @@ class SMSParser_no_tar(SMSParser):
             node = self.root
             self.db = SQLiteParser.Database.FromNode(node, canceller)
             if self.db is None:
-                return
+                return []
 
             self.m_sms.db_create(self.cache_db)
             self.source_sms_db = node.AbsolutePath
