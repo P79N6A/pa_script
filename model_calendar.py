@@ -97,6 +97,8 @@ class MC(object):
         if self.db_cmd is not None:
             self.db_cmd.CommandText = SQL_CREATE_TABLE_CALENDAR
             self.db_cmd.ExecuteNonQuery()
+            self.db_cmd.CommandText = SQL_CREATE_TABLE_VERSION
+            self.db_cmd.ExecuteNonQuery()
 
     def db_insert_table(self, sql, values):
         try:
