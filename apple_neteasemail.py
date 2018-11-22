@@ -70,7 +70,7 @@ class NeteaseMailParser(object):
         ''' 
         if DEBUG or self.mm.need_parse(self.cache_db, VERSION_APP_VALUE):
             if not self._read_db('Documents/imail.db'):
-                return
+                return []
             self.mm.db_create(self.cache_db) 
             
             self.pre_parse_mail_box("Documents/imail.db", 'mailBox')

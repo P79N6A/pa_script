@@ -42,9 +42,10 @@ def analyze_email(node, extract_deleted, extract_source):
     """ android 邮件 华为 """
     pr = ParserResults()
     res = EmailParser(node, extract_deleted, extract_source).parse()
-    pr.Models.AddRange(res)
-    pr.Build('系统邮箱')
-    return pr
+    if res:
+        pr.Models.AddRange(res)
+        pr.Build('系统邮箱')
+        return pr
 
 
 class EmailParser(object):
@@ -68,7 +69,7 @@ class EmailParser(object):
      
         if DEBUG or self.mm.need_parse(self.cache_db, VERSION_APP_VALUE):
             if not self._read_db('EmailProvider.db'):
-                return
+                return []
             self.mm.db_create(self.cache_db) 
             
             self.parse_main()
