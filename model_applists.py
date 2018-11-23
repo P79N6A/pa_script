@@ -18,7 +18,7 @@ import System.Data.SQLite as SQLite
 import os
 import sqlite3
 import pickle
-
+import base64
 
 SQL_CREATE_TABLE_APPLISTS= """
     create table if not exists Applists(
@@ -158,7 +158,7 @@ class Generate(object):
                 return []
             application.IsAndroid.Value = True
             if row[0]:
-                application.Identifier.Value = row[0]
+                application.AppGUID.Value = row[0]
             if row[1]:
                 application.Name.Value = row[1]
             if row[2]:
@@ -177,6 +177,13 @@ class Generate(object):
                                 application.Permissions.Add(per.strip().replace(",","").replace('\"',""))
                             except Exception as e:
                                 pass
+            if row[5]:
+                try:
+                    # Convert.FromBase64String(base64)
+                    # imgdata = base64.b64decode(row[5])
+                    application.IconData = Convert.FromBase64String(row[5])
+                except Exception as e:
+                    pass
             if row[6]:
                 application.PurchaseDate.Value = TimeStamp.FromUnixTime(row[6], False)
             if row[7]:
