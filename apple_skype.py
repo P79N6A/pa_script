@@ -123,11 +123,7 @@ class SkypeParser(object):
         self.extract_source = extract_source
         self.model_im_col = model_im.IM()
         self.cache_db = self.__get_cache_db()
-        if self.model_im_col.need_parse(self.cache_db, Skype_VERSION):
-            self.model_im_col.db_create(self.cache_db)
-            self.model_im_col.db_insert_table_version(model_im.VERSION_KEY_DB, model_im.VERSION_VALUE_DB)
-            self.model_im_col.db_insert_table_version(model_im.VERSION_KEY_APP, Skype_VERSION)
-            self.model_im_col.db_commit()
+
         self.account_db_nodes = self.__fetch_data_path()
         self.recovering_helper = None
         self.checking_col = None
@@ -510,21 +506,27 @@ class SkypeParser(object):
 
     def parse(self):
         """解析的主函数"""
+        if self.model_im_col.need_parse(self.cache_db, Skype_VERSION):
+            self.model_im_col.db_create(self.cache_db)
 
-        for checking_db_path in self.__fetch_data_path():
-            self.checking_col = ColHelper(checking_db_path)
+            for checking_db_path in self.__fetch_data_path():
+                self.checking_col = ColHelper(checking_db_path)
 
-            # 因为查询的表的名字里面有版本号，所以做一些处理，挂载一个表名字的状态
-            self.table_name = self.__query_table_names()
+                # 因为查询的表的名字里面有版本号，所以做一些处理，挂载一个表名字的状态
+                self.table_name = self.__query_table_names()
 
-            self._get_account_table()
-            self._get_friend_table()
-            self._get_message_table()
-            chatroom_members = self._get_chatroom_table()
-            self._get_chatroom_member_table(chatroom_members)
-            self.decode_recover_friend()
-            self.decode_recover_message()
-            self.decode_recover_chatroom()
+                self._get_account_table()
+                self._get_friend_table()
+                self._get_message_table()
+                chatroom_members = self._get_chatroom_table()
+                self._get_chatroom_member_table(chatroom_members)
+                self.decode_recover_friend()
+                self.decode_recover_message()
+                self.decode_recover_chatroom()
+
+            self.model_im_col.db_insert_table_version(model_im.VERSION_KEY_DB, model_im.VERSION_VALUE_DB)
+            self.model_im_col.db_insert_table_version(model_im.VERSION_KEY_APP, Skype_VERSION)
+            self.model_im_col.db_commit()
 
         generate = model_im.GenerateModel(self.cache_db)
         results = generate.get_models()

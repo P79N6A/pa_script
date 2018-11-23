@@ -733,7 +733,7 @@ class QQParser(object):
     def get_location(self, acc_id,content):
         try:            
             x = json.loads(content)
-            if('com.tencent.map'in x):
+            if 'com.tencent.map' == x['app']:
                 address	= x['meta']['Location.Search']['address']
                 lat	= float(x['meta']['Location.Search']['lat'])
                 lng	= float(x['meta']['Location.Search']['lng'])
