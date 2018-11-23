@@ -186,6 +186,8 @@ class ICQParser(object):
         self.model_im_col = model_im.IM()
         self.cache_db = self.__get_cache_db()
         self.account_info_path, self.cl_db_path, self.agent_db_path, self.files_db_path = self.__fetch_data_node()
+        if not all((self.account_info_path, self.cl_db_path, self.agent_db_path, self.files_db_path)):
+            return
         self.model_im_col.db_create(self.cache_db)
         self.cl_db_col = ColHelper(self.cl_db_path)
         self.agent_db_col = ColHelper(self.agent_db_path)
@@ -213,8 +215,7 @@ class ICQParser(object):
                 shutil.copy(node.PathWithMountPoint, copy_file_path)
             return path_name_list
         else:
-            miss_node = [i for i in (account_info_node, cl_db_node, agent_db_node, files_db_node) if i is None]
-            raise Exception("{} => 没有找到相应的文件", miss_node)
+            return None, None, None, None
 
     def __get_cache_db(self):
         """获取中间数据库的db路径"""
@@ -627,7 +628,8 @@ class ICQParser(object):
 
     def parse(self):
         """解析的主函数"""
-
+        if not all((self.account_info_path, self.cl_db_path, self.agent_db_path, self.files_db_path)):
+            return
         # 获取缓存数据
         self._get_account_table()
         self._get_friend_table()
