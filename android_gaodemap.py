@@ -106,9 +106,8 @@ class gaodeMap(object):
                         except Exception as e:
                             pass
                 except Exception as e:
-                    print(e)
-                
-                    print("TABLE----SEARCH_SHANPSHOT is not exists!")
+                    pass
+                    # print("TABLE----SEARCH_SHANPSHOT is not exists!")
 
                 try:
                     cursor.execute(ROUTE_SQL)
@@ -128,7 +127,8 @@ class gaodeMap(object):
                         except Exception as e:
                             pass
                 except Exception as e:
-                    print("TABLE----ROUTE_HISTORY_V2_SNAPSHOT is not exists!")
+                    pass
+                    # print("TABLE----ROUTE_HISTORY_V2_SNAPSHOT is not exists!")
                 
                 try:
                     cursor.execute(POSITION_SQL)
@@ -156,7 +156,8 @@ class gaodeMap(object):
                         except Exception as e:
                             pass
                 except Exception as e:
-                    print("POI_SNAPSHOT is not exists!")
+                    pass
+                    # print("POI_SNAPSHOT is not exists!")
 
             else:
                 # 账户名
@@ -241,8 +242,9 @@ class gaodeMap(object):
                                 pass
 
                 except Exception as e:
-                    tmpa = "SEARCH_SHANPSHOT{0}".format(user_id)
-                    print(tmpa + "is not exists!")
+                    pass
+                    # tmpa = "SEARCH_SHANPSHOT{0}".format(user_id)
+                    # print(tmpa + "is not exists!")
 
                 try:
                     POSITION_DELETED_SQL = "select * from POI_SNAPSHOT" + user_id
@@ -273,8 +275,9 @@ class gaodeMap(object):
                             except Exception as e:
                                 pass
                 except Exception as e:
-                    tmpb = "POI_SNAPSHOT{0}".format(user_id)
-                    print(tmpb + "is not exists!")
+                    pass
+                    # tmpb = "POI_SNAPSHOT{0}".format(user_id)
+                    # print(tmpb + "is not exists!")
 
                 try:
                     ROUTE_DELETED_SQL = "select * from ROUTE_HISTORY_V2_SNAPSHOT" + user_id
@@ -297,12 +300,13 @@ class gaodeMap(object):
                             except Exception as e:
                                 pass
                 except Exception as e:
-                    tmpc = "ROUTE_HISTORY_V2_SNAPSHOT{0}".format(user_id)
-                    print(tmpc + "is not exists!")
+                    pass
+                    # tmpc = "ROUTE_HISTORY_V2_SNAPSHOT{0}".format(user_id)
+                    # print(tmpc + "is not exists!")
 
 
         self.gaodemap.db_commit()
-        self.gaodemap.db_close()
+
 
 
     def parse_search_json(self, models, data):
@@ -351,6 +355,88 @@ class gaodeMap(object):
     #     else:
     #         return True
 
+    # 兼容旧版地图
+    def get_old_version_data(self):
+        node = self.root.Parent.Parent.GetByPath("/databases/aMap.db")
+        if node is None:
+            return
+        db = SQLiteParser.Database.FromNode(node, canceller)
+        if db is None:
+            return
+        if 'tipitem' not in db.Tables:
+            return
+        tbs = SQLiteParser.TableSignature("tipitem")
+        for rec in db.ReadTableRecords(tbs, self.extract_deleted, True):
+            if canceller.IsCancellationRequested:
+                return
+            try:
+                search = model_map.Search()
+                search.source = "高德地图"
+                search.sourceApp = "高德地图"
+                search.sourceFile = node.AbsolutePath
+                if rec.Deleted == DeletedState.Deleted:
+                    search.deleted = 1
+                if "NAME" in rec and (not rec["NAME"].IsDBNull):
+                    search.keyword = rec["NAME"].Value
+                if "ADDR" in rec and (not rec["ADDR"].IsDBNull):
+                    search.address = rec["ADDR"].Value
+                if "ADCODE" in rec and (not rec["ADCODE"].IsDBNull):
+                    search.adcode = rec["ADCODE"].Value
+                if "X" in rec and (not rec["X"].IsDBNull):
+                    search.pos_x = rec["X"].Value
+                if "Y" in rec and (not rec["Y"].IsDBNull):
+                    search.pos_y = rec["Y"].Value
+                if "TIME" in rec and (not rec["TIME"].IsDBNull):
+                    search.create_time = rec["TIME"].Value
+                # 0 搜索 2 收藏
+                search.item_type = 0
+                try:
+                    if search.keyword or search.address or search.pos_x or search.pos_y:
+                        self.gaodemap.db_insert_table_search(search)
+                except Exception as e:
+                    pass
+            except Exception as e:
+                pass
+        
+        if 'RouteHistory' not in db.Tables:
+            return
+        route_tbs = SQLiteParser.TableSignature("RouteHistory")
+        for rec in db.ReadTableRecords(route_tbs, self.extract_deleted, True):
+            if canceller.IsCancellationRequested:
+                return
+            try:
+                route = model_map.Address()
+                route.source = "高德地图"
+                route.sourceApp = "高德地图"
+                route.sourceFile = node.AbsolutePath
+                if rec.Deleted == DeletedState.Deleted:
+                    route.deleted = 1
+                if "ROUTE_NAME" in rec and (not rec["ROUTE_NAME"].IsDBNull):
+                    route_name = rec["ROUTE_NAME"].Value
+                    try:
+                        from_point, to_point = route_name.split("→")
+                        route.from_name = from_point
+                        route.to_name = to_point
+                    except Exception as e:
+                        route.from_name = route_name
+                if "START_X" in rec and (not rec["START_X"].IsDBNull):
+                    route.from_posX = rec["START_X"].Value
+                if "START_Y" in rec and (not rec["START_Y"].IsDBNull):
+                    route.from_posY = rec["START_Y"].Value
+                if "END_X" in rec and (not rec["END_X"].IsDBNull):
+                    route.to_posX = rec["END_X"].Value
+                if "END_Y" in rec and (not rec["END_Y"].IsDBNull):
+                    route.to_posY = rec["END_Y"].Value
+                if "UPDATE_TIME" in rec and (not rec["UPDATE_TIME"].IsDBNull):
+                    route.create_time = rec["UPDATE_TIME"].Value
+                try:
+                    if route.from_name or route.to_name or route.from_posX or route.from_posY or  route.to_posX or route.to_posY or route.create_time:  
+                        self.gaodemap.db_insert_table_address(route)
+                except Exception as e:
+                    pass
+            except Exception as e:
+                pass
+        self.gaodemap.db_commit()
 
     def parse(self):
         
@@ -361,6 +447,7 @@ class gaodeMap(object):
 
         self.gaodemap.db_create(db_path)
         self.entrance()
+        self.get_old_version_data()
         self.gaodemap.db_close()
         tmp_dir = ds.OpenCachePath("tmp")
         PA_runtime.save_cache_path(bcp_gis.NETWORK_APP_MAP_GAODE, db_path, tmp_dir)
