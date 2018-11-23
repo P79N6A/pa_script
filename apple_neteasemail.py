@@ -1,4 +1,6 @@
 ﻿# coding=utf-8
+__author__ = 'YangLiyuan'
+
 import traceback
 import hashlib
 import re
@@ -37,9 +39,10 @@ def analyze_neteasemail(node, extract_deleted, extract_source):
     """
     pr = ParserResults()
     res = NeteaseMailParser(node, extract_deleted, extract_source).parse()
-    pr.Models.AddRange(res)
-    pr.Build('网易邮箱大师')
-    return pr
+    if res:
+        pr.Models.AddRange(res)
+        pr.Build('网易邮箱大师')
+        return pr
 
 class NeteaseMailParser(object):
 
@@ -67,7 +70,7 @@ class NeteaseMailParser(object):
         ''' 
         if DEBUG or self.mm.need_parse(self.cache_db, VERSION_APP_VALUE):
             if not self._read_db('Documents/imail.db'):
-                return
+                return []
             self.mm.db_create(self.cache_db) 
             
             self.pre_parse_mail_box("Documents/imail.db", 'mailBox')
@@ -86,8 +89,8 @@ class NeteaseMailParser(object):
         tmp_dir = ds.OpenCachePath('tmp')
         save_cache_path(bcp_mail.MAIL_TOOL_TYPE_OTHER, self.cache_db, tmp_dir)
 
-        generate = Generate(self.cache_db)
-        return generate.get_models()
+        models = Generate(self.cache_db).get_models()
+        return models
 
     def pre_parse_mail_box(self, db_path, table_name):
         ''' imail.db - mailBox

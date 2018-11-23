@@ -113,7 +113,6 @@ class Ctrip(object):
                             account.source = filename.AbsolutePath
                             if rec.Deleted == DeletedState.Deleted:
                                 account.deleted = 1
-                            account.sourceFile = filename.AbsolutePath
                             if "userID" in rec and (not rec["userID"].IsDBNull):
                                 account.account_id = rec["userID"].Value
                             if "nickName" in rec and (not rec["nickName"].IsDBNull):
@@ -280,6 +279,16 @@ class Ctrip(object):
                                             messages.media_path = chat_content["url"]
                                     except Exception as e:
                                         messages.content = rec["msgBody"].Value
+                                
+                                elif rec["MSG_TYPE"].Value == "1007":
+                                    messages.type = MESSAGE_CONTENT_TYPE_IMAGE
+                                    chat_content = json.loads(rec["MSG_BODY"].Value)
+                                    try:
+                                        if "ext" in chat_content and "richlist" in chat_content["ext"]:
+                                            if "text" in chat_content["ext"]["richlist"][0]:
+                                                messages.content = chat_content["ext"]["richlist"][0]["text"]
+                                    except Exception as e:
+                                        messages.content = rec["MSG_BODY"].Value
 
                                 elif rec["msgType"].Value == 2:
                                     messages.type = MESSAGE_CONTENT_TYPE_LINK
@@ -405,6 +414,8 @@ class Ctrip(object):
 
     def get_order_ticket_method_two(self):
         order_node = self.root.GetByPath("Library/Caches/CTMyCtrip")
+        if order_node is None:
+            return
         for filename in order_node.Files:
             if filename.Name.startswith("pocketData_V2_"):
                 plist = PlistHelper.ReadPlist(filename)

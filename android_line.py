@@ -1,4 +1,6 @@
 ﻿# coding=utf-8
+__author__ = 'YangLiyuan'
+
 import traceback
 import hashlib
 import re
@@ -35,9 +37,9 @@ def print_run_time(func):
 def exc(e=''):
     ''' Exception output '''
     if DEBUG:
-        TraceService.Trace(TraceLevel.Warning, "android_line.py DEBUG: LINE {}".format(traceback.format_exc()))
+        TraceService.Trace(TraceLevel.Warning, "android_line.py DEBUG: {}".format(traceback.format_exc()))
     else:
-        pass 
+        TraceService.Trace(TraceLevel.Debug, "android_line.py DEBUG: {}".format(traceback.format_exc()))
 def exc_p(*e):
     ''' Highlight print in vs '''
     if DEBUG:

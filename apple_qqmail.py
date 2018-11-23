@@ -313,13 +313,13 @@ class MailParser(object):
 
     def analyze_normal_data(self):
         '''读取普通数据到中间数据库'''
-        mailPath = self.node.GetByPath("/Documents/FMailDB.db").PathWithMountPoint
-        if mailPath is not None:
+        if self.node.GetByPath("/Documents/FMailDB.db") is not None:
+            mailPath = self.node.GetByPath("/Documents/FMailDB.db").PathWithMountPoint
             self.analyze_account(mailPath, 0)
             self.analyze_mail(mailPath, 0)
             self.analyze_attachment(mailPath, 0)
-        contactPath = self.node.GetByPath("/Documents/FMContact.db").PathWithMountPoint
-        if contactPath is not None:
+        if self.node.GetByPath("/Documents/FMContact.db") is not None:
+            contactPath = self.node.GetByPath("/Documents/FMContact.db").PathWithMountPoint
             self.analyze_contact(contactPath, 0)
 
     def analyze_deleted_data(self):
@@ -375,6 +375,8 @@ class MailParser(object):
         self.db_cmd = SQLite.SQLiteCommand(self.db)
         try:
             node = self.node.GetByPath("/Documents/FMailDB.db")
+            if node is None:
+                return
             db = SQLiteParser.Database.FromNode(node, canceller)
             if db is None:
                 return
@@ -398,6 +400,8 @@ class MailParser(object):
         self.db_cmd = SQLite.SQLiteCommand(self.db)
         try:
             node = self.node.GetByPath("/Documents/FMailDB.db")
+            if node is None:
+                return
             db = SQLiteParser.Database.FromNode(node, canceller)
             if db is None:
                 return
@@ -433,6 +437,8 @@ class MailParser(object):
         self.db_cmd = SQLite.SQLiteCommand(self.db)
         try:
             node = self.node.GetByPath("/Documents/FMailDB.db")
+            if node is None:
+                return
             db = SQLiteParser.Database.FromNode(node, canceller)
             if db is None:
                 return
@@ -455,6 +461,8 @@ class MailParser(object):
         self.db_cmd = SQLite.SQLiteCommand(self.db)
         try:
             node = self.node.GetByPath("/Documents/FMailDB.db")
+            if node is None:
+                return
             db = SQLiteParser.Database.FromNode(node, canceller)
             if db is None:
                 return
@@ -477,6 +485,8 @@ class MailParser(object):
         self.db_cmd = SQLite.SQLiteCommand(self.db)
         try:
             node = self.node.GetByPath("/Documents/FMContact.db")
+            if node is None:
+                return
             db = SQLiteParser.Database.FromNode(node, canceller)
             if db is None:
                 return
@@ -502,6 +512,8 @@ class MailParser(object):
         self.db_cmd = SQLite.SQLiteCommand(self.db)
         try:
             node = self.node.GetByPath("/Documents/FMContact.db")
+            if node is None:
+                return
             db = SQLiteParser.Database.FromNode(node, canceller)
             if db is None:
                 return
@@ -525,6 +537,8 @@ class MailParser(object):
         self.db_cmd = SQLite.SQLiteCommand(self.db)
         try:
             node = self.node.GetByPath("/Documents/FMContact.db")
+            if node is None:
+                return
             db = SQLiteParser.Database.FromNode(node, canceller)
             if db is None:
                 return
@@ -547,6 +561,8 @@ class MailParser(object):
         self.db_cmd = SQLite.SQLiteCommand(self.db)
         try:
             node = self.node.GetByPath("/Documents/FMailDB.db")
+            if node is None:
+                return
             db = SQLiteParser.Database.FromNode(node, canceller)
             if db is None:
                 return

@@ -1,4 +1,6 @@
 # coding=utf-8
+__author__ = 'YangLiyuan'
+
 import traceback
 import re
 import hashlib
@@ -36,9 +38,10 @@ def analyze_neteasemail(node, extract_deleted, extract_source):
     """
     pr = ParserResults()
     res = NeteaseMailParser(node, extract_deleted, extract_source).parse()
-    pr.Models.AddRange(res)
-    pr.Build('网易邮箱大师')
-    return pr
+    if res:
+        pr.Models.AddRange(res)
+        pr.Build('网易邮箱大师')
+        return pr
 
 
 class NeteaseMailParser(object):
@@ -65,7 +68,7 @@ class NeteaseMailParser(object):
 
         if DEBUG or self.mm.need_parse(self.cache_db, VERSION_APP_VALUE):
             if not self._read_db('mmail'):
-                return
+                return []
             self.mm.db_create(self.cache_db) 
             
             self.parse_main()

@@ -1,4 +1,6 @@
 # coding=utf-8
+__author__ = 'YangLiyuan'
+
 import clr
 try:
     clr.AddReference('model_sim')
@@ -18,10 +20,10 @@ def analyze_sim(node, extract_deleted, extract_source):
     """
     res = SIMParser(node, extract_deleted, extract_source).parse()
     pr = ParserResults()
-    if res is not None:
+    if res:
         pr.Models.AddRange(res)
-    pr.Build('SIM 卡')
-    return pr
+        pr.Build('SIM 卡')
+        return pr
 
 
 class SIMParser(object):
@@ -45,7 +47,7 @@ class SIMParser(object):
             # self.db = SQLiteParser.Database.FromNode(self.root,canceller)
             self.db = SQLiteParser.Database.FromNode(self.root, canceller)
             if self.db is None:
-                return
+                return []
             self.source_db = self.root.AbsolutePath
 
             self.parse_siminfo()

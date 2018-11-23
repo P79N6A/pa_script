@@ -1,4 +1,6 @@
 # coding=utf-8
+__author__ = 'YangLiyuan'
+
 import re
 import time
 import hashlib
@@ -40,9 +42,10 @@ def analyze_baidubrowser(node, extract_deleted, extract_source):
     """
     pr = ParserResults()
     res = BaiduBrowserParser(node, extract_deleted, extract_source).parse()
-    pr.Models.AddRange(res)
-    pr.Build('百度浏览器')
-    return pr
+    if res:
+        pr.Models.AddRange(res)
+        pr.Build('百度浏览器')
+        return pr
 
 
 class BaiduBrowserParser(object):
@@ -66,7 +69,7 @@ class BaiduBrowserParser(object):
         print(self.root.AbsolutePath)
         if DEBUG or self.mb.need_parse(self.cache_db, VERSION_APP_VALUE):
             if not self._read_db('databases/dbbrowser.db'):
-                return  
+                return []
             self.mb.db_create(self.cache_db)
             # self.parse_Account('app_webview_baidu/Cookies', 'account_userinfo')
             self.parse_Bookmark('databases/dbbrowser.db', 'bookmark')
