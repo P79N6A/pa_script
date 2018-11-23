@@ -316,8 +316,8 @@
           <integer>2</integer>
           <key>Patterns</key>
           <array>
-            <string>com\.sina\.weibo</string>
-            <string>com\.sina\.weibog3</string>
+            <string>com\.sina\.weibo$</string>
+            <string>com\.sina\.weibog3$</string>
           </array>
           <key>Category</key>
           <string>Weibo</string>
@@ -2278,7 +2278,8 @@
           <string>基础数据</string>
           <key>Dependents</key>
           <array>
-            <string>analyze_android_calls@android_contact</string>
+            <!--EntryPoint#RunnerType#ModuleType@Module-->
+            <string>analyze_android_calls#2#0@android_contact</string>
           </array>
         </dict>
       </array>
@@ -2436,7 +2437,7 @@
             <string>com.baidu.searchbox.lite/databases/SearchBox.db$</string>
           </array>
           <key>Category</key>
-          <string>BaiduMobileLite</string>
+          <string>BaiduMobile</string>
           <key>Name</key>
           <string>手机百度极速版(安卓)</string>
           <key>Filter</key>
