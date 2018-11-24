@@ -770,6 +770,7 @@ class FrequentLocationsParser(object):
                 j.Source.Value = self.category
                 j.Deleted = DeletedState.Intact
                 j.WayPoints.Add(loc)
+                j.FromPoint.Value = loc
                 j.StartTime.Init(TimeStamp(epoch.AddSeconds( visitNode['entry_s'].Value), True), MemoryRange(visitNode['entry_s'].Source) if self.extractSource else None)
                 j.EndTime.Init(TimeStamp(epoch.AddSeconds( visitNode['exit_s'].Value), True), MemoryRange(visitNode['exit_s'].Source) if self.extractSource else None)
                 results.append(j)
