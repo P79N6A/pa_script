@@ -3,33 +3,46 @@ __author__ = 'YangLiyuan'
 
 from PA_runtime import *
 import clr
-clr.AddReference('System.Core')
-clr.AddReference('System.Xml.Linq')
-clr.AddReference('System.Data.SQLite')
+try:
+    clr.AddReference('System.Data.SQLite')
+except:
+    pass
 del clr
 
-from System.IO import MemoryStream
-from System.Text import Encoding
-from System.Xml.Linq import *
-from System.Linq import Enumerable
-from PA.InfraLib.Utils import *
 import System.Data.SQLite as SQLite
 
-import os
+
 import sqlite3
-import traceback
-import time
-import re
 import hashlib
 
 DEBUG = True
 DEBUG = False
 
-def exc():
+CASE_NAME = ds.ProjectState.ProjectDir.Name
+
+def exc(e=''):
+    ''' Exception output '''
+    try:
+        py_name = os.path.basename(__file__)
+    except:
+        py_name = 'sim'
+        TraceService.Trace(TraceLevel.Debug, '.dll have no `__file__` attribute')
+
+    msg = 'DEBUG {} case:<{}> :'.format(py_name, CASE_NAME)
     if DEBUG:
-        traceback.print_exc()
+        TraceService.Trace(TraceLevel.Warning, 
+                           (msg+'{}{}').format(traceback.format_exc(), e))
     else:
-        pass            
+        TraceService.Trace(TraceLevel.Debug, 
+                           (msg+'{}{}').format(traceback.format_exc(), e))
+
+def test_p(*e):
+    ''' Highlight print in test environments vs console '''
+    if DEBUG:
+        TraceService.Trace(TraceLevel.Warning, "{}".format(e))
+    else:
+        pass
+          
 
 VERSION_KEY_DB  = 'db'
 VERSION_VALUE_DB = 1

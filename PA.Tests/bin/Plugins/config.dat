@@ -2436,9 +2436,9 @@
             <string>com.baidu.searchbox.lite/databases/SearchBox.db$</string>
           </array>
           <key>Category</key>
-          <string>BaiduMobile</string>
+          <string>BaiduMobileLite</string>
           <key>Name</key>
-          <string>百度迷你版(安卓)</string>
+          <string>手机百度极速版(安卓)</string>
           <key>Filter</key>
           <string>应用>其他</string>
         </dict>

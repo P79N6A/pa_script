@@ -22,16 +22,19 @@ def analyze_sim(node, extract_deleted, extract_source):
         user_de/0/com.android.providers.telephony/databases$
     """
     node_path = node.AbsolutePath
-
     res = []
-    if node_path.endswith('sim/sim.db'):
-        res = SIMParser_no_tar(node, extract_deleted, extract_source).parse()
-    elif node_path.endswith('user_de/0/com.android.providers.telephony/databases'):
-        res = SIMParser(node, extract_deleted, extract_source).parse()
-
+    try:
+        if node_path.endswith('sim/sim.db'):
+            res = SIMParser_no_tar(node, extract_deleted, extract_source).parse()
+        elif node_path.endswith('user_de/0/com.android.providers.telephony/databases'):
+            res = SIMParser(node, extract_deleted, extract_source).parse()
+    except:
+        TraceService.Trace(TraceLevel.Debug, 
+                           'analyze_sim 解析新案例 "{}" 出错: {}'.format(CASE_NAME, traceback.format_exc()))         
     pr = ParserResults()
     if res:
         pr.Models.AddRange(res)
+        pr.Build('SIM 卡')
     return pr
 
 
@@ -66,7 +69,6 @@ class SIMParser(object):
                 self.m_sim.db_commit()
             self.m_sim.db_close() 
 
-         
         tmp_dir = ds.OpenCachePath('tmp')
         save_cache_path(bcp_basic.BASIC_SIM_INFORMATION, self.cache_db, tmp_dir)
 
