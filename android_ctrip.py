@@ -376,10 +376,17 @@ class Ctrip(object):
 
 
     def get_order_data(self):
-        order_node = self.root.Parent.GetByPath("/app_ctripwebapp_716.000/wb_cache/myctrip/myctrip_offlineorder.txt")
-        if order_node is None:
+        fs = self.root.FileSystem
+        results = fs.Search("myctrip_offlineorder.txt")
+        result = None
+        if results:
+            for files_node in results:
+                    result = files_node
+            if result is None:
+                return
+        else:
             return
-        file_data = order_node.PathWithMountPoint
+        file_data = result.PathWithMountPoint
         with open(file_data, 'r') as f:
             order_json = json.loads(f.read())
             if "OrderEnities" in order_json:
@@ -387,7 +394,7 @@ class Ctrip(object):
                 for item in tmp_data:
                     order_ticket = model_map.LocationJourney()
                     order_ticket.source = "携程"
-                    order_ticket.sourceFile = order_node.AbsolutePath
+                    order_ticket.sourceFile = result.AbsolutePath
                     if self.current_id is not None:
                         order_ticket.account_id = self.current_id
                     if "OrderName" in item:

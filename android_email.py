@@ -10,14 +10,12 @@ import PA_runtime
 from PA_runtime import *
 import clr
 try:
-    clr.AddReference('unity_c37r')
     clr.AddReference('model_mail')
     clr.AddReference('bcp_mail')
 except:
     pass
 del clr
 from model_mail import *
-from unity_c37r import md5
 import bcp_mail
 
 
@@ -32,20 +30,46 @@ MESSAGE_STATUS_READ    = 4
 DEBUG = True
 DEBUG = False
 
+CASE_NAME = ds.ProjectState.ProjectDir.Name
 
-def execute(node, extract_deleted):
-    """ main """
-    return analyze_email(node, extract_deleted, extract_source=False)
+def exc(e=''):
+    ''' Exception output '''
+    try:
+        py_name = os.path.basename(__file__)
+    except:
+        py_name = 'email'
+        TraceService.Trace(TraceLevel.Debug, '.dll have no `__file__` attribute')
 
+    msg = 'DEBUG {} case:<{}> :'.format(py_name, CASE_NAME)
+    if DEBUG:
+        TraceService.Trace(TraceLevel.Warning, 
+                           (msg+'{}{}').format(traceback.format_exc(), e))
+
+    else:
+        TraceService.Trace(TraceLevel.Debug, 
+                           (msg+'{}{}').format(traceback.format_exc(), e))
+
+def test_p(*e):
+    ''' Highlight print in test environments vs console '''
+    if DEBUG:
+        TraceService.Trace(TraceLevel.Warning, "{}".format(e))
+    else:
+        pass
 
 def analyze_email(node, extract_deleted, extract_source):
     """ android 邮件 华为 """
+    res = []
     pr = ParserResults()
-    res = EmailParser(node, extract_deleted, extract_source).parse()
+    try:
+        res = EmailParser(node, extract_deleted, extract_source).parse()
+    except:
+        TraceService.Trace(TraceLevel.Debug, 
+                           'android_email.py 解析新案例 "{}" 出错: {}'.format(CASE_NAME, traceback.format_exc()))
     if res:
         pr.Models.AddRange(res)
         pr.Build('系统邮箱')
-        return pr
+    return pr
+
 
 
 class EmailParser(object):
@@ -545,8 +569,3 @@ class EmailParser(object):
             return self.neg_primary_key
         return mailId
 
-def exc():
-    if DEBUG:
-        traceback.print_exc()
-    else:
-        pass

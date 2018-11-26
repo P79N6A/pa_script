@@ -166,7 +166,7 @@ class Andriod_QQParser(object):
                     self.groupContact.clear()
                     self.accounttables = []
                     self.troops.clear()
-                    self.nickname = self.accinfo[acc_id][1]
+                    #self.nickname = self.accinfo[acc_id][1]
                     self.contacts = {}
                     self.friendhash.clear()
                     self.friendmsgtables =set()
@@ -262,7 +262,11 @@ class Andriod_QQParser(object):
                     t = acc_id +'_logintime='
                     pos = line.find(name)
                     if(pos != -1):
-                        self.accinfo[acc_id].append(line[pos+len(name):len(line)-1])
+                        x = line[pos+len(name):len(line)-1]
+                        nickname = unicode(x).decode('unicode-escape')
+                        #nickname  = nickname.encode('utf-8')
+                        #print (nickname)
+                        self.accinfo[acc_id].append(nickname)
                     postime = line.find(t)
                     if(postime != -1):
                         time = line[postime+len(t):len(line)-1]
@@ -327,7 +331,7 @@ class Andriod_QQParser(object):
         if 'TroopInfo' in self.accounttables:
             sql = 'select troopuin,troopcode,troopowneruin,troopname,fingertroopmemo from TroopInfo'
         else:
-            sql = 'select troopuin,troopcode,troopowneruin,troopname,fingertroopmemo, troopCreatetime,wmemberNum,administrator,dwcmduinjointime from TroopInfoV2'
+            sql = 'select troopuin,troopcode,troopowneruin,troopname,fingertroopmemo, troopCreatetime,wmemberNum,administrator from TroopInfoV2'
         datasource = "Data Source =  " + d +";ReadOnly=True"
         conn = SQLiteConnection(datasource)
         conn.Open()

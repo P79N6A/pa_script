@@ -403,7 +403,7 @@ def analyze_safari(node, extractDeleted, extractSource):
     pr.Models.AddRange(res)
     pr.Build('Safari')
     if DEBUG:
-        TraceService.Trace(TraceLevel.Warning, 'safari finished !')
+        TraceService.Trace(TraceLevel.Warning, 'safari is finished !')
     return pr
 
 

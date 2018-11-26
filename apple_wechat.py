@@ -132,7 +132,7 @@ class WeChatParser(model_im.IM):
         return models
 
     def get_models_from_cache_db(self):
-        models = model_im.GenerateModel(self.cache_db, self.root.FileSystem.MountPoint).get_models()
+        models = model_im.GenerateModel(self.cache_db).get_models()
         return models
 
     def get_user_hash(self):

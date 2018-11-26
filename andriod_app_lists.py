@@ -120,6 +120,8 @@ class AppLists(object):
                 app_info.sourceFile = self.root.AbsolutePath
                 if "appName" in rec and (not rec["appName"].IsDBNull):
                     app_info.name = rec["appName"].Value
+                if "drawable" in rec and (not rec["drawable"].IsDBNull):
+                    app_info.imgUrl = rec["drawable"].Value
                 if "packageName" in rec and (not rec["packageName"].IsDBNull):
                     app_info.bind_id = rec["packageName"].Value
                 if "versionName" in rec and (not rec["versionName"].IsDBNull):

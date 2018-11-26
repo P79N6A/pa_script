@@ -3,7 +3,6 @@ __author__ = 'YangLiyuan'
 
 from PA_runtime import *
 import clr
-clr.AddReference('System.Xml.Linq')
 clr.AddReference('System.Data.SQLite')
 try:
     clr.AddReference('model_browser')
@@ -11,7 +10,6 @@ except:
     pass
 del clr
 
-from System.Xml.Linq import *
 import System.Data.SQLite as SQLite
 
 import os
@@ -19,9 +17,34 @@ import sqlite3
 import traceback
 import model_browser
 
-def exc():
-    # pass
-    traceback.print_exc()
+
+DEBUG = True
+DEBUG = False
+
+CASE_NAME = ds.ProjectState.ProjectDir.Name
+
+def exc(e=''):
+    ''' Exception output '''
+    try:
+        py_name = os.path.basename(__file__)
+    except:
+        py_name = 'bcp_browser'
+        TraceService.Trace(TraceLevel.Debug, '.dll have no `__file__` attribute')
+
+    msg = 'DEBUG {} case:<{}> :'.format(py_name, CASE_NAME)
+    if DEBUG:
+        TraceService.Trace(TraceLevel.Warning, 
+                           (msg+'{}{}').format(traceback.format_exc(), e))
+    else:
+        TraceService.Trace(TraceLevel.Debug, 
+                           (msg+'{}{}').format(traceback.format_exc(), e))
+
+def test_p(*e):
+    ''' Highlight print in test environments vs console '''
+    if DEBUG:
+        TraceService.Trace(TraceLevel.Warning, "{}".format(e))
+    else:
+        pass
 
 DELETE_STATUS_NOT_DELETED = '0'
 DELETE_STATUS_DELETED = '1'
@@ -464,8 +487,7 @@ class BCP_MB(object):
             try:
                 os.remove(db_path)
             except Exception as e:
-                print('bcp_mb db remove error', e)
-                exc()
+                test_p('bcp_mb db remove error', e)
 
         self.db = SQLite.SQLiteConnection('Data Source = {}'.format(db_path))
         self.db.Open()
@@ -881,7 +903,7 @@ class GenerateBcp(object):
             # self.middle_db.Open()
             # self.middle_db_cmd = SQLite.SQLiteCommand(self.middle_db)
         except Exception as e:
-            print('connect middel db error', e)
+            test_p('connect middel db error', e)
 
         self._generate_bookmark()
         self._generate_browserecords()
@@ -921,8 +943,8 @@ class GenerateBcp(object):
                 # row = self.middle_db_cmd.ExecuteReader()
 
             except Exception as e:
-                print('generate bookmark error', e)
-                print('(self.middle_db_path', self.middle_db_path)
+                test_p('generate bookmark error', e)
+                test_p('(self.middle_db_path', self.middle_db_path)
                 exc()
             while row is not None:
             # while row.Read():
@@ -937,12 +959,12 @@ class GenerateBcp(object):
                 try:
                     self.bcp_mb.db_insert_table_bookmark(bm)
                 except Exception as e:
-                    print 'insert error', e
+                    test_p('insert error', e)
                 row = cursor.fetchone()
             self.bcp_mb.db_commit()
             cursor.close()
         except Exception as e:
-            print('generate bookmark error', e)        
+            test_p('generate bookmark error', e)        
 
     def _generate_browserecords(self):
         if canceller.IsCancellationRequested:
