@@ -224,7 +224,8 @@ class SkypeParser(object):
                     chatroom.source = db_col.db_path
                     chatroom.account_id = self.using_account.account_id
                     chatroom.chatroom_id = chatroom_info["conv"]["id"].split(":", 1)[1]
-                    if (not chatroom.chatroom_id.endswith("@thread.skype")) and (not chatroom.chatroom_id.endswith("highlights.skype")):
+                    if (not chatroom.chatroom_id.endswith("@thread.skype")) and (
+                            not chatroom.chatroom_id.endswith("highlights.skype")):
                         continue
                     if chatroom_info["conv"].get("_convProps", None):
                         chatroom.create_time = self.__convert_timestamp(
@@ -358,7 +359,8 @@ class SkypeParser(object):
                 chatroom.source = self.checking_col.db_path
                 chatroom.account_id = self.using_account.account_id
                 chatroom.chatroom_id = chatroom_info["conv"]["id"].split(":", 1)[1]
-                if not chatroom.chatroom_id.endswith("@thread.skype"):
+                if (not chatroom.chatroom_id.endswith("@thread.skype")) and (
+                        not chatroom.chatroom_id.endswith("highlights.skype")):
                     continue
                 if chatroom_info["conv"].get("_convProps", None):
                     chatroom.create_time = self.__convert_timestamp(
