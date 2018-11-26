@@ -12,6 +12,7 @@ try:
 except:
     pass
 del clr
+
 from model_browser import *
 import bcp_browser
 
@@ -19,33 +20,57 @@ import bcp_browser
 DEBUG = True
 DEBUG = False
 
-
 # app数据库版本
 VERSION_APP_VALUE = 1
+
+CASE_NAME = ds.ProjectState.ProjectDir.Name
+
+def exc(e=''):
+    ''' Exception output '''
+    try:
+        py_name = os.path.basename(__file__)
+    except:
+        py_name = 'baidubrowser'
+        TraceService.Trace(TraceLevel.Debug, '.dll have no `__file__` attribute')
+
+    msg = 'DEBUG {} case:<{}> :'.format(py_name, CASE_NAME)
+    if DEBUG:
+        TraceService.Trace(TraceLevel.Warning, 
+                           (msg+'{}{}').format(traceback.format_exc(), e))
+    else:
+        TraceService.Trace(TraceLevel.Debug, 
+                           (msg+'{}{}').format(traceback.format_exc(), e))
+
+def test_p(*e):
+    ''' Highlight print in test environments vs console '''
+    if DEBUG:
+        TraceService.Trace(TraceLevel.Warning, "{}".format(e))
+    else:
+        pass
 
 def print_run_time(func):  
     def wrapper(*args, **kw):  
         local_time = time.time()  
         func(*args, **kw) 
-        print 'current Function [%s] run time is %.2f' % (func.__name__ ,time.time() - local_time)  
+        if DEBUG:
+            print 'current Function [%s] run time is %.2f' % (func.__name__ ,time.time() - local_time)  
     return wrapper
-
-def exc():
-    if DEBUG:
-        traceback.print_exc()
-    else:
-        pass       
 
 def analyze_baidubrowser(node, extract_deleted, extract_source):
     """
         android 华为 (data/data/com.baidu.browser.apps/)
     """
+    res = []
     pr = ParserResults()
-    res = BaiduBrowserParser(node, extract_deleted, extract_source).parse()
+    try:
+        res = BaiduBrowserParser(node, extract_deleted, extract_source).parse()
+    except:
+        TraceService.Trace(TraceLevel.Debug, 
+                           'analyze_baidubrowser 解析新案例 "{}" 出错: {}'.format(CASE_NAME, traceback.format_exc()))
     if res:
         pr.Models.AddRange(res)
         pr.Build('百度浏览器')
-        return pr
+    return pr
 
 
 class BaiduBrowserParser(object):
@@ -66,7 +91,7 @@ class BaiduBrowserParser(object):
             databases/dbbrowser.db
             app_webview_baidu/Cookies
         '''
-        print(self.root.AbsolutePath)
+        test_p(self.root.AbsolutePath)
         if DEBUG or self.mb.need_parse(self.cache_db, VERSION_APP_VALUE):
             if not self._read_db('databases/dbbrowser.db'):
                 return []
@@ -88,7 +113,7 @@ class BaiduBrowserParser(object):
         save_cache_path(bcp_browser.NETWORK_APP_BAIDU, self.cache_db, tmp_dir)
 
         models = Generate(self.cache_db).get_models()
-        print('匹配 百度浏览器, return models')
+        test_p('匹配 百度浏览器, return models')
 
         return models
 
@@ -242,7 +267,7 @@ class BaiduBrowserParser(object):
             16	type	            TEXT
             17	url	                TEXT
         """        
-        # print 'table_name:', self.root.AbsolutePath
+        # test_p 'table_name:', self.root.AbsolutePath
         if not self._read_db(db_path):
             return 
         for rec in self._read_table(table_name):
@@ -250,7 +275,7 @@ class BaiduBrowserParser(object):
                 continue     
             if canceller.IsCancellationRequested:
                 return            
-            print('filename', rec['filename'].Value)
+            test_p('filename', rec['filename'].Value)
             downloads = DownloadFile()
             downloads.url            = rec['url'].Value
             downloads.filename       = rec['filename'].Value
@@ -358,14 +383,14 @@ class BaiduBrowserParser(object):
             _path = None
             if len(file_name) > 0:
                 try:
-                    node = fs.Search(r'com\.baidu\.browser\.apps.*?{}$'.format(re.escape(file_name)))
+                    node = fs.Search(r'com\.baidu\.browser\.apps.*?/{}$'.format(re.escape(file_name)))
                     for i in node:
                         _path = i.AbsolutePath
                 except:
                     pass
             return _path if _path else file_name
         except:
-            print'android_baidubrowser.py _conver_2_nodeapth error, file_name:', file_name
+            test_p('android_baidubrowser.py _conver_2_nodeapth error, file_name:', file_name)
             exc()
             return file_name
 

@@ -18,12 +18,17 @@ def analyze_sim(node, extract_deleted, extract_source):
         apple sim
         \mapping\private\var\wireless\Library\Databases\CellularUsage.db
     """
-    res = SIMParser(node, extract_deleted, extract_source).parse()
+    res = []
+    try:
+        res = SIMParser(node, extract_deleted, extract_source).parse()
+    except:
+        TraceService.Trace(TraceLevel.Debug, 
+                           'analyze_sim 解析新案例 "{}" 出错: {}'.format(CASE_NAME, traceback.format_exc()))    
     pr = ParserResults()
     if res:
         pr.Models.AddRange(res)
         pr.Build('SIM 卡')
-        return pr
+    return pr
 
 
 class SIMParser(object):

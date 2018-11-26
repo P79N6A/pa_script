@@ -2359,6 +2359,30 @@
 
     <dict>
       <key>Module</key>
+      <string>android_taobao</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>parse_Taobao</string>
+          <key>RunnerType</key>
+          <integer>2</integer>
+          <key>Patterns</key>
+          <array>
+            <string>com.taobao.taobao$</string>
+          </array>
+          <key>Category</key>
+          <string>Taobao</string>
+          <key>Name</key>
+          <string>手机淘宝(安卓)</string>
+          <key>Filter</key>
+          <string>应用>电子商务</string>
+        </dict>
+      </array>
+    </dict>
+
+    <dict>
+      <key>Module</key>
       <string>android_skype</string>
       <key>Runners</key>
       <array>

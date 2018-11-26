@@ -1,9 +1,7 @@
 ﻿# coding=utf-8
 __author__ = 'YangLiyuan'
-
-import traceback
+from PA_runtime import *
 import hashlib
-import re
 
 import clr
 try:
@@ -12,7 +10,7 @@ try:
 except:
     pass
 del clr
-from model_mail import *
+import model_mail
 import bcp_mail
 
 
@@ -29,20 +27,39 @@ MAIL_DRAFTBOX = '2'    # 草稿箱
 
 VERSION_APP_VALUE = 1
 
+CASE_NAME = ds.ProjectState.ProjectDir.Name
 
-def execute(node, extract_deleted):
-    return analyze_neteasemail(node, extract_deleted, extract_source=False)
+def exc(e=''):
+    ''' Exception output '''
+    try:
+        py_name = os.path.basename(__file__)
+    except:
+        py_name = 'neteasemail'
+        TraceService.Trace(TraceLevel.Debug, '.dll have no `__file__` attribute')
+
+    msg = 'DEBUG {} case:<{}> :'.format(py_name, CASE_NAME)
+    if DEBUG:
+        TraceService.Trace(TraceLevel.Warning, 
+                           (msg+'{}{}').format(traceback.format_exc(), e))
+    else:
+        TraceService.Trace(TraceLevel.Debug, 
+                           (msg+'{}{}').format(traceback.format_exc(), e))
 
 def analyze_neteasemail(node, extract_deleted, extract_source):
     """
         ios 网易邮箱大师 (Documents/imail.db)
     """
+    res = []
     pr = ParserResults()
-    res = NeteaseMailParser(node, extract_deleted, extract_source).parse()
+    try:
+        res = NeteaseMailParser(node, extract_deleted, extract_source).parse()
+    except:
+        TraceService.Trace(TraceLevel.Debug, 
+                           'apple_neteasemail.py 解析新案例 "{}" 出错: {}'.format(CASE_NAME, traceback.format_exc()))
     if res:
         pr.Models.AddRange(res)
         pr.Build('网易邮箱大师')
-        return pr
+    return pr
 
 class NeteaseMailParser(object):
 
@@ -50,7 +67,7 @@ class NeteaseMailParser(object):
         self.root = node 
         self.extract_deleted = extract_deleted
         self.extract_source  = extract_source
-        self.mm = MM()        
+        self.mm = model_mail.MM()        
         self.cachepath = ds.OpenCachePath("NeteaseMasterMail")
 
         hash_str = hashlib.md5(node.AbsolutePath).hexdigest()
@@ -80,8 +97,8 @@ class NeteaseMailParser(object):
             self.parse_attachment("Documents/imail.db", 'mailAttachment')
 
             if not canceller.IsCancellationRequested:
-                self.mm.db_insert_table_version(VERSION_KEY_DB, VERSION_VALUE_DB)
-                self.mm.db_insert_table_version(VERSION_KEY_APP, VERSION_APP_VALUE)
+                self.mm.db_insert_table_version(model_mail.VERSION_KEY_DB, model_mail.VERSION_VALUE_DB)
+                self.mm.db_insert_table_version(model_mail.VERSION_KEY_APP, VERSION_APP_VALUE)
                 self.mm.db_commit()
                 
             self.mm.db_close()
@@ -89,8 +106,8 @@ class NeteaseMailParser(object):
         tmp_dir = ds.OpenCachePath('tmp')
         save_cache_path(bcp_mail.MAIL_TOOL_TYPE_OTHER, self.cache_db, tmp_dir)
 
-        models = Generate(self.cache_db).get_models()
-        return models
+        generate = model_mail.Generate(self.cache_db)
+        return generate.get_models()
 
     def pre_parse_mail_box(self, db_path, table_name):
         ''' imail.db - mailBox
@@ -113,7 +130,7 @@ class NeteaseMailParser(object):
         '''       
         if not self._read_db(db_path):
             return 
-        for rec in self._read_table(table_name):
+        for rec in self._read_table(table_name, read_delete=False):
             self.mail_folder[rec['mailBoxId'].Value] = rec['name'].Value
 
     def parse_account(self, db_path, table_name):
@@ -133,7 +150,7 @@ class NeteaseMailParser(object):
                 return
             if self._is_empty(rec, 'accountId', 'email') or not self._is_email_format(rec['email'].Value):
                 continue
-            account = Account()
+            account = model_mail.Account()
             account.account_id    = rec['accountId'].Value
             account.account_user  = rec['email'].Value
             account.account_email = rec['email'].Value
@@ -170,7 +187,7 @@ class NeteaseMailParser(object):
                 return
             if self._is_empty(rec, 'aid', 'email') or not self._is_email_format(rec['email'].Value):
                 continue
-            contact = Contact()
+            contact = model_mail.Contact()
             contact.contact_id       = rec['rowid'].Value
             contact.owner_account_id = rec['aid'].Value
             contact.contact_user     = rec['name'].Value
@@ -233,9 +250,15 @@ class NeteaseMailParser(object):
         for rec in self._read_table(mailAbstract):
             if canceller.IsCancellationRequested:
                 return
-            if self._is_empty(rec, 'subject', 'mailFrom', 'mailTos'):
+            if self._is_empty(rec, 'subject', 'mailFrom', 'mailTos', 'sentDate', 'localId'):
                 continue
-            mail = Mail()
+            # 删除的数据有可能是重复的, 根据 'sentDate' 判断
+            if rec['localId'].Value == 0:
+                if self._is_duplicate(rec, 'sentDate'):
+                    continue
+            else:
+                self._PK_LIST.append(rec['sentDate'].Value)
+            mail = model_mail.Mail()
             mail.mail_id          = self._convert_primary_key(rec['localId'].Value)
             mail.owner_account_id = rec['accountRawId'].Value
             mail_from             = self._convert_email_format(rec['mailFrom'].Value)
@@ -315,16 +338,12 @@ class NeteaseMailParser(object):
         '''       
         if not self._read_db(db_path):
             return 
-
-        ATTACH_LIST = []
         for rec in self._read_table(table_name):
             if canceller.IsCancellationRequested:
                 return
-            if self._is_empty(rec, 'name', 'mailId', 'attachmentId') or rec['attachmentId'].Value in ATTACH_LIST:
+            if self._is_empty(rec, 'name', 'mailId', 'attachmentId') or self._is_duplicate(rec, 'attachmentId'):
                 continue
-            ATTACH_LIST.append(rec['attachmentId'].Value)
-
-            attach = Attachment()
+            attach = model_mail.Attachment()
             attach.attachment_id            = rec['attachmentId'].Value
             # attach.owner_account_id         = rec['mailId'].Value
             attach.mail_id                  = rec['mailId'].Value
@@ -344,31 +363,11 @@ class NeteaseMailParser(object):
         except:
             exc()
 
-    def _read_db(self, db_path):
-        """ 读取手机数据库
-
-        :type db_path: str
-        :rtype: bool                              
-        """
-        node = self.root.GetByPath(db_path)
-        self.cur_db = SQLiteParser.Database.FromNode(node, canceller)
-        if self.cur_db is None:
-            return False
-        self.cur_db_source = node.AbsolutePath
-        return True
-
-    def _read_table(self, table_name):
-        """ 读取手机数据库 - 表
-
-        :type table_name: str
-        :rtype: db.ReadTableRecords()                                       
-        """
-        try:
-            tb = SQLiteParser.TableSignature(table_name)  
-            return self.cur_db.ReadTableRecords(tb, self.extract_deleted, True)
-        except:
-            exc()        
-            return []
+    def _convert_primary_key(self, mailId):
+        if mailId == 0:
+            self.neg_primary_key -= 1
+            return self.neg_primary_key
+        return mailId
 
     @staticmethod
     def _convert_email_format(name_email):
@@ -397,6 +396,56 @@ class NeteaseMailParser(object):
         except:
             return ''
 
+    def _read_db(self, db_path):
+        """ 读取手机数据库
+
+        :type db_path: str
+        :rtype: bool                              
+        """
+        node = self.root.GetByPath(db_path)
+        self.cur_db = SQLiteParser.Database.FromNode(node, canceller)
+        if self.cur_db is None:
+            return False
+        self.cur_db_source = node.AbsolutePath
+        return True
+
+    def _read_table(self, table_name, read_delete=None):
+        """ 读取手机数据库 - 表
+
+        :type table_name: str
+        :type read_delete: bool
+        :rtype: db.ReadTableRecords()                                       
+        """
+        # 每次读表清空并初始化 self._PK_LIST
+        self._PK_LIST = []
+        if read_delete is None:
+            read_delete = self.extract_deleted
+        try:
+            tb = SQLiteParser.TableSignature(table_name)  
+            return self.cur_db.ReadTableRecords(tb, read_delete, True)
+        except:
+            exc()        
+            return []
+
+    def _is_duplicate(self, rec, pk_name):
+        ''' filter duplicate record
+        
+        Args:
+            rec (record): 
+            pk_name (str): 
+        Returns:
+            bool: rec[pk_name].Value in self._PK_LIST
+        '''
+        try:
+            pk_value = rec[pk_name].Value
+            if IsDBNull(pk_value) or pk_value in self._PK_LIST:
+                return True
+            self._PK_LIST.append(pk_value)
+            return False
+        except:
+            exc()
+            return True      
+
     @staticmethod
     def _is_email_format(*args):
         """ 匹配邮箱地址 
@@ -419,13 +468,6 @@ class NeteaseMailParser(object):
             exc()
             return False
 
-    def _convert_primary_key(self, mailId):
-        if mailId == 0:
-            self.neg_primary_key -= 1
-            return self.neg_primary_key
-        return mailId
-
-
     @staticmethod
     def _is_empty(rec, *args):
         ''' 过滤 DBNull 空数据, 有一空值就跳过
@@ -434,13 +476,12 @@ class NeteaseMailParser(object):
         :type *args: str
         :rtype: bool
         '''
-        for i in args:
-            if IsDBNull(rec[i].Value) or rec[i].Value in ('', ' ', None, [], {}):
-                return True
-        return False
+        try:
+            for i in args:
+                if IsDBNull(rec[i].Value) or rec[i].Value in ('', ' ', None, [], {}):
+                    return True
+            return False
+        except:
+            exc()
+            return True
 
-def exc():
-    if DEBUG:
-        traceback.print_exc()
-    else:
-        pass       

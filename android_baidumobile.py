@@ -26,12 +26,30 @@ VERSION_APP_VALUE = 1
 DEBUG = True
 DEBUG = False
 
+CASE_NAME = ds.ProjectState.ProjectDir.Name
 
-def exc():
+def exc(e=''):
+    ''' Exception output '''
+    try:
+        py_name = os.path.basename(__file__)
+    except:
+        py_name = 'line'
+        TraceService.Trace(TraceLevel.Debug, '.dll have no `__file__` attribute')
+
+    msg = 'DEBUG {} case:<{}> :'.format(py_name, CASE_NAME)
     if DEBUG:
-        traceback.print_exc()
+        TraceService.Trace(TraceLevel.Warning, 
+                           (msg+'{}{}').format(traceback.format_exc(), e))
     else:
-        pass       
+        TraceService.Trace(TraceLevel.Debug, 
+                           (msg+'{}{}').format(traceback.format_exc(), e))
+
+def test_p(*e):
+    ''' Highlight print in test environments vs console '''
+    if DEBUG:
+        TraceService.Trace(TraceLevel.Warning, "{}".format(e))
+    else:
+        pass
 
 def analyze_baidumobile(node, extract_deleted, extract_source):
     """
@@ -39,11 +57,15 @@ def analyze_baidumobile(node, extract_deleted, extract_source):
     """
     pr = ParserResults()
     cache_db_name = "BaiduSearchbox"
-    res = BaiduMobileParser(node, extract_deleted, extract_source, cache_db_name).parse()
+    try:
+        res = BaiduMobileParser(node, extract_deleted, extract_source, cache_db_name).parse()
+    except:
+        TraceService.Trace(TraceLevel.Debug, 
+                           'analyze_baidumobile 解析新案例 "{}" 出错: {}'.format(CASE_NAME, traceback.format_exc()))
     if res:
         pr.Models.AddRange(res)
         pr.Build('手机百度')
-        return pr
+    return pr
 
 def analyze_baidumobile_lite(node, extract_deleted, extract_source):
     """
@@ -51,11 +73,15 @@ def analyze_baidumobile_lite(node, extract_deleted, extract_source):
     """
     pr = ParserResults()
     cache_db_name = "BaiduSearchbox_Lite"
-    res = BaiduMobileParser(node, extract_deleted, extract_source, cache_db_name).parse()
+    try:
+        res = BaiduMobileParser(node, extract_deleted, extract_source, cache_db_name).parse()
+    except:
+        TraceService.Trace(TraceLevel.Debug, 
+                           'analyze_baidumobile_lite 解析新案例 "{}" 出错: {}'.format(CASE_NAME, traceback.format_exc()))
     if res:
         pr.Models.AddRange(res)
         pr.Build('手机百度极速版')
-        return pr
+    return pr
 
 class BaiduMobileParser(object):
 
@@ -456,7 +482,7 @@ class BaiduMobileParser(object):
             _path = None
             if len(file_name) > 0:
                 try:
-                    node = fs.Search(r'com\.baidu\.searchbox.*?{}$'.format(re.escape(file_name)))
+                    node = fs.Search(r'com\.baidu\.searchbox.*?/{}$'.format(re.escape(file_name)))
                     for i in node:
                         _path = i.AbsolutePath
                 except:
