@@ -23,16 +23,13 @@ SMS_TYPE_QUEUED = 6
 
 VERSION_APP_VALUE = 1
 
-def execute(node, extract_deleted):
-    """ main """
-    return analyze_sms(node, extract_deleted, extract_source=False)
 
 def analyze_sms(node, extract_deleted, extract_source):
     """
         node: sms/sms.db$
         android 小米 短信 (user_de/0/com.android.providers.telephony/databases$ - mmssms.db)
     """
-    # print node.AbsolutePath
+    # test_p node.AbsolutePath
     node_path = node.AbsolutePath
 
     res = []
@@ -45,10 +42,9 @@ def analyze_sms(node, extract_deleted, extract_source):
     if DEBUG:
         if res:
             for sms in res:
-                # print 'sms.Body.Value:', sms.Body.Value
-                pass
+                test_p('sms.Body.Value:', sms.Body.Value)
         else:
-            print('res is null')
+            test_p('sms res is null')
 
     pr = ParserResults()
     if res:
@@ -156,20 +152,20 @@ class SMSParser(object):
 
         # 关联 通讯录  CALLS/F2BB91E8E7436EAA944C378D44066A79.db
         BASE_DIR   = os.path.dirname(self.cachepath)
-        # print(BASE_DIR)
+        # test_p(BASE_DIR)
         calls_path = os.path.join(BASE_DIR, 'Contact')
-        # print(calls_path)
+        # test_p(calls_path)
 
         try:
             if not os.listdir(calls_path):
-                print('####### android_sms.py: Contact 目录下没有 db')
+                exc('####### android_sms.py: Contact 目录下没有 db')
                 return 
-            # print('calls_path', calls_path)
+            # test_p('calls_path', calls_path)
             for f  in os.listdir(calls_path):
                 if f.endswith('.db'):
                     calls_db_path = os.path.join(calls_path, f)
-        except Exception as e:
-            print('####### android_sms.py: db 不存在')
+        except:
+            exc('####### android_sms.py: db 不存在')
             # exc()
             return 
 
@@ -180,9 +176,9 @@ class SMSParser(object):
             for row in cursor:
                 contacts[row[8]] = row[9]
             self.contacts = contacts
-            # print(contacts)
-        except Exception as e:
-            print('##### android_sms.py #######: 关联通讯录失败')
+            # test_p(contacts)
+        except:
+            exc('##### android_sms.py #######: 关联通讯录失败')
             # exc()
             # pass
         finally:
@@ -238,7 +234,7 @@ class SMSParser(object):
                 sms.sim_id  = rec['sim_id'].Value
                 sms.deleted = rec['deleted'].Value
                 sms.smsc    = rec['service_center'].Value
-            except Exception as e:
+            except:
                 pass    
             sms._id         = rec['_id'].Value
             sms.read_status = rec['read'].Value
@@ -248,7 +244,7 @@ class SMSParser(object):
             sms.body        = rec['body'].Value
             sms.send_time   = rec['date_sent'].Value
             sms.deliverd    = rec['date'].Value
-            # print('sms type', sms.type)
+            # test_p('sms type', sms.type)
             sms.is_sender   = 1 if sms.type in (SMS_TYPE_SENT, SMS_TYPE_OUTBOX, SMS_TYPE_DRAFT) else 0
             if sms.is_sender == 1:  # 发
                 sms.sender_phonenumber = self.sim_phonenumber.get(sms.sim_id, None) if sms.sim_id else None
@@ -328,16 +324,20 @@ class SMSParser(object):
 
     @staticmethod
     def _is_empty(rec, *args):
-        ''' 过滤 DBNull, 空数据 
+        ''' 过滤 DBNull 空数据, 有一空值就跳过
         
         :type rec:   rec
         :type *args: str
         :rtype: bool
         '''
-        for i in args:
-            if IsDBNull(rec[i].Value) or rec[i].Value in ('', ' ', None, [], {}):
-                return True
-        return False
+        try:
+            for i in args:
+                if IsDBNull(rec[i].Value) or rec[i].Value in ('', ' ', None, [], {}):
+                    return True
+            return False
+        except:
+            exc()
+            return True  
 
     @staticmethod
     def _is_num(address):
@@ -349,14 +349,14 @@ class SMSParser(object):
             return False
 
 class SMSParser_no_tar(SMSParser):
-    ''' 处理逻辑提取, 没有 tar 包的案例 sms/sms.db$ '''
+    ''' 处理逻辑提取案例, 非 tar 包, sms/sms.db$ '''
 
     def __init__(self, node, extract_deleted, extract_source):
         super(SMSParser_no_tar, self).__init__(node, extract_deleted, extract_source)
     
     def parse(self):
         if DEBUG:
-            print('短信: 处理逻辑提取, sms node path:', self.root.AbsolutePath)
+            test_p('短信: 处理逻辑提取, sms node path:', self.root.AbsolutePath)
         if DEBUG or self.m_sms.need_parse(self.cache_db, VERSION_APP_VALUE):
             node = self.root
             self.db = SQLiteParser.Database.FromNode(node, canceller)

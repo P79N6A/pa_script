@@ -28,20 +28,39 @@ VERSION_APP_VALUE = 1
 DEBUG = True
 DEBUG = False
 
-def execute(node, extract_deleted):
-    """ main """
-    return analyze_neteasemail(node, extract_deleted, extract_source=False)
+CASE_NAME = ds.ProjectState.ProjectDir.Name
 
+def exc(e=''):
+    ''' Exception output '''
+    try:
+        py_name = os.path.basename(__file__)
+    except:
+        py_name = 'neteasemail'
+        TraceService.Trace(TraceLevel.Debug, '.dll have no `__file__` attribute')
+
+    msg = 'DEBUG {} case:<{}> :'.format(py_name, CASE_NAME)
+    if DEBUG:
+        TraceService.Trace(TraceLevel.Warning, 
+                           (msg+'{}{}').format(traceback.format_exc(), e))
+    else:
+        TraceService.Trace(TraceLevel.Debug, 
+                           (msg+'{}{}').format(traceback.format_exc(), e))
+        
 def analyze_neteasemail(node, extract_deleted, extract_source):
     """
         android 网易邮箱大师 (databases/mmail)
     """
+    res = []
     pr = ParserResults()
-    res = NeteaseMailParser(node, extract_deleted, extract_source).parse()
+    try:
+        res = NeteaseMailParser(node, extract_deleted, extract_source).parse()
+    except:
+        TraceService.Trace(TraceLevel.Debug, 
+                           'analyze_neteasemail 解析新案例 "{}" 出错: {}'.format(CASE_NAME, traceback.format_exc()))
     if res:
         pr.Models.AddRange(res)
         pr.Build('网易邮箱大师')
-        return pr
+    return pr
 
 
 class NeteaseMailParser(object):
@@ -96,7 +115,6 @@ class NeteaseMailParser(object):
             self.parse_contact('Contact_')
             self.parse_mail('Mail_')
             self.parse_attachment('Part_')
-
 
     def pre_parse_mail_box(self, table_name):
         """ mmail - Mailbox 
@@ -188,7 +206,7 @@ class NeteaseMailParser(object):
         for rec in self._read_table(table_name):
             if canceller.IsCancellationRequested:
                 return
-            if self._is_empty(rec, 'id', 'email', 'name'):
+            if self._is_empty(rec, 'id', 'email', 'name') or self._is_duplicate(rec, 'id'):
                 continue
             contact = Contact()
             contact.contact_id       = rec['id'].Value
@@ -249,6 +267,12 @@ class NeteaseMailParser(object):
                 return            
             if self._is_empty(rec, 'subject', 'mailboxKey') or not self._convert_email_format(rec['mailFrom'].Value):
                 continue
+            if rec['localId'].Value == 0:
+                if self._is_duplicate(rec, 'sendDate'):
+                    continue
+            else:
+                self._PK_LIST.append(rec['sendDate'].Value)
+
             mail = Mail()
             mail.mail_id          = self.convert_primary_key(rec['localId'].Value)
             mail.mail_group       = self.mail_folder.get(rec['mailboxKey'].Value, None)
@@ -300,7 +324,7 @@ class NeteaseMailParser(object):
         for rec in self._read_table(table_name):
             if canceller.IsCancellationRequested:
                 return            
-            if self._is_empty(rec, 'filename', 'messageId'):
+            if self._is_empty(rec, 'filename', 'messageId') or self._is_duplicate(rec, 'id'):
                 continue
             attach = Attachment()
             attach.attachment_id            = rec['id'].Value
@@ -391,6 +415,7 @@ class NeteaseMailParser(object):
         """
         if extract_deleted is None:
             extract_deleted = self.extract_deleted
+        self._PK_LIST = []
         try:
             tb = SQLiteParser.TableSignature(table_name)  
             return self.cur_db.ReadTableRecords(tb, extract_deleted, True)
@@ -398,19 +423,41 @@ class NeteaseMailParser(object):
             exc()          
             return []
 
+    def _is_duplicate(self, rec, pk_name):
+        ''' filter duplicate record
+        
+        Args:
+            rec (record): 
+            pk_name (str): 
+        Returns:
+            bool: rec[pk_name].Value in self._PK_LIST
+        '''
+        try:
+            pk_value = rec[pk_name].Value
+            if IsDBNull(pk_value) or pk_value in self._PK_LIST:
+                return True
+            self._PK_LIST.append(pk_value)
+            return False
+        except:
+            exc()
+            return True        
 
     @staticmethod
     def _is_empty(rec, *args):
-        ''' 过滤 DBNull, 空数据 
+        ''' 过滤 DBNull 空数据, 有一空值就跳过
         
         :type rec:   rec
         :type *args: str
-        :rtype:      bool
+        :rtype: bool
         '''
-        for i in args:
-            if IsDBNull(rec[i].Value) or rec[i].Value in ('', ' ', None, [], {}):
-                return True
-        return False
+        try:
+            for i in args:
+                if IsDBNull(rec[i].Value) or rec[i].Value in ('', ' ', None, [], {}):
+                    return True
+            return False
+        except:
+            exc()
+            return True     
 
     @staticmethod
     def _is_email_format(rec, key):
@@ -436,9 +483,4 @@ class NeteaseMailParser(object):
             self.neg_primary_key -= 1
             return self.neg_primary_key
         return mailId
-
-def exc():
-    if DEBUG:
-        traceback.print_exc()
-    else:
-        pass            
+ 

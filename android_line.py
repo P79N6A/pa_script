@@ -1,9 +1,7 @@
 ﻿# coding=utf-8
 __author__ = 'YangLiyuan'
 
-import traceback
 import hashlib
-import re
 
 from PA_runtime import *
 
@@ -19,6 +17,12 @@ import bcp_im
 
 DEBUG = True
 DEBUG = False
+
+CASE_NAME = ds.ProjectState.ProjectDir.Name
+
+UNKNOWN_USER_ID       = -1
+UNKNOWN_USER_NICKNAME = '未知用户'
+UNKNOWN_USER_USERNAME = '未知用户'
 
 VERSION_APP_VALUE = 1
 
@@ -36,11 +40,21 @@ def print_run_time(func):
 
 def exc(e=''):
     ''' Exception output '''
+    try:
+        py_name = os.path.basename(__file__)
+    except:
+        py_name = 'line'
+        TraceService.Trace(TraceLevel.Debug, '.dll have no `__file__` attribute')
+
+    msg = 'DEBUG {} case:<{}> :'.format(py_name, CASE_NAME)
     if DEBUG:
-        TraceService.Trace(TraceLevel.Warning, "android_line.py DEBUG: {}".format(traceback.format_exc()))
+        TraceService.Trace(TraceLevel.Warning, 
+                           (msg+'{}{}').format(traceback.format_exc(), e))
     else:
-        TraceService.Trace(TraceLevel.Debug, "android_line.py DEBUG: {}".format(traceback.format_exc()))
-def exc_p(*e):
+        TraceService.Trace(TraceLevel.Debug, 
+                           (msg+'{}{}').format(traceback.format_exc(), e))
+
+def test_p(*e):
     ''' Highlight print in vs '''
     if DEBUG:
         TraceService.Trace(TraceLevel.Warning, "{}".format(e))
@@ -48,23 +62,22 @@ def exc_p(*e):
         pass     
 
 def analyze_line(node, extract_deleted, extract_source):
-    """ android LINE 
+    ''' android LINE 
 
         jp.naver.line.android
-    """
-    exc_p('android_line.py is running ...')
+    '''
+    test_p('android_line.py is running ...')
     pr = ParserResults()
     res = []
     try:
         res = LineParser(node, extract_deleted, extract_source).parse()
     except:
-        case_name = node.FileSystem.Name + ' <' + node.FileSystem.Id.ToString() + '>'
-        TraceService.Trace(TraceLevel.Error, 
-                           'android_line.py 解析新案例"{}"出错: {}'.format(case_name, traceback.format_exc()))
+        TraceService.Trace(TraceLevel.Debug, 
+                           'android_line.py 解析新案例 "{}" 出错: {}'.format(CASE_NAME, traceback.format_exc()))
     if res:
         pr.Models.AddRange(res)
         pr.Build('LINE')
-        exc_p('android_line.py is finished !')
+        test_p('android_line.py is finished !')
     return pr
 
 class LineParser(object):
@@ -82,13 +95,6 @@ class LineParser(object):
         self.cache_db = self.cachepath + '\\a_line_{}.db'.format(hash_str)
 
     def parse(self):
-        ''' account
-            contact
-            mail
-            attachment
-            search
-            vsersion
-        ''' 
         if DEBUG or self.im.need_parse(self.cache_db, VERSION_APP_VALUE):
             self.im.db_create(self.cache_db) 
             self.parse_main()
@@ -104,20 +110,18 @@ class LineParser(object):
         return models
 
     def parse_main(self):
-        ''' 
-            nvar_line
-        '''
+        ''' nvar_line '''
         if self._read_db('/naver_line'):
-            self.account_list = self.parse_Account()
-            for account_id in self.account_list:
-                self.cur_account_id = account_id
-                if self._read_db('/naver_line'):
-                    FRIEND_CHATROOMS, CHATROOM_MEMBER_COUNT = self.preparse_group_member('membership')
-                    CHAT_DICT        = self.parse_chat('chat')
-                    CHATROOM_ID_NAME = self.parse_Chatroom('groups', CHATROOM_MEMBER_COUNT)
-                    FRIEND_ID_NAME   = self.parse_Friend('contacts', FRIEND_CHATROOMS)
-                    self.parse_Message('chat_history', CHAT_DICT, CHATROOM_ID_NAME, FRIEND_ID_NAME)
-                self.parse_Search('line_general_key_value', 'key_value_text')
+            self.cur_account    = self.parse_Account()
+            self.cur_account_id = self.cur_account.account_id
+
+            if self._read_db('/naver_line'):
+                FRIEND_CHATROOMS, CHATROOM_MEMBER_COUNT = self.preparse_group_member('membership')
+                CHAT_DICT        = self.parse_chat('chat')
+                CHATROOM_ID_NAME = self.parse_Chatroom('groups', CHATROOM_MEMBER_COUNT)
+                FRIEND_ID_NAME   = self.parse_Friend('contacts', FRIEND_CHATROOMS)
+                self.parse_Message('chat_history', CHAT_DICT, CHATROOM_ID_NAME, FRIEND_ID_NAME)
+            self.parse_Search('line_general_key_value', 'key_value_text')
 
     def parse_Search(self, db_name, table_name):
         ''' line_general_key_value', 'key_value_text
@@ -151,8 +155,9 @@ class LineParser(object):
                 1 无法和自己聊天
                 2 status=3 为已发送 (if server_id != null)
         '''
-        account_list = []
         friend_chat_ids = []
+        account_id      = None
+        cur_account     = None
 
         for rec in self._read_table('chat_history'):
             if canceller.IsCancellationRequested:
@@ -176,22 +181,35 @@ class LineParser(object):
             if canceller.IsCancellationRequested:
                 return                  
             if rec['m_id'].Value == account_id:
-
                 account = model_im.Account()
                 account.account_id = account_id
                 account.nickname   = rec['server_name'].Value
-                account.username   = rec['addressbook_name'].Value if rec['addressbook_name'].Value else rec['server_name'].Value 
-                account.signature  = rec['status_msg'].Value         
-                account.photo = self._get_profile_img(rec['m_id'].Value)                
-                account.deleted = 1 if rec.IsDeleted else 0
-                account.source  = self.cur_db_source
-                account_list.append(account_id)
+                account.username   = rec['addressbook_name'].Value if rec['addressbook_name'].Value else rec['server_name'].Value
+                account.signature  = rec['status_msg'].Value
+                account.photo      = self._get_profile_img(rec['m_id'].Value)
+                account.deleted    = 1 if rec.IsDeleted else 0
+                account.source     = self.cur_db_source
                 try:
                     self.im.db_insert_table_account(account)
                 except:
                     exc()
+                cur_account = account
+                break
+        # 没有用户数据, 使用默认用户 UNKNOWN_USER
+        if cur_account is None:
+            account = model_im.Account()
+            account.account_id = account_id if account_id else UNKNOWN_USER_ID
+            account.nickname   = UNKNOWN_USER_NICKNAME
+            account.username   = UNKNOWN_USER_USERNAME
+            account.source     = self.cur_db_source
+            try:
+                self.im.db_insert_table_account(account)
+            except:
+                exc()        
+            cur_account = account
+              
         self.im.db_commit()    
-        return account_list
+        return cur_account
 
     def preparse_group_member(self, table_name):
         ''' 'naver_line' membership 关联群与群成员
@@ -264,8 +282,14 @@ class LineParser(object):
         for rec in self._read_table(table_name):
             if canceller.IsCancellationRequested:
                 return
-            if self._is_empty(rec, 'id', 'name'):
-                continue        
+            if self._is_empty(rec, 'id', 'name') :
+                continue 
+            try:
+                pk_value = rec['id'].Value
+                if pk_value[0] != 'c' or self._is_duplicate(rec, 'id'):
+                    continue
+            except:
+                continue
             chatroom = model_im.Chatroom()
             chatroom.account_id   = self.cur_account_id
             chatroom.chatroom_id  = rec['id'].Value
@@ -296,7 +320,7 @@ class LineParser(object):
                 owner_mid	                TEXT
                 last_from_mid	                TEXT
                 last_message	                TEXT
-                last_created_time	                TEXT
+                last_created_time	            TEXT
                 message_count	                INTEGER
                 read_message_count	         INTEGER
                 latest_mentioned_position	 INTEGER
@@ -311,24 +335,25 @@ class LineParser(object):
                 mid_p	                TEXT
                 is_archived	                INTEGER
                 read_up	                TEXT
-                is_groupcalling	                INTEGER
-                latest_announcement_seq	        INTEGER
-                announcement_view_status	    INTEGER
-                last_message_meta_data	        TEXT
+                is_groupcalling	            INTEGER
+                latest_announcement_seq	    INTEGER
+                announcement_view_status	INTEGER
+                last_message_meta_data	    TEXT
         '''
         CHAT_DICT = {}
         for rec in self._read_table(table_name):
             if canceller.IsCancellationRequested:
                 return
-            if self._is_empty(rec, 'chat_id', ):
+            if self._is_empty(rec, 'chat_id'):
                 continue      
             chat_id = rec['chat_id'].Value  
-            if chat_id.startswith('u') and rec['type'].Value==1: #  好友聊天
+            if chat_id.startswith('u') and rec['type'].Value == 1: #  好友聊天
                 msg_type = model_im.CHAT_TYPE_FRIEND
-            elif chat_id.startswith('c') and rec['type'].Value==3: #  群聊天
+            elif chat_id.startswith('c') and rec['type'].Value == 3: #  群聊天
                 msg_type = model_im.CHAT_TYPE_GROUP
+            else:
+                continue
             owner_id = rec['owner_mid'].Value
-
             CHAT_DICT[chat_id] = {
                 'msg_type': msg_type,
                 'owner_id': owner_id,
@@ -367,7 +392,7 @@ class LineParser(object):
         for rec in self._read_table(table_name):
             if canceller.IsCancellationRequested:
                 return
-            if self._is_empty(rec, 'chat_id', 'created_time'):
+            if self._is_empty(rec, 'chat_id', 'created_time') or self._is_duplicate(rec, 'id'):
                 continue
             message = model_im.Message()
             message.account_id  = self.cur_account_id
@@ -472,6 +497,12 @@ class LineParser(object):
                 return
             if self._is_empty(rec, 'm_id', 'name'):
                 continue
+            try:
+                pk_value = rec['m_id'].Value
+                if len(pk_value) != 33 or pk_value[0] != 'u' or self._is_duplicate(rec, 'm_id'):
+                    continue
+            except:
+                continue
             friend = model_im.Friend()
             friend.account_id = self.cur_account_id
             friend.friend_id  = rec['m_id'].Value
@@ -543,31 +574,6 @@ class LineParser(object):
         except:
             exc()
 
-    def _read_db(self, db_path):
-        """ 读取手机数据库
-
-        :type db_path: str
-        :rtype: bool                              
-        """
-        db_node = self.root.GetByPath(db_path)
-        self.cur_db = SQLiteParser.Database.FromNode(db_node, canceller)
-        if self.cur_db is None:
-            return False
-        self.cur_db_source = db_node.AbsolutePath
-        return True
-
-    def _read_table(self, table_name):
-        """ 读取手机数据库 - 表
-
-        :type table_name: str
-        :rtype: db.ReadTableRecords()                                       
-        """
-        try:
-            tb = SQLiteParser.TableSignature(table_name)  
-            return self.cur_db.ReadTableRecords(tb, self.extract_deleted, True)
-        except:
-            exc()         
-            return []
 
     def _get_msg_media_path(self, msg_PK, msg_CHAT_ID):
         ''' 获取聊天 media_path
@@ -614,9 +620,9 @@ class LineParser(object):
                         /本人动态原图
         '''
         img_pattern =  '/jp.naver.line.android/storage/p/' + file_name
-        #exc_p('friend pic url pattern ', pattern)
+        #test_p('friend pic url pattern ', pattern)
         res = self._search_file(img_pattern +'$')
-        # exc_p('_get_profile_img', res)
+        # test_p('_get_profile_img', res)
         return res if res else self._search_file(img_pattern + '.thumb')
 
     def _search_file(self, raw_file_path):
@@ -639,24 +645,12 @@ class LineParser(object):
         node_list = list(fs.Search(file_path))
         try:
             res_file_path = node_list[0].AbsolutePath
-            exc_p('!!!!!!!!! find file_path:', res_file_path)
+            test_p('!!!!!!!!! find file_path:', res_file_path)
             return res_file_path
         except:
-            # exc_p('not found')
+            # test_p('not found')
             return 
 
-    @staticmethod
-    def _is_empty(rec, *args):
-        ''' 过滤 DBNull 空数据, 有一空值就跳过
-        
-        :type rec:   rec
-        :type *args: str
-        :rtype: bool
-        '''
-        for i in args:
-            if IsDBNull(rec[i].Value) or not rec[i].Value:
-                return True
-        return False
         
     @staticmethod
     def _convert_chat_type(ZTYPE):
@@ -672,7 +666,7 @@ class LineParser(object):
         try:
             return type_map[ZTYPE]
         except:
-            exc_p('new CHAT_TYPE {}!!!!!!!!!!!!!!!!!'.format(ZTYPE))
+            test_p('new CHAT_TYPE {}!!!!!!!!!!!!!!!!!'.format(ZTYPE))
 
     @staticmethod
     def _convert_msg_type(msg_type, msg_attachement_type):
@@ -762,7 +756,7 @@ class LineParser(object):
         try:
             return type_map[contact_type]
         except:
-            exc_p('new contact_type {}!!!!!!!!!!!!!!!!!'.format(contact_type))
+            test_p('new contact_type {}!!!!!!!!!!!!!!!!!'.format(contact_type))
 
     @staticmethod
     def _convert_send_status(status):
@@ -792,7 +786,73 @@ class LineParser(object):
         try:
             return type_map[status]
         except:
-            exc_p('new ZCONTENTTYPE {}!!!!!!!!!!!!!!!!!'.format(status))
+            test_p('new status {}!!!!!!!!!!!!!!!!!'.format(status))
+
+
+    def _read_db(self, db_path):
+        ''' 读取手机数据库
+
+        :type db_path: str
+        :rtype: bool                              
+        '''
+        db_node = self.root.GetByPath(db_path)
+        self.cur_db = SQLiteParser.Database.FromNode(db_node, canceller)
+        if self.cur_db is None:
+            return False
+        self.cur_db_source = db_node.AbsolutePath
+        return True
+
+    def _read_table(self, table_name):
+        ''' 读取手机数据库 - 表
+
+        :type table_name: str
+        :rtype: db.ReadTableRecords()                                       
+        '''
+        self._PK_LIST = []
+        try:
+            tb = SQLiteParser.TableSignature(table_name)  
+            return self.cur_db.ReadTableRecords(tb, self.extract_deleted, True)
+        except:
+            exc()
+            return []
+
+    def _is_duplicate(self, rec, pk_name):
+        ''' filter duplicate record
+        
+        Args:
+            rec (record): 
+            pk_name (str): 
+        Returns:
+            bool: rec[pk_name].Value in self._PK_LIST
+        '''
+        try:
+            pk_value = rec[pk_name].Value
+            if IsDBNull(pk_value) or pk_value in self._PK_LIST:
+                return True
+            self._PK_LIST.append(pk_value)
+            return False
+        except:
+            exc()
+            return True
+
+    @staticmethod
+    def _is_empty(rec, *args):
+        ''' 过滤 DBNull 空数据, 有一空值就跳过
+        
+        :type rec:   rec
+        :type *args: str
+        :rtype: bool
+        '''
+        try:
+            for i in args:
+
+                
+                if IsDBNull(rec[i].Value) or rec[i].Value in ('', ' ', None, [], {}):
+                    return True
+            return False
+        except:
+            exc()
+            return True     
 
     @staticmethod
     def _get_im_ts(timestamp):

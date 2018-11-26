@@ -3,36 +3,44 @@ __author__ = 'YangLiyuan'
 
 from PA_runtime import *
 import clr
-clr.AddReference('System.Core')
-clr.AddReference('System.Xml.Linq')
 clr.AddReference('System.Data.SQLite')
 del clr
 
-from System.IO import MemoryStream
-from System.Text import Encoding
-from System.Xml.Linq import *
-from System.Linq import Enumerable
-from System.Xml.XPath import Extensions as XPathExtensions
-from PA.InfraLib.Utils import *
 import System.Data.SQLite as SQLite
 
-import os
-import time
 import sqlite3
-import traceback
-import re
+
 import shutil
 import hashlib
-
 
 DEBUG = True
 DEBUG = False
 
-def exc():
+CASE_NAME = ds.ProjectState.ProjectDir.Name
+
+def exc(e=''):
+    ''' Exception output '''
+    try:
+        py_name = os.path.basename(__file__)
+    except:
+        py_name = 'sms'
+        TraceService.Trace(TraceLevel.Debug, '.dll have no `__file__` attribute')
+
+    msg = 'DEBUG {} case:<{}> :'.format(py_name, CASE_NAME)
     if DEBUG:
-        TraceService.Trace(TraceLevel.Error, "解析出错: 短信 {}".format(traceback.format_exc()))
+        TraceService.Trace(TraceLevel.Warning, 
+                           (msg+'{}{}').format(traceback.format_exc(), e))
     else:
-        pass    
+        TraceService.Trace(TraceLevel.Debug, 
+                           (msg+'{}{}').format(traceback.format_exc(), e))
+
+def test_p(*e):
+    ''' Highlight print in test environments vs console '''
+    if DEBUG:
+        TraceService.Trace(TraceLevel.Warning, "{}".format(e))
+    else:
+        pass
+
 
 SMS_TYPE_ALL    = 0
 SMS_TYPE_INBOX  = 1
