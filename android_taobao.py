@@ -34,7 +34,7 @@ from PA.Common.Utilities.Types import TimeStampFormats
 
 # CONST
 Taobao_VERSION = 1
-DEBUG = True
+DEBUG = False
 
 
 class ColHelper(object):
@@ -162,7 +162,6 @@ class Utils(object):
             shutil.copytree(old_path, new_path)
             return True
         except Exception as e:
-            print(e)
             return False
 
     @staticmethod
@@ -212,20 +211,22 @@ class Logger(object):
         self.func_name = None
 
     def error(self):
-        TraceService.Trace(TraceLevel.Error, "{module} error: {class_name} {func} ==> {log_info}".format(
-            module=self.module,
-            class_name=self.class_name,
-            func=self.func_name,
-            log_info=traceback.format_exc()
-        ))
+        if DEBUG:
+            TraceService.Trace(TraceLevel.Error, "{module} error: {class_name} {func} ==> {log_info}".format(
+                module=self.module,
+                class_name=self.class_name,
+                func=self.func_name,
+                log_info=traceback.format_exc()
+            ))
 
     def info(self, info):
-        TraceService.Trace(TraceLevel.Info, "{module} info: {class_name} {func} ==> {log_info}".format(
-            module=self.module,
-            class_name=self.class_name,
-            func=self.func_name,
-            log_info=info
-        ))
+        if DEBUG:
+            TraceService.Trace(TraceLevel.Info, "{module} info: {class_name} {func} ==> {log_info}".format(
+                module=self.module,
+                class_name=self.class_name,
+                func=self.func_name,
+                log_info=info
+            ))
 
 
 class TaobaoParser(object):
@@ -285,11 +286,10 @@ class TaobaoParser(object):
                     obj.type = model_im.MESSAGE_CONTENT_TYPE_ATTACHMENT
                 return True
         except Exception as e:
-            print (e)
+            pass
         return False
 
     def __copy_data_dir_files(self, data_dir):
-        print(data_dir)
         node = self.root.GetByPath(data_dir)
         if node is None:
             return False
