@@ -50,7 +50,8 @@ class TencentMap(object):
                 account.account_id = self.account_id
                 account.source = "腾讯地图"
             try:
-                self.tencentMap.db_insert_table_account(account)
+                if account.account_id or account.username or account.photo:
+                    self.tencentMap.db_insert_table_account(account)
             except Exception as e:
                 pass
             self.tencentMap.db_commit()
@@ -138,9 +139,10 @@ class TencentMap(object):
                     except Exception as e:
                         favorite_search.address = rs.get("content").get("addr")
                 try:
-                    self.tencentMap.db_insert_table_search(favorite_search)
+                    if favorite_search.keyword or favorite_search.create_time or favorite_search.pos_x or favorite_search.pos_y:
+                        self.tencentMap.db_insert_table_search(favorite_search)
                 except Exception as e:
-                    print(favorite_search)
+                    pass
         f.close()
         self.tencentMap.db_commit()
 
@@ -236,7 +238,8 @@ class TencentMap(object):
                 if endvalues["cityName"] != "$null":
                     route_address.city_name = endvalues.get("cityName").Value
             try:
-                self.tencentMap.db_insert_table_address(route_address)
+                if route_address.from_name or route_address.to_name or route_address.from_addr or route_address.to_addr or route_address.from_posX or route_address.from_posY or route_address.to_posX or route_address.to_posY:
+                    self.tencentMap.db_insert_table_address(route_address)
             except Exception as e:
                 print(e)
 
