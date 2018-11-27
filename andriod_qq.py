@@ -1,4 +1,4 @@
-# coding=utf-8
+#coding=utf-8
 import PA_runtime
 import clr
 import json
@@ -265,7 +265,7 @@ class Andriod_QQParser(object):
                         x = line[pos+len(name):len(line)-1]
                         nickname = unicode(x).decode('unicode-escape')
                         #nickname  = nickname.encode('utf-8')
-                        #print (nickname)
+                        print (nickname)
                         self.accinfo[acc_id].append(nickname)
                     postime = line.find(t)
                     if(postime != -1):
@@ -817,7 +817,8 @@ class Andriod_QQParser(object):
                 msg = Message()
                 msg.account_id = acc_id
                 msg.source = node.AbsolutePath
-                msg.content = base64.b64decode(SafeGetString(reader,0))
+                content = SafeGetString(reader,0)
+                msg.content = base64.b64decode(content).decode('utf-8')
                 talker_id = base64.b64decode(SafeGetString(reader,1))
                 msg.type = MESSAGE_CONTENT_TYPE_TEXT
                 if(talker_id.find('ZzZ1')!= -1):
@@ -849,7 +850,7 @@ class Andriod_QQParser(object):
                 msg = Message()
                 msg.account_id = acc_id
                 msg.source =  node.AbsolutePath
-                msg.content = base64.b64decode(rec['c1content'].Value)
+                msg.content = base64.b64decode(rec['c1content'].Value).decode("utf-8")
                 talker_id = base64.b64decode(rec['c4ext1'].Value)
                 msg.type = MESSAGE_CONTENT_TYPE_TEXT
                 if(talker_id.find('ZzZ1')!= -1):

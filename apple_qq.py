@@ -81,7 +81,7 @@ def SafeGetValue(reader,i):
         return None
 class QQParser(object):
     def __init__(self, app_root_dir, extract_deleted, extract_source):
-        self.root = app_root_dir
+        self.root = app_root_dir.Parent.Parent.Parent
         self.extract_source = extract_source
         self.extract_deleted = extract_deleted
         self.app_name = 'QQ'
@@ -589,9 +589,7 @@ class QQParser(object):
                         msg.type = MESSAGE_CONTENT_TYPE_TEXT										
                     elif(msgtype == 1):
                         msg.type = MESSAGE_CONTENT_TYPE_IMAGE
-                        msg.media_path = self.get_picture_attachment(acc_id,picUrl)	
-                        if(msg.media_path is not None):
-                            print (msg.media_path)
+                        msg.media_path = self.get_picture_attachment(acc_id,picUrl)	                        
                     elif(msgtype == 3):
                         msg.type = MESSAGE_CONTENT_TYPE_VOICE
                         msg.media_path = self.get_audio_attachment(acc_id,picUrl)						
@@ -1006,9 +1004,7 @@ class QQParser(object):
                         msg.type = MESSAGE_CONTENT_TYPE_TEXT										
                     elif(msgtype == 1):
                         msg.type = MESSAGE_CONTENT_TYPE_IMAGE
-                        msg.media_path = self.get_picture_attachment(acc_id,picUrl)	
-                        if(msg.media_path is not None):
-                            print(msg.media_path)
+                        msg.media_path = self.get_picture_attachment(acc_id,picUrl)	     
                     elif(msgtype == 3):
                         msg.type = MESSAGE_CONTENT_TYPE_VOICE
                         msg.media_path = self.get_audio_attachment(acc_id,picUrl)						
