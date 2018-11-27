@@ -316,8 +316,8 @@
           <integer>2</integer>
           <key>Patterns</key>
           <array>
-            <string>com\.sina\.weibo</string>
-            <string>com\.sina\.weibog3</string>
+            <string>com\.sina\.weibo$</string>
+            <string>com\.sina\.weibog3$</string>
           </array>
           <key>Category</key>
           <string>Weibo</string>
@@ -2278,7 +2278,8 @@
           <string>基础数据</string>
           <key>Dependents</key>
           <array>
-            <string>analyze_android_calls@android_contact</string>
+            <!--EntryPoint#RunnerType#ModuleType@Module-->
+            <string>analyze_android_calls#2#0@android_contact</string>
           </array>
         </dict>
       </array>
@@ -2350,6 +2351,30 @@
           <string>Jingdong</string>
           <key>Name</key>
           <string>手机京东(安卓)</string>
+          <key>Filter</key>
+          <string>应用>电子商务</string>
+        </dict>
+      </array>
+    </dict>
+
+    <dict>
+      <key>Module</key>
+      <string>android_taobao</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>parse_Taobao</string>
+          <key>RunnerType</key>
+          <integer>2</integer>
+          <key>Patterns</key>
+          <array>
+            <string>com.taobao.taobao$</string>
+          </array>
+          <key>Category</key>
+          <string>Taobao</string>
+          <key>Name</key>
+          <string>手机淘宝(安卓)</string>
           <key>Filter</key>
           <string>应用>电子商务</string>
         </dict>
@@ -2436,7 +2461,7 @@
             <string>com.baidu.searchbox.lite/databases/SearchBox.db$</string>
           </array>
           <key>Category</key>
-          <string>BaiduMobileLite</string>
+          <string>BaiduMobile</string>
           <key>Name</key>
           <string>手机百度极速版(安卓)</string>
           <key>Filter</key>

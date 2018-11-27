@@ -473,5 +473,5 @@ def parse_jd(root, extract_deleted, extract_source):
     results = JDParser(root, extract_deleted, extract_source).parse()
     if results:
         pr.Models.AddRange(results)
-        pr.Build("JingDong")
+        pr.Build("京东")
     return pr
