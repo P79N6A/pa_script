@@ -1332,10 +1332,10 @@
           <key>EntryPoint</key>
           <string>analyze_sogoumap</string>
           <key>RunnerType</key>
-          <integer>1</integer>
+          <integer>0</integer>
           <key>Patterns</key>
           <array>
-            <string>com.sogou.map.app.Map</string>
+            <string>/Documents/MapData.data$</string>
           </array>
           <key>Category</key>
           <string>SogouMap</string>
