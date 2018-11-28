@@ -46,6 +46,24 @@
         </dict>
         <dict>
           <key>EntryPoint</key>
+          <string>PA.iPhoneApps.Parsers.FacebookParser</string>
+          <key>RunnerType</key>
+          <integer>1</integer>
+          <key>ModuleType</key>
+          <integer>2</integer>
+          <key>Patterns</key>
+          <array>
+            <string>com.facebook.Facebook</string>
+          </array>
+          <key>Category</key>
+          <string>Facebook</string>
+          <key>Name</key>
+          <string>Facebook(苹果)</string>
+          <key>Filter</key>
+          <string>应用>社交</string>
+        </dict>
+        <dict>
+          <key>EntryPoint</key>
           <string>PA.iPhoneApps.Parsers.WhatsAppDefaultFolderParser</string>
           <key>RunnerType</key>
           <integer>0</integer>
@@ -184,7 +202,7 @@
             <string>com.baidu.BaiduMobileInfo</string>
           </array>
           <key>Category</key>
-          <string>OperaBrowser</string>
+          <string>BaiduMobile</string>
           <key>Name</key>
           <string>手机百度(苹果)</string>
           <key>Filter</key>
@@ -290,7 +308,7 @@
           <integer>2</integer>
           <key>Patterns</key>
           <array>
-            <string>com.opera.OperaMini</string>
+            <string>com.wemomo.momoappdemo1</string>
           </array>
           <key>Category</key>
           <string>Momo</string>
@@ -751,7 +769,7 @@
             <string>/Library/Passes$</string>
           </array>
           <key>Category</key>
-          <string>Locations</string>
+          <string>Passbook</string>
           <key>Name</key>
           <string>手机卡包(苹果)</string>
           <key>Filter</key>
@@ -2461,9 +2479,9 @@
             <string>com.baidu.searchbox.lite/databases/SearchBox.db$</string>
           </array>
           <key>Category</key>
-          <string>BaiduMobile</string>
+          <string>BaiduMobileLite</string>
           <key>Name</key>
-          <string>手机百度极速版(安卓)</string>
+          <string>百度极速版(安卓)</string>
           <key>Filter</key>
           <string>应用>其他</string>
         </dict>
