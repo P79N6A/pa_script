@@ -413,10 +413,10 @@
           <key>EntryPoint</key>
           <string>analyze_ctrip</string>
           <key>RunnerType</key>
-          <integer>1</integer>
+          <integer>0</integer>
           <key>Patterns</key>
           <array>
-            <string>ctrip.com</string>
+            <string>/Documents/session.dat$</string>
           </array>
           <key>Category</key>
           <string>Ctrip</string>
