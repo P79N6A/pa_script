@@ -142,7 +142,7 @@ SQL_INSERT_TABLE_RECOVER_MAILATTACH = '''
     INSERT INTO FM_Mail_Attach(attachId, accountId, mailId, name, downloadSize, downloadUtc)
     VALUES(?, ?, ?, ?, ?, ?)'''
 
-VERSION_APP_VALUE = 2
+VERSION_APP_VALUE = 3
 
 
 
@@ -313,13 +313,12 @@ class MailParser(object):
 
     def analyze_normal_data(self):
         '''读取普通数据到中间数据库'''
-        if self.node.GetByPath("/Documents/FMailDB.db") is not None:
-            mailPath = self.node.GetByPath("/Documents/FMailDB.db").PathWithMountPoint
-            self.analyze_account(mailPath, 0)
-            self.analyze_mail(mailPath, 0)
-            self.analyze_attachment(mailPath, 0)
-        if self.node.GetByPath("/Documents/FMContact.db") is not None:
-            contactPath = self.node.GetByPath("/Documents/FMContact.db").PathWithMountPoint
+        mailPath = self.node.PathWithMountPoint
+        self.analyze_account(mailPath, 0)
+        self.analyze_mail(mailPath, 0)
+        self.analyze_attachment(mailPath, 0)
+        if self.node.Parent.GetByPath("/FMContact.db") is not None:
+            contactPath = self.node.Parent.GetByPath("/FMContact.db").PathWithMountPoint
             self.analyze_contact(contactPath, 0)
 
     def analyze_deleted_data(self):
@@ -374,7 +373,7 @@ class MailParser(object):
         self.db.Open()
         self.db_cmd = SQLite.SQLiteCommand(self.db)
         try:
-            node = self.node.GetByPath("/Documents/FMailDB.db")
+            node = self.node
             if node is None:
                 return
             db = SQLiteParser.Database.FromNode(node, canceller)
@@ -399,7 +398,7 @@ class MailParser(object):
         self.db.Open()
         self.db_cmd = SQLite.SQLiteCommand(self.db)
         try:
-            node = self.node.GetByPath("/Documents/FMailDB.db")
+            node = self.node
             if node is None:
                 return
             db = SQLiteParser.Database.FromNode(node, canceller)
@@ -436,7 +435,7 @@ class MailParser(object):
         self.db.Open()
         self.db_cmd = SQLite.SQLiteCommand(self.db)
         try:
-            node = self.node.GetByPath("/Documents/FMailDB.db")
+            node = self.node
             if node is None:
                 return
             db = SQLiteParser.Database.FromNode(node, canceller)
@@ -460,7 +459,7 @@ class MailParser(object):
         self.db.Open()
         self.db_cmd = SQLite.SQLiteCommand(self.db)
         try:
-            node = self.node.GetByPath("/Documents/FMailDB.db")
+            node = self.node
             if node is None:
                 return
             db = SQLiteParser.Database.FromNode(node, canceller)
@@ -484,7 +483,7 @@ class MailParser(object):
         self.db.Open()
         self.db_cmd = SQLite.SQLiteCommand(self.db)
         try:
-            node = self.node.GetByPath("/Documents/FMContact.db")
+            node = self.node.Parent.GetByPath("/FMContact.db")
             if node is None:
                 return
             db = SQLiteParser.Database.FromNode(node, canceller)
@@ -511,7 +510,7 @@ class MailParser(object):
         self.db.Open()
         self.db_cmd = SQLite.SQLiteCommand(self.db)
         try:
-            node = self.node.GetByPath("/Documents/FMContact.db")
+            node = self.node.Parent.GetByPath("/FMContact.db")
             if node is None:
                 return
             db = SQLiteParser.Database.FromNode(node, canceller)
@@ -536,7 +535,7 @@ class MailParser(object):
         self.db.Open()
         self.db_cmd = SQLite.SQLiteCommand(self.db)
         try:
-            node = self.node.GetByPath("/Documents/FMContact.db")
+            node = self.node.Parent.GetByPath("/FMContact.db")
             if node is None:
                 return
             db = SQLiteParser.Database.FromNode(node, canceller)
@@ -560,7 +559,7 @@ class MailParser(object):
         self.db.Open()
         self.db_cmd = SQLite.SQLiteCommand(self.db)
         try:
-            node = self.node.GetByPath("/Documents/FMailDB.db")
+            node = self.node
             if node is None:
                 return
             db = SQLiteParser.Database.FromNode(node, canceller)
