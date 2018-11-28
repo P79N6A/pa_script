@@ -1428,10 +1428,10 @@
           <key>EntryPoint</key>
           <string>analyze_neteasemail</string>
           <key>RunnerType</key>
-          <integer>1</integer>
+          <integer>0</integer>
           <key>Patterns</key>
           <array>
-            <string>com.netease.mailmaster</string>
+            <string>Library/Preferences/com.netease.mailmaster.plist$</string>
           </array>
           <key>Category</key>
           <string>NeteaseMail</string>
@@ -1716,10 +1716,10 @@
           <key>EntryPoint</key>
           <string>analyze_line</string>
           <key>RunnerType</key>
-          <integer>1</integer>
+          <integer>0</integer>
           <key>Patterns</key>
           <array>
-            <string>jp.naver.line</string>
+            <string>Library/Preferences/jp.naver.line.plist$</string>
           </array>
           <key>Category</key>
           <string>Line</string>
