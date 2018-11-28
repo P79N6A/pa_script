@@ -43,8 +43,9 @@ class ViberParser(model_im.IM, model_callrecord.MC):
         self.sourceDB = self.cachepath + '\\ViberSourceDB'
         self.chatgroupid = []
         self.publicaccountid = []
-        self.accountname = ''
-        self.accountphone = ''
+        self.accountid = '未知用户'
+        self.accountname = '未知用户'
+        self.accountphone = '未知联系方式'
 
     def db_create_table(self):
         model_im.IM.db_create_table(self)
@@ -79,10 +80,13 @@ class ViberParser(model_im.IM, model_callrecord.MC):
                 return
             db_cmd.CommandText = '''select key, value from Data'''
             sr = db_cmd.ExecuteReader()
-            account_id = "-1"
+            account_id = self.accountid
             country = ''
             telephone = ''
             username = ''
+            if not sr.HasRows:
+                account = model_im.Account()
+                username = 'unknown user'
             while (sr.Read()):
                 try:
                     account = model_im.Account()
@@ -98,12 +102,13 @@ class ViberParser(model_im.IM, model_callrecord.MC):
                     pass
             sr.Close()
             try:
-                account.account_id = account_id
+                account.account_id = username
                 account.country = country if not IsDBNull(country) else ''
                 account.telephone = telephone if not IsDBNull(telephone) else ''
                 self.accountphone = account.telephone
                 account.username = username if not IsDBNull(username) else ''
                 self.accountname = account.username
+                self.accountid = username
                 account.source = node.AbsolutePath
                 account.deleted = deleteFlag
                 self.db_insert_table_account(account)
@@ -135,7 +140,7 @@ class ViberParser(model_im.IM, model_callrecord.MC):
                     friend = model_im.Friend()
                     if canceller.IsCancellationRequested:
                         break
-                    friend.account_id = "-1"
+                    friend.account_id = self.accountid
                     friend.deleted = deleteFlag
                     firstName = self._db_reader_get_string_value(sr, 1)
                     secondName = self._db_reader_get_string_value(sr, 2)
@@ -157,7 +162,7 @@ class ViberParser(model_im.IM, model_callrecord.MC):
                     friend = model_im.Friend()
                     if canceller.IsCancellationRequested:
                         break
-                    friend.account_id = "-1"
+                    friend.account_id = self.accountid
                     friend.deleted = deleteFlag
                     friend.friend_id = self._db_reader_get_int_value(sr, 0)
                     friend.nickname = self._db_reader_get_string_value(sr, 1)
@@ -171,9 +176,9 @@ class ViberParser(model_im.IM, model_callrecord.MC):
 
             try:
                 friend = model_im.Friend()
-                friend.account_id = "-1"
+                friend.account_id = self.accountid
                 friend.deleted = deleteFlag
-                friend.friend_id = "-1"
+                friend.friend_id = self.accountid
                 friend.nickname = self.accountname
                 friend.source = self.node.AbsolutePath
                 friend.telephone = self.accountphone
@@ -208,15 +213,19 @@ class ViberParser(model_im.IM, model_callrecord.MC):
                     chatroom = model_im.Chatroom()
                     if canceller.IsCancellationRequested:
                         break
-                    chatroom.account_id = "-1"
+                    chatroom.account_id = self.accountid
                     chatroom.chatroom_id = self._db_reader_get_int_value(sr, 0)
                     self.chatgroupid.append(chatroom.chatroom_id)
                     dstart = DateTime(1970,1,1,0,0,0)
                     try:
                         cdate = TimeStampFormats.GetTimeStampEpoch1Jan2001(sr.GetDouble(2))
+                        chatroom.create_time = int((cdate - dstart).TotalSeconds)
                     except:
-                        cdate = TimeStampFormats.GetTimeStampEpoch1Jan2001(sr.GetInt32(2))
-                    chatroom.create_time = int((cdate - dstart).TotalSeconds)
+                        try:
+                            cdate = TimeStampFormats.GetTimeStampEpoch1Jan2001(sr.GetInt32(2))
+                            chatroom.create_time = int((cdate - dstart).TotalSeconds)
+                        except:
+                            pass
                     chatroom.deleted = deleteFlag
                     chatroom.member_count = self._db_reader_get_int_value(sr, 3) + 1
                     chatroom.name = self._db_reader_get_string_value(sr, 4)
@@ -249,13 +258,15 @@ class ViberParser(model_im.IM, model_callrecord.MC):
                 from ZCONVERSATION as a left join ZCONVERSATIONROLE as b on a.Z_PK = b.ZCONVERSATION left join ZMEMBER as c on b.ZPHONENUMBERINDEX = c.Z_PK 
                     left join ZPHONENUMBER as d on b.ZPHONENUMBERINDEX = d.ZMEMBER where a.ZCONTEXT is not null'''
             sr = db_cmd.ExecuteReader()
+            chatroomid = []
             while (sr.Read()):
                 try:
                     chatroom_member = model_im.ChatroomMember()
                     if canceller.IsCancellationRequested:
                         break
-                    chatroom_member.account_id = "-1"
+                    chatroom_member.account_id = self.accountid
                     chatroom_member.chatroom_id = self._db_reader_get_int_value(sr, 0)
+                    chatroomid.append(chatroom_member.chatroom_id)
                     chatroom_member.deleted = deleteFlag
                     chatroom_member.display_name = self._db_reader_get_string_value(sr, 2)
                     chatroom_member.member_id = self._db_reader_get_int_value(sr, 1)
@@ -272,6 +283,15 @@ class ViberParser(model_im.IM, model_callrecord.MC):
                 except:
                     traceback.print_exc()
             sr.Close()
+            for item in set(chatroomid):
+                chatroom_member = model_im.ChatroomMember()
+                chatroom_member.account_id = self.accountid
+                chatroom_member.chatroom_id = item
+                chatroom_member.deleted = 0
+                chatroom_member.display_name = self.accountname
+                chatroom_member.member_id = self.accountid
+                chatroom_member.telephone = self.accountphone
+                self.db_insert_table_chatroom_member(chatroom_member)
             if deleteFlag is 0: 
                 self.db_commit()
             db_cmd.Dispose()
@@ -313,7 +333,7 @@ class ViberParser(model_im.IM, model_callrecord.MC):
                     message = model_im.Message()
                     if canceller.IsCancellationRequested:
                         break
-                    message.account_id = "-1"
+                    message.account_id = self.accountid
                     message.content = self._db_reader_get_string_value(sr, 1)
                     message.deleted =  deleteFlag
                     message.is_sender = 1 if sr[2] != 'received' else 0
@@ -330,10 +350,14 @@ class ViberParser(model_im.IM, model_callrecord.MC):
                     dstart = DateTime(1970,1,1,0,0,0)
                     try:
                         cdate = TimeStampFormats.GetTimeStampEpoch1Jan2001(sr.GetDouble(5))
+                        message.send_time = int((cdate - dstart).TotalSeconds)
                     except:
-                        cdate = TimeStampFormats.GetTimeStampEpoch1Jan2001(sr.GetInt32(5))
-                    message.send_time = int((cdate - dstart).TotalSeconds)
-                    message.sender_id = self._db_reader_get_int_value(sr, 6) if message.is_sender != 1 else -1
+                        try:
+                            cdate = TimeStampFormats.GetTimeStampEpoch1Jan2001(sr.GetInt32(5))
+                            message.send_time = int((cdate - dstart).TotalSeconds)
+                        except:
+                            pass
+                    message.sender_id = self._db_reader_get_int_value(sr, 6) if message.is_sender != 1 else self.accountid
                     message.sender_name = self._db_reader_get_string_value(sr, 8) if message.is_sender != 1 else '我'
                     message.source = self.node.AbsolutePath
                     message.status = model_im.MESSAGE_STATUS_SENT if sr[2] is 'send' or sr[2] is 'dilivered' else model_im.MESSAGE_STATUS_UNSENT if sr[2] is 'pending' or sr[2] is 'pendingNotSent' else model_im.MESSAGE_STATUS_DEFAULT
@@ -379,8 +403,13 @@ class ViberParser(model_im.IM, model_callrecord.MC):
                     dstart = DateTime(1970,1,1,0,0,0)
                     try:
                         cdate = TimeStampFormats.GetTimeStampEpoch1Jan2001(sr.GetDouble(2))
+                        chatroom.create_time = int((cdate - dstart).TotalSeconds)
                     except:
-                        cdate = TimeStampFormats.GetTimeStampEpoch1Jan2001(sr.GetInt32(2))
+                        try:
+                            cdate = TimeStampFormats.GetTimeStampEpoch1Jan2001(sr.GetInt32(2))
+                            chatroom.create_time = int((cdate - dstart).TotalSeconds)
+                        except:
+                            pass
                     location.timestamp = int((cdate - dstart).TotalSeconds)
                     self.db_insert_table_location(location)
                 except:
@@ -412,8 +441,13 @@ class ViberParser(model_im.IM, model_callrecord.MC):
                     dstart = DateTime(1970,1,1,0,0,0)
                     try:
                         cdate = TimeStampFormats.GetTimeStampEpoch1Jan2001(sr.GetDouble(1))
+                        chatroom.create_time = int((cdate - dstart).TotalSeconds)
                     except:
-                        cdate = TimeStampFormats.GetTimeStampEpoch1Jan2001(sr.GetInt32(1))
+                        try:
+                            cdate = TimeStampFormats.GetTimeStampEpoch1Jan2001(sr.GetInt32(1))
+                            chatroom.create_time = int((cdate - dstart).TotalSeconds)
+                        except:
+                            pass
                     record.date = int((cdate - dstart).TotalSeconds)
                     record.deleted = deleteFlag
                     record.duration = self._db_reader_get_int_value(sr, 2)
@@ -449,6 +483,8 @@ class ViberParser(model_im.IM, model_callrecord.MC):
         nodes = fs.Search('/Documents/Settings.data$')
         for node in nodes:
             account_db = node.PathWithMountPoint
+            shutil.copy(account_db, self.sourceDB)
+            account_db = self.sourceDB + '\\Settings.data'
             break
         if account_db is not None:
             self.parse_account(node, account_db, 0)

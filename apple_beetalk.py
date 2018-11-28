@@ -303,7 +303,6 @@ class BeeTalkParser(model_im.IM, model_callrecord.MC):
                             test_Value = '' if tree[i].Value is None else tree[i].Value
                             test = tree[i].Value
                             line = '{' + str(test_Key) + ':' + str(test_Value) + '}'
-                            print(line)
                             if test_Key == 'kImageImageUrlKey':
                                 image_name = test_Value
                                 nodes = fs.Search(image_name + '$')
@@ -336,10 +335,10 @@ class BeeTalkParser(model_im.IM, model_callrecord.MC):
                                 message.type = model_im.MESSAGE_CONTENT_TYPE_VOIP
                             elif test_Key == 'kCallInfoDuration':
                                 call_duration = test_Value
-                            extra_id = self._db_reader_get_int_value(sr, 0)
+                            location_id = self._db_reader_get_int_value(sr, 0)
                         if latitude is not None or longitude is not None or location_name is not None:  #如果包含有位置数据，就把数据插入到位置表中
                             location = model_im.Location()
-                            message.extra_id = location.location_id
+                            message.location_id = location.location_id
                             location.latitude = latitude
                             location.longitude = longitude
                             location.address = location_name
@@ -361,7 +360,6 @@ class BeeTalkParser(model_im.IM, model_callrecord.MC):
                             record.deleted = sr[18]
                             record.source = self.node.AbsolutePath
                             self.db_insert_table_call_records(record)
-                        print('-'*20)
                     self.db_insert_table_message(message)
                 except:
                     traceback.print_exc()
@@ -402,10 +400,8 @@ class BeeTalkParser(model_im.IM, model_callrecord.MC):
                             test_Value = '' if tree[i].Value is None else tree[i].Value
                             test = tree[i].Value
                             line = '{' + str(test_Key) + ':' + str(test_Value) + '}'
-                            #print(line)
                             if test_Key == 'buzzItemMemoKey':
                                 feed.content = test_Value
-                        #print('--'*20)
                     if not IsDBNull(sr[2]):
                         dstart = DateTime(1970,1,1,0,0,0)
                         try:
@@ -445,7 +441,6 @@ class BeeTalkParser(model_im.IM, model_callrecord.MC):
                         for i in range(len(tree)):
                             test_Key = '' if tree[i].Key is None else tree[i].Key
                             test_Value = '' if tree[i].Value is None else tree[i].Value
-                            #print('{' + str(test_Key) + ':' + str(test_Value) + '}')
                             if test_Key == 'buzzLocationLatKey':
                                 latitude = test_Value
                             if test_Key == 'buzzLocationLongKey':
@@ -462,7 +457,6 @@ class BeeTalkParser(model_im.IM, model_callrecord.MC):
                             location.deleted = self._db_reader_get_int_value(sr, 10)
                             location.source = self.node.AbsolutePath
                             self.db_insert_table_location(location)
-                        #print('~~'*20)
                     self.db_insert_table_feed(feed)
                 except:
                     traceback.print_exc()
@@ -638,11 +632,18 @@ class BeeTalkParser(model_im.IM, model_callrecord.MC):
             if db is None:
                 return
             ts = SQLiteParser.TableSignature('ZBTLINKEDCONTACT')
+            dic = {}
             for rec in db.ReadTableRecords(ts, self.extractDeleted, True):
                 try:
                     if canceller.IsCancellationRequested:
                         break
                     if not IsDBNull(rec['Z_PK'].Value) and rec['Z_PK'].Value != 0:
+                        if not rec['Z_PK'].Value in dic.keys():
+                            dic[rec['Z_PK'].Value] = [rec.IsDeleted]
+                        elif rec.IsDeleted not in dic[rec['Z_PK'].Value]:
+                            dic[rec['Z_PK'].Value].append(rec.IsDeleted)
+                        else:
+                            continue
                         param = (rec['Z_PK'].Value, rec['ZLINKEDACCOUNT'].Value, rec['ZACCOUNT'].Value, rec['ZNAME'].Value, rec.IsDeleted)
                         self.db_insert_to_deleted_table('''insert into ZBTLINKEDCONTACT(Z_PK, ZLINKEDACCOUNT, ZACCOUNT, ZNAME, deleted) values(?, ?, ?, ?, ?)''', param)
                 except:
@@ -658,11 +659,18 @@ class BeeTalkParser(model_im.IM, model_callrecord.MC):
             if db is None:
                 return
             ts = SQLiteParser.TableSignature('ZBTUSER')
+            dic = {}
             for rec in db.ReadTableRecords(ts, self.extractDeleted, True):
                 try:
                     if canceller.IsCancellationRequested:
                         break
-                    if rec['Z_PK'].Value != 0:
+                    if rec['Z_PK'].Value != 0 and not IsDBNull(rec['ZUNIQUEID'].Value):
+                        if not rec['Z_PK'].Value in dic.keys():
+                            dic[rec['Z_PK'].Value] = [rec.IsDeleted]
+                        elif rec.IsDeleted not in dic[rec['Z_PK'].Value]:
+                            dic[rec['Z_PK'].Value].append(rec.IsDeleted)
+                        else:
+                            continue
                         param = (rec['Z_PK'].Value, rec['ZFORMATTEDNICKNAME'].Value, rec['ZBIRTHDAY'].Value, rec['ZGENDER'].Value, rec['ZSIGNATURE'].Value, rec['ZUNIQUEID'].Value, rec.IsDeleted)
                         self.db_insert_to_deleted_table('''insert into ZBTUSER(Z_PK, ZFORMATTEDNICKNAME, ZBIRTHDAY, ZGENDER, ZSIGNATURE, ZUNIQUEID, deleted) values(?, ?, ?, ?, ?, ?, ?)''', param)
                 except:
@@ -678,11 +686,18 @@ class BeeTalkParser(model_im.IM, model_callrecord.MC):
             if db is None:
                 return
             ts = SQLiteParser.TableSignature('ZBTGROUP')
+            dic = {}
             for rec in db.ReadTableRecords(ts, self.extractDeleted, True):
                 try:
                     if canceller.IsCancellationRequested:
                         break
                     if rec['Z_PK'].Value != 0 and not IsDBNull(rec['ZGROUPID'].Value):
+                        if not rec['Z_PK'].Value in dic.keys():
+                            dic[rec['Z_PK'].Value] = [rec.IsDeleted]
+                        elif rec.IsDeleted not in dic[rec['Z_PK'].Value]:
+                            dic[rec['Z_PK'].Value].append(rec.IsDeleted)
+                        else:
+                            continue
                         param = (rec['Z_PK'].Value, rec['ZGROUPID'].Value, rec['ZMEMBERLISTVERSION'].Value, rec['ZFORMATTEDNAME'].Value, rec['ZOWNER'].Value, rec.IsDeleted)
                         self.db_insert_to_deleted_table('''insert into ZBTGROUP(Z_PK, ZGROUPID, ZMEMBERLISTVERSION, ZFORMATTEDNAME, ZOWNER, deleted) values(?, ?, ?, ?, ?, ?)''', param)
                 except:
@@ -698,11 +713,18 @@ class BeeTalkParser(model_im.IM, model_callrecord.MC):
             if db is None:
                 return
             ts = SQLiteParser.TableSignature('Z_13USERS')
+            dic = {}
             for rec in db.ReadTableRecords(ts, self.extractDeleted, True):
                 try:
                     if canceller.IsCancellationRequested:
                         break
                     if not IsDBNull(rec['Z_13GROUPS'].Value) and rec['Z_13GROUPS'].Value != 0:
+                        if not rec['Z_13GROUPS'].Value in dic.keys():
+                            dic[rec['Z_13GROUPS'].Value] = [rec.IsDeleted]
+                        elif rec.IsDeleted not in dic[rec['Z_13GROUPS'].Value]:
+                            dic[rec['Z_13GROUPS'].Value].append(rec.IsDeleted)
+                        else:
+                            continue
                         param = (rec['Z_13GROUPS'].Value, rec['Z_23USERS'].Value, rec.IsDeleted)
                         self.db_insert_to_deleted_table('''insert into Z_13USERS(Z_13GROUPS, Z_23USERS, deleted) values(?, ?, ?)''', param)
                 except:
@@ -718,11 +740,18 @@ class BeeTalkParser(model_im.IM, model_callrecord.MC):
             if db is None:
                 return
             ts = SQLiteParser.TableSignature('ZBTMESSAGE')
+            dic = {}
             for rec in db.ReadTableRecords(ts, self.extractDeleted, True):
                 try:
                     if canceller.IsCancellationRequested:
                         break
                     if not IsDBNull(rec['Z_PK'].Value) and rec['Z_PK'].Value != 0:
+                        if not rec['Z_PK'].Value in dic.keys():
+                            dic[rec['Z_PK'].Value] = [rec.IsDeleted]
+                        elif rec.IsDeleted not in dic[rec['Z_PK'].Value]:
+                            dic[rec['Z_PK'].Value].append(rec.IsDeleted)
+                        else:
+                            continue
                         param = (rec['Z_PK'].Value, rec['ZISOUTGOING'].Value, rec['ZISWHISPER'].Value, rec['ZMEDIASTATUS'].Value, rec['ZSTATUS'].Value, rec['ZTYPE'].Value, 
                                  rec['ZWHISPERDURATION'].Value, rec['ZCHAT'].Value, rec['ZUSER'].Value, rec['ZTIMESTAMP'].Value, rec['ZWHISPERSTARTTIME'].Value, rec['ZDATA'].Value, rec.IsDeleted)
                         self.db_insert_to_deleted_table('''insert into ZBTMESSAGE(Z_PK, ZISOUTGOING, ZISWHISPER, ZMEDIASTATUS, ZSTATUS, ZTYPE, 
@@ -740,11 +769,18 @@ class BeeTalkParser(model_im.IM, model_callrecord.MC):
             if db is None:
                 return
             ts = SQLiteParser.TableSignature('ZBTCHAT')
+            dic = {}
             for rec in db.ReadTableRecords(ts, self.extractDeleted, True):
                 try:
                     if canceller.IsCancellationRequested:
                         break
                     if not IsDBNull(rec['Z_PK'].Value) and rec['Z_PK'].Value != 0:
+                        if not rec['Z_PK'].Value in dic.keys():
+                            dic[rec['Z_PK'].Value] = [rec.IsDeleted]
+                        elif rec.IsDeleted not in dic[rec['Z_PK'].Value]:
+                            dic[rec['Z_PK'].Value].append(rec.IsDeleted)
+                        else:
+                            continue
                         param = (rec['Z_PK'].Value, rec['ZGROUP'].Value, rec['ZUSER'].Value, rec['ZUSER1'].Value, rec.IsDeleted)
                         self.db_insert_to_deleted_table('''insert into ZBTCHAT(Z_PK, ZGROUP, ZUSER, ZUSER1, deleted) values(?, ?, ?, ?, ?)''', param)
                 except:
@@ -760,11 +796,18 @@ class BeeTalkParser(model_im.IM, model_callrecord.MC):
             if db is None:
                 return
             ts = SQLiteParser.TableSignature('ZBTBUZZBASEITEM')
+            dic = {}
             for rec in db.ReadTableRecords(ts, self.extractDeleted, True):
                 try:
                     if canceller.IsCancellationRequested:
                         break
                     if not IsDBNull(rec['Z_PK'].Value) and rec['Z_PK'].Value != 0 and not IsDBNull(rec['ZUSER'].Value) and rec['ZUSER'].Value != 0:
+                        if not rec['Z_PK'].Value in dic.keys():
+                            dic[rec['Z_PK'].Value] = [rec.IsDeleted]
+                        elif rec.IsDeleted not in dic[rec['Z_PK'].Value]:
+                            dic[rec['Z_PK'].Value].append(rec.IsDeleted)
+                        else:
+                            continue
                         param = (rec['Z_PK'].Value, rec['ZUSER'].Value, rec['ZTIMESTAMP'].Value, rec['ZDATA'].Value, rec['ZLOCATION'].Value, rec.IsDeleted)
                         self.db_insert_to_deleted_table('''insert into ZBTBUZZBASEITEM(Z_PK, ZUSER, ZTIMESTAMP, ZDATA, ZLOCATION, deleted) values(?, ?, ?, ?, ?, ?)''', param)
                 except:
@@ -781,11 +824,18 @@ class BeeTalkParser(model_im.IM, model_callrecord.MC):
             if db is None:
                 return
             ts = SQLiteParser.TableSignature('ZBTBUZZBASECOMMENT')
+            dic = {}
             for rec in db.ReadTableRecords(ts, self.extractDeleted, True):
                 try:
                     if canceller.IsCancellationRequested:
                         break
                     if not IsDBNull(rec['Z_PK'].Value) and rec['Z_PK'].Value != 0 and not IsDBNull(rec['ZUSER'].Value) and rec['ZUSER'].Value != 0:
+                        if not rec['Z_PK'].Value in dic.keys():
+                            dic[rec['Z_PK'].Value] = [rec.IsDeleted]
+                        elif rec.IsDeleted not in dic[rec['Z_PK'].Value]:
+                            dic[rec['Z_PK'].Value].append(rec.IsDeleted)
+                        else:
+                            continue
                         param = (rec['Z_PK'].Value, rec['ZUSER'].Value, rec['ZITEM1'].Value, rec['ZTIMESTAMP'].Value, rec['ZACTION'].Value, rec['ZCONTENT'].Value, rec.IsDeleted)
                         self.db_insert_to_deleted_table('''insert into ZBTBUZZBASECOMMENT(Z_PK, ZUSER, ZITEM1, ZTIMESTAMP, ZACTION, ZCONTENT, deleted) values(?, ?, ?, ?, ?, ?, ?)''', param)
                 except:
@@ -888,7 +938,7 @@ class BeeTalkParser(model_im.IM, model_callrecord.MC):
 def analyze_apple_beetalk(node, extractDeleted, extractSource):
     pr = ParserResults()
     pr.Models.AddRange(BeeTalkParser(node, extractDeleted, extractSource).parse())
-    pr.Build('Beetalk')
+    pr.Build('蜜语')
     return pr
 
 def execute(node, extractDeleted):

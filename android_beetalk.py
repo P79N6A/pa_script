@@ -20,7 +20,7 @@ import hashlib
 import shutil
 import traceback
 
-VERSION_APP_VALUE = 1
+VERSION_APP_VALUE = 2
 
 class BeeTalkParser(model_im.IM, model_callrecord.MC):
     def __init__(self, node, extract_deleted, extract_source):
@@ -40,7 +40,7 @@ class BeeTalkParser(model_im.IM, model_callrecord.MC):
         self.recoverDB = self.cachepath + "\\" +md5_rdb.hexdigest().upper() + ".db"
         self.sourceDB = self.cachepath + '\\BeetalkSourceDB'
         self.account_id = None
-        self.account_name = ''
+        self.account_name = '未知用户'
 
     def db_create_table(self):
         model_im.IM.db_create_table(self)
@@ -77,11 +77,20 @@ class BeeTalkParser(model_im.IM, model_callrecord.MC):
                 left join bb_user_info as b on a.user_id = b.userid'''
             sr = db_cmd.ExecuteReader()
             try:
+                if not sr.HasRows:
+                    account = model_im.Account()
+                    account.account_id = -1
+                    account.username = '未知用户'
+                    account.source = self.node.AbsolutePath
+                    account.deleted = 0
+                    self.account_id = account.account_id
+                    self.account_name = account.username
+                    self.db_insert_table_account(account)
                 while(sr.Read()):
                     account = model_im.Account()
-                    account.account_id = self._db_reader_get_int_value(sr, 0)
+                    account.account_id = sr.GetInt64(0) if not sr.IsDBNull(0) else -1
                     account.telephone = self._db_reader_get_string_value(sr, 1)
-                    account.username = self._db_reader_get_string_value(sr, 2)
+                    account.username = sr.GetString(2) if not sr.IsDBNull(3) else '未知用户'
                     account.birthday = self._db_reader_get_int_value(sr, 4)
                     account.gender = 1 if self._db_reader_get_int_value(sr, 3) == 0 else 0
                     account.signature = self._db_reader_get_string_value(sr, 5)
@@ -414,7 +423,10 @@ class BeeTalkParser(model_im.IM, model_callrecord.MC):
                                 text_lens = int(data[i + 1], 16)
                                 text_end = text_start + text_lens
                                 text_content = value[text_start*2: text_end*2: ].decode('hex').decode('utf-8')
-                        feed.content = 'text_content:' + text_content + '  img_name:' + ','.join(img_name) + '  location:' + location_value
+                        if location_value is '':
+                            location_value = '无位置信息'
+                        feed.content = text_content + '  动态位置:' + location_value
+                        feed.image_path = ','.join(img_name)
                     except:
                         pass
                     actions = self._db_reader_get_string_value(sr, 4).split(',')
@@ -435,7 +447,8 @@ class BeeTalkParser(model_im.IM, model_callrecord.MC):
                     feed.comments = ','.join(comment_id)
                     feed.commentcount = comment_count
                     feed.deleted = self._db_reader_get_int_value(sr, 9)
-                    self.db_insert_table_feed(feed)
+                    if feed.content is not None and feed.image_path is not None and not (text_content == '' and location_value == '无位置信息'):
+                        self.db_insert_table_feed(feed)
                 except:
                     traceback.print_exc()
             sr.Close()
@@ -454,7 +467,7 @@ class BeeTalkParser(model_im.IM, model_callrecord.MC):
         try:
             if self.db is None:
                 return
-            db_cmd.CommandText = '''select action, comment, commend_id, item_id, timestamp, user_id from bb_dl_comment_info'''
+            db_cmd.CommandText = '''select action, comment, commend_id, item_id, timestamp, user_id, deleted from bb_dl_comment_info'''
             sr = db_cmd.ExecuteReader()
             while (sr.Read()):
                 try:
@@ -467,7 +480,7 @@ class BeeTalkParser(model_im.IM, model_callrecord.MC):
                         feed_like.sender_id = self._db_reader_get_int_value(sr, 5)
                         feed_like.sender_name = 'BeeTalkUser'
                         feed_like.create_time = self._db_reader_get_int_value(sr, 4)
-                        feed_like.deleted = 0
+                        feed_like.deleted = self._db_reader_get_int_value(sr, 6)
                         feed_like.source = self.node.AbsolutePath
                         self.db_insert_table_feed_like(feed_like)
                     elif not IsDBNull(sr[4]):
@@ -476,7 +489,7 @@ class BeeTalkParser(model_im.IM, model_callrecord.MC):
                         feed_comment.sender_name = 'BeeTalkUser'
                         feed_comment.content = self._db_reader_get_string_value(sr, 1)
                         feed_comment.create_time = self._db_reader_get_int_value(sr, 4)
-                        feed_comment.deleted = 0
+                        feed_comment.deleted = self._db_reader_get_int_value(sr, 6)
                         feed_comment.source = self.node.AbsolutePath
                         self.db_insert_table_feed_comment(feed_comment)
                 except:
@@ -720,7 +733,7 @@ class BeeTalkParser(model_im.IM, model_callrecord.MC):
                 try:
                     if canceller.IsCancellationRequested:
                         break
-                    if not IsDBNull(rec['`item_id`'].Value) and rec['`item_id`'].Value != 0 and not IsDBNull(rec['`user_id`'].Value) and rec['`user_id`'].Value != 0:
+                    if not IsDBNull(rec['`item_id`'].Value) and rec['`item_id`'].Value != 0 and not IsDBNull(rec['`user_id`'].Value) and rec['`user_id`'].Value != 0 and not IsDBNull(rec['`mediaBytesInfo`'].Value):
                         param = (rec['`item_id`'].Value, rec['`mediaBytesInfo`'].Value, rec['`timeStamp`'].Value, rec['`user_id`'].Value, rec.IsDeleted)
                         self.db_insert_to_deleted_table('''insert into bb_dl_item_info(item_id, mediaBytesInfo, timeStamp, user_id, deleted) values(?, ?, ?, ?, ?)''', param)
                 except:
@@ -740,7 +753,7 @@ class BeeTalkParser(model_im.IM, model_callrecord.MC):
                 try:
                     if canceller.IsCancellationRequested:
                         break
-                    if not IsDBNull(rec['`item_id`'].Value) and rec['`item_id`'].Value != 0 and not IsDBNull(rec['`user_id`'].Value) and rec['`user_id`'].Value != 0:
+                    if not IsDBNull(rec['`commend_id`'].Value) and rec['`commend_id`'].Value != 0 and not IsDBNull(rec['`user_id`'].Value) and rec['`user_id`'].Value != 0:
                         param = (rec['`item_id`'].Value, rec['`action`'].Value, rec['`comment`'].Value, rec['`timestamp`'].Value, rec['`user_id`'].Value, rec['`commend_id`'].Value, rec.IsDeleted)
                         self.db_insert_to_deleted_table('''insert into bb_dl_comment_info(item_id, action, comment, timestamp, user_id, commend_id, deleted) values(?, ?, ?, ?, ?, ?, ?)''', param)
                 except:
