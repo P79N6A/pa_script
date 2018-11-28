@@ -1404,10 +1404,10 @@
           <key>EntryPoint</key>
           <string>analyze_gaodemap</string>
           <key>RunnerType</key>
-          <integer>1</integer>
+          <integer>0</integer>
           <key>Patterns</key>
           <array>
-            <string>com.autonavi.amap</string>
+            <string>/Documents/cloundSyncData/girf_sync.db$</string>
           </array>
           <key>Category</key>
           <string>AMap</string>
