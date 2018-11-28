@@ -64,7 +64,7 @@ def analyze_neteasemail(node, extract_deleted, extract_source):
 class NeteaseMailParser(object):
 
     def __init__(self, node, extract_deleted, extract_source):
-        self.root = node 
+        self.root = node.Parent.Parent.Parent
         self.extract_deleted = extract_deleted
         self.extract_source  = extract_source
         self.mm = model_mail.MM()        
