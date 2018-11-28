@@ -59,9 +59,6 @@
       <SpecificVersion>False</SpecificVersion>
       <HintPath>IronPython\IronPython.Wpf.dll</HintPath>
     </Reference>
-    <Reference Include="iTunesBackup">
-      <HintPath>..\Lib\iTunesBackup.dll</HintPath>
-    </Reference>
     <Reference Include="Microsoft.Dynamic, Version=1.2.0.0, Culture=neutral, PublicKeyToken=7f709c5b713576e1, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
       <HintPath>IronPython\Microsoft.Dynamic.dll</HintPath>
@@ -77,6 +74,9 @@
     <Reference Include="Mono.HttpUtility, Version=1.0.0.1, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\bin\Mono.HttpUtility.dll</HintPath>
+    </Reference>
+    <Reference Include="PA.iTunes">
+      <HintPath>C:\Users\xutao\Desktop\pa-scripts\PA.Tests\Lib\PA.iTunes.dll</HintPath>
     </Reference>
     <Reference Include="PNFA.AndroidApps">
       <HintPath>..\Lib\PNFA.AndroidApps.dll</HintPath>

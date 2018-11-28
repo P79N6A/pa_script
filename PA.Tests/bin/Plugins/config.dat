@@ -580,7 +580,7 @@
             <string>/CrashReporter/WiFi/WiFiManager$</string>
           </array>
           <key>Category</key>
-          <string>Wifi</string>
+          <string>Logs</string>
           <key>Name</key>
           <string>Wifi日志(苹果)</string>
           <key>Filter</key>
@@ -1277,12 +1277,10 @@
           <key>EntryPoint</key>
           <string>analyze_qq</string>
           <key>RunnerType</key>
-          <integer>1</integer>
+          <integer>0</integer>
           <key>Patterns</key>
           <array>
-            <string>com.tencent.mqq</string>
-            <string>com.tencent.mqqi</string>
-            <string>com.tencent.mqqjp</string>
+            <string>/Documents/contents/QQAccountsManager$</string>           
           </array>
           <key>Category</key>
           <string>QQ</string>
@@ -1723,6 +1721,29 @@
           <key>Filter</key>
           <string>应用>社交</string>
         </dict>
+      </array>
+    </dict>
+	<dict>
+      <key>Module</key>
+      <string>apple_baidutb</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_apple_baidutb</string>
+          <key>RunnerType</key>
+          <integer>0</integer>
+          <key>Patterns</key>
+          <array>
+            <string>/Documents/db.sqlite$</string>
+          </array>
+          <key>Category</key>
+          <string>QQ</string>
+		  <key>Name</key>
+          <string>百度贴吧(苹果)</string>
+          <key>Filter</key>
+          <string>应用>贴吧</string>       
+		</dict>
       </array>
     </dict>
     <!--安卓运行插件从这里开始-->

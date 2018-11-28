@@ -470,4 +470,5 @@ def analyze_ctrip(node, extract_Deleted, extract_Source):
     results = Ctrip(node, extract_Deleted, extract_Source).parse()
     if results:
         pr.Models.AddRange(results)
+        pr.Build("携程")
     return pr
