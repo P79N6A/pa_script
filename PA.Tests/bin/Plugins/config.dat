@@ -346,9 +346,40 @@
         </dict>
       </array>
     </dict>
-    
+
     <!--苹果插件从这里开始,安卓插件请见下面-->
     <!--要个性化自定义运行某些插件,请按此文件的格式建立config.debug.dat文件,调试版的程序程序会优先读取config.debug.dat文件-->
+    <dict>
+      <key>Module</key>
+      <string>apple_dev</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>apple_dev.AnalyzeDeviceInfo</string>
+          <key>ExcuteOrder</key>
+          <!-- ExcuteOrder 越大,执行优先级越高 -->
+          <integer>999</integer>
+          <key>RunnerType</key>
+          <integer>0</integer>
+          <!-- ModuleType = 1 代表这是一个c#语言写的插件 -->
+          <key>ModuleType</key>
+          <integer>1</integer>
+          <key>Patterns</key>
+          <array>
+            <!-- # 表示直接取文件系统根节点 -->
+            <string>#</string>
+          </array>
+          <key>Category</key>
+          <string>DeviceInfo</string>
+          <key>Name</key>
+          <string>设备信息(苹果)</string>
+          <key>Filter</key>
+          <string>基础数据</string>
+        </dict>
+      </array>
+    </dict>
+
     <dict>
       <key>Module</key>
       <string>apple_push</string>
@@ -580,7 +611,7 @@
             <string>/CrashReporter/WiFi/WiFiManager$</string>
           </array>
           <key>Category</key>
-          <string>Logs</string>
+          <string>Wifi</string>
           <key>Name</key>
           <string>Wifi日志(苹果)</string>
           <key>Filter</key>
@@ -624,7 +655,7 @@
           <integer>0</integer>
           <key>Patterns</key>
           <array>
-          <string>Library/Preferences/com.atebits.Tweetie2.plist$</string>
+            <string>Library/Preferences/com.atebits.Tweetie2.plist$</string>
           </array>
           <key>Category</key>
           <string>Twitter</string>
@@ -1280,7 +1311,7 @@
           <integer>0</integer>
           <key>Patterns</key>
           <array>
-            <string>/Documents/contents/QQAccountsManager$</string>           
+            <string>/Documents/contents/QQAccountsManager$</string>
           </array>
           <key>Category</key>
           <string>QQ</string>
@@ -1447,8 +1478,8 @@
           <integer>0</integer>
           <key>Patterns</key>
           <array>
-          <!-- 系统输入法 不支持备份提取 逻辑提取 提权提取 -->
-          <string>private/var/mobile/Library/Keyboard$</string>
+            <!-- 系统输入法 不支持备份提取 逻辑提取 提权提取 -->
+            <string>private/var/mobile/Library/Keyboard$</string>
           </array>
           <key>Category</key>
           <string>IOSSystemIme</string>
@@ -1459,7 +1490,7 @@
         </dict>
       </array>
     </dict>
-      <dict>
+    <dict>
       <key>Module</key>
       <string>apple_sougouime</string>
       <key>Runners</key>
@@ -1471,8 +1502,8 @@
           <integer>0</integer>
           <key>Patterns</key>
           <array>
-          <!-- 搜狗输入法  暂测 备份提取 逻辑提取 提权提取 都支持 -->
-          <string>Library/Preferences/com.sogou.sogouinput.plist$</string>
+            <!-- 搜狗输入法  暂测 备份提取 逻辑提取 提权提取 都支持 -->
+            <string>Library/Preferences/com.sogou.sogouinput.plist$</string>
           </array>
           <key>Category</key>
           <string>SougouIme</string>
@@ -1698,8 +1729,8 @@
           <string>应用>即时通讯</string>
         </dict>
       </array>
-    </dict>    
-    
+    </dict>
+
     <dict>
       <key>Module</key>
       <string>apple_beetalk</string>
@@ -1723,7 +1754,7 @@
         </dict>
       </array>
     </dict>
-	<dict>
+    <dict>
       <key>Module</key>
       <string>apple_baidutb</string>
       <key>Runners</key>
@@ -1739,11 +1770,11 @@
           </array>
           <key>Category</key>
           <string>QQ</string>
-		  <key>Name</key>
+          <key>Name</key>
           <string>百度贴吧(苹果)</string>
           <key>Filter</key>
-          <string>应用>贴吧</string>       
-		</dict>
+          <string>应用>贴吧</string>
+        </dict>
       </array>
     </dict>
     <!--安卓运行插件从这里开始-->
@@ -2582,7 +2613,7 @@
         </dict>
       </array>
     </dict>
-    
+
     <dict>
       <key>Module</key>
       <string>android_line</string>
