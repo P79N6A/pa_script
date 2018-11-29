@@ -39,6 +39,7 @@ class BeeTalkParser(model_im.IM, model_callrecord.MC):
         self.cachedb = self.cachepath + "\\" + md5_db.hexdigest().upper() + ".db"
         self.recoverDB = self.cachepath + "\\" +md5_rdb.hexdigest().upper() + ".db"
         self.sourceDB = self.cachepath + '\\BeetalkSourceDB'
+        self.cacheNode = self.node.Parent.Parent
         self.account_id = None
         self.account_name = '未知用户'
 
@@ -181,7 +182,6 @@ class BeeTalkParser(model_im.IM, model_callrecord.MC):
         db = SQLite.SQLiteConnection('Data Source = {}; ReadOnly = True'.format(dbPath))
         db.Open()
         db_cmd = SQLite.SQLiteCommand(db)
-        fs = self.node.FileSystem
         try:
             if self.db is None:
                 return
@@ -217,7 +217,6 @@ class BeeTalkParser(model_im.IM, model_callrecord.MC):
         db = SQLite.SQLiteConnection('Data Source = {}; ReadOnly = True'.format(dbPath))
         db.Open()
         db_cmd = SQLite.SQLiteCommand(db)
-        fs = self.node.FileSystem
         try:
             if db is None:
                 return
@@ -230,7 +229,6 @@ class BeeTalkParser(model_im.IM, model_callrecord.MC):
                     message = model_im.Message()
                     if canceller.IsCancellationRequested:
                         break
-                    fs = self.node.FileSystem
                     message.account_id = self.account_id
                     message.deleted =  self._db_reader_get_int_value(sr, 7)
                     message.msg_id = self._db_reader_get_int_value(sr, 1)
@@ -276,14 +274,14 @@ class BeeTalkParser(model_im.IM, model_callrecord.MC):
                                 img_end = img_start + img_lens
                                 img_name = img_hex[img_start*2: img_end*2: ].decode('hex').decode('utf-8')
                                 break
-                        nodes = fs.Search(img_name)
+                        nodes = self.cacheNode.Search('/' + img_name + '.*\..*$')
                         for node in nodes:
                             message.media_path = node.AbsolutePath
                             message.type = model_im.MESSAGE_CONTENT_TYPE_IMAGE
                             break
                     elif re.match('vn', metatag):
                         vn_name = str(self._db_reader_get_blob_value(sr, 0))[2:35:].decode('utf-8')
-                        nodes = fs.Search(vn_name)
+                        nodes = self.cacheNode.Search('/' + vn_name + '.*\..*$')
                         for node in nodes:
                             message.media_path = node.AbsolutePath
                             message.type = model_im.MESSAGE_CONTENT_TYPE_VOICE
@@ -331,7 +329,6 @@ class BeeTalkParser(model_im.IM, model_callrecord.MC):
                     message = model_im.Message()
                     if canceller.IsCancellationRequested:
                         break
-                    fs = self.node.FileSystem
                     message.account_id = self.account_id
                     message.deleted =  self._db_reader_get_int_value(sr, 9)
                     message.msg_id = self._db_reader_get_int_value(sr, 1)
@@ -355,7 +352,7 @@ class BeeTalkParser(model_im.IM, model_callrecord.MC):
                         img_lens = int(str(data).encode('hex')[(thumb_start+thumb_lens)*2:(thumb_start+thumb_lens+1)*2:], 16)
                         img_end = img_start+img_lens*2
                         img_name = str(data).encode('hex')[img_start:img_end:].decode('hex').decode('utf-8')
-                        nodes = fs.Search(img_name + '.*$')
+                        nodes = self.cacheNode.Search('/' + img_name + '.*\..*$')
                         for node in nodes:
                             message.media_path = node.AbsolutePath
                             message.type = model_im.MESSAGE_CONTENT_TYPE_IMAGE
@@ -375,7 +372,6 @@ class BeeTalkParser(model_im.IM, model_callrecord.MC):
         db = SQLite.SQLiteConnection('Data Source = {}; ReadOnly = True'.format(dbPath))
         db.Open()
         db_cmd = SQLite.SQLiteCommand(db)
-        fs = self.node.FileSystem
         try:
             if self.db is None:
                 return
@@ -426,11 +422,10 @@ class BeeTalkParser(model_im.IM, model_callrecord.MC):
                         location.address = location_value
                         self.db_insert_table_location(location)
                         feed.content = text_content
-                        fs = self.node.FileSystem
                         image_name = []
                         for image in img_name:
                             print(image)
-                            nodes = fs.Search('/' + image + '.*\..*$')
+                            nodes = self.cacheNode.Search('/' + image + '.*\..*$')
                             for node in nodes:
                                 image_name.append(node.AbsolutePath)
                         feed.image_path = ','.join(image_name)
@@ -470,7 +465,6 @@ class BeeTalkParser(model_im.IM, model_callrecord.MC):
         db = SQLite.SQLiteConnection('Data Source = {}; ReadOnly = True'.format(dbPath))
         db.Open()
         db_cmd = SQLite.SQLiteCommand(db)
-        fs = self.node.FileSystem
         try:
             if self.db is None:
                 return
