@@ -202,16 +202,13 @@ class YiXinParser():
                         message.talker_type = model_im.CHAT_TYPE_OFFICIAL
                     message.media_path = self.parse_message_content(message.content, message.type)
                     if message.type == model_im.MESSAGE_CONTENT_TYPE_LOCATION:
-                        message.extra_id = self.get_location(message.source, message.content, message.send_time, message.deleted, message.repeated)
+                        message.location_obj = message.create_location()
+                        message.location_id = self.get_location(message.location_obj, message.content, message.send_time)
                     self.im.db_insert_table_message(message)
         self.im.db_commit()
 
-    def get_location(self, source, content, time, deleted, repeated):
+    def get_location(self, location, content, time):
         object = json.loads(content)
-        location = model_im.Location()
-        location.source = source
-        location.deleted = deleted
-        location.repeated = repeated
         location.latitude = object['location'].split(',')[0]
         location.longitude = object['location'].split(',')[1]
         location.address = object['description']
@@ -219,7 +216,7 @@ class YiXinParser():
         
         self.im.db_insert_table_location(location)
         self.im.db_commit()
-        return location.address
+        return location.location_id
 
     def get_message_type(self, type):
         msgtype = model_im.MESSAGE_CONTENT_TYPE_TEXT
