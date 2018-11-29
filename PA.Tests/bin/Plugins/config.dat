@@ -1720,7 +1720,7 @@
             <string>/Documents/db.sqlite$</string>
           </array>
           <key>Category</key>
-          <string>QQ</string>
+          <string>BaiduTieba</string>
 		  <key>Name</key>
           <string>百度贴吧(苹果)</string>
           <key>Filter</key>
