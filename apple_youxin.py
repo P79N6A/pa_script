@@ -225,7 +225,8 @@ class YouXinParser():
                     message.send_time = int(time.mktime(time.strptime(rec['[msgtime]'].Value, '%Y-%m-%d %H:%M:%S')))
                     message.media_path = self.get_media_path(message.type, message.content, contact_id)
                     if message.type == model_im.MESSAGE_CONTENT_TYPE_LOCATION:
-                        message.extra_id = self.get_location(message.source, message.content, message.send_time, message.deleted, message.repeated)
+                        message.location_obj = message.create_location()
+                        message.location_id = self.get_location(message.location_obj, message.content, message.send_time)
                     self.im.db_insert_table_message(message)
 
         dbPath = self.root.GetByPath('/Documents/' + self.user + '/callHistoryRecord.Sqlite3')
@@ -268,13 +269,8 @@ class YouXinParser():
                     self.im.db_insert_table_message(message)
         self.im.db_commit()
 
-    def get_location(self, source, content, time, deleted, repeated):
+    def get_location(self, location, content, time):
         obj = json.loads(content)
-        location = model_im.Location()
-        location.source = source
-        location.deleted = deleted
-        location.repeated = repeated
-        location.location_id = str(uuid.uuid1()).replace('-', '')
         location.address = obj['location']['description']
         location.latitude = obj['location']['latitude']
         location.longitude = obj['location']['longitude']
