@@ -259,7 +259,7 @@ class ViberParser(model_im.IM, model_callrecord.MC):
             db_cmd.CommandText = '''select a.body, a.send_type, a.extra_uri, a._id, a.msg_date, 
                 a.participant_id, b.display_name, a.send_type, a.conversation_type, a.conversation_id, 
                 c.name from messages as a left join participants_info as b on a.participant_id = b._id 
-                left join conversations as c on a.conversation_id = b._id'''
+                left join conversations as c on a.conversation_id = c._id'''
             sr = db_cmd.ExecuteReader()
             while (sr.Read()):
                 try:

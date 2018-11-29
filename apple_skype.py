@@ -28,6 +28,7 @@ from PA_runtime import *
 from System.Data.SQLite import *
 from System.Xml.Linq import *
 from System.Xml.XPath import Extensions as XPathExtensions
+from HTMLParser import HTMLParser
 
 __author__ = "TaoJianping"
 
@@ -40,18 +41,32 @@ class ColHelper(object):
         self.db_path = db_path
         self.conn = System.Data.SQLite.SQLiteConnection(
             'Data Source = {}; Readonly = True'.format(db_path))
+        self.cmd = None
+        self.is_opened = False
+        self.in_context = False
         self.reader = None
 
-    def __enter__(self):
+    def open(self):
         self.conn.Open()
         self.cmd = System.Data.SQLite.SQLiteCommand(self.conn)
+        self.is_opened = True
+
+    def close(self):
+        if self.reader is not None:
+            self.reader.Close()
+        self.cmd.Dispose()
+        self.conn.Close()
+        self.is_opened = False
+
+    def __enter__(self):
+        if self.is_opened is False:
+            self.open()
+        self.in_context = True
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        self.cmd.Dispose()
-        if self.reader is not None:
-            self.reader.Close()
-        self.conn.Close()
+        self.close()
+        self.in_context = False
         return True
 
     def __repr__(self):
@@ -61,6 +76,11 @@ class ColHelper(object):
         self.cmd.CommandText = sql
         self.reader = self.cmd.ExecuteReader()
         return self.reader
+
+    def fetch_reader(self, sql):
+        cmd = System.Data.SQLite.SQLiteCommand(self.conn)
+        cmd.CommandText = sql
+        return cmd.ExecuteReader()
 
     def has_rest(self):
         return self.reader.Read()
@@ -76,6 +96,22 @@ class ColHelper(object):
 
     def get_float(self, idx):
         return self.reader.GetFloat(idx) if not self.reader.IsDBNull(idx) else 0
+
+    @staticmethod
+    def fetch_string(reader, idx):
+        return reader.GetString(idx) if not reader.IsDBNull(idx) else ""
+
+    @staticmethod
+    def fetch_int64(reader, idx):
+        return reader.GetInt64(idx) if not reader.IsDBNull(idx) else 0
+
+    @staticmethod
+    def fetch_blob(reader, idx):
+        return reader.GetValue(idx) if not reader.IsDBNull(idx) else None
+
+    @staticmethod
+    def fetch_float(reader, idx):
+        return reader.GetFloat(idx) if not reader.IsDBNull(idx) else 0
 
 
 class RecoverTableHelper(object):
@@ -115,15 +151,84 @@ class Utils(object):
     def str_to_base64(origin_data):
         pass
 
+    @staticmethod
+    def convert_timestamp(ts):
+        try:
+            if not ts:
+                return None
+            ts = str(ts)
+            if len(ts) > 13:
+                return None
+            elif float(ts) < 0:
+                return None
+            elif len(ts) == 13:
+                return int(float(ts[:-3]))
+            elif len(ts) <= 10:
+                return int(float(ts))
+            else:
+                return None
+        except:
+            return None
+
+
+class HtmlNode(object):
+    def __init__(self, tag):
+        self.tag_name = tag
+        self.property = {}
+        self.child = []
+        self.data = None
+
+    def __getitem__(self, item):
+        """暂时只支持返回找到的第一个元素"""
+        for node in self.child:
+            if node.tag_name == item:
+                return node
+
+    def get_all(self, tag_name):
+        answer = []
+        for node in self.child:
+            if node.tag_name == tag_name:
+                answer.append(node)
+        return answer
+
+
+class PaHtmlParser(HTMLParser):
+    def __init__(self):
+        HTMLParser.__init__(self)
+        self.__inner_node_list = []
+        self.body = {}
+        self.root = HtmlNode(tag="html")
+
+    def handle_starttag(self, tag, attrs):
+        node = HtmlNode(tag)
+        node.property = {k: v for k, v in attrs}
+        self.__inner_node_list.append(node)
+
+    def handle_data(self, data):
+        self.__inner_node_list[-1].data = data
+
+    def handle_endtag(self, tag):
+        node = self.__inner_node_list.pop()
+        if len(self.__inner_node_list) != 0:
+            self.__inner_node_list[-1].child.append(node)
+        else:
+            self.root.child.append(node)
+
+    @property
+    def first_dom(self):
+        if len(self.root.child) == 0:
+            return
+        return self.root.child[0]
+
 
 class SkypeParser(object):
     def __init__(self, root, extract_deleted, extract_source):
-        self.root = root
+        self.root = root.Parent.Parent.Parent
         self.extract_deleted = extract_deleted
         self.extract_source = extract_source
         self.model_im_col = model_im.IM()
         self.cache_db = self.__get_cache_db()
-
+        self.model_im_col.db_create(self.cache_db)
         self.account_db_nodes = self.__fetch_data_path()
         self.recovering_helper = None
         self.checking_col = None
@@ -266,10 +371,12 @@ class SkypeParser(object):
                     message.account_id = self.using_account.account_id
                     message.talker_id = message_info.get("conversationId").split(":", 1)[1]
                     message.sender_id = message_info.get("creator").split(":", 1)[1]
+                    message.sender_name = self.__query_sender_name(message_info.get("creator"))
                     message.is_sender = 1 if message.account_id == message.sender_id else 0
-                    message.content = message_info.get("content", None)
+                    message.content = self.__convert_message_content(message_info.get("content", None), message)
                     message.send_time = self.__convert_timestamp(message_info.get("createdTime", None))
-                    message.type = self.__convert_message_content_type(message_info.get("messagetype", None))
+                    if not message.type:
+                        message.type = self.__convert_message_content_type(message_info.get("messagetype", None))
                     message.talker_type = model_im.CHAT_TYPE_GROUP if "@" in message.talker_id else model_im.CHAT_TYPE_FRIEND
                     if message.type in (model_im.MESSAGE_CONTENT_TYPE_IMAGE, model_im.MESSAGE_CONTENT_TYPE_VIDEO,
                                         model_im.MESSAGE_CONTENT_TYPE_VOICE):
@@ -319,7 +426,6 @@ class SkypeParser(object):
 
                 friend = model_im.Friend()
                 friend.source = self.checking_col.db_path
-                friend.deleted = 1
                 friend.account_id = self.using_account.account_id
                 friend_type, friend.friend_id = friend_info["mri"].split(":", 1)
                 if friend.account_id == friend.friend_id:
@@ -394,10 +500,12 @@ class SkypeParser(object):
                 message.account_id = self.using_account.account_id
                 message.talker_id = message_info.get("conversationId").split(":", 1)[1]
                 message.sender_id = message_info.get("creator").split(":", 1)[1]
+                message.sender_name = self.__query_sender_name(message_info.get("creator"))
                 message.is_sender = 1 if message.account_id == message.sender_id else 0
-                message.content = message_info.get("content", None)
+                message.content = self.__convert_message_content(message_info.get("content", None), message)
                 message.send_time = self.__convert_timestamp(message_info.get("createdTime", None))
-                message.type = self.__convert_message_content_type(message_info.get("messagetype", None))
+                if not message.type:
+                    message.type = self.__convert_message_content_type(message_info.get("messagetype", None))
                 message.talker_type = model_im.CHAT_TYPE_GROUP if "@" in message.talker_id else model_im.CHAT_TYPE_FRIEND
                 if message.type in (model_im.MESSAGE_CONTENT_TYPE_IMAGE, model_im.MESSAGE_CONTENT_TYPE_VIDEO,
                                     model_im.MESSAGE_CONTENT_TYPE_VOICE):
@@ -471,6 +579,30 @@ class SkypeParser(object):
         else:
             return model_im.GENDER_NONE
 
+    def __query_sender_name(self, sender_id):
+        sql = """SELECT nsp_data 
+                FROM {table_name}
+                WHERE nsp_pk = 'C{sender_id}';""".format(
+            table_name=self.table_name["profilecache"],
+            sender_id=sender_id,
+        )
+        if self.checking_col.is_opened is False:
+            self.checking_col.open()
+        reader = self.checking_col.fetch_reader(sql)
+        while reader.Read():
+            try:
+                user_info = json.loads(ColHelper.fetch_string(reader, 0))
+
+                nickname = user_info.get("displayNameOverride", None)
+                if self.checking_col.in_context is False:
+                    self.checking_col.close()
+                return nickname
+            except Exception as e:
+                pass
+        if self.checking_col.in_context is False:
+            self.checking_col.close()
+        return ""
+
     @staticmethod
     def __convert_timestamp(ts):
         if not ts:
@@ -486,6 +618,131 @@ class SkypeParser(object):
             return int(ts)
         else:
             return
+
+    def __assemble_message_delete_member(self, executor, target):
+        executor_name = self.__query_sender_name(executor)
+        target_name = self.__query_sender_name(target)
+
+        if not executor_name:
+            executor_name = ":".join(executor.split(":")[-2:])
+        if not target_name:
+            target_name = ":".join(target.split(":")[-2:])
+
+        if executor == target:
+            return "{} 已离开此对话".format(executor_name)
+        return "{} 已将 {} 从此对话中移除".format(executor_name, target_name)
+
+    def __assemble_message_add_member(self, executor, target):
+        executor_name = self.__query_sender_name(executor)
+        target_name = self.__query_sender_name(target)
+
+        if not executor_name:
+            executor_name = ":".join(executor.split(":")[-2:])
+        if not target_name:
+            target_name = ":".join(target.split(":")[-2:])
+
+        if executor == target:
+            return "{} 已加入此对话".format(executor_name)
+        return "{} 已将 {} 添加进此对话".format(executor_name, target_name)
+
+    def __assemble_message_emoji(self, nodes):
+        if not nodes:
+            return None
+        return "".join(node.data for node in nodes)
+
+    def __assemble_message_call(self, root_node):
+        call_type = root_node['partlist'].property['type']
+        if call_type == 'missed':
+            caller_id = root_node['partlist'].child[0].property['identity']
+            if caller_id == self.using_account.account_id:
+                return "未接电话"
+            return "{} 未接电话".format(root_node['partlist'].child[0]['name'].data)
+        elif call_type == 'started':
+            raise Exception("do not handle this system message")
+        elif call_type == 'ended':
+            return "通话 {} 秒".format(root_node['partlist'].child[0]['duration'].data)
+        return None
+
+    def __assemble_message_rename_group(self, root_node):
+        changer = root_node['topicupdate']['initiator'].data
+        new_name = root_node['topicupdate']['value'].data
+        changer_display_name = self.__query_sender_name(changer)
+        return "{} 已将此对话重命名为“{}”".format(changer_display_name, new_name)
+
+    def __assemble_message_history_closure(self, root):
+        if root['historydisclosedupdate']['value'].data == "true":
+            return "{} 已将聊天历史记录隐藏，对新参与者不可见".format(
+                self.__query_sender_name(root['historydisclosedupdate']['initiator'].data))
+        else:
+            return "{} 已将历史聊天记录设为对所有人可见".format(
+                self.__query_sender_name(root['historydisclosedupdate']['initiator'].data))
+
+    def __assemble_message_close_add_memeber(self, root_node):
+        if root_node['joiningenabledupdate']['value'].data == "true":
+            return "{} 已启用使用链接加入此对话。转到“组设置”获取邀请其他人加入的链接".format(
+                self.__query_sender_name(root_node['joiningenabledupdate']['initiator'].data))
+        else:
+            return "{} 已禁用加入此对话".format(
+                self.__query_sender_name(root_node['joiningenabledupdate']['initiator'].data))
+
+    def __assemble_message_change_pic_bak(self, root_node):
+        return "{} 已更改对话图片".format(self.__query_sender_name(root_node['pictureupdate']['initiator'].data))
+
+    def __convert_message_content(self, content, msg_obj):
+        if not content.startswith("<") and content.endswith(">"):
+            return content
+
+        hp = PaHtmlParser()
+        hp.feed(content)
+        hp.close()
+
+        tag_name = hp.first_dom.tag_name
+        if tag_name == "deletemember":
+            executor = hp.root['deletemember']['initiator'].data
+            target = hp.root['deletemember']['target'].data
+            return self.__assemble_message_delete_member(executor, target)
+        elif tag_name == "addmember":
+            executor = hp.root['addmember']['initiator'].data
+            target = hp.root['addmember']['target'].data
+            return self.__assemble_message_add_member(executor, target)
+        elif tag_name == "ss":
+            nodes = hp.root.get_all("ss")
+            return self.__assemble_message_emoji(nodes)
+        elif tag_name == "uriobject":
+            return hp.root['uriobject']['originalname'].property['v']
+        elif tag_name == 'partlist':
+            return self.__assemble_message_call(hp.root)
+        elif tag_name == 'topicupdate':
+            return self.__assemble_message_rename_group(hp.root)
+        elif tag_name == 'location':
+            address = hp.root['location'].property['address']
+            latitude = hp.root['location'].property['latitude']
+            longitude = hp.root['location'].property['longitude']
+            ts = Utils.convert_timestamp(hp.root['location'].property.get("timestamp", None))
+            self.__add_location(msg_obj, address, latitude, longitude, ts)
+            return None
+        elif tag_name == 'historydisclosedupdate':
+            return self.__assemble_message_history_closure(hp.root)
+        elif tag_name == '':
+            return self.__assemble_message_close_add_memeber(hp.root)
+        elif tag_name == "sms":
+            return hp.root['sms']['defaults']['content'].data
+        elif tag_name == "pictureupdate":
+            return self.__assemble_message_change_pic_bak(hp.root)
+        else:
+            return content
+
+    def __add_location(self, msg, address, latitude, longitude, ts=None):
+        location = model_im.Location()
+        location.account_id = self.using_account.account_id
+        location.address = address
+        location.latitude = latitude
+        location.longitude = longitude
+        location.timestamp = ts
+        self.model_im_col.db_insert_table_location(location)
+
+        msg.location_id = location.location_id
+        msg.type = model_im.MESSAGE_CONTENT_TYPE_LOCATION
 
     @staticmethod
     def __convert_message_content_type(_type):
@@ -506,27 +763,21 @@ class SkypeParser(object):
 
     def parse(self):
         """解析的主函数"""
-        if self.model_im_col.need_parse(self.cache_db, Skype_VERSION):
-            self.model_im_col.db_create(self.cache_db)
 
-            for checking_db_path in self.__fetch_data_path():
-                self.checking_col = ColHelper(checking_db_path)
+        for checking_db_path in self.__fetch_data_path():
+            self.checking_col = ColHelper(checking_db_path)
 
-                # 因为查询的表的名字里面有版本号，所以做一些处理，挂载一个表名字的状态
-                self.table_name = self.__query_table_names()
+            # 因为查询的表的名字里面有版本号，所以做一些处理，挂载一个表名字的状态
+            self.table_name = self.__query_table_names()
 
-                self._get_account_table()
-                self._get_friend_table()
-                self._get_message_table()
-                chatroom_members = self._get_chatroom_table()
-                self._get_chatroom_member_table(chatroom_members)
-                self.decode_recover_friend()
-                self.decode_recover_message()
-                self.decode_recover_chatroom()
-
-            self.model_im_col.db_insert_table_version(model_im.VERSION_KEY_DB, model_im.VERSION_VALUE_DB)
-            self.model_im_col.db_insert_table_version(model_im.VERSION_KEY_APP, Skype_VERSION)
-            self.model_im_col.db_commit()
+            self._get_account_table()
+            self._get_friend_table()
+            self._get_message_table()
+            chatroom_members = self._get_chatroom_table()
+            self._get_chatroom_member_table(chatroom_members)
+            self.decode_recover_friend()
+            self.decode_recover_message()
+            self.decode_recover_chatroom()
 
         generate = model_im.GenerateModel(self.cache_db)
         results = generate.get_models()

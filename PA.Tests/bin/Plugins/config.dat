@@ -676,10 +676,10 @@
           <key>EntryPoint</key>
           <string>analyze_icq</string>
           <key>RunnerType</key>
-          <integer>1</integer>
+          <integer>0</integer>
           <key>Patterns</key>
           <array>
-            <string>com.icq.icqfree</string>
+            <string>/Documents/Agent.sqlite$</string>
           </array>
           <key>Category</key>
           <string>ICQ</string>
@@ -699,12 +699,11 @@
           <key>EntryPoint</key>
           <string>analyze_skype</string>
           <key>RunnerType</key>
-          <integer>1</integer>
+          <integer>0</integer>
           <key>Patterns</key>
           <array>
-            <string>com.skype.skype</string>
-            <string>com.skype.SkypeForiPad</string>
-            <string>com.skype.tomskype</string>
+            <string>Library/Preferences/com.skype.skype.plist$</string>
+            <string>Library/Preferences/com.skype.tomskype.plist$</string>
           </array>
           <key>Category</key>
           <string>Skype</string>

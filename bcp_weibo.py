@@ -970,7 +970,7 @@ class GenerateBcp(object):
                         content,
                         media_path,
                         send_time,
-                        extra_id,
+                        location_id,
                         status,
                         talker_type,
                         source,
