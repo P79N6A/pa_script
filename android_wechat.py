@@ -268,7 +268,7 @@ class WeChatParser(Wechat):
                         deleted = 0 if rec.Deleted == DeletedState.Intact else 1
                         self._parse_wc_db_with_value(deleted, node.AbsolutePath, username, content, attr)
                     except Exception as e:
-                        TraceService.Trace(TraceLevel.Error, "android_wechat.py Error: LINE {}".format(traceback.format_exc()))
+                        pass
                 self.im.db_commit()
 
     def _parse_wc_db_with_value(self, deleted, source, username, content_blob, attr_blob):
@@ -300,7 +300,8 @@ class WeChatParser(Wechat):
             feed.image_path = ','.join(str(m) for m in medias)
         elif moment_type == MOMENT_TYPE_VIDEO:
             medias = sns.get_content_medias()
-            feed.video_path = ','.join(str(m) for m in medias)
+            if medias is not None:
+                feed.video_path = ','.join(str(m) for m in medias)
         elif moment_type in [MOMENT_TYPE_SHARED, MOMENT_TYPE_MUSIC]:
             feed.url, feed.url_title, feed.url_desc = sns.get_url_info()
 
@@ -336,10 +337,13 @@ class WeChatParser(Wechat):
             while reader.Read():
                 if canceller.IsCancellationRequested:
                     break
-                chatroom = self._db_reader_get_string_value(reader, 0)
-                member = self._db_reader_get_string_value(reader, 1)
-                if chatroom != '' and member != '':
-                    self._parse_mm_db_chatroom_member_with_value(1, node.AbsolutePath, chatroom, member, '', None)
+                try:
+                    chatroom = self._db_reader_get_string_value(reader, 0)
+                    member = self._db_reader_get_string_value(reader, 1)
+                    if chatroom != '' and member != '':
+                        self._parse_mm_db_chatroom_member_with_value(1, node.AbsolutePath, chatroom, member, '', None)
+                except Exception as e:
+                    TraceService.Trace(TraceLevel.Error, "android_wechat.py Error: LINE {}".format(traceback.format_exc()))
             reader.Close()
         db_cmd.Dispose()
         self.im.db_commit()
@@ -371,18 +375,23 @@ class WeChatParser(Wechat):
         db_cmd.Dispose()
 
         for username in contacts:
-            aux_index = contacts.get(username, [])
-            alias = None
-            nickname = None
-            if username.endswith("@chatroom"):
-                if len(aux_index) > 0:
-                    nickname = aux_index[0]
-            else:
-                if len(aux_index) > 0:
-                    alias = aux_index[0]
-                if len(aux_index) > 1:
-                    nickname = aux_index[1]
-            self._parse_mm_db_contact_with_value(1, node.AbsolutePath, username, alias, nickname, '', 0, 0, None, None)
+            if canceller.IsCancellationRequested:
+                break
+            try:
+                aux_index = contacts.get(username, [])
+                alias = None
+                nickname = None
+                if username.endswith("@chatroom"):
+                    if len(aux_index) > 0:
+                        nickname = aux_index[0]
+                else:
+                    if len(aux_index) > 0:
+                        alias = aux_index[0]
+                    if len(aux_index) > 1:
+                        nickname = aux_index[1]
+                self._parse_mm_db_contact_with_value(1, node.AbsolutePath, username, alias, nickname, '', 0, 0, None, None)
+            except Exception as e:
+                TraceService.Trace(TraceLevel.Error, "android_wechat.py Error: LINE {}".format(traceback.format_exc()))
         self.im.db_commit()
         del contacts
 
@@ -401,25 +410,28 @@ class WeChatParser(Wechat):
             while reader.Read():
                 if canceller.IsCancellationRequested:
                     break
-                msg = self._db_reader_get_string_value(reader, 0)
-                talker = self._db_reader_get_string_value(reader, 1)
-                sender = self._db_reader_get_string_value(reader, 2)
-                timestamp = self._db_reader_get_int_value(reader, 3) / 1000
-                if talker != '':
-                    message = model_im.Message()
-                    message.deleted = 1
-                    message.source = node.AbsolutePath
-                    message.account_id = self.user_account.account_id
-                    message.talker_id = talker
-                    message.talker_name = self.contacts.get(talker, {}).get('nickname')
-                    message.sender_id = sender
-                    message.sender_name = self.contacts.get(sender, {}).get('nickname')
-                    message.is_sender = 1 if talker == sender else 0
-                    message.type = model_im.MESSAGE_CONTENT_TYPE_TEXT
-                    message.send_time = timestamp
-                    message.content = msg
-                    message.talker_type = model_im.CHAT_TYPE_GROUP if talker.endswith("@chatroom") else model_im.CHAT_TYPE_FRIEND
-                    message.insert_db(self.im)
+                try:
+                    msg = self._db_reader_get_string_value(reader, 0)
+                    talker = self._db_reader_get_string_value(reader, 1)
+                    sender = self._db_reader_get_string_value(reader, 2)
+                    timestamp = self._db_reader_get_int_value(reader, 3) / 1000
+                    if talker != '':
+                        message = model_im.Message()
+                        message.deleted = 1
+                        message.source = node.AbsolutePath
+                        message.account_id = self.user_account.account_id
+                        message.talker_id = talker
+                        message.talker_name = self.contacts.get(talker, {}).get('nickname')
+                        message.sender_id = sender
+                        message.sender_name = self.contacts.get(sender, {}).get('nickname')
+                        message.is_sender = 1 if talker == sender else 0
+                        message.type = model_im.MESSAGE_CONTENT_TYPE_TEXT
+                        message.send_time = timestamp
+                        message.content = msg
+                        message.talker_type = model_im.CHAT_TYPE_GROUP if talker.endswith("@chatroom") else model_im.CHAT_TYPE_FRIEND
+                        message.insert_db(self.im)
+                except Exception as e:
+                    TraceService.Trace(TraceLevel.Error, "android_wechat.py Error: LINE {}".format(traceback.format_exc()))
             reader.Close()
         db_cmd.Dispose()
         self.im.db_commit()
@@ -480,16 +492,18 @@ class WeChatParser(Wechat):
         while row is not None:
             if canceller.IsCancellationRequested:
                 break
-            username = self._db_column_get_string_value(row[0])
-            alias = self._db_column_get_string_value(row[1])
-            nickname = self._db_column_get_string_value(row[2])
-            remark = self._db_column_get_string_value(row[3])
-            contact_type = self._db_column_get_int_value(row[4])
-            verify_flag = self._db_column_get_int_value(row[5])
-            portrait_hd = self._db_column_get_string_value(row[6])
-            portrait = self._db_column_get_string_value(row[7])
-
-            self._parse_mm_db_contact_with_value(0, source, username, alias, nickname, remark, contact_type, verify_flag, portrait_hd, portrait)
+            try:
+                username = self._db_column_get_string_value(row[0])
+                alias = self._db_column_get_string_value(row[1])
+                nickname = self._db_column_get_string_value(row[2])
+                remark = self._db_column_get_string_value(row[3])
+                contact_type = self._db_column_get_int_value(row[4])
+                verify_flag = self._db_column_get_int_value(row[5])
+                portrait_hd = self._db_column_get_string_value(row[6])
+                portrait = self._db_column_get_string_value(row[7])
+                self._parse_mm_db_contact_with_value(0, source, username, alias, nickname, remark, contact_type, verify_flag, portrait_hd, portrait)
+            except Exception as e:
+                TraceService.Trace(TraceLevel.Error, "android_wechat.py Error: LINE {}".format(traceback.format_exc()))
             row = cursor.fetchone()
         self.im.db_commit()
         cursor.close()
@@ -502,16 +516,19 @@ class WeChatParser(Wechat):
             for rec in node_db.ReadTableDeletedRecords(ts, False):
                 if canceller.IsCancellationRequested:
                     break
-                username = self._db_record_get_string_value(rec, 'username')
-                if username in [None, '']:
-                    continue
-                alias = self._db_record_get_string_value(rec, 'alias')
-                nickname = self._db_record_get_string_value(rec, 'nickname')
-                remark = self._db_record_get_string_value(rec, 'conRemark')
-                contact_type = self._db_record_get_int_value(rec, 'type')
-                verify_flag = self._db_record_get_string_value(rec, 'verifyFlag')
-                deleted = 0 if rec.Deleted == DeletedState.Intact else 1
-                self._parse_mm_db_contact_with_value(deleted, source, username, alias, nickname, remark, contact_type, verify_flag, None, None)
+                try:
+                    username = self._db_record_get_string_value(rec, 'username')
+                    if username in [None, '']:
+                        continue
+                    alias = self._db_record_get_string_value(rec, 'alias')
+                    nickname = self._db_record_get_string_value(rec, 'nickname')
+                    remark = self._db_record_get_string_value(rec, 'conRemark')
+                    contact_type = self._db_record_get_int_value(rec, 'type')
+                    verify_flag = self._db_record_get_string_value(rec, 'verifyFlag')
+                    deleted = 0 if rec.Deleted == DeletedState.Intact else 1
+                    self._parse_mm_db_contact_with_value(deleted, source, username, alias, nickname, remark, contact_type, verify_flag, None, None)
+                except Exception as e:
+                    pass
             self.im.db_commit()
 
     def _parse_mm_db_contact_with_value(self, deleted, source, username, alias, nickname, remark, contact_type, verify_flag, portrait_hd, portrait):
@@ -570,12 +587,14 @@ class WeChatParser(Wechat):
         while row is not None:
             if canceller.IsCancellationRequested:
                 break
-            chatroom_id = self._db_column_get_string_value(row[0])
-            member_list = self._db_column_get_string_value(row[1])
-            display_name_list = self._db_column_get_string_value(row[2])
-            room_owner = self._db_column_get_string_value(row[4])
-
-            self._parse_mm_db_chatroom_member_with_value(0, source, chatroom_id, member_list, display_name_list, room_owner)
+            try:
+                chatroom_id = self._db_column_get_string_value(row[0])
+                member_list = self._db_column_get_string_value(row[1])
+                display_name_list = self._db_column_get_string_value(row[2])
+                room_owner = self._db_column_get_string_value(row[4])
+                self._parse_mm_db_chatroom_member_with_value(0, source, chatroom_id, member_list, display_name_list, room_owner)
+            except Exception as e:
+                TraceService.Trace(TraceLevel.Error, "android_wechat.py Error: LINE {}".format(traceback.format_exc()))
             row = cursor.fetchone()
         self.im.db_commit()
         cursor.close()
@@ -586,14 +605,17 @@ class WeChatParser(Wechat):
             for rec in node_db.ReadTableDeletedRecords(ts, False):
                 if canceller.IsCancellationRequested:
                     break
-                chatroom_id = self._db_record_get_string_value(rec, 'chatroomname')
-                if chatroom_id in [None, '']:
-                    continue
-                member_list = self._db_record_get_string_value(rec, 'memberlist')
-                display_name_list = self._db_record_get_string_value(rec, 'displayname')
-                room_owner = self._db_record_get_string_value(rec, 'roomowner')
-                deleted = 0 if rec.Deleted == DeletedState.Intact else 1
-                self._parse_mm_db_chatroom_member_with_value(deleted, source, chatroom_id, member_list, display_name_list, room_owner)
+                try:
+                    chatroom_id = self._db_record_get_string_value(rec, 'chatroomname')
+                    if chatroom_id in [None, '']:
+                        continue
+                    member_list = self._db_record_get_string_value(rec, 'memberlist')
+                    display_name_list = self._db_record_get_string_value(rec, 'displayname')
+                    room_owner = self._db_record_get_string_value(rec, 'roomowner')
+                    deleted = 0 if rec.Deleted == DeletedState.Intact else 1
+                    self._parse_mm_db_chatroom_member_with_value(deleted, source, chatroom_id, member_list, display_name_list, room_owner)
+                except Exception as e:
+                    pass
             self.im.db_commit()
 
     def _parse_mm_db_chatroom_member_with_value(self, deleted, source, chatroom_id, member_list, display_name_list, room_owner):
@@ -626,19 +648,22 @@ class WeChatParser(Wechat):
         while row is not None:
             if canceller.IsCancellationRequested:
                 break
-            talker = self._db_column_get_string_value(row[0])
-            msg = self._db_column_get_string_value(row[1])
-            img_path = self._db_column_get_string_value(row[2])
-            is_send = self._db_column_get_int_value(row[3])
-            status = self._db_column_get_int_value(row[4])
-            msg_type = self._db_column_get_int_value(row[5])
-            create_time = self._db_column_get_int_value(row[6]) / 1000
-            msg_id = self._db_column_get_string_value(row[7])
-            lv_buffer = self._db_column_get_blob_value(row[8])
-            msg_svr_id = self._db_column_get_string_value(row[9])
+            try:
+                talker = self._db_column_get_string_value(row[0])
+                msg = self._db_column_get_string_value(row[1])
+                img_path = self._db_column_get_string_value(row[2])
+                is_send = self._db_column_get_int_value(row[3])
+                status = self._db_column_get_int_value(row[4])
+                msg_type = self._db_column_get_int_value(row[5])
+                create_time = self._db_column_get_int_value(row[6]) / 1000
+                msg_id = self._db_column_get_string_value(row[7])
+                lv_buffer = self._db_column_get_blob_value(row[8])
+                msg_svr_id = self._db_column_get_string_value(row[9])
             
-            self._parse_mm_db_message_with_value(0, source, talker, msg, img_path, is_send, status, msg_type, create_time, msg_id, lv_buffer, msg_svr_id)
-            row = cursor.fetchone()
+                self._parse_mm_db_message_with_value(0, source, talker, msg, img_path, is_send, status, msg_type, create_time, msg_id, lv_buffer, msg_svr_id)
+                row = cursor.fetchone()
+            except Exception as e:
+                TraceService.Trace(TraceLevel.Error, "android_wechat.py Error: LINE {}".format(traceback.format_exc()))
         self.im.db_commit()
         cursor.close()
 
@@ -651,20 +676,23 @@ class WeChatParser(Wechat):
             for rec in node_db.ReadTableDeletedRecords(ts, False):
                 if canceller.IsCancellationRequested:
                     break
-                talker = self._db_record_get_string_value(rec, 'talker')
-                if talker in [None, '']:
-                    continue
-                msg = self._db_record_get_string_value(rec, 'content')
-                img_path = self._db_record_get_string_value(rec, 'imgPath')
-                is_send = self._db_record_get_int_value(rec, 'isSend')
-                status = self._db_record_get_int_value(rec, 'status')
-                msg_type = self._db_record_get_int_value(rec, 'type')
-                create_time = self._db_record_get_int_value(rec, 'createTime') / 1000
-                msg_id = self._db_record_get_string_value(rec, 'msgId')
-                lv_buffer = self._db_record_get_blob_value(rec, 'lvbuffer')
-                msg_svr_id = self._db_record_get_string_value(rec, 'msgSvrId')
-                deleted = 0 if rec.Deleted == DeletedState.Intact else 1
-                self._parse_mm_db_message_with_value(deleted, source, talker, msg, img_path, is_send, status, msg_type, create_time, msg_id, lv_buffer, msg_svr_id)
+                try:
+                    talker = self._db_record_get_string_value(rec, 'talker')
+                    if talker in [None, '']:
+                        continue
+                    msg = self._db_record_get_string_value(rec, 'content')
+                    img_path = self._db_record_get_string_value(rec, 'imgPath')
+                    is_send = self._db_record_get_int_value(rec, 'isSend')
+                    status = self._db_record_get_int_value(rec, 'status')
+                    msg_type = self._db_record_get_int_value(rec, 'type')
+                    create_time = self._db_record_get_int_value(rec, 'createTime') / 1000
+                    msg_id = self._db_record_get_string_value(rec, 'msgId')
+                    lv_buffer = self._db_record_get_blob_value(rec, 'lvbuffer')
+                    msg_svr_id = self._db_record_get_string_value(rec, 'msgSvrId')
+                    deleted = 0 if rec.Deleted == DeletedState.Intact else 1
+                    self._parse_mm_db_message_with_value(deleted, source, talker, msg, img_path, is_send, status, msg_type, create_time, msg_id, lv_buffer, msg_svr_id)
+                except Exception as e:
+                    pass
             self.im.db_commit()
 
     def _parse_mm_db_message_with_value(self, deleted, source, talker, msg, img_path, is_send, status, msg_type, create_time, msg_id, lv_buffer, msg_svr_id):
