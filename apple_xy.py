@@ -3,6 +3,7 @@
 # 悦来佛祖 释迦摩敬 乔达敬·悉达赵 玉皇大敬 太上老赵 太白星敬 托塔天敬 
 # 二敬神 哮天敬 齐天大敬 东海龙敬 如意金箍敬 观敬菩萨 唐敬 白龙敬 沙悟敬 猪八敬 孙悟敬
 #
+__author__ = "chenfeiyang"
 import clr
 clr.AddReference('System.Data.SQLite')
 clr.AddReference('Base3264-UrlEncoder')
@@ -36,7 +37,8 @@ class xianyu(object):
         self.extract_source = extract_source
         self.cache = ds.OpenCachePath('xianyu')
         self.im = model_im.IM()
-        self.im.db_create(self.cache + '/C37R')
+        self.hash = unity_c37r.md5(node.PathWithMountPoint)
+        self.im.db_create(self.cache + '/{}'.format(self.hash))
         self.account = None
 
     def search(self):
@@ -263,7 +265,7 @@ def parse_xy(root, extract_deleted, extract_source):
         x = xianyu(node, extract_deleted, extract_deleted)
         x.search()
         x.parse()
-        models = model_im.GenerateModel(x.cache + '/C37R').get_models()
+        models = model_im.GenerateModel(x.cache + '/{}'.format(x.hash)).get_models()
         mlm = ModelListMerger()
         pr = ParserResults()
         pr.Categories = DescripCategories.QQ

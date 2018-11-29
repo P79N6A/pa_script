@@ -1,8 +1,10 @@
 #coding:utf-8
+__author__ = "chenfeiyang"
 import clr
 clr.AddReference('System.Data.SQLite')
 clr.AddReference('Base3264-UrlEncoder')
 try:
+    clr.AddReference('PA_runtime')
     clr.AddReference('model_im')
 except:
     pass
@@ -76,10 +78,11 @@ class Ding(object):
         self.im = model_im.IM()
         cache = ds.OpenCachePath('Dingtalk')
         self.need_parse = False
-        if self.im.need_parse(cache + '/c37r', APP_V):
+        self.hash = md5(root.PathWithMountPoint)
+        if self.im.need_parse(cache + '{}'.format(self.hash), APP_V):
             self.need_parse = True
-            self.im.db_create(cache + '/c37r')
-        self.cache_res = cache + '/c37r'
+            self.im.db_create(cache + '/{}'.format(self.hash))
+        self.cache_res = cache + '/{}'.format(self.hash)
 
     def log_print(self, msg):
         print(u'[钉钉]:%s' % msg)
@@ -473,7 +476,7 @@ class Ding(object):
                             media_id = js.get('photoContent').get('mediaId')
                             t_f_name = js.get('photoContent').get('filename')
                             if t_f_name is None or t_f_name == "":
-                                print(string)
+                                #print(string)
                                 ext = ''
                             else:
                                 fn, ext = os.path.splitext(t_f_name)
@@ -498,7 +501,8 @@ class Ding(object):
                             msg.content = GetString(reader, 3) if GetString(reader, 3) is not '' else GetString(reader, 6)
                             msg.type = model_im.MESSAGE_CONTENT_TYPE_SYSTEM
                     except:
-                            self.log_print('error occurs: {}'.format(reader, 3))
+                            self.log_print('error occurs: {}'.format(GetString(reader, 3)))
+                            continue
                     self.im.db_insert_table_message(msg)
                 cmd.Dispose()
                 # group members....
