@@ -39,6 +39,7 @@ class BeeTalkParser(model_im.IM, model_callrecord.MC):
         self.cachedb = self.cachepath + "\\" + md5_db.hexdigest().upper() + ".db"
         self.recoverDB = self.cachepath + "\\" +md5_rdb.hexdigest().upper() + ".db"
         self.sourceDB = self.cachepath + '\\BeetalkSourceDB'
+        self.cacheNode = self.node.Parent.Parent
         self.account_id = None
 
     def db_create_table(self):
@@ -209,7 +210,6 @@ class BeeTalkParser(model_im.IM, model_callrecord.MC):
         db = SQLite.SQLiteConnection('Data Source = {}; ReadOnly = True'.format(dbPath))
         db.Open()
         db_cmd = SQLite.SQLiteCommand(db)
-        fs = self.node.FileSystem
         try:
             if self.db is None:
                 return
@@ -250,7 +250,6 @@ class BeeTalkParser(model_im.IM, model_callrecord.MC):
         db = SQLite.SQLiteConnection('Data Source = {}; ReadOnly = True'.format(dbPath))
         db.Open()
         db_cmd = SQLite.SQLiteCommand(db)
-        fs = self.node.FileSystem
         try:
             if db is None:
                 return
@@ -267,7 +266,6 @@ class BeeTalkParser(model_im.IM, model_callrecord.MC):
                     message = model_im.Message()
                     if canceller.IsCancellationRequested:
                         break
-                    fs = self.node.FileSystem
                     image_name = None
                     thumbnail_name = None
                     text_content = None
@@ -305,7 +303,7 @@ class BeeTalkParser(model_im.IM, model_callrecord.MC):
                             line = '{' + str(test_Key) + ':' + str(test_Value) + '}'
                             if test_Key == 'kImageImageUrlKey':
                                 image_name = test_Value
-                                nodes = fs.Search(image_name + '$')
+                                nodes = self.cacheNode.Search(image_name + '$')
                                 for node in nodes:
                                     message.media_path = node.AbsolutePath
                                     break
@@ -325,7 +323,7 @@ class BeeTalkParser(model_im.IM, model_callrecord.MC):
                                 longitude = test_Value
                             elif test_Key == 'kVNUrlKey':
                                 voice_msg = test_Value
-                                nodes = fs.Search(voice_msg + '$')
+                                nodes = self.cacheNode.Search(voice_msg + '$')
                                 for node in nodes:
                                     message.media_path = node.AbsolutePath
                                     break
@@ -375,7 +373,6 @@ class BeeTalkParser(model_im.IM, model_callrecord.MC):
         db = SQLite.SQLiteConnection('Data Source = {}; ReadOnly = True'.format(dbPath))
         db.Open()
         db_cmd = SQLite.SQLiteCommand(db)
-        fs = self.node.FileSystem
         try:
             if self.db is None:
                 return
@@ -472,7 +469,6 @@ class BeeTalkParser(model_im.IM, model_callrecord.MC):
         db = SQLite.SQLiteConnection('Data Source = {}; ReadOnly = True'.format(dbPath))
         db.Open()
         db_cmd = SQLite.SQLiteCommand(db)
-        fs = self.node.FileSystem
         try:
             if self.db is None:
                 return
