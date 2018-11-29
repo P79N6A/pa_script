@@ -91,7 +91,7 @@ def decode_text(imei_bytes, text):
             c[len(c)-1] = (c[len(c)-1]) ^ ord(imei_bytes[i % len(imei_bytes)])
             ret += c.decode('utf-8',"ignore")
         except Exception as e:
-            print (e)
+            pass
     return ret
 def readVarInt(data):
         i = 0
@@ -103,7 +103,7 @@ def readVarInt(data):
                 j, = struct.unpack('B',data[k])
                 k = k+1
             except Exception as e:
-                print(e)
+                pass
             l = l | (j & 0x7f) << i
             if((j & 0x80) == 0):
                 return l
@@ -231,7 +231,7 @@ class Andriod_QQParser(object):
                     self.imei = x[-16:-1]
                     self.imeilen = 15
         except Exception as e:
-            print (e)
+            pass
         return
     def decode_accounts(self):
         try:
@@ -264,8 +264,7 @@ class Andriod_QQParser(object):
                     if(pos != -1):
                         x = line[pos+len(name):len(line)-1]
                         nickname = unicode(x).decode('unicode-escape')
-                        #nickname  = nickname.encode('utf-8')
-                        print (nickname)
+                        #nickname  = nickname.encode('utf-8')                        
                         self.accinfo[acc_id].append(nickname)
                     postime = line.find(t)
                     if(postime != -1):
@@ -273,7 +272,7 @@ class Andriod_QQParser(object):
                         time = time[:len(time) -3]
                         self.accinfo[acc_id].append(time)
         except Exception as e:
-            print (e)
+            pass
         return
     def insert_account(self):
         nickfile =  self.root.GetByPath('/files/Properties')
@@ -285,7 +284,7 @@ class Andriod_QQParser(object):
                 ac.source = nickfile.AbsolutePath
                 ac.nickname = self.accinfo[acc][1]
             except Exception as e:
-                print (e)
+                pass
             self.im.db_insert_table_account(ac)
         self.im.db_commit()
     def decode_friends(self,acc_id):
@@ -317,7 +316,7 @@ class Andriod_QQParser(object):
                 friend.age = SafeGetInt64(reader,4)
                 friend.remark = decode_text(self.imei,SafeGetString(reader,1))
             except Exception as e:
-                print (e)
+                pass
             self.im.db_insert_table_friend(friend)
         self.im.db_commit()
         reader.Close()
@@ -355,7 +354,7 @@ class Andriod_QQParser(object):
                 g.create_time = SafeGetInt64(reader,5)
                 g.member_count  = SafeGetInt64(reader,6)
             except Exception as e:
-                print (e)
+                pass
             self.im.db_insert_table_chatroom(g)
         reader.Close()
         command.Dispose()
@@ -393,7 +392,7 @@ class Andriod_QQParser(object):
                 mem.age = SafeGetInt64(reader,4)
                 mem.joinTime = SafeGetInt64(reader,5)
             except Exception as e:
-                print (e)
+                pass
             self.im.db_insert_table_chatroom_member(mem)
         reader.Close()
         command.Dispose()
@@ -434,7 +433,7 @@ class Andriod_QQParser(object):
                     msg.type = MESSAGE_CONTENT_TYPE_ATTACHMENT
                 return True
         except Exception as e:
-            print (e)
+            pass
         return False
     def decode_msg_from_friendtbale(self,acc_id,table):
         node =  self.root.GetByPath('/databases/'+ acc_id + '.db')
@@ -491,7 +490,7 @@ class Andriod_QQParser(object):
                 msg.type = MESSAGE_CONTENT_TYPE_TEXT
                 self.processQQMsg(msg,msgdata,msgtype)
             except Exception as e:
-                print(e)
+                pass
         reader.Close()
         command.Dispose()
         conn.Close()
@@ -505,14 +504,10 @@ class Andriod_QQParser(object):
         address = msgstruct['meta']['Location.Search']['address'].decode("utf8","ignore")
         lat = msgstruct['meta']['Location.Search']['lat']
         lng = msgstruct['meta']['Location.Search']['lng']
-        msg.extra_id  =  str(uuid.uuid1())
-        msg.type = MESSAGE_CONTENT_TYPE_LOCATION
-        locat = Location()
-        locat.location_id = msg.extra_id
+        locat = msg.create_location()        
         locat.latitude = float(lat)
         locat.longitude = float(lng)
-        locat.address = address
-        self.im.db_insert_table_location(locat)
+        locat.address = address       
         pass
     def decode_msg_from_trooptbale(self,acc_id ,table):
         node =  self.root.GetByPath('/databases/'+ acc_id + '.db')
@@ -569,7 +564,7 @@ class Andriod_QQParser(object):
                 msg.type = MESSAGE_CONTENT_TYPE_TEXT
                 self.processQQMsg(msg,msgdata,msgtype)
             except Exception as e:
-                print(e)
+                pass
         reader.Close()
         command.Dispose()
         conn.Close()
@@ -633,7 +628,7 @@ class Andriod_QQParser(object):
                     msg.type = MESSAGE_CONTENT_TYPE_TEXT
                     self.processQQMsg(msg,msgdata,msgtype)
                 except Exception as e:
-                    print(e)
+                    pass
             self.im.db_commit()
     def recover_msg_from_trooptable(self,acc_id):
         node =  self.root.GetByPath('/databases/'+ acc_id + '.db')
@@ -692,7 +687,7 @@ class Andriod_QQParser(object):
                     msg.type = MESSAGE_CONTENT_TYPE_TEXT
                     self.processQQMsg(msg,msgdata,msgtype)
                 except Exception as e:
-                    print(e)
+                    pass
         self.im.db_commit()
     def processQQMsg(self,msg,msgdata,msgtype):
         try:
@@ -705,18 +700,19 @@ class Andriod_QQParser(object):
                 msgItems = msgstruct['mStructMsgItemLists']
                 for l in msgItems:
                     try:
-                        link  = l['b']
-                        if link == '':
-                            continue
-                        msg.content = str(link)
-                        msg.type = MESSAGE_CONTENT_TYPE_LINK
-                        self.im.db_insert_table_message(msg)
+                        linkurl  = l['b']
+                        if linkurl == '':
+                            continue                                         
+                        link = msg.create_link()
+                        link.url = linkurl
+                        msg.insert_db(self.im)                        
                     except Exception as e:
-                        print(e)
+                        pass
+                return
             elif(msgtype == -5003):
                 pass
             elif(msgtype == -1000):
-                msg.content =msgstruct.decode("utf8","ignore")
+                msg.content = msgstruct.decode("utf8","ignore")
             elif(msgtype == -3006):
                 pass
             elif(msgtype == -5040 or msgtype == -5020 or msgtype == -5021 or msgtype == -5022 or msgtype == -5023):
@@ -734,7 +730,7 @@ class Andriod_QQParser(object):
                     else:
                         msg.content  = str(msgstruct['meta']).encode('utf-8',"ignore")
                 except Exception as e:
-                        print(e)
+                        pass
                 try:
                     if(msgdata[0:4] == '\xac\xed\x00\05' and msgdata[4] ==  0x74):
                         lens, = struct.unpack('>H',msgdata[5:7])
@@ -799,8 +795,8 @@ class Andriod_QQParser(object):
             else:
                 msg.content = msgdata.decode('utf-8',"ignore")
         except Exception as e:
-            print (e)
-        self.im.db_insert_table_message(msg)
+            pass
+        msg.insert_db(im)        
     def decode_msg_ftstable(self,acc_id):
         node =  self.root.GetByPath('/databases/'+ acc_id + '-IndexQQMsg.db')
         if node is None:
@@ -830,7 +826,7 @@ class Andriod_QQParser(object):
                 msg.sender_id = base64.b64decode(SafeGetString(reader,2))
                 msg.deleted = 1
             except Exception as e:
-                print(e)
+                pass
             self.im.db_insert_table_message(msg)
         self.im.db_commit()
     def recover_msg_ftstable(self,acc_id):
@@ -862,6 +858,6 @@ class Andriod_QQParser(object):
                 msg.sender_id = base64.b64decode((rec['c5ext2'].Value))
                 msg.deleted = 1
             except Exception as e:
-                print (e)
+                pass
             self.im.db_insert_table_message(msg)
         self.im.db_commit()

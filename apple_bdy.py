@@ -251,8 +251,18 @@ class BDNetDisk(object):
         self.nd.im.db_commit()
         reader.Close()
 
+def judge_node(node):
+    node = root.Parent.Parent.Parent
+    sub = node.GetByPath('Documents')
+    if sub is None:
+        return None
+    return node
+
 def parse_bdy(node, extract_source, extract_deleted):
+    node = judge_node(node)
     try:
+        if node is None:
+            raise IOError('e')
         b = BDNetDisk(node, extract_deleted, extract_source)
         if b.need_parse:
             b.search()
