@@ -85,7 +85,10 @@ class WeChatParser(Wechat):
 
             self.contacts = {}
             self.user_account = model_im.Account()
-            self.extend_nodes = self.root.FileSystem.Search('/Tencent/MicroMsg/{}$'.format(self.user_hash))
+            self.extend_nodes = []
+            extend_nodes = self.root.FileSystem.Search('/Tencent/MicroMsg/{}$'.format(self.user_hash))
+            for extend_node in extend_nodes:
+                self.extend_nodes.append(extend_node)
 
             node = self.user_node.GetByPath('/EnMicroMsg.db')
             mm_db_path = os.path.join(self.cache_path, self.cache_db_name + '_mm.db')
