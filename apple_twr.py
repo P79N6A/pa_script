@@ -1,4 +1,5 @@
 #coding:utf-8
+__author__ = "chenfeiyang"
 import clr
 clr.AddReference('System.Data.SQLite')
 try:
@@ -20,6 +21,7 @@ from System.IO import *
 import logging
 import re
 import unity_c37r
+import traceback
 #####################Get Functions######################################
 def GetString(reader, idx):
     return reader.GetString(idx) if not reader.IsDBNull(idx) else ""
@@ -57,8 +59,9 @@ class TIphone(object):
             os.mkdir(cache)
         #self.mb = microblog_base.BlogBase(env)
         self.im = model_im.IM()
-        if self.im.need_parse(cache + '/C37R', VERSION_APP_VALUE):
-            self.im.db_create(cache + '/C37R')
+        self.hash = unity_c37r.md5(root.PathWithMountPoint)
+        if self.im.need_parse(cache + '/{}'.format(self.hash), VERSION_APP_VALUE):
+            self.im.db_create(cache + '/{}'.format(self.hash))
             self.need_parse = True
         
     @staticmethod
@@ -247,10 +250,9 @@ class TIphone(object):
                 blog = model_im.Feed()
                 blog.account_id = current_id
                 blog.content = GetString(reader, 1)
-                #blog.send_time = unity_c37r.format_mac_timestamp(GetReal(reader, 2))
+                blog.send_time = unity_c37r.format_mac_timestamp(unity_c37r.c_sharp_try_get_time(reader, 2))
                 blog.send_time = int(GetReal(reader, 2))
                 blog.sender_id = GetInt64(reader, 0)
-                blog.type = model_im.MESSAGE_CONTENT_TYPE_TEXT
                 self.im.db_insert_table_feed(blog)
             self.im.db_commit()
             root_path = self.node.PathWithMountPoint
@@ -270,24 +272,33 @@ class TIphone(object):
                 self.deserialize_message(bp_arr, aid, talk_file, current_id)
             self.im.db_commit()
 
+def judge_node(node):
+    root = node.Parent.Parent.Parent
+    sub_node = root.GetByPath('Library/Caches/databases')
+    if sub_node is None:
+        return None
+    return root
+
 def analyse_twitter(root, extract_deleted, extract_source):
-    #node = FileSystem.FromLocalDir(r'D:\ios_case\tweet\tw')
-    node = root
+    node = judge_node(root)
     try:
+        if node is None:
+            raise IOError('E')
         t = TIphone(node, extract_deleted, extract_source)
         if t.need_parse:
             t.parse_account()
             t.im.db_insert_table_version(model_im.VERSION_KEY_DB, model_im.VERSION_VALUE_DB)
             t.im.db_insert_table_version(model_im.VERSION_KEY_APP, VERSION_APP_VALUE)
             t.im.db_close()
-        nameValues.SafeAddValue('1330005', t.cache + "/C37R")
-        models = model_im.GenerateModel(t.cache + "/C37R").get_models()
+        nameValues.SafeAddValue('1330005', t.cache + "/{}".format(t.hash))
+        models = model_im.GenerateModel(t.cache + "/{}".format(t.hash)).get_models()
         mlm = ModelListMerger()
         pr = ParserResults()
         pr.Categories = DescripCategories.QQ
         pr.Models.AddRange(list(mlm.GetUnique(models)))
         pr.Build('Twitter')
     except:
+        traceback.print_exc()
         pr = ParserResults()
     return pr
     

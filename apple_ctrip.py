@@ -29,6 +29,7 @@ import json
 import model_map
 import model_im
 import bcp_gis
+import hashlib
 from PA.Formats.NextStep import *
 from PA.InfraLib.Extensions import PlistHelper
 
@@ -93,7 +94,7 @@ class Ctrip(object):
 
     # 账户信息
     def get_account(self):
-        account_node = self.root.GetByPath("Documents/CTChatV2")
+        account_node = self.root.Parent.GetByPath("CTChatV2")
         if account_node is None:
             return
         for filename in account_node.Files:
@@ -133,7 +134,7 @@ class Ctrip(object):
 
 
     def get_contact_name(self):
-        contact_node = self.root.GetByPath("Documents/CTChatV2")
+        contact_node = self.root.Parent.GetByPath("CTChatV2")
         if contact_node is None:
             return
         for filename in contact_node.Files:
@@ -154,7 +155,7 @@ class Ctrip(object):
                     print(e)
 
     def get_groups_member(self):
-        groups_member_node = self.root.GetByPath("Documents/CTChatV2")
+        groups_member_node = self.root.Parent.GetByPath("CTChatV2")
         if groups_member_node is None:
             return
         for filename in groups_member_node.Files:
@@ -194,7 +195,7 @@ class Ctrip(object):
 
 
     def get_groups(self):
-        groups_node = self.root.GetByPath("Documents/CTChatV2")
+        groups_node = self.root.Parent.GetByPath("CTChatV2")
         if groups_node is None:
             return
         for filename in groups_node.Files:
@@ -232,7 +233,7 @@ class Ctrip(object):
 
 
     def get_messages(self):
-        messages_node = self.root.GetByPath("Documents/CTChatV2")
+        messages_node = self.root.Parent.GetByPath("CTChatV2")
         if messages_node is None:
             return
         for filename in messages_node.Files:
@@ -280,7 +281,7 @@ class Ctrip(object):
                                     except Exception as e:
                                         messages.content = rec["msgBody"].Value
                                 
-                                elif rec["MSG_TYPE"].Value == "1007":
+                                elif rec["msgType"].Value == "1007":
                                     messages.type = MESSAGE_CONTENT_TYPE_IMAGE
                                     chat_content = json.loads(rec["MSG_BODY"].Value)
                                     try:
@@ -326,7 +327,7 @@ class Ctrip(object):
                                         if "timestamp" in rec and (not rec["timestamp"].IsDBNull):
                                             chat_location.timestamp = convert_to_unixtime(rec["timestamp"].Value)
                                         self.ctrip.db_insert_table_location(chat_location)
-                                        messages.extra_id = chat_location.location_id
+                                        messages.location_id   = chat_location.location_id
                                     except Exception as e:
                                         messages.content = rec["msgBody"].Value
 
@@ -364,7 +365,7 @@ class Ctrip(object):
 
     # 订单信息
     def get_order_ticket(self):
-        order_node = self.root.GetByPath("Documents/ctrip_scheduleinfo.db")
+        order_node = self.root.Parent.GetByPath("ctrip_scheduleinfo.db")
         if order_node is None:
             return
         try:
@@ -404,16 +405,17 @@ class Ctrip(object):
                                                 order_ticket.destination_latitude = float(tmp_data["latitude"])
                                             if "scenicSpotName" in tmp_data:
                                                 order_ticket.materials_name = tmp_data["materials_name"]
-                                        self.ctrip.db_insert_table_journey(order_ticket)
+                                        if  order_ticket.materials_name or order_ticket.order_num or order_ticket.remark or order_ticket.destination_longitude or order_ticket.destination_latitude:
+                                            self.ctrip.db_insert_table_journey(order_ticket)
                             except Exception as e:
-                                print(e)
+                                pass
         except Exception as e:
-            print(e)
+            pass
         self.ctrip.db_commit()
 
 
     def get_order_ticket_method_two(self):
-        order_node = self.root.GetByPath("Library/Caches/CTMyCtrip")
+        order_node = self.root.Parent.Parent.GetByPath("Library/Caches/CTMyCtrip")
         if order_node is None:
             return
         for filename in order_node.Files:
@@ -424,22 +426,7 @@ class Ctrip(object):
                     if  len(str(i)) == 64:
                         self.auth_dicts[str(i)] = filename.Name[14:25].lower()
                         
-            
-    def get_route_from_dict(self, bp, uid):
-        values = {}
-        attrs = dir(bp[uid])
-        if "Keys" in attrs:
-            for key in bp[uid].Keys:
-                if key in ["bus.history.type"]:
-                    values[key] =  bp[uid][key].Value
-                else:
-                    tmp = bp[uid][key].Value
-                    values[key] = bp[tmp]
-        else:
-            pass
-        return values
-
-
+    
     def get_order_data(self):
         fs = self.root.FileSystem
         results = fs.Search("myctrip_offlineorder.txt")
@@ -482,7 +469,8 @@ class Ctrip(object):
                                         order_ticket.destination_address = i["Address"]
                                     if "ProductID" in i:
                                         order_ticket.order_num = i["ProductID"]
-                            self.ctrip.db_insert_table_journey(order_ticket)
+                            if  order_ticket.materials_name or order_ticket.order_num or order_ticket.remark or order_ticket.destination_longitude or order_ticket.destination_latitude:
+                                self.ctrip.db_insert_table_journey(order_ticket)
 
             self.ctrip.db_commit()
                                 
@@ -510,15 +498,19 @@ class Ctrip(object):
         if results:
             return convert_to_unixtime(results.groups()[0])
 
-
-
     # 历史访问记录
     def get_pageview_cache(self):
         pass
 
+    def md5(self, cache_path, node_path):
+        m = hashlib.md5()   
+        m.update(node_path.encode(encoding = 'utf-8'))
+        db_path = cache_path + "\\" + m.hexdigest() + ".db"
+        return db_path
+
     def parse(self):
 
-        db_path = self.cache + "\\ctrip.db"
+        db_path = self.md5(self.cache, self.root.AbsolutePath)
         self.ctrip.db_create(db_path)
         self.get_account()
         self.get_groups_member()

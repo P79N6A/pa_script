@@ -145,7 +145,7 @@ class LineParser(object):
                     search.source     = self.cur_db_source
                     search.deleted    = 1 if rec.IsDeleted else 0               
                     try:
-                        self.im.db_insert_table_search(search)
+                        search.insert_db(self.im)
                     except:
                         exc()
             self.im.db_commit()    
@@ -190,7 +190,7 @@ class LineParser(object):
                 account.deleted    = 1 if rec.IsDeleted else 0
                 account.source     = self.cur_db_source
                 try:
-                    self.im.db_insert_table_account(account)
+                    account.insert_db(self.im)
                 except:
                     exc()
                 cur_account = account
@@ -203,7 +203,7 @@ class LineParser(object):
             account.username   = UNKNOWN_USER_USERNAME
             account.source     = self.cur_db_source
             try:
-                self.im.db_insert_table_account(account)
+                account.insert_db(self.im)
             except:
                 exc()        
             cur_account = account
@@ -305,7 +305,7 @@ class LineParser(object):
             except:
                 exc()
             try:
-                self.im.db_insert_table_chatroom(chatroom)
+                chatroom.insert_db(self.im)
             except:
                 exc()
         self.im.db_commit()  
@@ -432,21 +432,16 @@ class LineParser(object):
 
             # location
             if message.type == model_im.MESSAGE_CONTENT_TYPE_LOCATION:
-                location = model_im.Location()
-                message.extra_id   = location.location_id
+                location = message.create_location()
                 location.latitude  = rec['location_latitude'].Value * (10 ** -6)
                 location.longitude = rec['location_longitude'].Value * (10 ** -6)
                 location.address   = rec['location_address'].Value
                 location.timestamp = self._get_im_ts(rec['created_time'].Value)
                 location.source    = self.cur_db_source
-                try:
-                    self.im.db_insert_table_location(location)
-                except:
-                    exc()
             message.source  = self.cur_db_source
             message.deleted = 1 if rec.IsDeleted else 0         
             try:
-                self.im.db_insert_table_message(message)
+                message.insert_db(self.im)
             except:
                 exc()
         self.im.db_commit()
@@ -527,7 +522,7 @@ class LineParser(object):
             for chatroom_id in FRIEND_CHATROOMS.get(friend.friend_id, []):
                 self.parse_ChatroomMember(friend, chatroom_id)
             try:
-                self.im.db_insert_table_friend(friend)
+                friend.insert_db(self.im)
             except:
                 exc()            
         self.im.db_commit()
@@ -570,7 +565,7 @@ class LineParser(object):
         cm.deleted      = friend.deleted  
         cm.source       = friend.source  
         try:
-            self.im.db_insert_table_chatroom_member(cm)
+            cm.insert_db(self.im)
         except:
             exc()
 

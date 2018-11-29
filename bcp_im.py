@@ -603,7 +603,7 @@ class IM(object):
             try:
                 os.remove(db_path)
             except Exception as e:
-                print('model_im db_create() remove %s error: %s' % (db_path, e))
+                TraceService.Trace(TraceLevel.Error, "bcp_im.py Error: LINE {}".format(traceback.format_exc()))
 
         self.db = SQLite.SQLiteConnection('Data Source = {}'.format(db_path))
         self.db.Open()
@@ -999,7 +999,7 @@ class GenerateBcp(object):
             cursor.execute(sql)
             row = cursor.fetchone()
         except Exception as e:
-            print(e)
+            TraceService.Trace(TraceLevel.Error, "bcp_im.py Error: LINE {}".format(traceback.format_exc()))
 
         while row is not None:
             if canceller.IsCancellationRequested:
@@ -1035,7 +1035,7 @@ class GenerateBcp(object):
             cursor.execute(sql)
             row = cursor.fetchone()
         except Exception as e:
-            print(e)
+            TraceService.Trace(TraceLevel.Error, "bcp_im.py Error: LINE {}".format(traceback.format_exc()))
 
         while row is not None:
             if canceller.IsCancellationRequested:
@@ -1070,7 +1070,7 @@ class GenerateBcp(object):
             cursor.execute(sql)
             row = cursor.fetchone()
         except Exception as e:
-            print(e)
+            TraceService.Trace(TraceLevel.Error, "bcp_im.py Error: LINE {}".format(traceback.format_exc()))
 
         while row is not None:
             if canceller.IsCancellationRequested:
@@ -1106,7 +1106,7 @@ class GenerateBcp(object):
             cursor.execute(sql)
             row = cursor.fetchone()
         except Exception as e:
-            print(e)
+            TraceService.Trace(TraceLevel.Error, "bcp_im.py Error: LINE {}".format(traceback.format_exc()))
 
         while row is not None:
             if canceller.IsCancellationRequested:
@@ -1136,14 +1136,15 @@ class GenerateBcp(object):
             return
         cursor = self.db.cursor()
         sql = '''select account_id, talker_id, talker_name, sender_id, sender_name, is_sender, msg_id, type, 
-                        content, media_path, send_time, extra_id, status, talker_type, source, deleted, repeated
+                        content, media_path, send_time, location_id, deal_id, status, talker_type, source, 
+                        deleted, repeated
                  from message'''
         row = None
         try:
             cursor.execute(sql)
             row = cursor.fetchone()
         except Exception as e:
-            print(e)
+            TraceService.Trace(TraceLevel.Error, "bcp_im.py Error: LINE {}".format(traceback.format_exc()))
 
         while row is not None:
             if canceller.IsCancellationRequested:
@@ -1180,7 +1181,7 @@ class GenerateBcp(object):
                 self.im.db_insert_table_group_message(message)
             else:
                 message = FriendMessage(self.collect_target_id, self.contact_account_type, row[0], None)
-                message.delete_status = self._convert_delete_status(row[15])
+                message.delete_status = self._convert_delete_status(row[16])
                 message.regis_nickname = None  # 昵称
                 message.friend_id = row[1]
                 message.friend_nickname = row[2]
@@ -1208,49 +1209,38 @@ class GenerateBcp(object):
         if canceller.IsCancellationRequested:
             return
         cursor = self.db.cursor()
-        sql = '''select account_id, sender_id, type, content, media_path, urls, preview_urls, 
-                        attachment_title, attachment_link, attachment_desc, send_time, likes, 
-                        comments, location, source, deleted, repeated
+        sql = '''select account_id, sender_id, type, content, media_path, url, url_title, url_desc, 
+                        send_time, like_id, likecount, rtcount, comment_id, commentcount, device, 
+                        location_id, source, deleted, repeated
                  from feed '''
         row = None
         try:
             cursor.execute(sql)
             row = cursor.fetchone()
         except Exception as e:
-            print(e)
+            TraceService.Trace(TraceLevel.Error, "bcp_im.py Error: LINE {}".format(traceback.format_exc()))
 
         while row is not None:
             if canceller.IsCancellationRequested:
                 break
-            like_count = None
-            if row[11] is not None:
-                try:
-                    like_count = len(row[11].split(','))
-                except Exception as e:
-                    pass
-
-            comment_count = None
-            if row[12] is not None:
-                try:
-                    comment_count = len(row[12].split(','))
-                except Exception as e:
-                    pass
-
-            feed = Feed(self.collect_target_id, self.contact_account_type, row[0], None)
-            feed.delete_status = self._convert_delete_status(row[15])
-            feed.friend_id = row[1]
-            feed.friend_nickname = None
-            feed.mail_send_time = row[10]
-            feed.weibo_message = row[3]
-            feed.weibo_reply_counter = comment_count
-            feed.weibo_like_counter = like_count
-            location = self._get_location_from_id(row[13])
-            if location is not None:
-                feed.company_address = location.get('address')
-                feed.longitude = location.get('longitude')
-                feed.latitude = location.get('latitude')
-                feed.above_sealevel = location.get('elevation')
-            self.im.db_insert_table_feed(feed)
+            try:
+                feed = Feed(self.collect_target_id, self.contact_account_type, row[0], None)
+                feed.delete_status = self._convert_delete_status(row[17])
+                feed.friend_id = row[1]
+                feed.friend_nickname = None
+                feed.mail_send_time = row[8]
+                feed.weibo_message = row[3]
+                feed.weibo_reply_counter = row[13]
+                feed.weibo_like_counter = row[10]
+                location = self._get_location_from_id(row[15])
+                if location is not None:
+                    feed.company_address = location.get('address')
+                    feed.longitude = location.get('longitude')
+                    feed.latitude = location.get('latitude')
+                    feed.above_sealevel = location.get('elevation')
+                self.im.db_insert_table_feed(feed)
+            except Exception as e:
+                TraceService.Trace(TraceLevel.Error, "bcp_im.py Error: LINE {}".format(traceback.format_exc()))
             row = cursor.fetchone()
         self.im.db_commit()
         cursor.close()
@@ -1266,7 +1256,7 @@ class GenerateBcp(object):
             cursor.execute(sql)
             row = cursor.fetchone()
         except Exception as e:
-            print(e)
+            TraceService.Trace(TraceLevel.Error, "bcp_im.py Error: LINE {}".format(traceback.format_exc()))
 
         while row is not None:
             if canceller.IsCancellationRequested:
@@ -1293,7 +1283,7 @@ class GenerateBcp(object):
             cursor.execute(sql)
             row = cursor.fetchone()
         except Exception as e:
-            print(e)
+            TraceService.Trace(TraceLevel.Error, "bcp_im.py Error: LINE {}".format(traceback.format_exc()))
 
         if row != None:
             location = {}

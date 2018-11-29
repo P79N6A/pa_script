@@ -418,7 +418,7 @@ class WhatsApp(object):
                     if GetFloat(reader, 9) > 0 and GetFloat(reader, 10) > 0:
                         location = model_im.Location()
                         message.type = 7
-                        message.extra_id = str(location.location_id)
+                        message.location_id  = location.location_id
                         lat, lng = unity_c37r.gcj2wgs_exact(GetFloat(reader, 9),GetFloat(reader, 10))
                         if lng:
                             location.longitude = lng
@@ -534,7 +534,7 @@ class WhatsApp(object):
                     if GetFloat(reader, 9) > 0 and GetFloat(reader, 10) > 0:
                         location = model_im.Location()
                         message.type = 7
-                        message.extra_id = str(location.location_id)
+                        message.location_id  = location.location_id
                         lat, lng = unity_c37r.gcj2wgs_exact(GetFloat(reader, 9),GetFloat(reader, 10))
                         if lng:
                             location.longitude = lng

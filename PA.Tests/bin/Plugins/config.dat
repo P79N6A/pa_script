@@ -46,6 +46,24 @@
         </dict>
         <dict>
           <key>EntryPoint</key>
+          <string>PA.iPhoneApps.Parsers.FacebookParser</string>
+          <key>RunnerType</key>
+          <integer>1</integer>
+          <key>ModuleType</key>
+          <integer>2</integer>
+          <key>Patterns</key>
+          <array>
+            <string>com.facebook.Facebook</string>
+          </array>
+          <key>Category</key>
+          <string>Facebook</string>
+          <key>Name</key>
+          <string>Facebook(苹果)</string>
+          <key>Filter</key>
+          <string>应用>社交</string>
+        </dict>
+        <dict>
+          <key>EntryPoint</key>
           <string>PA.iPhoneApps.Parsers.WhatsAppDefaultFolderParser</string>
           <key>RunnerType</key>
           <integer>0</integer>
@@ -184,7 +202,7 @@
             <string>com.baidu.BaiduMobileInfo</string>
           </array>
           <key>Category</key>
-          <string>OperaBrowser</string>
+          <string>BaiduMobile</string>
           <key>Name</key>
           <string>手机百度(苹果)</string>
           <key>Filter</key>
@@ -290,7 +308,7 @@
           <integer>2</integer>
           <key>Patterns</key>
           <array>
-            <string>com.opera.OperaMini</string>
+            <string>com.wemomo.momoappdemo1</string>
           </array>
           <key>Category</key>
           <string>Momo</string>
@@ -328,9 +346,40 @@
         </dict>
       </array>
     </dict>
-    
+
     <!--苹果插件从这里开始,安卓插件请见下面-->
     <!--要个性化自定义运行某些插件,请按此文件的格式建立config.debug.dat文件,调试版的程序程序会优先读取config.debug.dat文件-->
+    <dict>
+      <key>Module</key>
+      <string>apple_dev</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>apple_dev.AnalyzeDeviceInfo</string>
+          <key>ExcuteOrder</key>
+          <!-- ExcuteOrder 越大,执行优先级越高 -->
+          <integer>999</integer>
+          <key>RunnerType</key>
+          <integer>0</integer>
+          <!-- ModuleType = 1 代表这是一个c#语言写的插件 -->
+          <key>ModuleType</key>
+          <integer>1</integer>
+          <key>Patterns</key>
+          <array>
+            <!-- # 表示直接取文件系统根节点 -->
+            <string>#</string>
+          </array>
+          <key>Category</key>
+          <string>DeviceInfo</string>
+          <key>Name</key>
+          <string>设备信息(苹果)</string>
+          <key>Filter</key>
+          <string>基础数据</string>
+        </dict>
+      </array>
+    </dict>
+
     <dict>
       <key>Module</key>
       <string>apple_push</string>
@@ -364,10 +413,10 @@
           <key>EntryPoint</key>
           <string>analyze_ctrip</string>
           <key>RunnerType</key>
-          <integer>1</integer>
+          <integer>0</integer>
           <key>Patterns</key>
           <array>
-            <string>ctrip.com</string>
+            <string>/Documents/session.dat$</string>
           </array>
           <key>Category</key>
           <string>Ctrip</string>
@@ -606,7 +655,7 @@
           <integer>0</integer>
           <key>Patterns</key>
           <array>
-          <string>Library/Preferences/com.atebits.Tweetie2.plist$</string>
+            <string>Library/Preferences/com.atebits.Tweetie2.plist$</string>
           </array>
           <key>Category</key>
           <string>Twitter</string>
@@ -627,10 +676,10 @@
           <key>EntryPoint</key>
           <string>analyze_icq</string>
           <key>RunnerType</key>
-          <integer>1</integer>
+          <integer>0</integer>
           <key>Patterns</key>
           <array>
-            <string>com.icq.icqfree</string>
+            <string>/Documents/Agent.sqlite$</string>
           </array>
           <key>Category</key>
           <string>ICQ</string>
@@ -650,12 +699,11 @@
           <key>EntryPoint</key>
           <string>analyze_skype</string>
           <key>RunnerType</key>
-          <integer>1</integer>
+          <integer>0</integer>
           <key>Patterns</key>
           <array>
-            <string>com.skype.skype</string>
-            <string>com.skype.SkypeForiPad</string>
-            <string>com.skype.tomskype</string>
+            <string>Library/Preferences/com.skype.skype.plist$</string>
+            <string>Library/Preferences/com.skype.tomskype.plist$</string>
           </array>
           <key>Category</key>
           <string>Skype</string>
@@ -751,7 +799,7 @@
             <string>/Library/Passes$</string>
           </array>
           <key>Category</key>
-          <string>Locations</string>
+          <string>Passbook</string>
           <key>Name</key>
           <string>手机卡包(苹果)</string>
           <key>Filter</key>
@@ -1262,7 +1310,7 @@
           <integer>0</integer>
           <key>Patterns</key>
           <array>
-            <string>/Documents/contents/QQAccountsManager$</string>           
+            <string>/Documents/contents/QQAccountsManager$</string>
           </array>
           <key>Category</key>
           <string>QQ</string>
@@ -1283,10 +1331,10 @@
           <key>EntryPoint</key>
           <string>analyze_sogoumap</string>
           <key>RunnerType</key>
-          <integer>1</integer>
+          <integer>0</integer>
           <key>Patterns</key>
           <array>
-            <string>com.sogou.map.app.Map</string>
+            <string>/Documents/MapData.data$</string>
           </array>
           <key>Category</key>
           <string>SogouMap</string>
@@ -1355,10 +1403,10 @@
           <key>EntryPoint</key>
           <string>analyze_gaodemap</string>
           <key>RunnerType</key>
-          <integer>1</integer>
+          <integer>0</integer>
           <key>Patterns</key>
           <array>
-            <string>com.autonavi.amap</string>
+            <string>/Documents/cloundSyncData/girf_sync.db$</string>
           </array>
           <key>Category</key>
           <string>AMap</string>
@@ -1379,10 +1427,10 @@
           <key>EntryPoint</key>
           <string>analyze_neteasemail</string>
           <key>RunnerType</key>
-          <integer>1</integer>
+          <integer>0</integer>
           <key>Patterns</key>
           <array>
-            <string>com.netease.mailmaster</string>
+            <string>Library/Preferences/com.netease.mailmaster.plist$</string>
           </array>
           <key>Category</key>
           <string>NeteaseMail</string>
@@ -1403,10 +1451,10 @@
           <key>EntryPoint</key>
           <string>analyze_qqmail</string>
           <key>RunnerType</key>
-          <integer>1</integer>
+          <integer>0</integer>
           <key>Patterns</key>
           <array>
-            <string>com.tencent.qqmail</string>
+            <string>/Documents/FMailDB.db$</string>
           </array>
           <key>Category</key>
           <string>QQMail</string>
@@ -1429,8 +1477,8 @@
           <integer>0</integer>
           <key>Patterns</key>
           <array>
-          <!-- 系统输入法 不支持备份提取 逻辑提取 提权提取 -->
-          <string>private/var/mobile/Library/Keyboard$</string>
+            <!-- 系统输入法 不支持备份提取 逻辑提取 提权提取 -->
+            <string>private/var/mobile/Library/Keyboard$</string>
           </array>
           <key>Category</key>
           <string>IOSSystemIme</string>
@@ -1441,7 +1489,7 @@
         </dict>
       </array>
     </dict>
-      <dict>
+    <dict>
       <key>Module</key>
       <string>apple_sougouime</string>
       <key>Runners</key>
@@ -1453,8 +1501,8 @@
           <integer>0</integer>
           <key>Patterns</key>
           <array>
-          <!-- 搜狗输入法  暂测 备份提取 逻辑提取 提权提取 都支持 -->
-          <string>Library/Preferences/com.sogou.sogouinput.plist$</string>
+            <!-- 搜狗输入法  暂测 备份提取 逻辑提取 提权提取 都支持 -->
+            <string>Library/Preferences/com.sogou.sogouinput.plist$</string>
           </array>
           <key>Category</key>
           <string>SougouIme</string>
@@ -1564,6 +1612,30 @@
 
     <dict>
       <key>Module</key>
+      <string>apple_bdy</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>parse_bdy</string>
+          <key>RunnerType</key>
+          <integer>0</integer>
+          <key>Patterns</key>
+          <array>
+            <string>Library/Preferences/com.baidu.netdisk.plist$</string>
+          </array>
+          <key>Category</key>
+          <string>BDY</string>
+          <key>Name</key>
+          <string>百度网盘(苹果)</string>
+          <key>Filter</key>
+          <string>应用>其他</string>
+        </dict>
+      </array>
+    </dict>
+
+    <dict>
+      <key>Module</key>
       <string>apple_tb</string>
       <key>Runners</key>
       <array>
@@ -1667,10 +1739,10 @@
           <key>EntryPoint</key>
           <string>analyze_line</string>
           <key>RunnerType</key>
-          <integer>1</integer>
+          <integer>0</integer>
           <key>Patterns</key>
           <array>
-            <string>jp.naver.line</string>
+            <string>Library/Preferences/jp.naver.line.plist$</string>
           </array>
           <key>Category</key>
           <string>Line</string>
@@ -1680,8 +1752,8 @@
           <string>应用>即时通讯</string>
         </dict>
       </array>
-    </dict>    
-    
+    </dict>
+
     <dict>
       <key>Module</key>
       <string>apple_beetalk</string>
@@ -1705,7 +1777,7 @@
         </dict>
       </array>
     </dict>
-	<dict>
+    <dict>
       <key>Module</key>
       <string>apple_baidutb</string>
       <key>Runners</key>
@@ -1724,8 +1796,8 @@
 		  <key>Name</key>
           <string>百度贴吧(苹果)</string>
           <key>Filter</key>
-          <string>应用>贴吧</string>       
-		</dict>
+          <string>应用>贴吧</string>
+        </dict>
       </array>
     </dict>
     <!--安卓运行插件从这里开始-->
@@ -2482,9 +2554,9 @@
             <string>com.baidu.searchbox.lite/databases/SearchBox.db$</string>
           </array>
           <key>Category</key>
-          <string>BaiduMobile</string>
+          <string>BaiduMobileLite</string>
           <key>Name</key>
-          <string>手机百度极速版(安卓)</string>
+          <string>百度极速版(安卓)</string>
           <key>Filter</key>
           <string>应用>其他</string>
         </dict>
@@ -2564,7 +2636,7 @@
         </dict>
       </array>
     </dict>
-    
+
     <dict>
       <key>Module</key>
       <string>android_line</string>

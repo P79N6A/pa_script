@@ -1,4 +1,7 @@
 #coding=utf-8
+
+__author__ = "Xu Tao"
+
 import PA_runtime
 import base64
 from PA_runtime import *
@@ -17,6 +20,7 @@ except:
 del clr
 import model_map
 import bcp_gis
+import hashlib
 
 POI_SNAPSHOT = 12
 
@@ -36,7 +40,7 @@ class gaodeMap(object):
         decrypt sqlite....
         AES.ECB with key = a4a11bb9ef4b2f4c
         """
-        node = self.root.GetByPath('/Documents/cloundSyncData/girf_sync.db')
+        node = self.root
         if node is None:
             return
         self.sourcefile = node.AbsolutePath
@@ -107,7 +111,8 @@ class gaodeMap(object):
                             except Exception as e:
                                 pass
                     except Exception as e:
-                        print("TABLE----SEARCH_SHANPSHOT is not exists!")
+                        pass
+                        # print("TABLE----SEARCH_SHANPSHOT is not exists!")
 
                     try:
                         cursor.execute(ROUTE_SQL)
@@ -127,7 +132,8 @@ class gaodeMap(object):
                             except Exception as e:
                                 pass
                     except Exception as e:
-                        print("TABLE----ROUTE_HISTORY_V2_SNAPSHOT is not exists!")
+                        pass
+                        # print("TABLE----ROUTE_HISTORY_V2_SNAPSHOT is not exists!")
                     
                     try:
                         cursor.execute(POSITION_SQL)
@@ -155,7 +161,8 @@ class gaodeMap(object):
                             except Exception as e:
                                 pass
                     except Exception as e:
-                        print("POI_SNAPSHOT is not exists!")
+                        pass
+                        # print("POI_SNAPSHOT is not exists!")
 
                 else:
                     # 账户名
@@ -274,8 +281,9 @@ class gaodeMap(object):
                                 except Exception as e:
                                     pass
                     except Exception as e:
-                        tmpb = "POI_SNAPSHOT{0}".format(user_id)
-                        print(tmpb + "is not exists!")
+                        pass
+                        # tmpb = "POI_SNAPSHOT{0}".format(user_id)
+                        # print(tmpb + "is not exists!")
 
                     try:
                         ROUTE_DELETED_SQL = "select * from ROUTE_HISTORY_V2_SNAPSHOT" + user_id
@@ -298,8 +306,9 @@ class gaodeMap(object):
                                 except Exception as e:
                                     pass
                     except Exception as e:
-                        tmpc = "ROUTE_HISTORY_V2_SNAPSHOT{0}".format(user_id)
-                        print(tmpc + "is not exists!")
+                        pass
+                        # tmpc = "ROUTE_HISTORY_V2_SNAPSHOT{0}".format(user_id)
+                        # print(tmpc + "is not exists!")
 
         self.gaodemap.db_commit()
         self.gaodemap.db_close()
@@ -345,20 +354,19 @@ class gaodeMap(object):
         return models
 
 
-    # def check_to_update(self, path_db, appversion):
-    #     if os.path.exists(path_db) and path_db[-6:-3] == appversion:
-    #         return False
-    #     else:
-    #         return True
-
+    def md5(self, cache_path, node_path):
+        m = hashlib.md5()   
+        m.update(node_path.encode(encoding = 'utf-8'))
+        db_path = cache_path + "\\" + m.hexdigest() + ".db"
+        return db_path
 
     def parse(self):
         decode_db_path = self.cache + "/girf_sync_decode.db"
-        db_path = self.cache + "/gaode_db_1.0.db"
+        db_path = self.md5(self.cache, self.root.AbsolutePath)
         
         if not os.path.exists(decode_db_path):
             self.decode_db()
-        # if self.check_to_update(db_path, APPVERSION):
+
         self.gaodemap.db_create(db_path)
         self.entrance()
         generate = model_map.Genetate(db_path)

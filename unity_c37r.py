@@ -3,6 +3,8 @@
 # Fucking code, Do NOT READ ANY OF THEM
 #
 
+__author__ = "chenfeiyang"
+
 import shutil
 import hashlib
 import logging
@@ -121,7 +123,7 @@ def create_logger(path, en_cmd, identifier = 'general'):
 
 class SimpleLogger(object):
     def __init__(self, path, en_cmd, id):
-        self.logger = create_logger(path, en_cmd, id)
+        #self.logger = create_logger(path, en_cmd, id)
         self.level = 0
 
     def set_level(self, val):
@@ -130,11 +132,13 @@ class SimpleLogger(object):
     def m_print(self, msg):
         if self.level == 1:
             print(msg)
+        return
         self.logger.info(msg)
     
     def m_err(self, msg):
         if self.level == 1:
             print(msg)
+        return
         self.logger.error(msg)
 
 # only for small filesystem...
@@ -306,17 +310,37 @@ def execute_query(cmd, cmd_text, values):
         cmd.Parameters.Add(p)
     cmd.ExecuteNonQuery()
 
+#
 # copy file....
 # note, give node, not db path
+# it executes a simple command, then read the results, if any error happens, we copy the sqlite file to cache(C37R)
+#
 def create_connection_tentatively(db_node, read_only = True):
     cmd = 'DataSource = {}; ReadOnly = {}'
     cmd = cmd.format(db_node.PathWithMountPoint, 'True' if read_only else 'False')
     try:
+        conn = None
+        dcmd = None
+        reader = None
         conn = sql.SQLiteConnection(cmd)
         conn.Open()
+        dcmd = sql.SQLiteCommand(conn)
+        dcmd.CommandText  = '''
+            select * from sqlite_master limit 1 offset 0
+        '''
+        reader = dcmd.ExecuteReader()
+        reader.Read()
+        reader.Close()
+        dcmd.Dispose()
         return conn
     except:
         traceback.print_exc()
+        if reader is not None:
+            reader.Close()
+        if dcmd is not None:
+            dcmd.Dispose()
+        if conn is not None:
+            conn.Close()
         data = db_node.Data
         sz = db_node.Size
         cache = ds.OpenCachePath('C37R')
@@ -431,3 +455,27 @@ def py_strings(file):
     pattern = re.compile(regExp) # accelerate regularexpression match speed.
     with open(file, 'rb') as f:
         return pattern.findall(f.read())
+
+#
+# 检查数据库文件完备性
+# input :   sqlite_node(not path)
+# cache:    用以copy sqlite 文件的文件夹
+# 返回：    如果是正常数据库，则返回原始路径，如果异常，则返回拷贝后的路径
+#
+def check_sqlite_maturity(sqlite_node, cache):
+    pth = sqlite_node.PathWithMountPoint
+    ret = 0x0
+    if os.path.exists(pth + '-shm'):
+        ret |= 0x2
+    if os.path.exists(pth + '-wal'):
+        ret |= 0x1
+    if ret != 0x3:
+        hash_code = md5(pth)
+        out_file = os.path.join(cache, hash_code)
+        mapping_file_with_copy(pth, out_file)
+        if ret & 0x1:
+            mapping_file_with_copy(pth + '-wal', out_file + '-wal')
+        if ret & 0x2:
+            mapping_file_with_copy(pth + '-shm', out_file + '-shm')
+        return out_file
+    return pth
