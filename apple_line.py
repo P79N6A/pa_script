@@ -27,7 +27,6 @@ DEFAULT_USERNAME = '未知用户名'
 VERSION_APP_VALUE = 1
 
 
-
 def exc(e=''):
     ''' Exception output '''
     try:
@@ -250,7 +249,7 @@ class LineParser(object):
         if not account.account_id:
             return account        
         try:
-            self.im.db_insert_table_account(account)
+            account.insert_db(self.im)
         except:
             exc()
         self.im.db_commit()      
@@ -410,7 +409,7 @@ class LineParser(object):
                     chatroom.source      = self.cur_db_source
                     chatroom.deleted     = 1
                     try:
-                        self.im.db_insert_table_chatroom(chatroom)
+                        chatroom.insert_db(self.im)
                     except:
                         exc()
                 chat_name = CHATROOM_MID_NAME.get(chat_zmid, '已退出该群')
@@ -490,7 +489,7 @@ class LineParser(object):
                 test_p('chatroom.chatroom_id', chatroom.chatroom_id)
                 exc()
             try:
-                self.im.db_insert_table_chatroom(chatroom)
+                chatroom.insert_db(self.im)
             except:
                 exc()
         self.im.db_commit()  
@@ -585,7 +584,7 @@ class LineParser(object):
             FRIEND_PK_NAME_MAP[friend_pk] = friend.nickname
             self.friend_list[friend_pk] = friend
             try:
-                self.im.db_insert_table_friend(friend)
+                friend.insert_db(self.im)
             except:
                 exc()
 
@@ -647,7 +646,7 @@ class LineParser(object):
                 cm.deleted      = friend.deleted  
                 cm.source       = friend.source  
                 try:
-                    self.im.db_insert_table_chatroom_member(cm)
+                    cm.insert_db(self.im)
                 except:
                     exc()
 
@@ -747,21 +746,16 @@ class LineParser(object):
                     message.media_path = self._get_msg_media_path(CHAT_DICT, msg_ZCHAT, msg_ZID)
             # 位置
             if message.type == model_im.MESSAGE_CONTENT_TYPE_LOCATION:
-                location = model_im.Location()
-                message.extra_id   = location.location_id
+                location = message.create_location()
                 location.latitude  = rec['ZLATITUDE'].Value
                 location.longitude = rec['ZLONGITUDE'].Value
                 location.address   = rec['ZTEXT'].Value
                 location.timestamp = self._get_im_ts(rec['ZTIMESTAMP'].Value)
                 location.source    = self.cur_db_source
-                try:
-                    self.im.db_insert_table_location(location)
-                except:
-                    exc()
             message.source  = self.cur_db_source
             message.deleted = 1 if rec.IsDeleted else 0         
             try:
-                self.im.db_insert_table_message(message)
+                message.insert_db(self.im)
             except:
                 exc()
         self.im.db_commit()  
@@ -850,7 +844,7 @@ class LineParser(object):
                     self.im.db_insert_table_location(location)
                 except:
                     exc()            
-                feed.locationid = location.location_id
+                feed.location = location.location_id
 
             feed.send_time = feed_node['postInfo']['createdTime'].Value               # 发布时间[INT]
             feed.likecount = feed_node['postInfo']['likeCount'].Value                 # 赞数量[INT]
@@ -894,7 +888,7 @@ class LineParser(object):
             search.source     = self.cur_db_source
             search.deleted    = 1 if rec.IsDeleted else 0               
             try:
-                self.im.db_insert_table_search(search)
+                search.insert_db(self.im)
             except:
                 exc()
         self.im.db_commit()                        
