@@ -20,7 +20,7 @@ import hashlib
 import shutil
 import traceback
 
-VERSION_APP_VALUE = 2
+VERSION_APP_VALUE = 3
 
 class BeeTalkParser(model_im.IM, model_callrecord.MC):
     def __init__(self, node, extract_deleted, extract_source):
@@ -276,7 +276,6 @@ class BeeTalkParser(model_im.IM, model_callrecord.MC):
                                 img_end = img_start + img_lens
                                 img_name = img_hex[img_start*2: img_end*2: ].decode('hex').decode('utf-8')
                                 break
-                        print(img_name)
                         nodes = fs.Search(img_name)
                         for node in nodes:
                             message.media_path = node.AbsolutePath
@@ -284,7 +283,6 @@ class BeeTalkParser(model_im.IM, model_callrecord.MC):
                             break
                     elif re.match('vn', metatag):
                         vn_name = str(self._db_reader_get_blob_value(sr, 0))[2:35:].decode('utf-8')
-                        print(vn_name)
                         nodes = fs.Search(vn_name)
                         for node in nodes:
                             message.media_path = node.AbsolutePath
@@ -357,12 +355,12 @@ class BeeTalkParser(model_im.IM, model_callrecord.MC):
                         img_lens = int(str(data).encode('hex')[(thumb_start+thumb_lens)*2:(thumb_start+thumb_lens+1)*2:], 16)
                         img_end = img_start+img_lens*2
                         img_name = str(data).encode('hex')[img_start:img_end:].decode('hex').decode('utf-8')
-                        print(img_name)
                         nodes = fs.Search(img_name + '.*$')
                         for node in nodes:
                             message.media_path = node.AbsolutePath
                             message.type = model_im.MESSAGE_CONTENT_TYPE_IMAGE
                             break
+                    self.db_insert_table_message(message)
                 except Exception as e:
                     traceback.print_exc(e)
             sr.Close()
@@ -411,13 +409,11 @@ class BeeTalkParser(model_im.IM, model_callrecord.MC):
                                 location_lens = int(data[i+2], 16)
                                 location_end = location_start + location_lens
                                 location_value = value[location_start*2:location_end*2:].decode('hex').decode('utf-8')
-                                print(location_value)
                             if d == '1a' and data[i + 2] == '0a':
                                 img_start = i + 4
                                 img_lens = int(data[i + 3], 16)
                                 img_end = img_start + img_lens
                                 img_name.append(value[img_start*2: img_end*2: ].decode('hex').decode('utf-8'))
-                                print(img_name)
                             if d == '22':
                                 text_start = i + 2
                                 text_lens = int(data[i + 1], 16)
@@ -425,8 +421,19 @@ class BeeTalkParser(model_im.IM, model_callrecord.MC):
                                 text_content = value[text_start*2: text_end*2: ].decode('hex').decode('utf-8')
                         if location_value is '':
                             location_value = '无位置信息'
-                        feed.content = text_content + '  动态位置:' + location_value
-                        feed.image_path = ','.join(img_name)
+                        location = model_im.Location()
+                        feed.location_id = location.location_id
+                        location.address = location_value
+                        self.db_insert_table_location(location)
+                        feed.content = text_content
+                        fs = self.node.FileSystem
+                        image_name = []
+                        for image in img_name:
+                            print(image)
+                            nodes = fs.Search('/' + image + '.*\..*$')
+                            for node in nodes:
+                                image_name.append(node.AbsolutePath)
+                        feed.image_path = ','.join(image_name)
                     except:
                         pass
                     actions = self._db_reader_get_string_value(sr, 4).split(',')
