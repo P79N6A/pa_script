@@ -467,7 +467,7 @@ class LocationsParser(object):
         return results
 
 def analyze_locations(node, extract_deleted, extract_source):
-    #extractDeleted = False #暂时禁用位置相关的数据恢复
+    extractDeleted = False #位置相关的数据最好不要恢复
     pr = ParserResults()
     pr.Models.AddRange(LocationsParser(node, extract_deleted, extract_source).parse())
     pr.Build('地理位置')
