@@ -69,10 +69,10 @@ class WangxinParser():
 
     def get_user_list(self):
         user_list = {}
-        dir = '/Library/Caches/YWDB/'
+        dir = '../../Caches/YWDB/'
         dirNode = self.root.GetByPath(dir)
         if dirNode is None:
-            dir = '/Documents/YWDB/'
+            dir = '../../../Documents/YWDB/'
             dirNode = self.root.GetByPath(dir)
             if dirNode is None:
                 return user_list

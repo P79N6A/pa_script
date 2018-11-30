@@ -82,11 +82,11 @@ class YiXinParser():
 
     def get_user_list(self):
         user_list = []
-        node = self.root.GetByPath('/Documents')
+        node = self.root.GetByPath('../../../Documents/')
         if node is not None:
             for file in os.listdir(node.PathWithMountPoint):
-                if file.isdigit():
-                    user_list.append(file)
+                    if file.isdigit():
+                        user_list.append(file)
         return user_list
 
     def parse_user(self):
@@ -108,7 +108,7 @@ class YiXinParser():
         if self.user is None:
             return
         
-        dbPath = self.root.GetByPath('/Documents/' + self.user + '/msg2.db')
+        dbPath = self.root.GetByPath('../../../Documents/' + self.user + '/msg2.db')
         db = SQLiteParser.Database.FromNode(dbPath)
         if db is None:
             return
@@ -165,7 +165,7 @@ class YiXinParser():
             return
         
         for contact_id in self.contacts.keys():
-            dbPath = self.root.GetByPath('/Documents/' + self.user + '/msg2.db')
+            dbPath = self.root.GetByPath('../../../Documents/' + self.user + '/msg2.db')
             db = SQLiteParser.Database.FromNode(dbPath)
             if not db:
                 return
@@ -237,15 +237,15 @@ class YiXinParser():
         try:
             object = json.loads(content)
             if type == model_im.MESSAGE_CONTENT_TYPE_VIDEO:
-                node = self.root.GetByPath('/Documents/' + self.user + '/video')
+                node = self.root.GetByPath('../../../Documents/' + self.user + '/video')
                 if node is not None:
                     media_path = os.path.join(node.AbsolutePath, object['filename'])
             if type == model_im.MESSAGE_CONTENT_TYPE_VOICE:
-                node = self.root.GetByPath('/Documents/' + self.user + '/audio')
+                node = self.root.GetByPath('../../../Documents/' + self.user + '/audio')
                 if node is not None:
                     media_path = os.path.join(node.AbsolutePath, object['filename'])
             if type == model_im.MESSAGE_CONTENT_TYPE_IMAGE:
-                node = self.root.GetByPath('/Documents/' + self.user + '/image')
+                node = self.root.GetByPath('../../../Documents/' + self.user + '/image')
                 if node is not None:
                     media_path = os.path.join(node.AbsolutePath, object['filename'])
             #if type == model_im.MESSAGE_CONTENT_TYPE_CHARTLET:

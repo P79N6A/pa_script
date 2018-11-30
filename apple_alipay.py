@@ -93,7 +93,7 @@ class AlipayParser():
 
     def get_user_list(self):
         user_list = []
-        node = self.root.GetByPath('/Documents/Contact/')
+        node = self.root.GetByPath('../../../Documents/Contact/')
         for file in os.listdir(node.PathWithMountPoint):
             str = re.search('-shm', file, re.M | re.I)
             if str is not None:
@@ -104,7 +104,7 @@ class AlipayParser():
 
             tmp = file[0:16]
                 
-            dbPath = self.root.GetByPath('/Documents/Contact/' + file)
+            dbPath = self.root.GetByPath('../../../Documents/Contact/' + file)
             db = SQLiteParser.Database.FromNode(dbPath)
             if db is None:
                 continue
@@ -135,7 +135,7 @@ class AlipayParser():
         account = model_im.Account()
         account.account_id = self.user
         
-        dbPath = self.root.GetByPath('/Documents/Contact/' + self.md5_encode(self.user)[8:24] + '.db')
+        dbPath = self.root.GetByPath('../../../Documents/Contact/' + self.md5_encode(self.user)[8:24] + '.db')
         db = SQLiteParser.Database.FromNode(dbPath)
         if db is None:
             self.im.db_insert_table_account(account)
@@ -203,7 +203,7 @@ class AlipayParser():
         if self.user is None:
             return
 
-        dbPath = self.root.GetByPath('/Documents/Contact/' + self.md5_encode(self.user)[8:24] + '.db')
+        dbPath = self.root.GetByPath('../../../Documents/Contact/' + self.md5_encode(self.user)[8:24] + '.db')
         db = SQLiteParser.Database.FromNode(dbPath)
         if db is None:
             return
@@ -346,7 +346,7 @@ class AlipayParser():
         if self.user is None:
             return
 
-        dbPath = self.root.GetByPath('/Documents/APGlobalSearch/' + self.md5_encode(self.user)[8:24] + '.db')
+        dbPath = self.root.GetByPath('../../../Documents/APGlobalSearch/' + self.md5_encode(self.user)[8:24] + '.db')
         db = SQLiteParser.Database.FromNode(dbPath)
         if db is None:
             return
@@ -368,7 +368,7 @@ class AlipayParser():
         if self.user is None:
             return
 
-        dbPath = self.root.GetByPath('/Documents/MobileContact/' + self.md5_encode(self.user)[8:24] + '.db')
+        dbPath = self.root.GetByPath('../../../Documents/MobileContact/' + self.md5_encode(self.user)[8:24] + '.db')
         db = SQLiteParser.Database.FromNode(dbPath)
         if db is None:
             return
@@ -390,7 +390,7 @@ class AlipayParser():
         if self.user is None:
             return
 
-        dbPath = self.root.GetByPath('/Documents/Contact/' + self.md5_encode(self.user)[8:24] + '.db')
+        dbPath = self.root.GetByPath('../../../Documents/Contact/' + self.md5_encode(self.user)[8:24] + '.db')
         db = SQLiteParser.Database.FromNode(dbPath)
         if db is None:
             return
@@ -422,7 +422,7 @@ class AlipayParser():
             contact = self.contacts.get(id)
 
             if recentContact[id]['userType'] == '107' or recentContact[id]['userType'] == '11':
-                dbPath = self.root.GetByPath('/Documents/Life/' + self.md5_encode(self.user)[8:24] + '.db')
+                dbPath = self.root.GetByPath('../../../Documents/Life/' + self.md5_encode(self.user)[8:24] + '.db')
                 db = SQLiteParser.Database.FromNode(dbPath)
                 if db is None:
                     return
@@ -449,7 +449,7 @@ class AlipayParser():
                         message.send_time = rec['msgTime'].Value
                         self.im.db_insert_table_message(message)
             elif recentContact[id]['userType'] == '1' or recentContact[id]['userType'] == '2':
-                dbPath = self.root.GetByPath('/Documents/Chat/' + self.md5_encode(self.user)[8:24] + '.db')
+                dbPath = self.root.GetByPath('../../../Documents/Chat/' + self.md5_encode(self.user)[8:24] + '.db')
                 db = SQLiteParser.Database.FromNode(dbPath)
                 if db is None:
                     return
@@ -510,7 +510,7 @@ class AlipayParser():
         except:
             traceback.print_exc()
 
-        deal.create_time = time
+        deal.create_time = int(time)
         if type == model_im.MESSAGE_CONTENT_TYPE_AA_RECEIPT:
             deal.type = model_im.DEAL_TYPE_AA_RECEIPT
             g = re.search('\d+\.\d+(.*?)', json_obj['topTitle'], re.M | re.I)
@@ -572,7 +572,7 @@ class AlipayParser():
         if key is None:
             return None
 
-        dbPath = self.root.GetByPath('/Library/com.alipay.multimedia/apmcache.db')
+        dbPath = self.root.GetByPath('../../com.alipay.multimedia/apmcache.db')
         db = SQLiteParser.Database.FromNode(dbPath)
         if db is None:
             return None
@@ -582,7 +582,7 @@ class AlipayParser():
             SQLiteParser.Tools.AddSignatureToTable(ts, 'filename', SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
             for rec in db.ReadTableRecords(ts, self.extract_deleted):
                 if rec['key'].Value == key or rec['alias_key'].Value == key:
-                    node = self.root.GetByPath('/Library/com.alipay.multimedia/data/')
+                    node = self.root.GetByPath('../../com.alipay.multimedia/data/')
                     if node is not None:
                         return os.path.join(node.AbsolutePath, rec['filename'].Value)
         return None
@@ -649,7 +649,7 @@ class AlipayParser():
         if self.user is None:
             return
 
-        dbPath = self.root.GetByPath('/Documents/Preferences/' + self.md5_encode(self.user)[8:24] + '.db')
+        dbPath = self.root.GetByPath('../../../Documents/Preferences/' + self.md5_encode(self.user)[8:24] + '.db')
         db = SQLiteParser.Database.FromNode(dbPath)
         if db is None:
             return None
