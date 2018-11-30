@@ -717,7 +717,6 @@ class MediaParser(object):
         """
         length = bts.read_int()
         tp = bts.read_int()
-        print('id_tp:%d' %tp)
         length -= 4
         res = dict()
         if tp == TGMessageActionChatAddMember or tp == TGMessageActionChatDeleteMember:

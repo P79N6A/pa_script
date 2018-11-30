@@ -41,18 +41,13 @@ def print_run_time(func):
 def exc(e=''):
     ''' Exception output '''
     try:
-        py_name = os.path.basename(__file__)
+        if DEBUG:
+            py_name = os.path.basename(__file__)
+            msg = 'DEBUG {} case:<{}> :'.format(py_name, CASE_NAME)
+            TraceService.Trace(TraceLevel.Warning, 
+                            (msg+'{}{}').format(traceback.format_exc(), e))
     except:
-        py_name = 'line'
-        TraceService.Trace(TraceLevel.Debug, '.dll have no `__file__` attribute')
-
-    msg = 'DEBUG {} case:<{}> :'.format(py_name, CASE_NAME)
-    if DEBUG:
-        TraceService.Trace(TraceLevel.Warning, 
-                           (msg+'{}{}').format(traceback.format_exc(), e))
-    else:
-        TraceService.Trace(TraceLevel.Debug, 
-                           (msg+'{}{}').format(traceback.format_exc(), e))
+        pass    
 
 def test_p(*e):
     ''' Highlight print in vs '''
