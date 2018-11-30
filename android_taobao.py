@@ -573,7 +573,7 @@ class TaobaoParser(object):
                 url = url.split("&")[0]
             m.media_path = url
             return
-        elif _type == 105:
+        elif _type in (104, 105):
             m.media_path = msg.get("url", "")
             return
         elif _type == 110:
@@ -597,6 +597,8 @@ class TaobaoParser(object):
             return model_im.MESSAGE_CONTENT_TYPE_IMAGE
         elif type_code == 105:
             return model_im.MESSAGE_CONTENT_TYPE_VIDEO
+        elif type_code == 104:
+            return model_im.MESSAGE_CONTENT_TYPE_VOICE
         elif type_code == 110:
             return model_im.MESSAGE_CONTENT_TYPE_RED_ENVELPOE
         elif type_code == 106:
@@ -686,7 +688,7 @@ class TaobaoParser(object):
                     m.talker_type = model_im.CHAT_TYPE_FRIEND
                     m.type = self.__convert_message_type(db_col.get_int64(15))
                     m.talker_id = db_col.get_string(13)
-                    m.is_sender = 1 if m.sender_id == m.account_id else 0
+                    m.is_sender = 1 if m.sender_id in (self.using_account.account_id, self.using_account.username) else 0 
                     m.content = self.__fetch_message_content(m, db_col.get_int64(15), db_col.get_string(14))
 
                     self.model_im_col.db_insert_table_message(m)
@@ -732,7 +734,7 @@ class TaobaoParser(object):
                     m.talker_type = model_im.CHAT_TYPE_FRIEND
                     m.type = self.__convert_message_type(db_col.get_int64(15))
                     m.talker_id = db_col.get_string(13)
-                    m.is_sender = 1 if m.sender_id == m.account_id else 0
+                    m.is_sender = 1 if m.sender_id in (self.using_account.account_id, self.using_account.username) else 0 
                     m.content = self.__fetch_message_content(m, db_col.get_int64(15), db_col.get_string(14))
 
                     self.model_im_col.db_insert_table_message(m)
@@ -764,7 +766,7 @@ class TaobaoParser(object):
                 m.talker_type = model_im.CHAT_TYPE_SYSTEM
                 m.type = model_im.MESSAGE_CONTENT_TYPE_SYSTEM
                 m.talker_id = rec["CONV_CODE"].Value
-                m.is_sender = 1 if m.sender_id == m.account_id else 0
+                m.is_sender = 1 if m.sender_id in (self.using_account.account_id, self.using_account.username) else 0 
                 m.content = self.__fetch_system_message_content(rec["MSG_DATA"].Value)
                 m.deleted = 1
 
@@ -798,7 +800,7 @@ class TaobaoParser(object):
                 m.talker_type = model_im.CHAT_TYPE_FRIEND
                 m.type = self.__convert_message_type(rec["MSG_TYPE"].Value)
                 m.talker_id = rec["CONV_CODE"].Value
-                m.is_sender = 1 if m.sender_id == m.account_id else 0
+                m.is_sender = 1 if m.sender_id in (self.using_account.account_id, self.using_account.username) else 0 
                 m.content = self.__fetch_message_content(m, rec["MSG_TYPE"].Value, rec["MSG_DATA"].Value)
                 m.deleted = 1
 
@@ -832,7 +834,7 @@ class TaobaoParser(object):
                 m.talker_type = model_im.CHAT_TYPE_FRIEND
                 m.type = self.__convert_message_type(rec["MSG_TYPE"].Value)
                 m.talker_id = rec["CONV_CODE"].Value
-                m.is_sender = 1 if m.sender_id == m.account_id else 0
+                m.is_sender = 1 if m.sender_id in (self.using_account.account_id, self.using_account.username) else 0
                 m.content = self.__fetch_message_content(m, rec["MSG_TYPE"].Value, rec["MSG_DATA"].Value)
                 m.deleted = 1
 
