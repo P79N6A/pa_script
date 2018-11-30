@@ -611,7 +611,7 @@
             <string>/CrashReporter/WiFi/WiFiManager$</string>
           </array>
           <key>Category</key>
-          <string>Wifi</string>
+          <string>Logs</string>
           <key>Name</key>
           <string>Wifi日志(苹果)</string>
           <key>Filter</key>
@@ -676,10 +676,10 @@
           <key>EntryPoint</key>
           <string>analyze_icq</string>
           <key>RunnerType</key>
-          <integer>1</integer>
+          <integer>0</integer>
           <key>Patterns</key>
           <array>
-            <string>com.icq.icqfree</string>
+            <string>/Documents/Agent.sqlite$</string>
           </array>
           <key>Category</key>
           <string>ICQ</string>
@@ -699,12 +699,11 @@
           <key>EntryPoint</key>
           <string>analyze_skype</string>
           <key>RunnerType</key>
-          <integer>1</integer>
+          <integer>0</integer>
           <key>Patterns</key>
           <array>
-            <string>com.skype.skype</string>
-            <string>com.skype.SkypeForiPad</string>
-            <string>com.skype.tomskype</string>
+            <string>Library/Preferences/com.skype.skype.plist$</string>
+            <string>Library/Preferences/com.skype.tomskype.plist$</string>
           </array>
           <key>Category</key>
           <string>Skype</string>
@@ -1613,6 +1612,30 @@
 
     <dict>
       <key>Module</key>
+      <string>apple_bdy</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>parse_bdy</string>
+          <key>RunnerType</key>
+          <integer>0</integer>
+          <key>Patterns</key>
+          <array>
+            <string>Library/Preferences/com.baidu.netdisk.plist$</string>
+          </array>
+          <key>Category</key>
+          <string>BDY</string>
+          <key>Name</key>
+          <string>百度网盘(苹果)</string>
+          <key>Filter</key>
+          <string>应用>其他</string>
+        </dict>
+      </array>
+    </dict>
+
+    <dict>
+      <key>Module</key>
       <string>apple_tb</string>
       <key>Runners</key>
       <array>
@@ -1769,8 +1792,8 @@
             <string>/Documents/db.sqlite$</string>
           </array>
           <key>Category</key>
-          <string>QQ</string>
-          <key>Name</key>
+          <string>BaiduTieba</string>
+		  <key>Name</key>
           <string>百度贴吧(苹果)</string>
           <key>Filter</key>
           <string>应用>贴吧</string>

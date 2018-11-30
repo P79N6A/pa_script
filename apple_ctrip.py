@@ -327,7 +327,7 @@ class Ctrip(object):
                                         if "timestamp" in rec and (not rec["timestamp"].IsDBNull):
                                             chat_location.timestamp = convert_to_unixtime(rec["timestamp"].Value)
                                         self.ctrip.db_insert_table_location(chat_location)
-                                        messages.extra_id  = chat_location.location_id
+                                        messages.location_id   = chat_location.location_id
                                     except Exception as e:
                                         messages.content = rec["msgBody"].Value
 

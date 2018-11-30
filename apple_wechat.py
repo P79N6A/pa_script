@@ -1,4 +1,6 @@
 #coding=utf-8
+__author__ = "sumeng"
+
 from PA_runtime import *
 import clr
 clr.AddReference('System.Core')
@@ -7,6 +9,7 @@ clr.AddReference('System.Data.SQLite')
 try:
     clr.AddReference('model_im')
     clr.AddReference('bcp_im')
+    clr.AddReference('base_wechat')
 except:
     pass
 del clr
@@ -28,6 +31,7 @@ import base64
 import datetime
 import model_im
 import bcp_im
+from base_wechat import *
 
 # EnterPoint: analyze_wechat(root, extract_deleted, extract_source):
 # Patterns: '/DB/MM\.sqlite$'
@@ -36,39 +40,6 @@ import bcp_im
 # app数据库版本
 VERSION_APP_VALUE = 3
 
-# 消息类型
-MSG_TYPE_TEXT = 1
-MSG_TYPE_IMAGE = 3
-MSG_TYPE_VOICE = 34
-MSG_TYPE_CONTACT_CARD = 42
-MSG_TYPE_VIDEO = 43
-MSG_TYPE_VIDEO_2 = 62
-MSG_TYPE_EMOJI = 47
-MSG_TYPE_LOCATION = 48
-MSG_TYPE_LINK = 49
-MSG_TYPE_VOIP = 50
-MSG_TYPE_VOIP_GROUP = 64
-MSG_TYPE_SYSTEM = 10000
-MSG_TYPE_SYSTEM_2 = 10002
-
-# 朋友圈类型
-MOMENT_TYPE_IMAGE = 1  # 正常文字图片
-MOMENT_TYPE_TEXT_ONLY = 2  # 纯文字
-MOMENT_TYPE_SHARED = 3  # 分享
-MOMENT_TYPE_MUSIC = 4  # 带音乐的（存的是封面）
-MOMENT_TYPE_EMOJI = 10  # 分享了表情包
-MOMENT_TYPE_VIDEO = 15  # 视频
-
-# 收藏类型
-FAV_TYPE_TEXT = 1  # 文本
-FAV_TYPE_IMAGE = 2  # 图片
-FAV_TYPE_VOICE = 3  # 语音
-FAV_TYPE_VIDEO = 4  # 视频
-FAV_TYPE_LINK = 5  # 链接
-FAV_TYPE_LOCATION = 6  # 位置
-FAV_TYPE_ATTACHMENT = 8  # 附件
-FAV_TYPE_CHAT = 14  # 聊天记录
-FAV_TYPE_VIDEO_2 = 16 # 视频
 
 def analyze_wechat(root, extract_deleted, extract_source):
     pr = ParserResults()
@@ -81,11 +52,7 @@ def analyze_wechat(root, extract_deleted, extract_source):
     return pr
 
 
-def execute(node,extracteDeleted):
-    return analyze_wechat(node, extracteDeleted, False)
-
-
-class WeChatParser(model_im.IM):
+class WeChatParser(Wechat):
     
     def __init__(self, node, extract_deleted, extract_source):
         super(WeChatParser, self).__init__()
@@ -102,31 +69,51 @@ class WeChatParser(model_im.IM):
         save_cache_path(bcp_im.CONTACT_ACCOUNT_TYPE_IM_WECHAT, self.cache_db, ds.OpenCachePath("tmp"))
 
     def parse(self):
-        if self.need_parse(self.cache_db, VERSION_APP_VALUE):
-            self.db_create(self.cache_db)
+        if self.im.need_parse(self.cache_db, VERSION_APP_VALUE):
+            self.im.db_create(self.cache_db)
 
             self.contacts = {}
             self.user_account = model_im.Account()
 
             if not self._get_user_from_setting(self.root.GetByPath('mmsetting.archive')):
                 self.user_account.account_id = self.user_hash
-                self.db_insert_table_account(self.user_account)
-                self.db_commit()
+                self.user_account.insert_db(self.im)
+                self.im.db_commit()
 
-            self._parse_user_contact_db(self.root.GetByPath('/DB/WCDB_Contact.sqlite'))
-            self._parse_user_mm_db(self.root.GetByPath('/DB/MM.sqlite'))
-            self._parse_user_wc_db(self.root.GetByPath('/wc/wc005_008.db'))
-            self._parse_user_fts_db(self.root.GetByPath('/fts/fts_message.db'))
+            try:
+                self._parse_user_contact_db(self.root.GetByPath('/DB/WCDB_Contact.sqlite'))
+            except Exception as e:
+                TraceService.Trace(TraceLevel.Error, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
+            try:
+                self._parse_user_mm_db(self.root.GetByPath('/DB/MM.sqlite'))
+            except Exception as e:
+                TraceService.Trace(TraceLevel.Error, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
+            try:
+                self._parse_user_wc_db(self.root.GetByPath('/wc/wc005_008.db'))
+            except Exception as e:
+                TraceService.Trace(TraceLevel.Error, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
+            try:
+                self._parse_user_fts_db(self.root.GetByPath('/fts/fts_message.db'))
+            except Exception as e:
+                TraceService.Trace(TraceLevel.Error, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
             if self.private_root is not None:
-                self._parse_user_fav_db(self.private_root.GetByPath('/Favorites/fav.db'))
-                self._parse_user_search(self.private_root.GetByPath('/searchH5/cache/wshistory.pb'))
+                try:
+                    self._parse_user_fav_db(self.private_root.GetByPath('/Favorites/fav.db'))
+                except Exception as e:
+                    TraceService.Trace(TraceLevel.Error, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
+                try:
+                    self._parse_user_search(self.private_root.GetByPath('/searchH5/cache/wshistory.pb'))
+                except Exception as e:
+                    TraceService.Trace(TraceLevel.Error, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
 
+            self.im.db_create_index()
             # 数据库填充完毕，请将中间数据库版本和app数据库版本插入数据库，用来检测app是否需要重新解析
             if not canceller.IsCancellationRequested:
-                self.db_insert_table_version(model_im.VERSION_KEY_DB, model_im.VERSION_VALUE_DB)
-                self.db_insert_table_version(model_im.VERSION_KEY_APP, VERSION_APP_VALUE)
-            self.db_commit()
-            self.db_close()
+                self.im.db_insert_table_version(model_im.VERSION_KEY_DB, model_im.VERSION_VALUE_DB)
+                self.im.db_insert_table_version(model_im.VERSION_KEY_APP, VERSION_APP_VALUE)
+
+            self.im.db_commit()
+            self.im.db_close()
 
         models = self.get_models_from_cache_db()
         return models
@@ -172,8 +159,8 @@ class WeChatParser(model_im.IM):
             else:
                 self.user_account.photo = self._bpreader_node_get_string_value(setting_node, 'headimgurl')
         self.user_account.source = user_plist.AbsolutePath
-        self.db_insert_table_account(self.user_account)
-        self.db_commit()
+        self.user_account.insert_db(self.im)
+        self.im.db_commit()
 
         if self.user_account.account_id:
             contact = {}
@@ -206,7 +193,7 @@ class WeChatParser(model_im.IM):
             cursor.execute(sql)
             row = cursor.fetchone()
         except Exception as e:
-            print(e)
+            TraceService.Trace(TraceLevel.Error, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
 
         while row is not None:
             if canceller.IsCancellationRequested:
@@ -221,9 +208,9 @@ class WeChatParser(model_im.IM):
                     contact_chatroom = self._db_column_get_blob_value(row[5])
                     self._parse_user_contact_db_with_value(0, node.AbsolutePath, username, contact_type, certification_flag, contact_remark, contact_head_image, contact_chatroom)
             except Exception as e:
-                print(e)
+                TraceService.Trace(TraceLevel.Error, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
             row = cursor.fetchone()
-        self.db_commit()
+        self.im.db_commit()
         cursor.close()
         db.close()
         self.db_remove_mapping(db_path)
@@ -256,8 +243,8 @@ class WeChatParser(model_im.IM):
                         deleted = 0 if rec.Deleted == DeletedState.Intact else 1
                         self._parse_user_contact_db_with_value(deleted, node.AbsolutePath, username, contact_type, certification_flag, contact_remark, contact_head_image, contact_chatroom)
                     except Exception as e:
-                        print(e)
-                self.db_commit()
+                        TraceService.Trace(TraceLevel.Error, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
+                self.im.db_commit()
         return True
 
     def _parse_user_contact_db_with_value(self, deleted, source, username, contact_type, certification_flag, contact_remark, contact_head_image, contact_chatroom):
@@ -312,16 +299,16 @@ class WeChatParser(model_im.IM):
                     cm.chatroom_id = username
                     cm.member_id = member.get('username')
                     cm.display_name = member.get('display_name')
-                    self.db_insert_table_chatroom_member(cm)
+                    cm.insert_db(self.im)
                 except Exception as e:
-                    print(e)
+                    TraceService.Trace(TraceLevel.Error, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
 
             if len(members) > 0:
                 chatroom.owner_id = members[0].get('username')
             chatroom.max_member_count = max_count
             chatroom.member_count = len(members)
             if deleted == 0 or repeated == 0:
-                self.db_insert_table_chatroom(chatroom)
+                chatroom.insert_db(self.im)
         else:
             ft = model_im.FRIEND_TYPE_STRANGER
             if certification_flag != 0:
@@ -337,7 +324,7 @@ class WeChatParser(model_im.IM):
             friend.nickname = nickname
             friend.remark = remark
             friend.photo = head
-            self.db_insert_table_friend(friend)
+            friend.insert_db(self.im)
 
     def _parse_user_mm_db(self, node):
         if not node:
@@ -376,7 +363,7 @@ class WeChatParser(model_im.IM):
             cursor.execute(sql)
             row = cursor.fetchone()
         except Exception as e:
-            print(e)
+            TraceService.Trace(TraceLevel.Error, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
 
         while row is not None:
             if canceller.IsCancellationRequested:
@@ -403,7 +390,7 @@ class WeChatParser(model_im.IM):
                 cursor.execute(sql)
                 row = cursor.fetchone()
             except Exception as e:
-                print(e)
+                TraceService.Trace(TraceLevel.Error, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
 
             while row is not None:
                 if canceller.IsCancellationRequested:
@@ -416,11 +403,11 @@ class WeChatParser(model_im.IM):
                     create_time = self._db_column_get_int_value(row[4], None)
                     self._parse_user_mm_db_with_value(0, node.AbsolutePath, username, msg, msg_type, msg_local_id, is_sender, create_time, user_hash)
                 except Exception as e:
-                    print(e)
+                    TraceService.Trace(TraceLevel.Error, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
                 row = cursor.fetchone()
-            self.db_commit()
+            self.im.db_commit()
             cursor.close()
-        self.db_commit()
+        self.im.db_commit()
         db.close()
         self.db_remove_mapping(db_path)
 
@@ -458,8 +445,8 @@ class WeChatParser(model_im.IM):
                         deleted = 0 if rec.Deleted == DeletedState.Intact else 1
                         self._parse_user_mm_db_with_value(deleted, node.AbsolutePath, username, msg, msg_type, msg_local_id, is_sender, create_time, user_hash)
                     except Exception as e:
-                        print(e)
-                self.db_commit()
+                        TraceService.Trace(TraceLevel.Error, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
+                self.im.db_commit()
         return True
 
     def _parse_user_mm_db_with_value(self, deleted, source, username, msg, msg_type, msg_local_id, is_sender, create_time, user_hash):
@@ -485,7 +472,7 @@ class WeChatParser(model_im.IM):
             self._process_parse_friend_message(msg, msg_type, msg_local_id, self.root, user_hash, message)
             message.sender_name = self.contacts.get(message.sender_id, {}).get('nickname')
             message.talker_type = model_im.CHAT_TYPE_FRIEND if certification_flag == 0 else model_im.CHAT_TYPE_SUBSCRIBE
-        self.db_insert_table_message(message)
+        message.insert_db(self.im)
 
     def _parse_user_wc_db(self, node):
         if node is None:
@@ -509,12 +496,15 @@ class WeChatParser(model_im.IM):
             cursor.execute(sql)
             row = cursor.fetchone()
         except Exception as e:
-            print(e)
+            TraceService.Trace(TraceLevel.Error, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
 
         while row is not None:
             if canceller.IsCancellationRequested:
                 break
-            db_tables.append(row[0])
+            try:
+                db_tables.append(row[0])
+            except Exception as e:
+                TraceService.Trace(TraceLevel.Error, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
             row = cursor.fetchone()
 
         for table in db_tables:
@@ -526,7 +516,7 @@ class WeChatParser(model_im.IM):
                 cursor.execute(sql)
                 row = cursor.fetchone()
             except Exception as e:
-                print(e)
+                TraceService.Trace(TraceLevel.Error, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
 
             while row is not None:
                 if canceller.IsCancellationRequested:
@@ -536,9 +526,9 @@ class WeChatParser(model_im.IM):
                     buffer = self._db_column_get_blob_value(row[1])
                     self._parse_user_wc_db_with_value(0, node.AbsolutePath, username, buffer)
                 except Exception as e:
-                    print(e)
+                    TraceService.Trace(TraceLevel.Error, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
                 row = cursor.fetchone()
-        self.db_commit()
+        self.im.db_commit()
         cursor.close()
         db.close()
         self.db_remove_mapping(db_path)
@@ -570,8 +560,8 @@ class WeChatParser(model_im.IM):
                         deleted = 0 if rec.Deleted == DeletedState.Intact else 1
                         self._parse_user_wc_db_with_value(deleted, node.AbsolutePath, username, buffer)
                     except Exception as e:
-                        print(e)
-            self.db_commit()
+                        TraceService.Trace(TraceLevel.Error, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
+            self.im.db_commit()
         return True
 
     def _parse_user_wc_db_with_value(self, deleted, source, username, buffer):
@@ -596,94 +586,79 @@ class WeChatParser(model_im.IM):
 
             if 'locationInfo' in root.Children:
                 location_node = root.Children['locationInfo']
-                location = model_im.Location()
-                location.deleted = feed.deleted
-                location.source = source
+                location = feed.create_location()
                 location.latitude = self._bpreader_node_get_float_value(location_node, 'location_latitude')
                 location.longitude = self._bpreader_node_get_float_value(location_node, 'location_longitude')
                 location.address = self._bpreader_node_get_string_value(location_node, 'poiName', deleted = feed.deleted)
-                self.db_insert_table_location(location)
-                feed.location = location.location_id
 
             if 'contentObj' in root.Children:
                 content_node = root.Children['contentObj']
-                feed.type = self._bpreader_node_get_int_value(content_node, 'type')
+                moment_type = self._bpreader_node_get_int_value(content_node, 'type')
                 media_nodes = []
                 if 'mediaList' in content_node.Children and content_node.Children['mediaList'].Values:
                     media_nodes = content_node.Children['mediaList'].Values
                     urls = []
-                    preview_urls = []
                     for media_node in media_nodes:
                         if 'dataUrl' in media_node.Children:
                             data_node = media_node.Children['dataUrl']
                             if 'url' in data_node.Children:
                                 urls.append(data_node.Children['url'].Value)
-                        if 'previewUrls' in media_node.Children:
-                            for url_node in media_node.Children['previewUrls'].Values:
-                                if 'url' in url_node.Children:
-                                    preview_urls.append(url_node.Children['url'].Value)
-                    try:
-                        feed.urls = json.dumps(urls)
-                        feed.preview_urls = json.dumps(preview_urls)
-                    except Exception as e:
-                        pass
+                    if len(urls) > 0:
+                        if moment_type == MOMENT_TYPE_VIDEO:
+                            feed.video_path = ','.join(str(u) for u in urls)
+                        else:
+                            feed.image_path = ','.join(str(u) for u in urls)
 
-                if feed.type == MOMENT_TYPE_MUSIC:
-                    feed.attachment_title = self._bpreader_node_get_string_value(content_node, 'title', deleted = feed.deleted)
-                    feed.attachment_link = self._bpreader_node_get_string_value(content_node, 'linkUrl', deleted = feed.deleted)
-                    feed.attachment_desc = self._bpreader_node_get_string_value(content_node, 'desc', deleted = feed.deleted)
-                elif feed.type == MOMENT_TYPE_SHARED:
-                    for media_node in media_nodes:
-                        feed.attachment_title = self._bpreader_node_get_string_value(media_node, 'title', deleted = feed.deleted)
+                if moment_type in [MOMENT_TYPE_MUSIC, MOMENT_TYPE_SHARED]:
+                    feed.url = self._bpreader_node_get_string_value(content_node, 'linkUrl', deleted = feed.deleted)
+                    feed.url_title = self._bpreader_node_get_string_value(content_node, 'title', deleted = feed.deleted)
+                    feed.url_desc = self._bpreader_node_get_string_value(content_node, 'desc', deleted = feed.deleted)
 
-            likes = []
             if 'likeUsers' in root.Children:
                 for like_node in root.Children['likeUsers'].Values:
                     if canceller.IsCancellationRequested:
                         break
-                    sender_id = self._bpreader_node_get_string_value(like_node, 'username', deleted = feed.deleted)
-                    if len(sender_id) > 0:
-                        fl = model_im.FeedLike()
-                        fl.deleted = feed.deleted
-                        fl.source = feed.source
+                    try:
+                        sender_id = self._bpreader_node_get_string_value(like_node, 'username', deleted = feed.deleted)
+                        if sender_id in [None, '']:
+                            continue
+                        fl = feed.create_like()
                         fl.sender_id = sender_id
                         fl.sender_name = self._bpreader_node_get_string_value(like_node, 'nickname', deleted = feed.deleted)
                         try:
                             fl.create_time = int(self._bpreader_node_get_int_value(like_node, 'createTime', None))
                         except Exception as e:
                             pass
-                        try:
-                            self.db_insert_table_feed_like(fl)
-                            likes.append(fl.like_id)
-                        except Exception as e:
-                            pass
-            feed.likes = ','.join(str(item) for item in likes)
-            feed.likecount = len(likes)
+                        feed.likecount += 1
+                    except Exception as e:
+                        TraceService.Trace(TraceLevel.Error, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
+            if feed.likecount == 0:
+                feed.like_id = 0
 
-            comments = []
             if 'commentUsers' in root.Children:
                 for comment_node in root.Children['commentUsers'].Values:
                     if canceller.IsCancellationRequested:
                         break
-                    sender_id = self._bpreader_node_get_string_value(comment_node, 'username', deleted = feed.deleted)
-                    content = self._bpreader_node_get_string_value(comment_node, 'content', deleted = feed.deleted)
-                    if type(sender_id) == str and len(sender_id) > 0 and type(content) == str:
-                        fc = model_im.FeedComment()
-                        fc.deleted = deleted
-                        fc.source = feed.source
-                        fc.sender_id = sender_id
-                        fc.sender_name = self._bpreader_node_get_string_value(comment_node, 'nickname', deleted = feed.deleted)
-                        fc.ref_user_id = self._bpreader_node_get_string_value(comment_node, 'refUserName', deleted = feed.deleted)
-                        fc.content = content
-                        fc.create_time = self._bpreader_node_get_int_value(comment_node, 'createTime', None)
-                        try:
-                            self.db_insert_table_feed_comment(fc)
-                            comments.append(fc.comment_id)
-                        except Exception as e:
-                            pass
-            feed.comments = ','.join(str(item) for item in comments)
-            feed.commentcount = len(comments)
-            self.db_insert_table_feed(feed)
+                    try:
+                        sender_id = self._bpreader_node_get_string_value(comment_node, 'username', deleted = feed.deleted)
+                        content = self._bpreader_node_get_string_value(comment_node, 'content', deleted = feed.deleted)
+                        if type(sender_id) == str and len(sender_id) > 0 and type(content) == str:
+                            fc = feed.create_comment()
+                            fc.sender_id = sender_id
+                            fc.sender_name = self._bpreader_node_get_string_value(comment_node, 'nickname', deleted = feed.deleted)
+                            fc.ref_user_id = self._bpreader_node_get_string_value(comment_node, 'refUserName', deleted = feed.deleted)
+                            fc.content = content
+                            try:
+                                fc.create_time = int(self._bpreader_node_get_int_value(comment_node, 'createTime', None))
+                            except Exception as e:
+                                pass
+                            feed.commentcount += 1
+                    except Exception as e:
+                        TraceService.Trace(TraceLevel.Error, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
+            if feed.commentcount == 0:
+                feed.comment_id = 0
+
+            feed.insert_db(self.im)
 
     def _parse_user_fav_db(self, node):
         if node is None:
@@ -706,7 +681,7 @@ class WeChatParser(model_im.IM):
             cursor.execute(sql)
             row = cursor.fetchone()
         except Exception as e:
-            print(e)
+            TraceService.Trace(TraceLevel.Error, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
 
         while row is not None:
             if canceller.IsCancellationRequested:
@@ -722,9 +697,9 @@ class WeChatParser(model_im.IM):
                 xml = self._db_column_get_string_value(row[7])
                 self._parse_user_fav_db_with_value(0, node.AbsolutePath, fav_type, timestamp, from_user, xml)
             except Exception as e:
-                print(e)
+                TraceService.Trace(TraceLevel.Error, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
             row = cursor.fetchone()
-        self.db_commit()
+        self.im.db_commit()
         cursor.close()
         db.close()
         self.db_remove_mapping(db_path)
@@ -735,6 +710,7 @@ class WeChatParser(model_im.IM):
             try:
                 db = SQLiteParser.Database.FromNode(node, canceller)
             except Exception as e:
+                TraceService.Trace(TraceLevel.Error, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
                 return False
             if not db:
                 return False
@@ -757,8 +733,8 @@ class WeChatParser(model_im.IM):
                         deleted = 0 if rec.Deleted == DeletedState.Intact else 1
                         self._parse_user_fav_db_with_value(deleted, node.AbsolutePath, fav_type, timestamp, from_user, xml)
                     except Exception as e:
-                        print(e)
-                self.db_commit()
+                        TraceService.Trace(TraceLevel.Error, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
+                self.im.db_commit()
         return True
 
     def _parse_user_fav_db_with_value(self, deleted, source, fav_type, timestamp, from_user, xml):
@@ -774,25 +750,23 @@ class WeChatParser(model_im.IM):
         else:
             favorite.talker_type = model_im.CHAT_TYPE_FRIEND
         favorite.timestamp = timestamp
-        self._parse_user_fav_xml(xml, favorite.favorite_id, source, deleted)
-        self.db_insert_table_favorite(favorite)
+        self._parse_user_fav_xml(xml, favorite)
+        favorite.insert_db(self.im)
 
-    def _parse_user_fav_xml(self, xml_str, favorite_id, source, deleted):
+    def _parse_user_fav_xml(self, xml_str, model):
         xml = None
         try:
             xml = XElement.Parse(xml_str)
         except Exception as e:
-            pass
+            if model.deleted == 0:
+                TraceService.Trace(TraceLevel.Error, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
         if xml is not None and xml.Name.LocalName == 'favitem':
             try:
                 fav_type = int(xml.Attribute('type').Value) if xml.Attribute('type') else 0
             except Exception as e:
                 fav_type = 0
             if fav_type == FAV_TYPE_TEXT:
-                fav_item = model_im.FavoriteItem()
-                fav_item.favorite_id = favorite_id
-                fav_item.source = source
-                fav_item.deleted = deleted
+                fav_item = model.create_item()
                 fav_item.type = fav_type
                 if xml.Element('source'):
                     source_info = xml.Element('source')
@@ -809,12 +783,8 @@ class WeChatParser(model_im.IM):
                         fav_item.sender_name = self.contacts.get(fav_item.sender, {}).get('nickname')
                 if xml.Element('desc'):
                     fav_item.content = xml.Element('desc').Value
-                self.db_insert_table_favorite_item(fav_item)
             elif fav_type in [FAV_TYPE_IMAGE, FAV_TYPE_VOICE, FAV_TYPE_VIDEO, FAV_TYPE_VIDEO_2, FAV_TYPE_ATTACHMENT]:
-                fav_item = model_im.FavoriteItem()
-                fav_item.favorite_id = favorite_id
-                fav_item.source = source
-                fav_item.deleted = deleted
+                fav_item = model.create_item()
                 fav_item.type = fav_type
                 if xml.Element('source'):
                     source_info = xml.Element('source')
@@ -837,13 +807,10 @@ class WeChatParser(model_im.IM):
                         fav_item.media_path = self._parse_user_fav_path(item.Element('sourcedatapath').Value)
                     elif item.Element('sourcethumbpath'):
                         fav_item.media_path = self._parse_user_fav_path(item.Element('sourcedatapath').Value)
-                self.db_insert_table_favorite_item(fav_item)
             elif fav_type == FAV_TYPE_LINK:
-                fav_item = model_im.FavoriteItem()
-                fav_item.favorite_id = favorite_id
-                fav_item.source = source
-                fav_item.deleted = deleted
+                fav_item = model.create_item()
                 fav_item.type = fav_type
+                link = fav_item.create_link()
                 if xml.Element('source'):
                     source_info = xml.Element('source')
                     if source_info.Element('createtime'):
@@ -858,19 +825,15 @@ class WeChatParser(model_im.IM):
                         fav_item.sender = source_info.Element('fromusr').Value
                         fav_item.sender_name = self.contacts.get(fav_item.sender, {}).get('nickname')
                     if source_info.Element('link'):
-                        fav_item.url = source_info.Element('link').Value
+                        link.url = source_info.Element('link').Value
                 if xml.Element('weburlitem'):
                     weburlitem = xml.Element('weburlitem')
                     if weburlitem.Element('pagetitle'):
-                        fav_item.content = weburlitem.Element('pagetitle').Value
+                        link.title = weburlitem.Element('pagetitle').Value
                     if weburlitem.Element('pagethumb_url'):
-                        fav_item.media_path = weburlitem.Element('pagethumb_url').Value
-                self.db_insert_table_favorite_item(fav_item)
+                        link.image = weburlitem.Element('pagethumb_url').Value
             elif fav_type == FAV_TYPE_LOCATION:
-                fav_item = model_im.FavoriteItem()
-                fav_item.favorite_id = favorite_id
-                fav_item.source = source
-                fav_item.deleted = deleted
+                fav_item = model.create_item()
                 fav_item.type = fav_type
                 if xml.Element('source'):
                     source_info = xml.Element('source')
@@ -886,10 +849,7 @@ class WeChatParser(model_im.IM):
                         fav_item.sender = source_info.Element('fromusr').Value
                         fav_item.sender_name = self.contacts.get(fav_item.sender, {}).get('nickname')
                 if xml.Element('locitem'):
-                    location = model_im.Location()
-                    location.deleted = deleted
-                    location.source = source
-
+                    location = fav_item.create_location()
                     locitem = xml.Element('locitem')
                     if locitem.Element('lat'):
                         try:
@@ -905,17 +865,10 @@ class WeChatParser(model_im.IM):
                         location.address = locitem.Element('label').Value
                     if locitem.Element('poiname'):
                         location.address = locitem.Element('poiname').Value
-
-                    fav_item.content = location.location_id
-                    self.db_insert_table_location(location)
-                self.db_insert_table_favorite_item(fav_item)
             elif fav_type == FAV_TYPE_CHAT:
                 if xml.Element('datalist'):
                     for item in xml.Element('datalist').Elements('dataitem'):
-                        fav_item = model_im.FavoriteItem()
-                        fav_item.favorite_id = favorite_id
-                        fav_item.source = source
-                        fav_item.deleted = deleted
+                        fav_item = model.create_item()
                         if item.Attribute('datatype'):
                             try:
                                 fav_item.type = int(item.Attribute('datatype').Value)
@@ -943,20 +896,18 @@ class WeChatParser(model_im.IM):
                             elif item.Element('sourcethumbpath'):
                                 fav_item.media_path = self._parse_user_fav_path(item.Element('sourcedatapath').Value)
                         elif fav_item.type == FAV_TYPE_LINK:
+                            link = fav_item.create_link()
                             if item.Element('dataitemsource'):
                                 source_info = item.Element('dataitemsource')
                                 if source_info.Element('link'):
-                                    fav_item.url = source_info.Element('link').Value
+                                    link.url = source_info.Element('link').Value
                             if item.Element('weburlitem') and item.Element('weburlitem').Element('pagetitle'):
-                                fav_item.content = item.Element('weburlitem').Element('pagetitle').Value
+                                link.title = item.Element('weburlitem').Element('pagetitle').Value
                             if item.Element('sourcethumbpath'):
-                                fav_item.media_path = self._parse_user_fav_path(item.Element('sourcethumbpath').Value)
+                                link.image = self._parse_user_fav_path(item.Element('sourcethumbpath').Value)
                         elif fav_item.type == FAV_TYPE_LOCATION:
                             if item.Element('locitem'):
-                                location = model_im.Location()
-                                location.deleted = deleted
-                                location.source = source
-
+                                location = fav_item.create_location()
                                 locitem = item.Element('locitem')
                                 if locitem.Element('lat'):
                                     try:
@@ -972,22 +923,14 @@ class WeChatParser(model_im.IM):
                                     location.address = locitem.Element('label').Value
                                 if locitem.Element('poiname'):
                                     location.address = locitem.Element('poiname').Value
-
-                                fav_item.content = location.location_id
-                                self.db_insert_table_location(location)
                         else:
                             fav_item.content = xml_str
                         if item.Element('datasrcname'):
                             fav_item.sender_name = item.Element('datasrcname').Value
-                        self.db_insert_table_favorite_item(fav_item)
             else:
-                fav_item = model_im.FavoriteItem()
-                fav_item.favorite_id = favorite_id
-                fav_item.source = source
-                fav_item.deleted = deleted
+                fav_item = model.create_item()
                 fav_item.type = fav_type
                 fav_item.content = xml_str
-                self.db_insert_table_favorite_item(fav_item)
         return True
 
     def _parse_user_fav_path(self, path):
@@ -1016,14 +959,14 @@ class WeChatParser(model_im.IM):
                             search.account_id = self.user_account.account_id
                             search.key = key
                             search.source = node.AbsolutePath
-                            self.db_insert_table_search(search)
+                            search.insert_db(self.im)
                     index += size
                     if content[index:index+2] != '\x10\x04':
                         break
                     index += 2
         except e as Exception:
             pass
-        self.db_commit()
+        self.im.db_commit()
 
     def _parse_user_fts_db(self, node):
         if node is None:
@@ -1048,7 +991,7 @@ class WeChatParser(model_im.IM):
         try:
             reader = db_cmd.ExecuteReader()
         except Exception as e:
-            print(e)
+            TraceService.Trace(TraceLevel.Error, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
 
         if reader is not None:
             while reader.Read():
@@ -1069,7 +1012,7 @@ class WeChatParser(model_im.IM):
         try:
             reader = db_cmd.ExecuteReader()
         except Exception as e:
-            print(e)
+            TraceService.Trace(TraceLevel.Error, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
 
         if reader is not None:
             while reader.Read():
@@ -1091,7 +1034,7 @@ class WeChatParser(model_im.IM):
             try:
                 reader = db_cmd.ExecuteReader()
             except Exception as e:
-                print(e)
+                TraceService.Trace(TraceLevel.Error, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
 
             if reader is not None:
                 while reader.Read():
@@ -1106,8 +1049,8 @@ class WeChatParser(model_im.IM):
                             username = id
                         self._parse_user_fts_db_with_value(1, node.AbsolutePath, username, content)
                     except Exception as e:
-                        print(e)
-                self.db_commit()
+                        TraceService.Trace(TraceLevel.Error, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
+                self.im.db_commit()
                 reader.Close()
                 del reader
             db_cmd.Dispose()
@@ -1120,6 +1063,7 @@ class WeChatParser(model_im.IM):
             try:
                 db = SQLiteParser.Database.FromNode(node, canceller)
             except Exception as e:
+                TraceService.Trace(TraceLevel.Error, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
                 return False
             if not db:
                 return False
@@ -1152,7 +1096,7 @@ class WeChatParser(model_im.IM):
                     username = username_ids.get(id)
                     content = self._db_record_get_string_value(rec, 'c3Message', '')
                     self._parse_user_fts_db_with_value(1, node.AbsolutePath, username, content)
-                self.db_commit()
+                self.im.db_commit()
         return True
 
     def _parse_user_fts_db_with_value(self, deleted, source, username, content):
@@ -1170,7 +1114,7 @@ class WeChatParser(model_im.IM):
             message.talker_type = model_im.CHAT_TYPE_GROUP
         else:
             message.talker_type = model_im.CHAT_TYPE_FRIEND if certification_flag == 0 else model_im.CHAT_TYPE_SUBSCRIBE
-        self.db_insert_table_message(message)
+        message.insert_db(self.im)
 
     @staticmethod
     def _process_parse_contact_remark(blob):
@@ -1263,7 +1207,9 @@ class WeChatParser(model_im.IM):
         content = msg
         img_path = ''
 
-        if msg_type == MSG_TYPE_IMAGE:
+        if msg_type in [MSG_TYPE_TEXT, MSG_TYPE_CONTACT_CARD, MSG_TYPE_EMOJI]:
+            pass
+        elif msg_type == MSG_TYPE_IMAGE:
             content = '[图片]'
             node = user_node.GetByPath('Img/{0}/{1}.pic'.format(friend_hash, msg_local_id))
             if node is not None:
@@ -1277,8 +1223,6 @@ class WeChatParser(model_im.IM):
                 img_path = node.AbsolutePath 
             else:
                 img_path = user_node.AbsolutePath + '/Audio/{0}/{1}.aud'.format(friend_hash, msg_local_id)
-        #elif msg_type == MSG_TYPE_CONTACT_CARD:
-        #    pass
         elif msg_type == MSG_TYPE_VIDEO or msg_type == MSG_TYPE_VIDEO_2:
             content = '[视频]'
             node = user_node.GetByPath('Video/{0}/{1}.mp4'.format(friend_hash, msg_local_id))
@@ -1288,30 +1232,24 @@ class WeChatParser(model_im.IM):
                 img_path = node.AbsolutePath
             else:
                 img_path = user_node.AbsolutePath + '/Video/{0}/{1}.mp4'.format(friend_hash, msg_local_id)
-        elif msg_type == MSG_TYPE_EMOJI:
-            pass
         elif msg_type == MSG_TYPE_LOCATION:
             if model is not None:
-                location = model_im.Location()
-                location.deleted = model.deleted
-                location.source = model.source
-                self._process_parse_message_location(content, location)
-                model.extra_id = location.location_id
-                self.db_insert_table_location(location)
-                content = '[坐标]{0},{1}\n[地址]{2}'.format(location.latitude, location.longitude, location.address)
+                self._process_parse_message_location(content, model)
             node = user_node.GetByPath('Location/{0}/{1}.pic_thum'.format(friend_hash, msg_local_id))
             if node is not None:
                 img_path = node.AbsolutePath
-        elif msg_type == MSG_TYPE_LINK:
-            content = self._process_parse_message_link(content, model)
         elif msg_type == MSG_TYPE_VOIP:
             content = self._process_parse_message_voip(content)
         elif msg_type == MSG_TYPE_VOIP_GROUP:
             content = self._process_parse_message_voip_group(content)
-        elif msg_type == MSG_TYPE_SYSTEM or msg_type == MSG_TYPE_SYSTEM_2:
+        elif msg_type == MSG_TYPE_SYSTEM:
             pass
-        else:  # MSG_TYPE_TEXT
+        elif msg_type in [MSG_TYPE_SYSTEM_2, MSG_TYPE_SYSTEM_3]:
+            content = self._process_parse_message_system_xml(content)
+        elif msg_type == MSG_TYPE_LINK_SEMI:
             pass
+        else:  # MSG_TYPE_LINK
+            self._process_parse_message_link(content, model)
 
         model.content = content
         model.media_path = img_path
@@ -1328,466 +1266,3 @@ class WeChatParser(model_im.IM):
 
         model.sender_id = sender_id
         self._process_parse_friend_message(content, msg_type, msg_local_id, user_node, group_hash, model)
-
-    def _process_parse_message_link(self, xml_str, model):
-        content = ''
-        xml = None
-        try:
-            xml = XElement.Parse(xml_str)
-        except Exception as e:
-            pass
-        if xml is not None:
-            if xml.Name.LocalName == 'msg':
-                appmsg = xml.Element('appmsg')
-                if appmsg is not None:
-                    try:
-                        msg_type = int(appmsg.Element('type').Value) if appmsg.Element('type') else 0
-                    except Exception as e:
-                        msg_type = 0
-                    if msg_type in [2000, 2001]:
-                        deal, sender_id = self._process_parse_message_deal(xml)
-                        deal.deleted = model.deleted
-                        deal.source = model.source
-                        deal.create_time = model.send_time
-                        if deal.type == model_im.DEAL_TYPE_RED_ENVELPOE:
-                            model.type = model_im.MESSAGE_CONTENT_TYPE_RED_ENVELPOE
-                            model.extra_id = deal.deal_id
-                            if model.sender_id in [None, ''] and sender_id not in [None, '']:
-                                model.sender_id = sender_id
-                            self.db_insert_table_deal(deal)
-                        elif deal.type == model_im.DEAL_TYPE_RECEIPT:
-                            model.type = model_im.MESSAGE_CONTENT_TYPE_RECEIPT
-                            model.extra_id = deal.deal_id
-                            if model.sender_id in [None, ''] and sender_id not in [None, '']:
-                                model.sender_id = sender_id
-                            self.db_insert_table_deal(deal)
-                        elif deal.type == model_im.DEAL_TYPE_AA_RECEIPT:
-                            model.type = model_im.MESSAGE_CONTENT_TYPE_AA_RECEIPT
-                            model.extra_id = deal.deal_id
-                            if model.sender_id in [None, ''] and sender_id not in [None, '']:
-                                model.sender_id = sender_id
-                            self.db_insert_table_deal(deal)
-                    else:
-                        msg_title = appmsg.Element('title').Value if appmsg.Element('title') else ''
-                        mmreader = appmsg.Element('mmreader')
-                        if mmreader:
-                            category = mmreader.Element('category')
-                            if category and category.Element('item'):
-                                item = category.Element('item')
-                                if item.Element('title'):
-                                    content += '[标题]' + item.Element('title').Value + '\n'
-                                if item.Element('digest'):
-                                    content += '[内容]' + item.Element('digest').Value + '\n'
-                                if item.Element('url'):
-                                    content += '[链接]' + item.Element('url').Value + '\n'
-                        else:
-                            if appmsg.Element('title'):
-                                content += '[标题]' + appmsg.Element('title').Value + '\n'
-                            if appmsg.Element('des'):
-                                content += '[内容]' + appmsg.Element('des').Value + '\n'
-                            if appmsg.Element('url'):
-                                content += '[链接]' + appmsg.Element('url').Value + '\n'
-                            appinfo = xml.Element('appinfo')
-                            if appinfo and appinfo.Element('appname'):
-                                content += '[来自]' + appinfo.Element('appname').Value
-                else:
-                    pass
-            elif xml.Name.LocalName == 'mmreader':
-                category = xml.Element('category')
-                if category and category.Element('item'):
-                    item = category.Element('item')
-                    if item.Element('title'):
-                        content += '[标题]' + item.Element('title').Value + '\n'
-                    if item.Element('digest'):
-                        content += '[内容]' + item.Element('digest').Value + '\n'
-                    if item.Element('url'):
-                        content += '[链接]' + item.Element('url').Value + '\n'
-            elif xml.Name.LocalName == 'appmsg':
-                if xml.Element('title'):
-                    content += '[标题]' + xml.Element('title').Value + '\n'
-                if xml.Element('des'):
-                    content += '[内容]' + xml.Element('des').Value + '\n'
-                if xml.Element('url'):
-                    content += '[链接]' + xml.Element('url').Value + '\n'
-                appinfo = xml.Element('appinfo')
-                if appinfo and appinfo.Element('appname'):
-                    content += '[来自]' + appinfo.Element('appname').Value
-            else:
-                pass
-        if len(content) > 0:
-            return content
-        else:
-            return xml_str
-
-    def _process_parse_message_deal(self, xml_element):
-        sender_id = None
-        deal = model_im.Deal()
-        if xml_element.Name.LocalName == 'msg':
-            appmsg = xml_element.Element('appmsg')
-            if appmsg is not None:
-                wcpayinfo = appmsg.Element('wcpayinfo')
-                if appmsg.Element('des') is not None:
-                    deal.description = appmsg.Element('des').Value
-                try:
-                    msg_type = int(appmsg.Element('type').Value) if appmsg.Element('type') else 0
-                except Exception as e:
-                    msg_type = 0
-                if msg_type == 2000:
-                    deal.type = model_im.DEAL_TYPE_RECEIPT
-                    if wcpayinfo is not None:
-                        if wcpayinfo.Element('feedesc') is not None:
-                            deal.money = wcpayinfo.Element('feedesc').Value
-                        if wcpayinfo.Element('invalidtime') is not None:
-                            try:
-                                deal.expire_time = int(wcpayinfo.Element('invalidtime').Value)
-                            except Exception as e:
-                                pass
-                        if wcpayinfo.Element('pay_memo') is not None:
-                            deal.remark = wcpayinfo.Element('pay_memo').Value
-                elif msg_type == 2001:
-                    if wcpayinfo is not None:
-                        if wcpayinfo.Element('invalidtime') is not None:
-                            try:
-                                deal.expire_time = int(wcpayinfo.Element('invalidtime').Value)
-                            except Exception as e:
-                                pass
-                        newaa = wcpayinfo.Element('newaa')
-                        newaatype = 0
-                        if newaa and newaa.Element('newaatype'):
-                            try:
-                                newaatype = int(newaa.Element('newaatype').Value)
-                            except Exception as e:
-                                pass
-                        if newaatype != 0:
-                            deal.type = model_im.DEAL_TYPE_AA_RECEIPT
-                            if wcpayinfo.Element('receiverdes'):
-                                deal.description = wcpayinfo.Element('receiverdes').Value
-                            if wcpayinfo.Element('receivertitle'):
-                                deal.remark = wcpayinfo.Element('receivertitle').Value
-                        else:
-                            deal.type = model_im.DEAL_TYPE_RED_ENVELPOE
-                            if wcpayinfo.Element('receivertitle'):
-                                deal.remark = wcpayinfo.Element('receivertitle').Value
-
-            fromusername = xml_element.Element('fromusername')
-            if fromusername is not None:
-                sender_id = fromusername.Value
-        return deal, sender_id
-
-    def _process_parse_message_location(self, xml_str, model):
-        xml = None
-        try:
-            xml = XElement.Parse(xml_str)
-        except Exception as e:
-            pass
-        if xml is not None:
-            location = xml.Element('location')
-            if location.Attribute('x'):
-                try:
-                    model.latitude = float(location.Attribute('x').Value)
-                except Exception as e:
-                    pass
-            if location.Attribute('y'):
-                try:
-                    model.longitude = float(location.Attribute('y').Value)
-                except Exception as e:
-                    pass
-            if location.Attribute('poiname'):
-                model.address = location.Attribute('poiname').Value
-
-    def _process_parse_message_voip(self, xml_str):
-        content = ''
-        xml = None
-        try:
-            xml_str = '<root>' + xml_str + '</root>'
-            xml = XElement.Parse(xml_str)
-        except Exception as e:
-            pass
-        if xml is not None:
-            voipinvitemsg = xml.Element('voipinvitemsg')
-            if voipinvitemsg:
-                if voipinvitemsg.Element('invitetype'):
-                    try:
-                        invitetype = int(voipinvitemsg.Element('invitetype').Value)
-                    except Exception as e:
-                        invitetype = None
-                    if invitetype == 0:
-                        content += '[视频通话]'
-                    elif invitetype == 1:
-                        content += '[语音通话]'
-            voiplocalinfo = xml.Element('voiplocalinfo')
-            if voiplocalinfo:
-                duration = 0
-                if voiplocalinfo.Element('duration'):
-                    duration = voiplocalinfo.Element('duration').Value
-                if voiplocalinfo.Element('wordingtype'):
-                    try:
-                        wordingtype = int(voiplocalinfo.Element('wordingtype').Value)
-                    except Exception as e:
-                        wordingtype = None
-                    if wordingtype == 4:
-                        content += '通话时长{0}秒'.format(duration)
-                    elif wordingtype == 1:
-                        content += '已取消'
-                    elif wordingtype == 8:
-                        content += '已拒绝'
-        if content not in [None, '']:
-            return content
-        else:
-            return xml_str
-
-    def _process_parse_message_voip_group(self, msg):
-        content = ''
-        info = None
-        try:
-            info = json.loads(msg)
-        except Exception as e:
-            pass
-        if info is not None:
-            content = info.get('msgContent')
-
-        if content not in [None, '']:
-            return content
-        else:
-            return msg
-
-    @staticmethod
-    def _db_record_get_value(record, column, default_value=None):
-        if not record[column].IsDBNull:
-            return record[column].Value
-        return default_value
-
-    @staticmethod
-    def _db_record_get_string_value(record, column, default_value=''):
-        if not record[column].IsDBNull:
-            try:
-                value = str(record[column].Value)
-                #if record.Deleted != DeletedState.Intact:
-                #    value = filter(lambda x: x in string.printable, value)
-                return value
-            except Exception as e:
-                return default_value
-        return default_value
-
-    @staticmethod
-    def _db_record_get_int_value(record, column, default_value=0):
-        if not record[column].IsDBNull:
-            try:
-                return int(record[column].Value)
-            except Exception as e:
-                return default_value
-        return default_value
-
-    @staticmethod
-    def _db_record_get_blob_value(record, column, default_value=None):
-        if not record[column].IsDBNull:
-            try:
-                value = record[column].Value
-                return bytes(value)
-            except Exception as e:
-                return default_value
-        return default_value
-
-    @staticmethod
-    def _db_column_get_string_value(column, default_value=''):
-        if column is not None:
-            try:
-                return str(column)
-            except Exception as e:
-                return default_value
-        else:
-            return default_value
-
-    @staticmethod
-    def _db_column_get_int_value(column, default_value=0):
-        if column is not None:
-            try:
-                return int(column)
-            except Exception as e:
-                return default_value
-        else:
-            return default_value
-
-    @staticmethod
-    def _db_column_get_blob_value(column, default_value=None):
-        if column is not None:
-            try:
-                return bytes(column)
-            except Exception as e:
-                return default_value
-        else:
-            return default_value
-
-    @staticmethod
-    def _db_reader_get_string_value(reader, index, default_value=''):
-        return reader.GetString(index) if not reader.IsDBNull(index) else default_value
-
-    @staticmethod
-    def _db_reader_get_int_value(reader, index, default_value=0):
-        return reader.GetInt64(index) if not reader.IsDBNull(index) else default_value
-
-    @staticmethod
-    def _db_reader_get_blob_value(reader, index, default_value=None):
-        if not reader.IsDBNull(index):
-            try:
-                return bytes(reader.GetValue(index))
-            except Exception as e:
-                return default_value
-        else:
-            return default_value
-
-        return reader.GetString(index) if not reader.IsDBNull(index) else default_value
-
-    @staticmethod
-    def _bpreader_node_get_string_value(node, key, default_value='', deleted=0):
-        if key in node.Children and node.Children[key] is not None:
-            try:
-                value = str(node.Children[key].Value)
-                #if deleted != 0:
-                #    value = filter(lambda x: x in string.printable, value)
-                return value
-            except Exception as e:
-                return default_value
-        return default_value
-
-    @staticmethod
-    def _bpreader_node_get_int_value(node, key, default_value=0):
-        if key in node.Children and node.Children[key] is not None:
-            try:
-                return int(node.Children[key].Value)
-            except Exception as e:
-                return default_value
-        return default_value
-
-    @staticmethod
-    def _bpreader_node_get_float_value(node, key, default_value=0):
-        if key in node.Children and node.Children[key] is not None:
-            try:
-                return float(node.Children[key].Value)
-            except Exception as e:
-                return default_value
-        return default_value
-
-    @staticmethod
-    def _convert_msg_type(msg_type):
-        if msg_type == MSG_TYPE_TEXT:
-            return model_im.MESSAGE_CONTENT_TYPE_TEXT
-        elif msg_type == MSG_TYPE_IMAGE:
-            return model_im.MESSAGE_CONTENT_TYPE_IMAGE
-        elif msg_type == MSG_TYPE_VOICE:
-            return model_im.MESSAGE_CONTENT_TYPE_VOICE
-        elif msg_type in [MSG_TYPE_VIDEO, MSG_TYPE_VIDEO_2]:
-            return model_im.MESSAGE_CONTENT_TYPE_VIDEO
-        elif msg_type == MSG_TYPE_EMOJI:
-            return model_im.MESSAGE_CONTENT_TYPE_EMOJI
-        elif msg_type == MSG_TYPE_LOCATION:
-            return model_im.MESSAGE_CONTENT_TYPE_LOCATION
-        elif msg_type in [MSG_TYPE_VOIP, MSG_TYPE_VOIP_GROUP]:
-            return model_im.MESSAGE_CONTENT_TYPE_VOIP
-        elif msg_type in [MSG_TYPE_SYSTEM, MSG_TYPE_SYSTEM_2]:
-            return model_im.MESSAGE_CONTENT_TYPE_SYSTEM
-        else:
-            return model_im.MESSAGE_CONTENT_TYPE_LINK
-
-    @staticmethod
-    def _convert_fav_type(fav_type):
-        if fav_type == FAV_TYPE_IMAGE:
-            return model_im.FAVORITE_TYPE_IMAGE
-        elif fav_type == FAV_TYPE_VOICE:
-            return model_im.FAVORITE_TYPE_VOICE
-        elif fav_type == FAV_TYPE_VIDEO:
-            return model_im.FAVORITE_TYPE_VIDEO
-        elif fav_type == FAV_TYPE_LINK:
-            return model_im.FAVORITE_TYPE_LINK
-        elif fav_type == FAV_TYPE_LOCATION:
-            return model_im.FAVORITE_TYPE_LOCATION
-        elif fav_type == FAV_TYPE_ATTACHMENT:
-            return model_im.FAVORITE_TYPE_ATTACHMENT
-        elif fav_type == FAV_TYPE_CHAT:
-            return model_im.FAVORITE_TYPE_CHAT
-        else:
-            return model_im.FAVORITE_TYPE_TEXT
-
-    @staticmethod
-    def _convert_gender_type(gender_type):
-        if gender_type != 0:
-            return model_im.GENDER_FEMALE
-        else:
-            return model_im.GENDER_MALE
-
-    @staticmethod
-    def db_mapping(src_path, dst_path):
-        try:
-            if os.path.exists(dst_path):
-                os.remove(dst_path)
-            shutil.copy(src_path, dst_path)
-        except Exception as e:
-            return False
-
-        try:
-            src_shm = src_path + '-shm'
-            if os.path.exists(src_shm): 
-                dst_shm = dst_path + '-shm'
-                if os.path.exists(dst_shm):
-                    os.remove(dst_shm)
-                shutil.copy(src_shm, dst_shm)
-        except Exception as e:
-            pass
-
-        try:
-            src_wal = src_path + '-wal'
-            if os.path.exists(src_wal): 
-                dst_wal = dst_path + '-wal'
-                if os.path.exists(dst_wal):
-                    os.remove(dst_wal)
-                shutil.copy(src_wal, dst_wal)
-        except Exception as e:
-            pass
-
-        WeChatParser.db_fix_header(dst_path)
-        return True
-
-    @staticmethod
-    def db_remove_mapping(src_path):
-        try:
-            if os.path.exists(src_path):
-                os.remove(src_path)
-        except Exception as e:
-            pass
-
-        try:
-            src_shm = src_path + '-shm'
-            if os.path.exists(src_shm):
-                os.remove(src_shm)
-        except Exception as e:
-            pass
-
-        try:
-            src_wal = src_path + '-wal'
-            if os.path.exists(src_wal):
-                os.remove(src_wal)
-        except Exception as e:
-            pass
-
-    @staticmethod
-    def db_fix_header(db_path):
-        if not os.path.exists(db_path):
-            return False
-        if os.path.getsize(db_path) < 20:
-            return False
-        if not os.access(db_path, os.W_OK):
-            return False
-
-        with open(db_path, 'r+b') as f:
-            content = f.read(16)
-            if content == 'SQLite format 3\0':
-                f.seek(18)
-                flag1 = ord(f.read(1))
-                flag2 = ord(f.read(1))
-                if flag1 != 1:
-                    f.seek(18)
-                    f.write('\x01')
-                if flag2 != 1:
-                    f.seek(19)
-                    f.write('\x01')
-        return True

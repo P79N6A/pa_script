@@ -3,6 +3,7 @@
 #   脚本分析了淘宝app的账号、聊天、app日志、搜索和APP推荐内容
 #   具体分析详见分析说明
 #   
+__author__ = "chenfeiyang"
 import clr
 clr.AddReference('System.Data.SQLite')
 clr.AddReference('Base3264-UrlEncoder')
@@ -52,7 +53,8 @@ class Taobao(object):
         self.extract_source = extract_source
         self.extract_deleted = extract_deleted
         self.cache = ds.OpenCachePath('taobao')
-        self.eb = model_eb.EB(self.cache + '/C37R', TB_VERSION, u'淘宝')
+        self.hash = unity_c37r.md5(node.PathWithMountPoint)
+        self.eb = model_eb.EB(self.cache + '/{}'.format(self.hash), TB_VERSION, u'淘宝')
         self.im = self.eb.im
         self.need_parse = self.eb.need_parse
         self.master_account = None # 从Documents/../TBSettingsUserInfo.json(xml) 中获取        
@@ -162,7 +164,8 @@ class Taobao(object):
         for d in db_dirs:
             message_node = self.node.GetByPath('Library/Caches/YWDB/%s/message.db' %d)
             if message_node is not None:
-                conn = unity_c37r.create_connection(message_node.PathWithMountPoint)
+                path = unity_c37r.check_sqlite_maturity(message_node, self.cache)
+                conn = unity_c37r.create_connection(path)
                 cmd = sql.SQLiteCommand(conn)
                 cmd.CommandText = '''
                     select ZUSER_ID from ZUSERINFO
@@ -171,7 +174,7 @@ class Taobao(object):
                 if reader.Read():
                     tb_id = unity_c37r.c_sharp_get_blob(reader, 0).decode('utf-8') #cntaobaotb5057305_11
                     tb_id = re.search('cntaobao(.*)', tb_id, re.I | re.M).group(1)
-                    self.message_dict[tb_id] = message_node.PathWithMountPoint
+                    self.message_dict[tb_id] = unity_c37r.check_sqlite_maturity(message_node, self.cache)
                 cmd.Dispose()
                 conn.Close()
 
@@ -240,7 +243,10 @@ class Taobao(object):
                                
     def parse_search(self, ac):
         db_node = self.node.GetByPath('Library/edge_compute.db')
-        conn = unity_c37r.create_connection(db_node.PathWithMountPoint)
+        if db_node is None:
+            return
+        path = unity_c37r.check_sqlite_maturity(db_node, self.cache)
+        conn = unity_c37r.create_connection(path)
         cmd = sql.SQLiteCommand(conn)
         cmd.CommandText = '''
             select args,create_time from usertrack where owner_id = {} and page_name = 'Page_SearchItemList'
@@ -283,7 +289,8 @@ class Taobao(object):
         db_node = self.avfs_message_dict.get(str(ac.uid))
         if db_node is None:
             return
-        conn = unity_c37r.create_connection_tentatively(db_node)
+        path = unity_c37r.check_sqlite_maturity(db_node, self.cache)
+        conn = unity_c37r.create_connection_tentatively(path)
         cmd = sql.SQLiteCommand(conn)
         if ac.is_from_avfs:
             cmd.CommandText = '''
@@ -380,7 +387,9 @@ class Taobao(object):
         if db_node is None:
             self.log.m_print('get db node failed, parse exists!')
             return
-        path = db_node.PathWithMountPoint
+        #path = db_node.PathWithMountPoint
+        #update sqlite-checking.
+        path = unity_c37r.check_sqlite_maturity(db_node, self.cache)
         conn = unity_c37r.create_connection(path)
         cmd = sql.SQLiteCommand(conn)
         cmd.CommandText = '''
@@ -444,7 +453,9 @@ class Taobao(object):
             if log_node is None:
                 reader = None
             else:
-                conn = unity_c37r.create_connection(log_node.PathWithMountPoint)
+                #update sqlite connection
+                pth = unity_c37r.check_sqlite_maturity(log_node, self.cache)
+                conn = unity_c37r.create_connection(pth)
                 cmd = sql.SQLiteCommand(conn)
                 cmd.CommandText = '''
                     select id, operation_id, record, logtime, result from Record
@@ -668,7 +679,8 @@ class Taobao(object):
         if node is None:
             self.log.m_print('no shop carts item cached...')
             return
-        conn = unity_c37r.create_connection(node.PathWithMountPoint)
+        path = unity_c37r.check_sqlite_maturity(node, self.cache)
+        conn = unity_c37r.create_connection(path)
         cmd = sql.SQLiteCommand(conn)
         cmd.CommandText = '''
             select filename from AVFS_FIlE_INDEX_TABLE
@@ -740,7 +752,7 @@ def judge_node(node):
     else:
         return root
 
-def parse_tb(root, extract_deleted, extract_source):
+def parse_tb(root, extract_source, extract_deleted):
     try:
         root = judge_node(root)
         if root is None:
@@ -758,7 +770,8 @@ def parse_tb(root, extract_deleted, extract_source):
             t.eb.db_commit()
             t.eb.sync_im_version()
         #models = model_im.GenerateModel(t.cache + '/C37R').get_models()
-        models = model_eb.GenerateModel(t.cache + '/C37R').get_models()
+        #models = model_eb.GenerateModel(t.cache + '/C37R').get_models()
+        models = model_eb.GenerateModel(t.cache + '/{}'.format(t.hash)).get_models()
         mlm = ModelListMerger()
         pr = ParserResults()
         pr.Categories = DescripCategories.Taobao

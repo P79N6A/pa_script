@@ -37,7 +37,8 @@ class BDNetDisk(object):
         self.cache = ds.OpenCachePath('baidunetdisk')
         if not os.path.exists(self.cache):
             os.mkdir(self.cache)
-        self.nd = model_nd.NetDisk(self.cache + '/C37R', BDY_APP_VERSION)
+        self.hash = unity_c37r.md5(node.PathWithMountPoint)
+        self.nd = model_nd.NetDisk(self.cache + '/{}'.format(self.hash), BDY_APP_VERSION)
         self.need_parse = self.nd.need_parse
         if not self.need_parse:
             return
@@ -250,8 +251,18 @@ class BDNetDisk(object):
         self.nd.im.db_commit()
         reader.Close()
 
+def judge_node(node):
+    node = root.Parent.Parent.Parent
+    sub = node.GetByPath('Documents')
+    if sub is None:
+        return None
+    return node
+
 def parse_bdy(node, extract_source, extract_deleted):
+    node = judge_node(node)
     try:
+        if node is None:
+            raise IOError('e')
         b = BDNetDisk(node, extract_deleted, extract_source)
         if b.need_parse:
             b.search()
@@ -262,7 +273,7 @@ def parse_bdy(node, extract_source, extract_deleted):
             b.nd.db_insert_im_version(BDY_APP_VERSION)
             b.nd.db_commit()
             b.nd.db_close()
-        nd = model_nd.NDModel(b.cache + '/C37R')
+        nd = model_nd.NDModel(b.cache + '/{}'.format(b.hash))
         models = nd.generate_models()
         mlm = ModelListMerger()
         pr = ParserResults()

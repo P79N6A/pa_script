@@ -71,11 +71,12 @@ class MiLiao(object):
         self.extract_source = extract_source
         self.im = model_im.IM()
         self.cache = ds.OpenCachePath('miliao')
+        self.hash = unity_c37r.md5(root.PathWithMountPoint)
         self.need_parse = False
         if not os.path.exists(self.cache):
             os.mkdir(self.cache)
-        if self.im.need_parse(self.cache + "/C37R", VERSION_APP_VALUE):
-            self.im.db_create(os.path.join(self.cache, 'C37R'))
+        if self.im.need_parse(self.cache + "/{}".format(self.hash), VERSION_APP_VALUE):
+            self.im.db_create(os.path.join(self.cache, self.hash))
             self.need_parse = True
         else:
             self.need_parse = False
@@ -275,7 +276,22 @@ class MiLiao(object):
         cmd.CommandText = '''
             select ZLOCAL_ID, ZBODY_TYPE, ZTIMESTAMP, ZBODY, ZEXT_ID, ZMSG_SENDER, ZMSG_TO, ZMSG_XML from ZMESSAGEV5OBJECT
         '''
-        reader = cmd.ExecuteReader()
+        try:
+            reader = None
+            reader = cmd.ExecuteReader()
+        except: #因为此处会出现错误，故暂时在出异常时，把文件移到Cache里面（Md5)
+            if reader is not None:
+                reader.Close()
+            cmd.Dispose()
+            db.Close()
+            dst_file = self.cache + "/" + unity_c37r.md5(f_message_node.PathWithMountPoint)
+            unity_c37r.mapping_file_with_copy(f_message_node.PathWithMountPoint, dst_file)
+            db = unity_c37r.create_connection(dst_file)
+            cmd = sql.SQLiteCommand(db)
+            cmd.CommandText = '''
+                select ZLOCAL_ID, ZBODY_TYPE, ZTIMESTAMP, ZBODY, ZEXT_ID, ZMSG_SENDER, ZMSG_TO, ZMSG_XML from ZMESSAGEV5OBJECT
+            '''
+            reader = cmd.ExecuteReader() # 如果再出错误，这个案例就有问题了
         while reader.Read():
             if canceller.IsCancellationRequested:
                 self.im.db_close()
@@ -566,7 +582,7 @@ def parse_miliao(root, extract_deleted, extract_source):
             ml.im.db_insert_table_version(model_im.VERSION_KEY_APP, VERSION_APP_VALUE)
             ml.im.db_commit()
             ml.im.db_close()
-        models = model_im.GenerateModel(ml.cache + '/C37R').get_models()
+        models = model_im.GenerateModel(ml.cache + '/{}'.format(ml.hash)).get_models()
         mlm = ModelListMerger()
         pr = ParserResults()
         pr.Categories = DescripCategories.MiLiao

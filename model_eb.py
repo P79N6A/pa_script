@@ -1,4 +1,7 @@
 #coding:utf-8
+
+__author__ = "chenfeiyang"
+
 import PA_runtime
 import clr
 clr.AddReference('System.Data.SQLite')

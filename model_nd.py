@@ -3,6 +3,7 @@
 # According to model_eb, we use model_nd for file related solution and bcp, and model_im for chat related, as most of applications today contain a chat-plugin.
 # when you create a model_nd object, given name will append a suffix '.im', means the db of im-system. when debuging, delete both of them each time
 # C37R, PWNZEN Infomation.
+__author__ = "chenfeiyang"
 import clr
 
 try:

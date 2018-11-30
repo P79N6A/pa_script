@@ -94,6 +94,7 @@ class QQParser(object):
         self.contacts = {}  # uin to contact
         self.c2cmsgtables =set()
         self.troopmsgtables =set()
+        self.discussGrptables = set()
         self.troops = collections.defaultdict(Chatroom)
         self.im = IM()
         self.cachepath = ds.OpenCachePath("QQ") 
@@ -116,22 +117,26 @@ class QQParser(object):
                     self.groupContact.clear()
                     self.troops.clear()
                     self.nickname = ''
-                    self.contacts = {}			
-                    self.troopmsgtables =[]
+                    self.contacts = {}                   
                     self.c2cmsgtables =set()
-                    self.troopmsgtables =set()
+                    self.troopmsgtables =set() 
+                    self.discussGrptables = set() 
+                    #self.decode_favorites_info(acc_id)                  
                     self.decode_friends(acc_id)
-                    self.decode_group_info(acc_id)
+                    self.decode_group_info(acc_id)                    
                     self.decode_groupMember_info(acc_id)
+                    self.decode_discussGrp_info(acc_id)
+                    self.decode_discussgroupMember_info(acc_id)
+                    self.decode_discussGrp_messages(acc_id)
                     self.decode_friend_messages(acc_id)
-                    self.decode_group_messages(acc_id)	
+                    self.decode_group_messages(acc_id)	                    
                     self.decode_fts_messages(acc_id)		                   
                     self.decode_recover_friends(acc_id)
                     self.decode_recover_group_info(acc_id)
                     self.decode_recover_groupMember_info(acc_id)
                     self.decode_recover_friend_messages(acc_id)
                     self.decode_recover_group_messages(acc_id)
-                    self.decode_recover_fts_messages(acc_id)					
+                    self.decode_recover_fts_messages(acc_id)					                    
                 except Exception as e:
                     print(e)
             if canceller.IsCancellationRequested:
@@ -150,14 +155,17 @@ class QQParser(object):
         d = node.PathWithMountPoint
         c2ctables = []
         trooptables =[]
+        discussgroup = []
         db = SQLiteParser.Database.FromNode(node,canceller)
         if db is None:
             return      
         for table in db.Tables: 
             if table.startswith("tbMap_c2c_"):
-               c2ctables.append(table)       
+                c2ctables.append(table)       
             if table.startswith("tbMap_troop_"):
-                trooptables.append(table)			
+                trooptables.append(table)
+            if  table.startswith("tbMap_disgroup_"):
+                discussgroup.append(table)
         for table in c2ctables:
             if canceller.IsCancellationRequested:
                 return
@@ -167,6 +175,42 @@ class QQParser(object):
                 return
             self.decode_fts_group_table(acc_id,table)		
         return 
+        for table in discussgroup:
+            if canceller.IsCancellationRequested:
+                return
+            self.decode_fts_discussgroup_table(acc_id,table)		              
+    
+    def decode_fts_messages(self,acc_id):
+        node = self.root.GetByPath('/Documents/contents/' + acc_id + '/FTSMsg.db')
+        if node is None:
+            return
+        d = node.PathWithMountPoint
+        c2ctables = []
+        trooptables =[]
+        discussgroup = []
+        db = SQLiteParser.Database.FromNode(node,canceller)
+        if db is None:
+            return      
+        for table in db.Tables: 
+            if table.startswith("tbMap_c2c_"):
+                c2ctables.append(table)       
+            if table.startswith("tbMap_troop_"):
+                trooptables.append(table)
+            if  table.startswith("tbMap_disgroup_"):
+                discussgroup.append(table)
+        for table in c2ctables:
+            if canceller.IsCancellationRequested:
+                return
+            self.decode_fts_chat_table(acc_id,table)				
+        for table in trooptables:
+            if canceller.IsCancellationRequested:
+                return
+            self.decode_fts_group_table(acc_id,table)		
+        return 
+        for table in discussgroup:
+            if canceller.IsCancellationRequested:
+                return
+            self.decode_fts_discussgroup_table(acc_id,table)		   
     def decode_fts_chat_table(self,acc_id,table):
         #chat_id = table[table.rfind('_')+1:]
         node = self.root.GetByPath('/Documents/contents/' + acc_id + '/FTSMsg.db')
@@ -270,7 +314,58 @@ class QQParser(object):
                 self.im.db_insert_table_message(msg)
             self.im.db_commit()																							
         return 
-
+    def decode_fts_discussgroup_table(acc_id,table):
+        group_id = table[table.rfind('_')+1:]
+        node = self.root.GetByPath('/Documents/contents/' + acc_id + '/FTSMsg.db')
+        if node is not None:
+            d = node.PathWithMountPoint            
+            sql = 'select c1uin,c2time,c3type,c4flag,c5nickname,c7content,c8conversationuin,c0msgId from ' + table  +  ' a,tb_Index_discussGrp_content b  where a.docid = b.docid'
+            datasource = "Data Source =  " + d +";ReadOnly=True"
+            conn = SQLiteConnection(datasource)
+            conn.Open()
+            if(conn is None):
+                return
+            command = SQLiteCommand(conn)                
+            command.CommandText = sql
+            reader = command.ExecuteReader()
+            while reader.Read():
+                try:
+                    if canceller.IsCancellationRequested:
+                        return
+                    msg = Message()
+                    uin = SafeGetString(reader,0)
+                    sendtime = SafeGetInt64(reader,1)
+                    msgtype = SafeGetInt64(reader,2)
+                    flag = SafeGetInt64(reader,3)
+                    nickname = SafeGetString(reader,4)
+                    content= SafeGetString(reader,5)
+                    msgid = str(SafeGetInt64(reader,7))
+                    msg.account_id = acc_id
+                    msg.talker_id =SafeGetString(reader,6)
+                    msg.source = node.AbsolutePath
+                    try:					
+                        msg.talker_name =  self.troops[group_id].name
+                    except:
+                        msg.talker_name  =''
+                    msg.deleted = 1
+                    if(uin == acc_id):
+                        msg.send_id = acc_id
+                        msg.sender_name = self.nickname
+                        msg.is_sender = 1
+                    else:
+                        msg.sender_id = uin
+                        msg.sender_name = nickname
+                        msg.is_sender = 0
+                    msg.id = msgid
+                    msg.type = MESSAGE_CONTENT_TYPE_TEXT
+                    msg.content = content
+                    msg.send_time = sendtime
+                    msg.talker_type = CHAT_TYPE_GROUP                    
+                except:					
+                    pass
+                self.im.db_insert_table_message(msg)
+            self.im.db_commit()																							
+        return 
     def decode_db_calls(self, acc_id):
         node = self.root.GetByPath('/Documents/contents/' + acc_id + '/QQ_Mix.db')
         if node is None:
@@ -522,6 +617,152 @@ class QQParser(object):
             if canceller.IsCancellationRequested:
                 return
             self.decode_friend_chat_table(acc_id,table)
+    def decode_discussGrp_info(self, acc_id):
+        node = self.root.GetByPath('/Documents/contents/' + acc_id + '/QQ.db')
+        if node is None:
+            return
+        d = node.PathWithMountPoint            
+        sql = 'select uin ,name, create_time,owner_uin,member_num  from  tb_discussGrp_list'
+        datasource = "Data Source =  " + d +";ReadOnly=True"
+        conn = SQLiteConnection(datasource)
+        conn.Open()
+        if(conn is None):
+            return
+        command = SQLiteCommand(conn)                
+        command.CommandText = sql
+        reader = command.ExecuteReader()
+        while reader.Read():
+            try:
+                chatroom = Chatroom()
+                chatroom.account_id = acc_id
+                chatroom.chatroom_id = str(SafeGetInt64(reader,0))
+                chatroom.name = SafeGetString(reader,1)
+                chatroom.create_time = SafeGetInt64(reader,2)
+                chatroom.owner_id = str(SafeGetInt64(reader,3))
+                chatroom.member_count = SafeGetInt64(reader,4)  
+                chatroom.source = node.AbsolutePath              
+            except:
+                pass             
+            self.discussGrptables.add("tb_discussGrp_"+ chatroom.chatroom_id)
+            self.im.db_insert_table_chatroom(chatroom)
+        self.im.db_commit()
+        reader.Close()
+        command.Dispose()		
+        conn.Close()   
+    def decode_discussgroupMember_info(self, acc_id):
+        try:
+            node = self.root.GetByPath('/Documents/contents/' + acc_id + '/QQ.db')            
+            if node is not None:
+                d = node.PathWithMountPoint
+                datasource = "Data Source =  " + d +";ReadOnly=True"
+                conn = SQLiteConnection(datasource)
+                conn.Open()
+                if(conn is None):
+                    return
+                sql = "select dis_uin, uin ,interemark from tb_discussGrp_member" 
+                command = SQLiteCommand(conn)                
+                command.CommandText = sql
+                reader = command.ExecuteReader()
+                while reader.Read():
+                    if canceller.IsCancellationRequested:
+                        return
+                    chatroommem = ChatroomMember()
+                    try:                        
+                        dis_uin = str(SafeGetInt64(reader,0))
+                        MemberUin = str(SafeGetInt64(reader,1))
+                        strNick = SafeGetString(reader,2)
+                        chatroommem.account_id = acc_id
+                        chatroommem.chatroom_id = dis_uin
+                        chatroommem.member_id = MemberUin
+                        chatroommem.display_name = strNick
+                        chatroommem.source = node.AbsolutePath
+                    except:
+                        pass
+                    self.im.db_insert_table_chatroom_member(chatroommem)
+        except:
+            pass
+        return    
+    def decode_discussGrp_messages(self, acc_id):
+        for table in self.discussGrptables:
+            if canceller.IsCancellationRequested:
+                return     
+            self.decode_discussGrp_chat_table(acc_id,table)            
+    def decode_discussGrp_chat_table(self,acc_id,table_name):
+        group_id = table_name[table_name.rfind('_')+1:]
+        node = self.root.GetByPath('/Documents/contents/' + acc_id + '/QQ.db')
+        if node is not None:
+            d = node.PathWithMountPoint            
+            sql = 'select discussuin , senduin , msgtime, Msgtype,read,msg ,msgid,nickname,picurl from ' + table_name + ' order by msgtime'
+            datasource = "Data Source =  " + d +";ReadOnly=True"
+            conn = SQLiteConnection(datasource)
+            conn.Open()
+            if(conn is None):
+                return
+            command = SQLiteCommand(conn)                
+            command.CommandText = sql
+            reader = command.ExecuteReader()
+            while reader.Read():
+                try:
+                    if canceller.IsCancellationRequested:
+                        return
+                    msg = Message()
+                    discussuin = str(SafeGetString(reader,0))
+                    senduin = str(SafeGetString(reader,1))
+                    sendtime = int(SafeGetDouble(reader,2))
+                    msgtype =SafeGetInt64(reader,3)
+                    bread = SafeGetInt64(reader,4)
+                    content =SafeGetString(reader,5)
+                    msgid = str(SafeGetInt64(reader,6))	
+                    nickname = SafeGetString(reader,7)
+                    msgid = SafeGetString(reader,8)
+                    msg.account_id = acc_id
+                    msg.talker_id = group_id
+                    msg.send_id = senduin
+                    if(senduin == acc_id):
+                        msg.is_sender = 1
+                    else:
+                        msg.is_sender = 0
+                    msg.msg_id = msgid
+                    msg.send_time = sendtime
+                    msg.talker_type = CHAT_TYPE_GROUP
+                    if(bread == 0):
+                        msg.status = MESSAGE_STATUS_UNREAD
+                    else:
+                        msg.status = MESSAGE_STATUS_READ
+                    msg.source = node.AbsolutePath
+                    msg.content = content	
+                    types  = (MESSAGE_CONTENT_TYPE_TEXT,MESSAGE_CONTENT_TYPE_IMAGE,MESSAGE_CONTENT_TYPE_VOICE,
+                    MESSAGE_CONTENT_TYPE_ATTACHMENT,MESSAGE_CONTENT_TYPE_VIDEO,MESSAGE_CONTENT_TYPE_LOCATION)
+                    if(msgtype == 0):
+                        msg.type = MESSAGE_CONTENT_TYPE_TEXT										
+                    elif(msgtype == 1):
+                        msg.type = MESSAGE_CONTENT_TYPE_IMAGE
+                        msg.media_path = self.get_picture_attachment(acc_id,picUrl)	                        
+                    elif(msgtype == 3):
+                        msg.type = MESSAGE_CONTENT_TYPE_VOICE
+                        msg.media_path = self.get_audio_attachment(acc_id,picUrl)						
+                    elif(msgtype == 4):
+                        msg.type = MESSAGE_CONTENT_TYPE_ATTACHMENT
+                        msg.media_path = self.get_file_attachment(acc_id,content)						
+                    elif(msgtype == 181):
+                        msg.type = MESSAGE_CONTENT_TYPE_VIDEO
+                        msg.media_path = self.get_video_attachment(acc_id,picUrl)
+                    #maybe the system
+                    elif(msgtype == 337):                        
+                        loc = self.get_location(acc_id,content)
+                        if(loc is not None):                            
+                            locat = msg.create_location()                            
+                            locat.latitude = float(loc[1])
+                            locat.longitude = float(loc[2])
+                            locat.address = loc[0]                                   
+                    if(msg.type not in types):	
+                        msg.type = MESSAGE_CONTENT_TYPE_SYSTEM
+                    msg.insert_db(self.im)
+                except:
+                    pass
+            self.im.db_commit()
+        return		
+
     def decode_group_messages(self, acc_id):
         node = self.root.GetByPath('/Documents/contents/' + acc_id + '/QQ.db')
         if node is None:
@@ -579,9 +820,9 @@ class QQParser(object):
                     msg.msg_id = msgid
                     msg.send_time = sendtime									
                     if(msg.sender_id == msg.account_id):
-                        msg.is_sender = MESSAGE_TYPE_SEND
+                        msg.is_sender = 1
                     else:
-                        msg.is_sender = MESSAGE_TYPE_RECEIVE
+                        msg.is_sender = 0
                     msg.content = content	
                     types  = (MESSAGE_CONTENT_TYPE_TEXT,MESSAGE_CONTENT_TYPE_IMAGE,MESSAGE_CONTENT_TYPE_VOICE,
                     MESSAGE_CONTENT_TYPE_ATTACHMENT,MESSAGE_CONTENT_TYPE_VIDEO,MESSAGE_CONTENT_TYPE_LOCATION)
@@ -602,18 +843,15 @@ class QQParser(object):
                     #maybe the system
                     elif(msgtype == 337):                        
                         loc = self.get_location(acc_id,content)
-                        if(loc is not None):                           
-                            msg.type = MESSAGE_CONTENT_TYPE_LOCATION
-                            msg.extra_id  = str(uuid.uuid1())
-                            locat = Location()
-                            locat.location_id = msg.extra_id
-                            locat.latitude = loc[1]
-                            locat.longitude = loc[2]
-                            locat.address = loc[0]
-                            self.im.db_insert_table_location(locat)                                
+                        if(loc is not None):                            
+                            locat = msg.create_location()                            
+                            locat.latitude = float(loc[1])
+                            locat.longitude = float(loc[2])
+                            locat.address = loc[0]                            
                     if(msg.type not in types):	
                         msg.type = MESSAGE_CONTENT_TYPE_SYSTEM
-                    self.im.db_insert_table_message(msg)
+                    #self.im.db_insert_table_message(msg)
+                    msg.insert_db(self.im)
                 except:
                     pass
             self.im.db_commit()			
@@ -689,20 +927,16 @@ class QQParser(object):
                     #maybe the system
                     elif(msgtype == 337):
                         loc = self.get_location(acc_id,content)
-                        if(loc is not None):
-                            msg.extra_id  = str(uuid.uuid1())
-                            msg.type = MESSAGE_CONTENT_TYPE_LOCATION
-                            locat = Location()
-                            locat.location_id = msg.extra_id 
+                        if(loc is not None):                            
+                            locat = msg.create_location()                            
                             locat.latitude = float(loc[1])
                             locat.longitude = float(loc[2])
-                            locat.address = loc[0]
-                            self.im.db_insert_table_location(locat) 
+                            locat.address = loc[0]    
                     if(msg.type not in types):	
                         msg.type = MESSAGE_CONTENT_TYPE_SYSTEM
-                    self.im.db_insert_table_message(msg)
+                    msg.insert_db(self.im)
                 except Exception as e:
-                    print(e)
+                    pass
         self.im.db_commit()		
         reader.Close()
         command.Dispose()		
@@ -846,7 +1080,7 @@ class QQParser(object):
             groupCode = str(rec['groupcode'].Value)
             groupName = str(rec['GroupName'].Value)						
             group.name = groupName
-            group.code = groupCode	
+            group.chatroom_id = groupCode	
             group.deleted = 1					
             group.source = node.AbsolutePath
             self.im.db_insert_table_chatroom(group) 		
@@ -931,18 +1165,14 @@ class QQParser(object):
                     #maybe the system
                     elif(msgtype == 337):
                         loc = self.get_location(acc_id,content)
-                        if(loc is not None):
-                            msg.extra_id   = str(uuid.uuid1())
-                            msg.type = MESSAGE_CONTENT_TYPE_LOCATION
-                            locat = Location()
-                            locat.location_id = msg.extra_id 
+                        if(loc is not None):                            
+                            locat = msg.create_location()                            
                             locat.latitude = float(loc[1])
                             locat.longitude = float(loc[2])
-                            locat.address = loc[0]
-                            self.im.db_insert_table_location(locat) 
+                            locat.address = loc[0]    
                     if(msg.type not in types):	
                         msg.type = MESSAGE_CONTENT_TYPE_SYSTEM
-                    self.im.db_insert_table_message(msg)
+                    msg.insert_db(self.im)
                 except:
                     pass
             self.im.db_commit()			
@@ -1017,18 +1247,14 @@ class QQParser(object):
                     #maybe the system
                     elif(msgtype == 337):
                         loc = self.get_location(acc_id,content)
-                        if(loc is not None):
-                            msg.extra_id   = str(uuid.uuid1())
-                            msg.type = MESSAGE_CONTENT_TYPE_LOCATION
-                            locat = Location()
-                            locat.location_id = msg.extra_id 
-                            locat.latitude = loc[1]
-                            locat.longitude = loc[2]
-                            locat.address = loc[0]
-                            self.im.db_insert_table_location(locat) 
+                        if(loc is not None):                            
+                            locat = msg.create_location()                            
+                            locat.latitude = float(loc[1])
+                            locat.longitude = float(loc[2])
+                            locat.address = loc[0]    
                     if(msg.type not in types):	
                         msg.type = MESSAGE_CONTENT_TYPE_SYSTEM
-                    self.im.db_insert_table_message(msg)
+                    msg.insert_db(self.im)
                 except:
                     pass
             self.im.db_commit()

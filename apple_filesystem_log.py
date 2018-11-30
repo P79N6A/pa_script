@@ -1,4 +1,6 @@
 #coding=utf-8
+__author__ = "sumeng"
+
 import PA_runtime
 import clr
 clr.AddReference('System.Core')
@@ -144,7 +146,7 @@ class Parser():
             cursor.execute(sql)
             row = cursor.fetchone()
         except Exception as e:
-            pass
+            TraceService.Trace(TraceLevel.Error, "apple_filesystem_log.py Error: LINE {}".format(traceback.format_exc()))
 
         ret = True
         if row is not None:
@@ -265,7 +267,9 @@ class Parser():
             offset += 8
             flags = struct.unpack('>I', buf[offset:offset+4])[0]
             offset += 4
-
+            
+            if event_id == 3669549:
+                pass
             if magic == '2SLD':
                 node_id = struct.unpack('<Q', buf[offset:offset+8])[0]
                 offset += 8
@@ -302,7 +306,7 @@ class GenerateModel():
             cursor.execute(sql)
             row = cursor.fetchone()
         except Exception as e:
-            print(e)
+            TraceService.Trace(TraceLevel.Error, "apple_filesystem_log.py Error: LINE {}".format(traceback.format_exc()))
 
         while row is not None:
             if canceller.IsCancellationRequested:
@@ -323,7 +327,7 @@ class GenerateModel():
 
                 models.append(model)
             except Exception as e:
-                print(e)
+                TraceService.Trace(TraceLevel.Error, "apple_filesystem_log.py Error: LINE {}".format(traceback.format_exc()))
             row = cursor.fetchone()
 
         cursor.close()

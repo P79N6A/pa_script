@@ -1,4 +1,5 @@
 #coding:utf-8
+__author__ = "chenfeiyang"
 import clr
 clr.AddReference('System.Data.SQLite')
 try:
@@ -716,7 +717,6 @@ class MediaParser(object):
         """
         length = bts.read_int()
         tp = bts.read_int()
-        print('id_tp:%d' %tp)
         length -= 4
         res = dict()
         if tp == TGMessageActionChatAddMember or tp == TGMessageActionChatDeleteMember:
@@ -1001,7 +1001,11 @@ class Telegram(object):
             if pnode is None:
                 raise IOError("Can't find Accounts! parse EXIT!")
             p = BPReader.GetTree(pnode.Data)
-            self.account = p['telegraphUserId'].Value
+            #实际上这个地方发生异常也没啥关系，因为反正都找不到数据了
+            if p['telegraphUserId'] is not None:
+                self.account = p['telegraphUserId'].Value
+            else:
+                raise IOError("Can't find Accounts! parse EXIT!")
             if self.account is None:
                 raise IOError("Can't find Accounts! parse EXIT!")
             else:
