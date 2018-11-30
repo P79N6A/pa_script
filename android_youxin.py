@@ -242,7 +242,8 @@ class YouXinParser():
                     if message.is_sender == model_im.MESSAGE_TYPE_RECEIVE:
                         message.status = model_im.MESSAGE_STATUS_READ if rec['status'].Value == 1 else model_im.MESSAGE_STATUS_UNREAD
                     if message.type == model_im.MESSAGE_CONTENT_TYPE_LOCATION:
-                        message.extra_id = self.get_location(message.content, message.deleted, message.repeated, message.send_time)
+                        message.location_obj = message.create_location()
+                        message.location_id = self.get_location(message.location_obj, message.content, message.send_time)
                     self.im.db_insert_table_message(message)
         self.im.db_commit()
 
@@ -263,19 +264,16 @@ class YouXinParser():
             return content
         return ''
 
-    def get_location(self, content, deleted, repeated, time):
+    def get_location(self, location, content, time):
         try:
             obj = json.loads(content)
         except:
             traceback.print_exc()
-
-        location = model_im.Location()
-        location.deleted = deleted
-        location.repeated = repeated
         location.account_id = self.user
         location.address = obj['description']
         location.latitude = obj['latitude']
         location.longitude = obj['longitude']
+        location.timestamp = time
         self.im.db_insert_table_location(location)
         self.im.db_commit()
         return location.location_id
