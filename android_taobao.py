@@ -589,17 +589,17 @@ class TaobaoParser(object):
     def __convert_message_type(type_code):
         if not type_code:
             return
-        if type == 101:
+        if type_code == 101:
             return model_im.MESSAGE_CONTENT_TYPE_TEXT
-        elif type == 111 or type == 112:
+        elif type_code == 111 or type == 112:
             return model_im.MESSAGE_CONTENT_TYPE_CONTACT_CARD
-        elif type == 102:
+        elif type_code == 102:
             return model_im.MESSAGE_CONTENT_TYPE_IMAGE
-        elif type == 105:
+        elif type_code == 105:
             return model_im.MESSAGE_CONTENT_TYPE_VIDEO
-        elif type == 110:
+        elif type_code == 110:
             return model_im.MESSAGE_CONTENT_TYPE_RED_ENVELPOE
-        elif type == 106:
+        elif type_code == 106:
             return model_im.MESSAGE_CONTENT_TYPE_SYSTEM
 
     def __add_system_messages(self):
