@@ -2031,11 +2031,7 @@
           <integer>2</integer>
           <key>Patterns</key>
           <array>
-            <string>com.tencent.mobileqq/databases$</string>
-            <string>com.tencent.mobileQQi/databases$</string>
-            <string>com.tencent.qqlite/databases$</string>
-            <string>com.tencent.tim/databases$</string>
-            <string>com.tencent.minihd.qq/databases$</string>
+            <string>#</string>  
           </array>
           <key>Category</key>
           <string>QQ</string>
