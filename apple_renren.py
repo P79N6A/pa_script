@@ -35,7 +35,7 @@ CONTACT_TYPE_FRIEND = 1
 CONTACT_TYPE_GROUP = 2
 
 def analyze_renren(root, extract_deleted, extract_source):
-    pr = ParserResults()
+    r = ParserResults()
 
     models = RenRenParser(root, extract_deleted, extract_source).parse()
 
@@ -89,7 +89,7 @@ class RenRenParser():
 
     def get_user_list(self):
         user_list = []
-        node = self.root.GetByPath('/Documents')
+        node = self.root.GetByPath('../../../Documents')
         if node is not None:
             for file in os.listdir(node.PathWithMountPoint):
                 if file.isdigit():
@@ -105,7 +105,7 @@ class RenRenParser():
         if self.user is None:
             return
 
-        node = self.root.GetByPath('/Documents/' + self.user + '/userCaches/userProfileDict')
+        node = self.root.GetByPath('../../../Documents/' + self.user + '/userCaches/userProfileDict')
         if node is None:
             return
 
@@ -128,7 +128,7 @@ class RenRenParser():
         if self.user is None:
             return
 
-        subDbPath = self.root.GetByPath('/Documents/DB/' + self.user + '/subscribed.sqlite')
+        subDbPath = self.root.GetByPath('../../../Documents/DB/' + self.user + '/subscribed.sqlite')
         subDb = SQLiteParser.Database.FromNode(subDbPath)
         if subDb is None:
             return
@@ -151,7 +151,7 @@ class RenRenParser():
                 self.friends[friend.friend_id] = friend
                 self.im.db_insert_table_friend(friend)
                 
-        infoDbPath = self.root.GetByPath('/Documents/DB/' + self.user + '/info.sqlite')
+        infoDbPath = self.root.GetByPath('../../../Documents/DB/' + self.user + '/info.sqlite')
         infoDb = SQLiteParser.Database.FromNode(infoDbPath)
         if infoDb is None:
             return
@@ -197,7 +197,7 @@ class RenRenParser():
                         self.im.db_insert_table_chatroom_member(chatroom_member)
                 self.chatroom_members[chatroom.chatroom_id] = chatroom_members
 
-            chatDbPath = self.root.GetByPath('/Documents/DB/' + self.user + '/chat.sqlite')
+            chatDbPath = self.root.GetByPath('../../../Documents/DB/' + self.user + '/chat.sqlite')
             chatDb = SQLiteParser.Database.FromNode(chatDbPath)
             if chatDb is None:
                 return
@@ -236,7 +236,7 @@ class RenRenParser():
         if self.user is None:
             return
 
-        dbPath = self.root.GetByPath('/Documents/DB/' + self.user + '/chat.sqlite')
+        dbPath = self.root.GetByPath('../../../Documents/DB/' + self.user + '/chat.sqlite')
         db = SQLiteParser.Database.FromNode(dbPath)
         if db is None:
             return
@@ -342,7 +342,7 @@ class RenRenParser():
                    
                 obj = root.Value[0].Children['audioUrl'].Value
                 if obj is not None:
-                    node = self.root.GetByPath('/Documents/chatfile/' + self.user + '/' + contactid)
+                    node = self.root.GetByPath('../../../Documents/chatfile/' + self.user + '/' + contactid)
                     if node is not None:
                         file = 'I' if is_sender == model_im.MESSAGE_TYPE_SEND else ''
                         file += root.Value[0].Children['elementId'].Value + '.spx'
@@ -357,7 +357,7 @@ class RenRenParser():
                    
                 obj = root.Value[0].Children['localvideoUrl'].Value
                 if obj is not None:
-                    node = self.root.GetByPath('/Documents/chatfile/' + self.user + '/' + contactid)
+                    node = self.root.GetByPath('../../../Documents/chatfile/' + self.user + '/' + contactid)
                     if node is not None:
                         file = 'I' if is_sender == model_im.MESSAGE_TYPE_SEND else ''
                         file += root.Value[0].Children['elementId'].Value + '.mp4'
@@ -380,7 +380,7 @@ class RenRenParser():
         return ''
 
     def is_file_exist(self, filename):
-        dir = '/Library/Caches/default/com.hackemist.SDWebImageCache.default/'
+        dir = '../../Caches/default/com.hackemist.SDWebImageCache.default/'
         file = self.root.GetByPath(dir + filename + '.jpg')
         if file is not None:
             return file.AbsolutePath

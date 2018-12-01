@@ -85,7 +85,7 @@ class YouXinParser():
     
     def get_user_list(self):
         user_list = []
-        node = self.root.GetByPath('/Documents')
+        node = self.root.GetByPath('../../../Documents')
         if node is not None:
             for file in os.listdir(node.PathWithMountPoint):
                 if file.isdigit():
@@ -104,7 +104,7 @@ class YouXinParser():
         account = model_im.Account()
         account.account_id = self.user
          
-        dbPath = self.root.GetByPath('/Documents/' + self.user + '/StrangePersonInfo.Sqlite3')
+        dbPath = self.root.GetByPath('../../../Documents/' + self.user + '/StrangePersonInfo.Sqlite3')
         db = SQLiteParser.Database.FromNode(dbPath)
         if db is None:
             return
@@ -134,7 +134,7 @@ class YouXinParser():
         if self.user is None:
             return
 
-        dbPath = self.root.GetByPath('/Documents/' + self.user + '/uxin_users.cache')
+        dbPath = self.root.GetByPath('../../../Documents/' + self.user + '/uxin_users.cache')
         db = SQLiteParser.Database.FromNode(dbPath)
         if db is None:
             return
@@ -159,7 +159,7 @@ class YouXinParser():
                 self.contacts[friend.friend_id] = friend
                 self.im.db_insert_table_friend(friend)
 
-        dbPath = self.root.GetByPath('/Documents/' + self.user + '/StrangePersonInfo.Sqlite3')
+        dbPath = self.root.GetByPath('../../../Documents/' + self.user + '/StrangePersonInfo.Sqlite3')
         db = SQLiteParser.Database.FromNode(dbPath)
         if db is None:
             return
@@ -194,7 +194,7 @@ class YouXinParser():
         if self.user is None:
             return
 
-        dbPath = self.root.GetByPath('/Documents/' + self.user + '/IMDataNew.Sqlite3')
+        dbPath = self.root.GetByPath('../../../Documents/' + self.user + '/IMDataNew.Sqlite3')
         db = SQLiteParser.Database.FromNode(dbPath)
         if db is None:
             return
@@ -225,10 +225,11 @@ class YouXinParser():
                     message.send_time = int(time.mktime(time.strptime(rec['[msgtime]'].Value, '%Y-%m-%d %H:%M:%S')))
                     message.media_path = self.get_media_path(message.type, message.content, contact_id)
                     if message.type == model_im.MESSAGE_CONTENT_TYPE_LOCATION:
-                        message.extra_id = self.get_location(message.source, message.content, message.send_time, message.deleted, message.repeated)
+                        message.location_obj = message.create_location()
+                        message.location_id = self.get_location(message.location_obj, message.content, message.send_time)
                     self.im.db_insert_table_message(message)
 
-        dbPath = self.root.GetByPath('/Documents/' + self.user + '/callHistoryRecord.Sqlite3')
+        dbPath = self.root.GetByPath('../../../Documents/' + self.user + '/callHistoryRecord.Sqlite3')
         db = SQLiteParser.Database.FromNode(dbPath)
         if db is None:
             return
@@ -268,13 +269,8 @@ class YouXinParser():
                     self.im.db_insert_table_message(message)
         self.im.db_commit()
 
-    def get_location(self, source, content, time, deleted, repeated):
+    def get_location(self, location, content, time):
         obj = json.loads(content)
-        location = model_im.Location()
-        location.source = source
-        location.deleted = deleted
-        location.repeated = repeated
-        location.location_id = str(uuid.uuid1()).replace('-', '')
         location.address = obj['location']['description']
         location.latitude = obj['location']['latitude']
         location.longitude = obj['location']['longitude']
@@ -288,11 +284,11 @@ class YouXinParser():
         
         if type == model_im.MESSAGE_CONTENT_TYPE_IMAGE:
             obj = json.loads(content)
-            node = self.root.GetByPath('/Documents/' + self.user + '/IMMedia/' + str(contact_id))
+            node = self.root.GetByPath('../../../Documents/' + self.user + '/IMMedia/' + str(contact_id))
             if node is not None:
                 media_path = os.path.join(node.AbsolutePath, obj['[UXinIMPicName]']).replace('.thumb', '')
         if type == model_im.MESSAGE_CONTENT_TYPE_VOICE:
-            node = self.root.GetByPath('/Documents/' + self.user + '/IMMedia/' + str(contact_id))
+            node = self.root.GetByPath('../../../Documents/' + self.user + '/IMMedia/' + str(contact_id))
             if node is not None:
                 media_path = os.path.join(node.AbsolutePath, content)
         return media_path

@@ -69,10 +69,10 @@ class WangxinParser():
 
     def get_user_list(self):
         user_list = {}
-        dir = '/Library/Caches/YWDB/'
+        dir = '../../Caches/YWDB/'
         dirNode = self.root.GetByPath(dir)
         if dirNode is None:
-            dir = '/Documents/YWDB/'
+            dir = '../../../Documents/YWDB/'
             dirNode = self.root.GetByPath(dir)
             if dirNode is None:
                 return user_list
@@ -278,8 +278,9 @@ class WangxinParser():
                             message.content = obj['resource']
                         except:
                             traceback.print_exc()
-                    if message.type == model_im.MESSAGE_CONTENT_TYPE_LOCATION:        
-                        message.extra_id = self.get_location(message.talker_type, message.send_time, message.deleted, rec['ZLOCATION'].Value)
+                    if message.type == model_im.MESSAGE_CONTENT_TYPE_LOCATION:  
+                        message.location_obj = message.create_location()
+                        message.location_id = self.get_location(message.location_obj, message.talker_type, message.send_time, rec['ZLOCATION'].Value)
                     self.im.db_insert_table_message(message)
                 self.im.db_commit()
                 
@@ -329,11 +330,12 @@ class WangxinParser():
                         except:
                             traceback.print_exc()
                     if message.type == model_im.MESSAGE_CONTENT_TYPE_LOCATION:
-                        message.extra_id = self.get_location(message.talker_type, message.send_time, message.deleted, message.content)
+                        message.location_obj = message.create_location()
+                        message.location_id = self.get_location(message.location_obj, message.talker_type, message.send_time, message.content)
                     self.im.db_insert_table_message(message)
                 self.im.db_commit()
 
-    def get_location(self, talker_type, msg_time, deleted, param = None):
+    def get_location(self, location, talker_type, msg_time, param = None):
         if talker_type == model_im.CHAT_TYPE_FRIEND \
             or talker_type == model_im.CHAT_TYPE_OFFICIAL \
             or talker_type == model_im.CHAT_TYPE_SHOP:
@@ -345,8 +347,6 @@ class WangxinParser():
             for rec in db.ReadTableRecords(ts, self.extract_deleted):
                 if param != rec['Z_PK'].Value:
                     continue
-                location = model_im.Location()
-                location.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
                 location.source = self.dbNode.AbsolutePath
                 location.latitude = rec['ZLATITUDE'].Value
                 location.longitude = rec['ZLONGITUDE'].Value
@@ -356,8 +356,6 @@ class WangxinParser():
                 self.im.db_commit()
                 return location.location_id
         elif talker_type == model_im.CHAT_TYPE_GROUP:
-            location = model_im.Location()
-            location.deleted = DeletedState.Intact
             location.source = self.dbNode.AbsolutePath
             location.latitude = param.split(',')[1]
             location.longitude = param.split(',')[0]
