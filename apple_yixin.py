@@ -82,11 +82,11 @@ class YiXinParser():
 
     def get_user_list(self):
         user_list = []
-        node = self.root.GetByPath('/Documents')
+        node = self.root.GetByPath('../../../Documents/')
         if node is not None:
             for file in os.listdir(node.PathWithMountPoint):
-                if file.isdigit():
-                    user_list.append(file)
+                    if file.isdigit():
+                        user_list.append(file)
         return user_list
 
     def parse_user(self):
@@ -108,7 +108,7 @@ class YiXinParser():
         if self.user is None:
             return
         
-        dbPath = self.root.GetByPath('/Documents/' + self.user + '/msg2.db')
+        dbPath = self.root.GetByPath('../../../Documents/' + self.user + '/msg2.db')
         db = SQLiteParser.Database.FromNode(dbPath)
         if db is None:
             return
@@ -165,7 +165,7 @@ class YiXinParser():
             return
         
         for contact_id in self.contacts.keys():
-            dbPath = self.root.GetByPath('/Documents/' + self.user + '/msg2.db')
+            dbPath = self.root.GetByPath('../../../Documents/' + self.user + '/msg2.db')
             db = SQLiteParser.Database.FromNode(dbPath)
             if not db:
                 return
@@ -202,16 +202,13 @@ class YiXinParser():
                         message.talker_type = model_im.CHAT_TYPE_OFFICIAL
                     message.media_path = self.parse_message_content(message.content, message.type)
                     if message.type == model_im.MESSAGE_CONTENT_TYPE_LOCATION:
-                        message.extra_id = self.get_location(message.source, message.content, message.send_time, message.deleted, message.repeated)
+                        message.location_obj = message.create_location()
+                        message.location_id = self.get_location(message.location_obj, message.content, message.send_time)
                     self.im.db_insert_table_message(message)
         self.im.db_commit()
 
-    def get_location(self, source, content, time, deleted, repeated):
+    def get_location(self, location, content, time):
         object = json.loads(content)
-        location = model_im.Location()
-        location.source = source
-        location.deleted = deleted
-        location.repeated = repeated
         location.latitude = object['location'].split(',')[0]
         location.longitude = object['location'].split(',')[1]
         location.address = object['description']
@@ -219,7 +216,7 @@ class YiXinParser():
         
         self.im.db_insert_table_location(location)
         self.im.db_commit()
-        return location.address
+        return location.location_id
 
     def get_message_type(self, type):
         msgtype = model_im.MESSAGE_CONTENT_TYPE_TEXT
@@ -240,15 +237,15 @@ class YiXinParser():
         try:
             object = json.loads(content)
             if type == model_im.MESSAGE_CONTENT_TYPE_VIDEO:
-                node = self.root.GetByPath('/Documents/' + self.user + '/video')
+                node = self.root.GetByPath('../../../Documents/' + self.user + '/video')
                 if node is not None:
                     media_path = os.path.join(node.AbsolutePath, object['filename'])
             if type == model_im.MESSAGE_CONTENT_TYPE_VOICE:
-                node = self.root.GetByPath('/Documents/' + self.user + '/audio')
+                node = self.root.GetByPath('../../../Documents/' + self.user + '/audio')
                 if node is not None:
                     media_path = os.path.join(node.AbsolutePath, object['filename'])
             if type == model_im.MESSAGE_CONTENT_TYPE_IMAGE:
-                node = self.root.GetByPath('/Documents/' + self.user + '/image')
+                node = self.root.GetByPath('../../../Documents/' + self.user + '/image')
                 if node is not None:
                     media_path = os.path.join(node.AbsolutePath, object['filename'])
             #if type == model_im.MESSAGE_CONTENT_TYPE_CHARTLET:

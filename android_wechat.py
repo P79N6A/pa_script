@@ -92,10 +92,19 @@ class WeChatParser(Wechat):
 
             node = self.user_node.GetByPath('/EnMicroMsg.db')
             mm_db_path = os.path.join(self.cache_path, self.cache_db_name + '_mm.db')
-            if Decryptor.decrypt(node, self._get_db_key(self.imei, self.uin), mm_db_path):
-                self._parse_mm_db(mm_db_path, node.AbsolutePath)
-            self._parse_wc_db(self.user_node.GetByPath('/SnsMicroMsg.db'))
-            self._parse_fts_db(self.user_node.GetByPath('/FTS5IndexMicroMsg.db'))
+            try:
+                if Decryptor.decrypt(node, self._get_db_key(self.imei, self.uin), mm_db_path):
+                    self._parse_mm_db(mm_db_path, node.AbsolutePath)
+            except Exception as e:
+                TraceService.Trace(TraceLevel.Error, "android_wechat.py Error: LINE {}".format(traceback.format_exc()))
+            try:
+                self._parse_wc_db(self.user_node.GetByPath('/SnsMicroMsg.db'))
+            except Exception as e:
+                TraceService.Trace(TraceLevel.Error, "android_wechat.py Error: LINE {}".format(traceback.format_exc()))
+            try:
+                self._parse_fts_db(self.user_node.GetByPath('/FTS5IndexMicroMsg.db'))
+            except Exception as e:
+                TraceService.Trace(TraceLevel.Error, "android_wechat.py Error: LINE {}".format(traceback.format_exc()))
 
             self.im.db_create_index()
             # 数据库填充完毕，请将中间数据库版本和app数据库版本插入数据库，用来检测app是否需要重新解析
@@ -960,7 +969,7 @@ class Decryptor:
             try:
                 os.remove(dst_db_path)
             except Exception as e:
-                print('Decryptor decrypt() error: can not remove dst_db_path(%s)' % dst_db_path)
+                TraceService.Trace(TraceLevel.Error, "android_wechat.py Error: LINE {}".format(traceback.format_exc()))
                 return False
 
         size = src_node.Size
@@ -968,7 +977,7 @@ class Decryptor:
         first_page = src_node.read(1024)
 
         if len(first_page) < 1024:
-            print('Decryptor decrypt() error: first_page size less than 1024!')
+            TraceService.Trace(TraceLevel.Error, "android_wechat.py Error: Decryptor decrypt() first_page size less than 1024!")
             return False
 
         salt = first_page[0:16]
@@ -980,7 +989,7 @@ class Decryptor:
                                         Convert.FromBase64String(base64.b64encode(iv)),
                                         Convert.FromBase64String(base64.b64encode(first_page[16:1008])))
         if not Decryptor.is_valid_decrypted_header(content):
-            print('Decryptor decrypt() error: db(%s) and key(%s) is not valid' % (src_node.AbsolutePath, key))
+            TraceService.Trace(TraceLevel.Error, "android_wechat.py Error: Decryptor decrypt() error: db({0}) and key({1}) is not valid".format(src_node.AbsolutePath, key))
             return False
 
         de = open(dst_db_path, 'wb')
@@ -1028,7 +1037,7 @@ class Decryptor:
             crypto_stream.FlushFinalBlock()
             result = memory_stream.ToArray()
         except Exception as e:
-            print('Decryptor aes_decrypt() error: %s' % e)
+            TraceService.Trace(TraceLevel.Error, "android_wechat.py Error: LINE {}".format(traceback.format_exc()))
         finally:
             memory_stream.Close()
             crypto_stream.Close()

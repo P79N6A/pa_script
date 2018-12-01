@@ -80,13 +80,31 @@ class WeChatParser(Wechat):
                 self.user_account.insert_db(self.im)
                 self.im.db_commit()
 
-            self._parse_user_contact_db(self.root.GetByPath('/DB/WCDB_Contact.sqlite'))
-            self._parse_user_mm_db(self.root.GetByPath('/DB/MM.sqlite'))
-            self._parse_user_wc_db(self.root.GetByPath('/wc/wc005_008.db'))
-            self._parse_user_fts_db(self.root.GetByPath('/fts/fts_message.db'))
+            try:
+                self._parse_user_contact_db(self.root.GetByPath('/DB/WCDB_Contact.sqlite'))
+            except Exception as e:
+                TraceService.Trace(TraceLevel.Error, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
+            try:
+                self._parse_user_mm_db(self.root.GetByPath('/DB/MM.sqlite'))
+            except Exception as e:
+                TraceService.Trace(TraceLevel.Error, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
+            try:
+                self._parse_user_wc_db(self.root.GetByPath('/wc/wc005_008.db'))
+            except Exception as e:
+                TraceService.Trace(TraceLevel.Error, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
+            try:
+                self._parse_user_fts_db(self.root.GetByPath('/fts/fts_message.db'))
+            except Exception as e:
+                TraceService.Trace(TraceLevel.Error, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
             if self.private_root is not None:
-                self._parse_user_fav_db(self.private_root.GetByPath('/Favorites/fav.db'))
-                self._parse_user_search(self.private_root.GetByPath('/searchH5/cache/wshistory.pb'))
+                try:
+                    self._parse_user_fav_db(self.private_root.GetByPath('/Favorites/fav.db'))
+                except Exception as e:
+                    TraceService.Trace(TraceLevel.Error, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
+                try:
+                    self._parse_user_search(self.private_root.GetByPath('/searchH5/cache/wshistory.pb'))
+                except Exception as e:
+                    TraceService.Trace(TraceLevel.Error, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
 
             self.im.db_create_index()
             # 数据库填充完毕，请将中间数据库版本和app数据库版本插入数据库，用来检测app是否需要重新解析
@@ -483,7 +501,10 @@ class WeChatParser(Wechat):
         while row is not None:
             if canceller.IsCancellationRequested:
                 break
-            db_tables.append(row[0])
+            try:
+                db_tables.append(row[0])
+            except Exception as e:
+                TraceService.Trace(TraceLevel.Error, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
             row = cursor.fetchone()
 
         for table in db_tables:
@@ -875,7 +896,7 @@ class WeChatParser(Wechat):
                             elif item.Element('sourcethumbpath'):
                                 fav_item.media_path = self._parse_user_fav_path(item.Element('sourcedatapath').Value)
                         elif fav_item.type == FAV_TYPE_LINK:
-                            link = item.create_link()
+                            link = fav_item.create_link()
                             if item.Element('dataitemsource'):
                                 source_info = item.Element('dataitemsource')
                                 if source_info.Element('link'):

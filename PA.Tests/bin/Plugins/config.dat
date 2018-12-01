@@ -533,10 +533,10 @@
           <key>EntryPoint</key>
           <string>analyze_renren</string>
           <key>RunnerType</key>
-          <integer>1</integer>
+          <integer>0</integer>
           <key>Patterns</key>
           <array>
-            <string>com.xiaonei.xiaonei</string>
+            <string>Library/Preferences/com.xiaonei.xiaonei.plist$</string>
           </array>
           <key>Category</key>
           <string>RenRen</string>
@@ -1522,11 +1522,11 @@
           <key>EntryPoint</key>
           <string>analyze_youxin</string>
           <key>RunnerType</key>
-          <integer>1</integer>
+          <integer>0</integer>
           <key>Patterns</key>
           <array>
-            <string>com.telecom-guoling.feiin</string>
-            <string>com.network.uxin</string>
+            <string>Library/Preferences/com.telecom-guoling.feiin.plist$</string>
+            <string>Library/Preferences/com.network.uxin.plist$</string>
           </array>
           <key>Category</key>
           <string>YouXin</string>
@@ -1547,10 +1547,10 @@
           <key>EntryPoint</key>
           <string>analyze_yixin</string>
           <key>RunnerType</key>
-          <integer>1</integer>
+          <integer>0</integer>
           <key>Patterns</key>
           <array>
-            <string>com.yixin.yixin</string>
+            <string>Library/Preferences/com.yixin.yixin.plist$</string>
           </array>
           <key>Category</key>
           <string>YiXin</string>
@@ -1571,10 +1571,10 @@
           <key>EntryPoint</key>
           <string>analyze_alipay</string>
           <key>RunnerType</key>
-          <integer>1</integer>
+          <integer>0</integer>
           <key>Patterns</key>
           <array>
-            <string>com.alipay.iphoneclient</string>
+            <string>Library/Preferences/com.alipay.iphoneclient.plist$</string>
           </array>
           <key>Category</key>
           <string>Alipay</string>
@@ -1715,10 +1715,10 @@
           <key>EntryPoint</key>
           <string>analyze_wangxin</string>
           <key>RunnerType</key>
-          <integer>1</integer>
+          <integer>0</integer>
           <key>Patterns</key>
           <array>
-            <string>com.taobao.iteam.ios.aliwangwang</string>
+            <string>Library/Preferences/com.taobao.iteam.ios.aliwangwang.plist$</string>
           </array>
           <key>Category</key>
           <string>WangXin</string>

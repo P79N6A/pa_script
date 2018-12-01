@@ -243,6 +243,8 @@ class Taobao(object):
                                
     def parse_search(self, ac):
         db_node = self.node.GetByPath('Library/edge_compute.db')
+        if db_node is None:
+            return
         path = unity_c37r.check_sqlite_maturity(db_node, self.cache)
         conn = unity_c37r.create_connection(path)
         cmd = sql.SQLiteCommand(conn)

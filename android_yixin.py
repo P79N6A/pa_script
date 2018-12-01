@@ -277,7 +277,8 @@ class YiXinParser():
                     message.content = rec['content'].Value
                     media_path = self.get_media_path(rec['attachstr'].Value, message.type)
                     if message.type == model_im.MESSAGE_CONTENT_TYPE_LOCATION:
-                        message.extra_id = self.get_location(message.source, message.content, rec['attachstr'].Value, message.deleted, message.repeated, message.send_time)
+                        message.location_obj = message.create_location()
+                        message.location_id = self.get_location(message.location_obj, message.content, rec['attachstr'].Value, message.send_time)
                     self.im.db_insert_table_message(message)
         self.im.db_commit()
 
@@ -322,11 +323,7 @@ class YiXinParser():
                 media_path = os.path.join(node.AbsolutePath, filepath)
         return media_path
 
-    def get_location(self, source, content, attachstr, deleted, repeated, time):
-        location = model_im.Location()
-        location.deleted = deleted
-        location.repeated = repeated
-        location.source = source
+    def get_location(self, location, content, attachstr, time):
         location.account_id = self.user
         location.timestamp = time
         location.latitude = content.split(',')[0]

@@ -73,13 +73,23 @@ class Ticketing(object):
             self.db_command.ExecuteNonQuery()
             self.db_command.CommandText = model_im.SQL_CREATE_TABLE_MESSAGE
             self.db_command.ExecuteNonQuery()
-            # self.db_command.CommandText = model_im.SQL_CREATE_TABLE_FEED
-            # self.db_command.ExecuteNonQuery()
-            # self.db_command.CommandText = model_im.SQL_CREATE_TABLE_FEED_LIKE
-            # self.db_command.ExecuteNonQuery()
-            # self.db_command.CommandText = model_im.SQL_CREATE_TABLE_FEED_COMMENT
-            # self.db_command.ExecuteNonQuery()
+            self.db_command.CommandText = model_im.SQL_CREATE_TABLE_DEAL
+            self.db_command.ExecuteNonQuery()
+            self.db_command.CommandText = model_im.SQL_CREATE_TABLE_SEARCH
+            self.db_command.ExecuteNonQuery()
+            self.db_command.CommandText = model_im.SQL_CREATE_TABLE_FAVORITE
+            self.db_command.ExecuteNonQuery()
+            self.db_command.CommandText = model_im.SQL_CREATE_TABLE_FEED
+            self.db_command.ExecuteNonQuery()
+            self.db_command.CommandText = model_im.SQL_CREATE_TABLE_FEED_LIKE
+            self.db_command.ExecuteNonQuery()
+            self.db_command.CommandText = model_im.SQL_CREATE_TABLE_FEED_COMMENT
+            self.db_command.ExecuteNonQuery()
             self.db_command.CommandText = model_im.SQL_CREATE_TABLE_LOCATION
+            self.db_command.ExecuteNonQuery()
+            self.db_command.CommandText = model_im.SQL_CREATE_TABLE_FAVORITE_ITEM
+            self.db_command.ExecuteNonQuery()
+            self.db_command.CommandText = model_im.SQL_CREATE_TABLE_LINK
             self.db_command.ExecuteNonQuery()
             # self.db_command.CommandText = model_im.SQL_CREATE_TABLE_DEAL
             # self.db_command.ExecuteNonQuery()

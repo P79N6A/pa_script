@@ -33,12 +33,15 @@ def analyze_sms(node, extract_deleted, extract_source):
     node_path = node.AbsolutePath
 
     res = []
-    if node_path.endswith('sms/sms.db'):
-        res = SMSParser_no_tar(node, extract_deleted, extract_source).parse()
-    #elif node_path.endswith('user_de/0/com.android.providers.telephony/databases'):
-    elif node_path.endswith('com.android.providers.telephony/databases'):
-        res = SMSParser(node, extract_deleted, extract_source).parse()
-
+    try:
+        if node_path.endswith('sms/sms.db'):
+            res = SMSParser_no_tar(node, extract_deleted, extract_source).parse()
+        #elif node_path.endswith('user_de/0/com.android.providers.telephony/databases'):
+        elif node_path.endswith('com.android.providers.telephony/databases'):
+            res = SMSParser(node, extract_deleted, extract_source).parse()
+    except:
+        TraceService.Trace(TraceLevel.Debug, 
+                           'android_sms.py 解析新案例 "{}" 出错: {}'.format(CASE_NAME, traceback.format_exc()))        
     if DEBUG:
         if res:
             for sms in res:
