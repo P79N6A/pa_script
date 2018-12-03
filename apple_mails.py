@@ -1,4 +1,4 @@
-#coding=utf-8
+﻿#coding=utf-8
 import os
 import PA_runtime
 import hashlib
@@ -882,10 +882,13 @@ class Export2db(object):
         try:
             if email_timestamp.Value:
                 format_time = email_timestamp.Value.Value.LocalDateTime
-                ts = time.strptime(str(format_time), "%Y/%m/%d %H:%M:%S")
+                div_str = str(format_time)[4]
+                if re.match(r'\d', div_str):
+                    div_str = ''
+                time_pattren = "%Y{div}%m{div}%d %H:%M:%S".format(div=div_str)
+                ts = time.strptime(str(format_time), time_pattren)
                 return time.mktime(ts)
-            return 
+            return 0
         except:
-            traceback.print_exc()
-            return     
-
+            exc()
+            return 0   
