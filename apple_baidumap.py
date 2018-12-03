@@ -43,20 +43,13 @@ class baiduMapParser(object):
 
         return tmpresult
 
-
-    # def check_to_update(self, path_db, appversion):
-    #     if os.path.exists(path_db) and path_db[-6:-3] == appversion:
-    #         return False
-    #     else:
-    #         return True
-
     def account_info(self):
         """
         分析百度地图账号信息
         """
         account = model_map.Account()
         account.source = "百度地图"
-        accountNode = self.root.GetByPath("Library/Preferences/com.baidu.map.plist")
+        accountNode = self.root
         if accountNode is None:
             return 
         else:
@@ -109,7 +102,8 @@ class baiduMapParser(object):
                         dicts[rdate] = rcount
                     account.recent_visit = pickle.dumps(dicts)
             try:
-                self.baidumap.db_insert_table_account(account)
+                if account.username or account.photo or account.install_time or account.last_login_time or recent_visit:
+                    self.baidumap.db_insert_table_account(account)
             except Exception as e:
                 pass
             self.baidumap.db_commit()   
@@ -119,7 +113,9 @@ class baiduMapParser(object):
         分析搜索历史记录
         """
         dicts = defaultdict(lambda: 'None')
-        historyNode = self.root.GetByPath("Documents/his_record.sdb")
+        historyNode = self.root.Parent.Parent.Parent.GetByPath("Documents/his_record.sdb")
+        if historyNode is None:
+            return
         try:
             db = SQLiteParser.Database.FromNode(historyNode, canceller)
             if db is None:
@@ -160,7 +156,7 @@ class baiduMapParser(object):
                 except Exception as e:
                     pass
         except Exception as e:
-            print(e)
+            pass
         
         self.baidumap.db_commit()
 
@@ -202,7 +198,9 @@ class baiduMapParser(object):
         """
         导航记录
         """      
-        hsAddressNode = self.root.GetByPath("Documents/routeHis_record.sdb")
+        hsAddressNode = self.root.Parent.Parent.Parent.GetByPath("Documents/routeHis_record.sdb")
+        if hsAddressNode is None:
+            return
         try:
             db = SQLiteParser.Database.FromNode(hsAddressNode, canceller)
             if db is None:

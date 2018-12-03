@@ -1355,10 +1355,10 @@
           <key>EntryPoint</key>
           <string>analyze_baidumap</string>
           <key>RunnerType</key>
-          <integer>1</integer>
+          <integer>0</integer>
           <key>Patterns</key>
           <array>
-            <string>com.baidu.map</string>
+            <string>/Library/Preferences/com.baidu.map.plist$</string>
           </array>
           <key>Category</key>
           <string>BaiduMap</string>
