@@ -876,8 +876,12 @@ class Export2db(object):
 
     @staticmethod
     def _convert_2_timestamp(email_timestamp):
-        ''' email.TimeStamp.Value.Value.LocalDateTime
-            2018/8/15 15:27:20 => 10位 时间戳 1534318040.0
+        ''' "2018/8/15 15:27:20" -> 10位 时间戳 1534318040.0
+            
+        Args:
+            email_timestamp (str): email.TimeStamp.Value.Value.LocalDateTime
+        Returns:
+            (int/float): timastamp e.g. 1534318040.0
         '''
         try:
             if email_timestamp.Value:
