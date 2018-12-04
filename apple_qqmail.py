@@ -142,7 +142,7 @@ SQL_INSERT_TABLE_RECOVER_MAILATTACH = '''
     INSERT INTO FM_Mail_Attach(attachId, accountId, mailId, name, downloadSize, downloadUtc)
     VALUES(?, ?, ?, ?, ?, ?)'''
 
-VERSION_APP_VALUE = 3
+VERSION_APP_VALUE = 4
 
 
 
@@ -273,6 +273,7 @@ class MailParser(object):
         self.db = SQLite.SQLiteConnection('Data Source = {}; ReadOnly = True'.format(mailPath))
         self.db.Open()
         self.db_cmd = SQLite.SQLiteCommand(self.db)
+        attachment_node = self.node.Parent.GetByPath('/attachmentCacheFolder')
         try:
             if self.db is None:
                 return
@@ -290,9 +291,8 @@ class MailParser(object):
                     md5_attachname = hashlib.md5()
                     attach_name = str(sr[0]) + sr[3]
                     md5_attachname.update(attach_name.encode(encoding = 'utf-8'))
-                    fs = self.node.FileSystem
                     local_name = md5_attachname.hexdigest()
-                    fileNodes = fs.Search(local_name)
+                    fileNodes = attachment_node.Search(local_name)
                     for node in fileNodes:
                         attachment.attachment_save_dir = node.AbsolutePath
                         break
@@ -408,6 +408,8 @@ class MailParser(object):
             for rec in db.ReadTableDeletedRecords(ts, False):
                 if canceller.IsCancellationRequested:
                     break
+                if IsDBNull(rec['mailId'].Value) or rec['mailId'].Value == 0:
+                    continue
                 param = ()
                 param = param + (rec['mailId'].Value,)
                 param = param + (rec['accountId'].Value,)
@@ -445,6 +447,8 @@ class MailParser(object):
             for rec in db.ReadTableDeletedRecords(ts, False):
                 if canceller.IsCancellationRequested:
                     break
+                if IsDBNull(rec['mailId'].Value) or rec['mailId'].Value == 0:
+                    continue
                 param = ()
                 param = param + (rec['mailId'].Value,)
                 param = param + (rec['content'].Value,)
@@ -469,6 +473,8 @@ class MailParser(object):
             for rec in db.ReadTableDeletedRecords(ts, False):
                 if canceller.IsCancellationRequested:
                     break
+                if IsDBNull(rec['id'].Value) or rec['id'].Value == 0:
+                    continue
                 param = ()
                 param = param + (rec['id'].Value,)
                 param = param + (rec['showName'].Value,)
@@ -569,6 +575,8 @@ class MailParser(object):
             for rec in db.ReadTableDeletedRecords(ts, False):
                 if canceller.IsCancellationRequested:
                     break
+                if IsDBNull(rec['attachId'].Value) or rec['attachId'].Value == 0:
+                    continue
                 param = ()
                 param = param + (rec['attachId'].Value,)
                 param = param + (rec['accountId'].Value,)
