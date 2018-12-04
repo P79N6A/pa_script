@@ -191,6 +191,24 @@
         </dict>
         <dict>
           <key>EntryPoint</key>
+          <string>PA.iPhoneApps.Parsers.BaiduBrowserParser</string>
+          <key>RunnerType</key>
+          <integer>1</integer>
+          <key>ModuleType</key>
+          <integer>2</integer>
+          <key>Patterns</key>
+          <array>
+            <string>com.baidu.BDPhoneBrowser</string>
+          </array>
+          <key>Category</key>
+          <string>BaiduBrowser</string>
+          <key>Name</key>
+          <string>百度浏览器(苹果)</string>
+          <key>Filter</key>
+          <string>应用>浏览器</string>
+        </dict>
+        <dict>
+          <key>EntryPoint</key>
           <string>PA.iPhoneApps.Parsers.BaiduMobileParser</string>
           <key>RunnerType</key>
           <integer>1</integer>
@@ -1675,7 +1693,7 @@
           <key>Category</key>
           <string>XianYu</string>
           <key>Name</key>
-          <string>咸鱼(苹果)</string>
+          <string>闲鱼(苹果)</string>
           <key>Filter</key>
           <string>应用>电子商务</string>
         </dict>
@@ -1793,7 +1811,7 @@
           </array>
           <key>Category</key>
           <string>BaiduTieba</string>
-		  <key>Name</key>
+          <key>Name</key>
           <string>百度贴吧(苹果)</string>
           <key>Filter</key>
           <string>应用>贴吧</string>
