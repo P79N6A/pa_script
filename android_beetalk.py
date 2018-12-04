@@ -275,19 +275,26 @@ class BeeTalkParser(model_im.IM, model_callrecord.MC):
                                 img_name = img_hex[img_start*2: img_end*2: ].decode('hex').decode('utf-8')
                                 break
                         nodes = self.cacheNode.Search('/' + img_name + '.*\..*$')
+                        print(list(nodes))
+                        if len(list(nodes)) == 0:
+                            message.content = '<图片消息>:' + img_name
+                            message.type = model_im.MESSAGE_CONTENT_TYPE_TEXT
                         for node in nodes:
                             message.media_path = node.AbsolutePath
                             message.type = model_im.MESSAGE_CONTENT_TYPE_IMAGE
                             break
                     elif re.match('vn', metatag):
-                        vn_name = str(self._db_reader_get_blob_value(sr, 0))[2:35:].decode('utf-8')
+                        vn_name = str(self._db_reader_get_blob_value(sr, 0))[2:34:].decode('utf-8')
                         nodes = self.cacheNode.Search('/' + vn_name + '.*\..*$')
+                        if len(list(nodes)) == 0:
+                            message.content = '<音频消息>:' + vn_name
+                            message.type = model_im.MESSAGE_CONTENT_TYPE_TEXT
                         for node in nodes:
                             message.media_path = node.AbsolutePath
                             message.type = model_im.MESSAGE_CONTENT_TYPE_VOICE
                             break
                     elif re.match('loc', metatag):
-                        message.content = '地理位置消息：' + str(self._db_reader_get_blob_value(sr, 0))[2:-10:].decode('utf-8')
+                        message.content = '<地理位置消息>：' + str(self._db_reader_get_blob_value(sr, 0))[2:-10:].decode('utf-8')
                         print(message.content)
                         message.type = model_im.MESSAGE_CONTENT_TYPE_TEXT
                     elif re.match('vcall', metatag):
@@ -311,6 +318,8 @@ class BeeTalkParser(model_im.IM, model_callrecord.MC):
                             record.type = 2
                         else:
                             record.type = 0
+                        message.type = model_im.MESSAGE_CONTENT_TYPE_TEXT
+                        message.content = '<通话消息> 通话时长:' + record.duration + '秒'
                         record.date = message.send_time if message.send_time is not None else 0
                         record.deleted = self._db_reader_get_int_value(sr, 7)
                         record.source = self.node.AbsolutePath
@@ -353,6 +362,9 @@ class BeeTalkParser(model_im.IM, model_callrecord.MC):
                         img_end = img_start+img_lens*2
                         img_name = str(data).encode('hex')[img_start:img_end:].decode('hex').decode('utf-8')
                         nodes = self.cacheNode.Search('/' + img_name + '.*\..*$')
+                        if len(list(nodes)) == 0:
+                            message.content = '<图片消息>:' + img_name
+                            message.type = model_im.MESSAGE_CONTENT_TYPE_TEXT
                         for node in nodes:
                             message.media_path = node.AbsolutePath
                             message.type = model_im.MESSAGE_CONTENT_TYPE_IMAGE
