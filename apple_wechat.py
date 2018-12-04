@@ -1212,8 +1212,11 @@ class WeChatParser(Wechat):
         elif msg_type == MSG_TYPE_IMAGE:
             content = '[图片]'
             node = user_node.GetByPath('Img/{0}/{1}.pic'.format(friend_hash, msg_local_id))
+            node_thum = user_node.GetByPath('Img/{0}/{1}.pic_thum'.format(friend_hash, msg_local_id))
             if node is not None:
                 img_path = node.AbsolutePath
+            elif node_thum is not None:
+                img_path = node_thum.AbsolutePath
             else:
                 img_path = user_node.AbsolutePath + '/Img/{0}/{1}.pic'.format(friend_hash, msg_local_id)
         elif msg_type == MSG_TYPE_VOICE:
@@ -1226,10 +1229,12 @@ class WeChatParser(Wechat):
         elif msg_type == MSG_TYPE_VIDEO or msg_type == MSG_TYPE_VIDEO_2:
             content = '[视频]'
             node = user_node.GetByPath('Video/{0}/{1}.mp4'.format(friend_hash, msg_local_id))
-            if node is None:
-                node = user_node.GetByPath('Video/{0}/{1}.video_thum'.format(friend_hash, msg_local_id))
+            node_thum = user_node.GetByPath('Video/{0}/{1}.video_thum'.format(friend_hash, msg_local_id))
             if node is not None:
                 img_path = node.AbsolutePath
+            elif node_thum is not None:
+                model.type = model_im.MESSAGE_CONTENT_TYPE_IMAGE
+                img_path = node_thum.AbsolutePath
             else:
                 img_path = user_node.AbsolutePath + '/Video/{0}/{1}.mp4'.format(friend_hash, msg_local_id)
         elif msg_type == MSG_TYPE_LOCATION:
