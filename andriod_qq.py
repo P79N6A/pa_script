@@ -167,7 +167,7 @@ class Andriod_QQParser(object):
         self.VERSION_APP_VALUE = 10000
 
     def parse(self):
-        
+        #self.checkhit()
         if self.im.need_parse(self.cachedb, self.VERSION_APP_VALUE):
             self.getImei()
             self.decode_accounts()
@@ -520,6 +520,7 @@ class Andriod_QQParser(object):
             self.decode_msg_from_trooptbale(acc_id ,table)
 
     def decode_tencentmap(self,msg,msgstruct):
+        msg.type = MESSAGE_CONTENT_TYPE_LOCATION
         address = msgstruct['meta']['Location.Search']['address'].decode("utf8","ignore")
         lat = msgstruct['meta']['Location.Search']['lat']
         lng = msgstruct['meta']['Location.Search']['lng']
@@ -719,6 +720,7 @@ class Andriod_QQParser(object):
                 msgItems = msgstruct['mStructMsgItemLists']
                 for l in msgItems:
                     try:
+                        msg.type = MESSAGE_CONTENT_TYPE_LINK
                         linkurl  = l['b']
                         if linkurl == '':
                             continue                                         
