@@ -242,6 +242,8 @@ class SkypeParser(object):
         account_db_nodes = node.Search('/*\.db$')
         for node in account_db_nodes:
             file_name = os.path.basename(node.PathWithMountPoint)
+            if not file_name.startswith("s4l-"):
+                continue
             new_db_path = os.path.join(self.cache_path, file_name)
             shutil.copy(node.PathWithMountPoint, new_db_path)
             # 配置model

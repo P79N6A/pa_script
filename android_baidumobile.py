@@ -468,6 +468,9 @@ class BaiduMobileParser(object):
     def _convert_2_nodepath(self, raw_path, file_name):
         # raw_path = '/data/user/0/com.baidu.searchbox/files/template/profile.zip'
         try:
+            invalid_file_name = re.search(r'[\\/:*?"<>|\r\n]+', file_name)
+            if invalid_file_name:
+                return file_name            
             fs = self.root.FileSystem
             if not file_name:
                 raw_path_list = raw_path.split(r'/')
@@ -485,7 +488,6 @@ class BaiduMobileParser(object):
             return _path if _path else file_name
         except:
             exc()
-            print 'node:', node, 'file_name:', file_name
             return file_name
 
     @staticmethod

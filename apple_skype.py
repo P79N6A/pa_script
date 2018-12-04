@@ -243,12 +243,16 @@ class SkypeParser(object):
         old_version_nodes = node.Search('/*\.dbb$')
         for node in account_db_nodes:
             file_name = os.path.basename(node.PathWithMountPoint)
+            if not file_name.startswith("s4l-"):
+                continue
             new_db_path = os.path.join(self.cache_path, file_name)
             shutil.copy(node.PathWithMountPoint, new_db_path)
             self.recovering_helper = RecoverTableHelper(node)
             yield new_db_path
         for node in old_version_nodes:
             file_name = os.path.basename(node.PathWithMountPoint)
+            if not file_name.startswith("s4l-"):
+                continue
             new_db_path = os.path.join(self.cache_path, file_name)
             shutil.copy(node.PathWithMountPoint, new_db_path)
             self.recovering_helper = RecoverTableHelper(node)
