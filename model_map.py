@@ -399,7 +399,7 @@ class Genetate(object):
             self.cursor.execute(sql)
             row = self.cursor.fetchone()
         except Exception as e:
-            TraceService.Trace(TraceLevel.Info, "Table account is not exists")
+            pass
        
         while row is not None:
             if canceller.IsCancellationRequested:
@@ -493,7 +493,7 @@ class Genetate(object):
             self.cursor.execute(sql)
             row = self.cursor.fetchone()
         except Exception as e:
-            TraceService.Trace(TraceLevel.Info, "Table address is not exists")
+            pass
 
         while row is not None:
             if canceller.IsCancellationRequested:
@@ -513,20 +513,24 @@ class Genetate(object):
                 if row[12] == "百度地图":
                     fromcoo.Type.Value = CoordinateType.Baidumc
                     tocoo.Type.Value = CoordinateType.Baidumc
-                elif row[12] == "高德地图" or row[12] == "腾讯地图":
+                elif row[12] == "高德地图":
                     fromcoo.Type.Value = CoordinateType.Google
                     tocoo.Type.Value = CoordinateType.Google
-                elif row[12] == "搜狗地图":
+                elif row[12] == "搜狗地图" or row[12] == "腾讯地图":
                     fromcoo.Type.Value = CoordinateType.Google
                     tocoo.Type.Value = CoordinateType.Google
             if row[12]:
                 fromcoo.Source.Value = row[12]
-            if row[4] and (row[12] == "高德地图" or row[12] == "腾讯地图"):
+            if row[4] and row[12] == "高德地图":
                 fromcoo.Longitude.Value = coordTransform_utils.pixelXTolng(row[4])
+            elif row[4] and row[12] == "腾讯地图":
+                fromcoo.Longitude.Value = self._convert_coordinate(row[4],0)
             elif row[4]:
                 fromcoo.Longitude.Value = row[4]
-            if row[5] and (row[12] == "高德地图" or row[12] == "腾讯地图"):
+            if row[5] and row[12] == "高德地图":
                 fromcoo.Latitude.Value = coordTransform_utils.pixelYToLat(row[5])
+            elif row[5] and row[12] == "腾讯地图":
+                fromcoo.Latitude.Value = self._convert_coordinate(row[5],1)
             elif row[5]:
                 fromcoo.Latitude.Value = row[5]
             if row[3]:
@@ -534,12 +538,16 @@ class Genetate(object):
             tocoo.Source.Value = row[12]
             if row[7]:
                 tocoo.PositionAddress.Value = row[7]
-            if row[8] and (row[12] == "高德地图" or row[12] == "腾讯地图"):
+            if row[8] and row[12] == "高德地图":
                 tocoo.Longitude.Value = coordTransform_utils.pixelXTolng(row[8])
+            elif row[8] and row[12] == "腾讯地图":
+                tocoo.Longitude.Value = self._convert_coordinate(row[8],0)
             elif row[8]:
                 tocoo.Longitude.Value = row[8]
-            if row[9] and (row[12] == "高德地图" or row[12] == "腾讯地图"):
+            if row[9] and row[12] == "高德地图":
                 tocoo.Latitude.Value = coordTransform_utils.pixelYToLat(row[9])
+            elif row[9] and row[12] == "腾讯地图":
+                tocoo.Latitude.Value = self._convert_coordinate(row[9],1)
             elif row[9]:
                 tocoo.Latitude.Value = row[9]
 
@@ -595,7 +603,7 @@ class Genetate(object):
             self.cursor.execute(sql)
             row = self.cursor.fetchone()
         except Exception as e:
-            TraceService.Trace(TraceLevel.Info, "Table search is not exists")
+            pass
 
         while row is not None:
             if canceller.IsCancellationRequested:
@@ -676,7 +684,7 @@ class Genetate(object):
             self.cursor.execute(sql)
             row = self.cursor.fetchone()
         except Exception as e:
-            TraceService.Trace(TraceLevel.Info, "Table journey is not exists")
+            pass
 
         while row is not None:
             if canceller.IsCancellationRequested:
@@ -783,6 +791,17 @@ class Genetate(object):
         if source_file:
             return source_file.replace('/', '\\')
         
+    
+    def _convert_coordinate(self, value, ctype):
+        try:
+            if value and ctype == 0:
+                # 经度
+                return float(str(value)[:3]+"."+str(value)[3:])
+            elif value and ctype == 1:
+                # 维度
+                return float(str(value)[:2]+"."+str(value)[2:])
+        except Exception as e:
+            pass
 
 def md5(cache_path, node_path):
     m = hashlib.md5()   

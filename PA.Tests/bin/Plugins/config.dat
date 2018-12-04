@@ -533,10 +533,10 @@
           <key>EntryPoint</key>
           <string>analyze_renren</string>
           <key>RunnerType</key>
-          <integer>1</integer>
+          <integer>0</integer>
           <key>Patterns</key>
           <array>
-            <string>com.xiaonei.xiaonei</string>
+            <string>Library/Preferences/com.xiaonei.xiaonei.plist$</string>
           </array>
           <key>Category</key>
           <string>RenRen</string>
@@ -1355,10 +1355,10 @@
           <key>EntryPoint</key>
           <string>analyze_baidumap</string>
           <key>RunnerType</key>
-          <integer>1</integer>
+          <integer>0</integer>
           <key>Patterns</key>
           <array>
-            <string>com.baidu.map</string>
+            <string>/Library/Preferences/com.baidu.map.plist$</string>
           </array>
           <key>Category</key>
           <string>BaiduMap</string>
@@ -1430,7 +1430,7 @@
           <integer>0</integer>
           <key>Patterns</key>
           <array>
-            <string>Library/Preferences/com.netease.mailmaster.plist$</string>
+            <string>Library/Preferences/com\.netease\.mailmaster\.plist$</string>
           </array>
           <key>Category</key>
           <string>NeteaseMail</string>
@@ -1522,11 +1522,11 @@
           <key>EntryPoint</key>
           <string>analyze_youxin</string>
           <key>RunnerType</key>
-          <integer>1</integer>
+          <integer>0</integer>
           <key>Patterns</key>
           <array>
-            <string>com.telecom-guoling.feiin</string>
-            <string>com.network.uxin</string>
+            <string>Library/Preferences/com.telecom-guoling.feiin.plist$</string>
+            <string>Library/Preferences/com.network.uxin.plist$</string>
           </array>
           <key>Category</key>
           <string>YouXin</string>
@@ -1547,10 +1547,10 @@
           <key>EntryPoint</key>
           <string>analyze_yixin</string>
           <key>RunnerType</key>
-          <integer>1</integer>
+          <integer>0</integer>
           <key>Patterns</key>
           <array>
-            <string>com.yixin.yixin</string>
+            <string>Library/Preferences/com.yixin.yixin.plist$</string>
           </array>
           <key>Category</key>
           <string>YiXin</string>
@@ -1571,10 +1571,10 @@
           <key>EntryPoint</key>
           <string>analyze_alipay</string>
           <key>RunnerType</key>
-          <integer>1</integer>
+          <integer>0</integer>
           <key>Patterns</key>
           <array>
-            <string>com.alipay.iphoneclient</string>
+            <string>Library/Preferences/com.alipay.iphoneclient.plist$</string>
           </array>
           <key>Category</key>
           <string>Alipay</string>
@@ -1694,7 +1694,7 @@
           <integer>0</integer>
           <key>Patterns</key>
           <array>
-            <string>CellularUsage.db$</string>
+            <string>CellularUsage\.db$</string>
           </array>
           <key>Category</key>
           <string>Sim</string>
@@ -1715,10 +1715,10 @@
           <key>EntryPoint</key>
           <string>analyze_wangxin</string>
           <key>RunnerType</key>
-          <integer>1</integer>
+          <integer>0</integer>
           <key>Patterns</key>
           <array>
-            <string>com.taobao.iteam.ios.aliwangwang</string>
+            <string>Library/Preferences/com.taobao.iteam.ios.aliwangwang.plist$</string>
           </array>
           <key>Category</key>
           <string>WangXin</string>
@@ -1742,7 +1742,7 @@
           <integer>0</integer>
           <key>Patterns</key>
           <array>
-            <string>Library/Preferences/jp.naver.line.plist$</string>
+            <string>Library/Preferences/jp\.naver\.line\.plist$</string>
           </array>
           <key>Category</key>
           <string>Line</string>
@@ -2031,11 +2031,7 @@
           <integer>2</integer>
           <key>Patterns</key>
           <array>
-            <string>com.tencent.mobileqq/databases$</string>
-            <string>com.tencent.mobileQQi/databases$</string>
-            <string>com.tencent.qqlite/databases$</string>
-            <string>com.tencent.tim/databases$</string>
-            <string>com.tencent.minihd.qq/databases$</string>
+            <string>#</string>  
           </array>
           <key>Category</key>
           <string>QQ</string>
@@ -2287,7 +2283,7 @@
           <integer>2</integer>
           <key>Patterns</key>
           <array>
-            <string>com.netease.mail/databases/mmail$</string>
+            <string>com\.netease\.mail/databases/mmail$</string>
           </array>
           <key>Category</key>
           <string>NeteaseMail</string>
@@ -2311,7 +2307,7 @@
           <integer>2</integer>
           <key>Patterns</key>
           <array>
-            <string>data/com.android.email/databases$</string>
+            <string>data/com\.android\.email/databases$</string>
           </array>
           <key>Category</key>
           <string>Mails</string>
@@ -2336,7 +2332,7 @@
           <key>Patterns</key>
           <array>
             <string>sim/sim.db$</string>
-            <string>com.android.providers.telephony/databases$</string>
+            <string>com\.android\.providers\.telephony/databases$</string>
           </array>
           <key>Category</key>
           <string>Sim</string>
@@ -2361,7 +2357,7 @@
           <key>Patterns</key>
           <array>
             <string>sms/sms.db$</string>
-            <string>com.android.providers.telephony/databases$</string>
+            <string>com\.android\.providers\.telephony/databases$</string>
           </array>
           <key>Category</key>
           <string>Messages</string>
@@ -2390,7 +2386,7 @@
           <integer>2</integer>
           <key>Patterns</key>
           <array>
-            <string>com.baidu.browser.apps/databases/dbbrowser.db$</string>
+            <string>com\.baidu\.browser\.apps/databases/dbbrowser\.db$</string>
           </array>
           <key>Category</key>
           <string>BaiduBrowser</string>
@@ -2534,7 +2530,7 @@
           <integer>2</integer>
           <key>Patterns</key>
           <array>
-            <string>com.baidu.searchbox/databases/SearchBox.db$</string>
+            <string>com\.baidu\.searchbox/databases/SearchBox\.db$</string>
           </array>
           <key>Category</key>
           <string>BaiduMobile</string>
@@ -2551,7 +2547,7 @@
           <integer>2</integer>
           <key>Patterns</key>
           <array>
-            <string>com.baidu.searchbox.lite/databases/SearchBox.db$</string>
+            <string>com\.baidu\.searchbox\.lite/databases/SearchBox\.db$</string>
           </array>
           <key>Category</key>
           <string>BaiduMobileLite</string>
@@ -2649,7 +2645,7 @@
           <integer>2</integer>
           <key>Patterns</key>
           <array>
-            <string>jp.naver.line.android/databases/naver_line$</string>
+            <string>jp\.naver\.line\.android/databases/naver_line$</string>
           </array>
           <key>Category</key>
           <string>Line</string>
