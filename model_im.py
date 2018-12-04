@@ -21,7 +21,7 @@ import sqlite3
 import json
 import uuid
 
-VERSION_VALUE_DB = 14
+VERSION_VALUE_DB = 15
 
 GENDER_NONE = 0
 GENDER_MALE = 1
