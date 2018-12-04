@@ -21,7 +21,7 @@ import model_browser
 DEBUG = True
 DEBUG = False
 
-CASE_NAME = ds.ProjectState.ProjectDir.Name
+CASE_NAME = ''
 
 def exc(e=''):
     ''' Exception output '''

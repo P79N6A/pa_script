@@ -108,10 +108,29 @@ def readVarInt(data):
             if((j & 0x80) == 0):
                 return l
             i = i + 7
+
+def checkhit(root):
+    nodes = []
+    res =  ['(?i)com.tencent.mobileqq/databases$',
+            '(?i)com.tencent.mobileqqi/databases$',
+            '(?i)com.tencent.qqlite/databases$',
+            '(?i)com.tencent.tim/databases$',
+            '(?i)com.tencent.minihd.qq/databases$']
+    for re in res:                 
+        node = root.FileSystem.Search(re)
+        nodes.append(node)
+    return nodes
+   
 def analyze_andriod_qq(root, extract_deleted, extract_source):
-    try:
+    try:        
         pr = ParserResults()
-        pr.Models.AddRange(Andriod_QQParser(root, extract_deleted, extract_source).parse())
+        nodes = checkhit(root)
+        for node in nodes:
+            for root in node:
+                try:
+                    pr.Models.AddRange(Andriod_QQParser(root, extract_deleted, extract_source).parse())
+                except:                    
+                    pass
         pr.Build('QQ')
         return pr
     except:
@@ -148,7 +167,7 @@ class Andriod_QQParser(object):
         self.VERSION_APP_VALUE = 10000
 
     def parse(self):
-        #self.root = r'D:\com.tencent.mobileqq'
+        
         if self.im.need_parse(self.cachedb, self.VERSION_APP_VALUE):
             self.getImei()
             self.decode_accounts()
@@ -796,7 +815,7 @@ class Andriod_QQParser(object):
                 msg.content = msgdata.decode('utf-8',"ignore")
         except Exception as e:
             pass
-        msg.insert_db(im)        
+        msg.insert_db(self.im)        
     def decode_msg_ftstable(self,acc_id):
         node =  self.root.GetByPath('/databases/'+ acc_id + '-IndexQQMsg.db')
         if node is None:
