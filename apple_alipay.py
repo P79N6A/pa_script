@@ -94,6 +94,8 @@ class AlipayParser():
     def get_user_list(self):
         user_list = []
         node = self.root.GetByPath('../../../Documents/Contact/')
+        if node is None:
+            return user_list
         for file in os.listdir(node.PathWithMountPoint):
             str = re.search('-shm', file, re.M | re.I)
             if str is not None:
