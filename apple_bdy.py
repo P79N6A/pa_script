@@ -251,8 +251,9 @@ class BDNetDisk(object):
         self.nd.im.db_commit()
         reader.Close()
 
+
 def judge_node(node):
-    node = root.Parent.Parent.Parent
+    node = node.Parent.Parent.Parent
     sub = node.GetByPath('Documents')
     if sub is None:
         return None
