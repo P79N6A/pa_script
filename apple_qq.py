@@ -791,37 +791,40 @@ class QQParser(object):
                 return
             self.decode_friend_chat_table(acc_id,table)
     def decode_discussGrp_info(self, acc_id):
-        node = self.root.GetByPath('/Documents/contents/' + acc_id + '/QQ.db')
-        if node is None:
-            return
-        d = node.PathWithMountPoint            
-        sql = 'select uin ,name, create_time,owner_uin,member_num  from  tb_discussGrp_list'
-        datasource = "Data Source =  " + d +";ReadOnly=True"
-        conn = SQLiteConnection(datasource)
-        conn.Open()
-        if(conn is None):
-            return
-        command = SQLiteCommand(conn)                
-        command.CommandText = sql
-        reader = command.ExecuteReader()
-        while reader.Read():
-            try:
-                chatroom = Chatroom()
-                chatroom.account_id = acc_id
-                chatroom.chatroom_id = str(SafeGetInt64(reader,0))
-                chatroom.name = SafeGetString(reader,1)
-                chatroom.create_time = SafeGetInt64(reader,2)
-                chatroom.owner_id = str(SafeGetInt64(reader,3))
-                chatroom.member_count = SafeGetInt64(reader,4)  
-                chatroom.source = node.AbsolutePath              
-            except:
-                pass             
-            self.discussGrptables.add("tb_discussGrp_"+ chatroom.chatroom_id)
-            self.im.db_insert_table_chatroom(chatroom)
-        self.im.db_commit()
-        reader.Close()
-        command.Dispose()		
-        conn.Close()   
+        try:
+            node = self.root.GetByPath('/Documents/contents/' + acc_id + '/QQ.db')
+            if node is None:
+                return
+            d = node.PathWithMountPoint            
+            sql = 'select uin ,name, create_time,owner_uin,member_num  from  tb_discussGrp_list'
+            datasource = "Data Source =  " + d +";ReadOnly=True"
+            conn = SQLiteConnection(datasource)
+            conn.Open()
+            if(conn is None):
+                return
+            command = SQLiteCommand(conn)                
+            command.CommandText = sql
+            reader = command.ExecuteReader()
+            while reader.Read():
+                try:
+                    chatroom = Chatroom()
+                    chatroom.account_id = acc_id
+                    chatroom.chatroom_id = str(SafeGetInt64(reader,0))
+                    chatroom.name = SafeGetString(reader,1)
+                    chatroom.create_time = SafeGetInt64(reader,2)
+                    chatroom.owner_id = str(SafeGetInt64(reader,3))
+                    chatroom.member_count = SafeGetInt64(reader,4)  
+                    chatroom.source = node.AbsolutePath              
+                except:
+                    pass             
+                self.discussGrptables.add("tb_discussGrp_"+ chatroom.chatroom_id)
+                self.im.db_insert_table_chatroom(chatroom)
+            self.im.db_commit()
+            reader.Close()
+            command.Dispose()		
+            conn.Close()  
+        except:
+            pass
     def decode_discussgroupMember_info(self, acc_id):
         try:
             node = self.root.GetByPath('/Documents/contents/' + acc_id + '/QQ.db')            
@@ -857,9 +860,12 @@ class QQParser(object):
         return    
     def decode_discussGrp_messages(self, acc_id):
         for table in self.discussGrptables:
-            if canceller.IsCancellationRequested:
-                return     
-            self.decode_discussGrp_chat_table(acc_id,table)            
+            try:
+                if canceller.IsCancellationRequested:
+                    return     
+                self.decode_discussGrp_chat_table(acc_id,table)                        
+            except:
+                pass
     def decode_discussGrp_chat_table(self,acc_id,table_name):
         group_id = table_name[table_name.rfind('_')+1:]
         node = self.root.GetByPath('/Documents/contents/' + acc_id + '/QQ.db')
