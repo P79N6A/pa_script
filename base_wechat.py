@@ -202,20 +202,25 @@ class Wechat(object):
             if model.deleted == 0:
                 TraceService.Trace(TraceLevel.Error, "base_wechat.py Error: LINE {}".format(traceback.format_exc()))
         if xml is not None:
-            location = model.create_location()
+            latitude = 0
+            longitude = 0
             loc = xml.Element('location')
             if loc.Attribute('x'):
                 try:
-                    location.latitude = float(loc.Attribute('x').Value)
+                    latitude = float(loc.Attribute('x').Value)
                 except Exception as e:
                     pass
             if loc.Attribute('y'):
                 try:
-                    location.longitude = float(loc.Attribute('y').Value)
+                    longitude = float(loc.Attribute('y').Value)
                 except Exception as e:
                     pass
-            if loc.Attribute('poiname'):
-                location.address = loc.Attribute('poiname').Value
+            if latitude != 0 or longitude != 0:
+                location = model.create_location()
+                location.latitude = latitude
+                location.longitude = longitude
+                if loc.Attribute('poiname'):
+                    location.address = loc.Attribute('poiname').Value
 
     def _process_parse_message_voip(self, xml_str):
         content = ''

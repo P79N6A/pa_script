@@ -41,7 +41,7 @@ import tencent_struct
 # Models: Common.User, Common.Friend, Common.Group, Generic.Chat, Common.MomentContent
 
 # app数据库版本
-VERSION_APP_VALUE = 1
+VERSION_APP_VALUE = 2
 
 
 def analyze_wechat(root, extract_deleted, extract_source):
@@ -906,10 +906,21 @@ class SnsParser:
             if type(ret) == tuple and len(ret) > 1:
                 ret = ret[1]
                 if type(ret) == dict:
-                    location = feed.create_location()
-                    location.latitude = self._get_ts_value(ret, 2)
-                    location.longitude = self._get_ts_value(ret, 1)
-                    location.address = self._get_ts_value(ret, 4)
+                    latitude = 0
+                    longitude = 0
+                    try:
+                        latitude = float(self._get_ts_value(ret, 2))
+                    except Exception as e:
+                        pass
+                    try:
+                        longitude = float(self._get_ts_value(ret, 1))
+                    except Exception as e:
+                        pass
+                    if latitude != 0 or longitude != 0:
+                        location = feed.create_location()
+                        location.latitude = latitude
+                        location.longitude = longitude
+                        location.address = self._get_ts_value(ret, 4)
 
     def get_likes(self, feed):
         ret = self._get_ts_value(self.attr, 9)
