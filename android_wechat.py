@@ -41,7 +41,7 @@ import tencent_struct
 # Models: Common.User, Common.Friend, Common.Group, Generic.Chat, Common.MomentContent
 
 # app数据库版本
-VERSION_APP_VALUE = 1
+VERSION_APP_VALUE = 3
 
 
 def analyze_wechat(root, extract_deleted, extract_source):
@@ -717,23 +717,28 @@ class WeChatParser(Wechat):
         message.msg_id = msg_svr_id
         message.type = self._convert_msg_type(msg_type)
         message.send_time = create_time
-        message.media_path = self._process_parse_message_img_path(msg_type, img_path)
         if talker.endswith("@chatroom"):
-            self._process_parse_group_message(msg, msg_type, is_send != 0, 'hash', message)
+            self._process_parse_group_message(msg, msg_type, img_path, is_send != 0, 'hash', message)
             message.sender_name = self.contacts.get(message.sender_id, {}).get('nickname')
             message.talker_type = model_im.CHAT_TYPE_GROUP
         else:
             message.sender_id = self.user_account.account_id if is_send != 0 else talker
-            self._process_parse_friend_message(msg, msg_type, 'hash', message)
+            self._process_parse_friend_message(msg, msg_type, img_path, 'hash', message)
             message.sender_name = self.contacts.get(message.sender_id, {}).get('nickname')
             message.talker_type = model_im.CHAT_TYPE_FRIEND if contact.get('verify_flag') == 0 else model_im.CHAT_TYPE_SUBSCRIBE
         message.insert_db(self.im)
 
-    def _process_parse_friend_message(self, msg, msg_type, friend_hash, model):
+    def _process_parse_friend_message(self, msg, msg_type, img_path, friend_hash, model):
         content = msg
 
-        if msg_type in [MSG_TYPE_TEXT, MSG_TYPE_IMAGE, MSG_TYPE_VOICE, MSG_TYPE_CONTACT_CARD, MSG_TYPE_VIDEO, MSG_TYPE_VIDEO_2, MSG_TYPE_EMOJI]:
+        if msg_type in [MSG_TYPE_TEXT, MSG_TYPE_CONTACT_CARD, MSG_TYPE_EMOJI]:
             pass
+        elif msg_type == MSG_TYPE_IMAGE:
+            model.media_path = self._process_parse_message_tranlate_img_path(img_path)
+        elif msg_type == MSG_TYPE_VOICE:
+            model.media_path = self._process_parse_message_tranlate_voice_path(img_path)
+        elif msg_type in [MSG_TYPE_VIDEO, MSG_TYPE_VIDEO_2]:
+            model.media_path = self._process_parse_message_tranlate_video_path(img_path, model)
         elif msg_type == MSG_TYPE_LOCATION:
             if model is not None:
                 self._process_parse_message_location(content, model)
@@ -752,7 +757,7 @@ class WeChatParser(Wechat):
 
         model.content = content
 
-    def _process_parse_group_message(self, msg, msg_type, is_sender, group_hash, model):
+    def _process_parse_group_message(self, msg, msg_type, img_path, is_sender, group_hash, model):
         content = msg
         if not is_sender:
             sender_id = None
@@ -771,17 +776,7 @@ class WeChatParser(Wechat):
         else:
             model.sender_id = self.user_account.account_id
         
-        self._process_parse_friend_message(content, msg_type, group_hash, model)
-
-    def _process_parse_message_img_path(self, msg_type, img_path):
-        media_path = None
-        if msg_type == MSG_TYPE_IMAGE:
-            media_path = self._process_parse_message_tranlate_img_path(img_path)
-        elif msg_type == MSG_TYPE_VOICE:
-            media_path = self._process_parse_message_tranlate_voice_path(img_path)
-        elif msg_type == MSG_TYPE_VIDEO:
-            media_path = self._process_parse_message_tranlate_video_path(img_path)
-        return media_path
+        self._process_parse_friend_message(content, msg_type, img_path, group_hash, model)
 
     def _process_parse_message_tranlate_img_path(self, img_path):
         media_path = None
@@ -826,7 +821,7 @@ class WeChatParser(Wechat):
             media_path = '/no_voice'
         return media_path
 
-    def _process_parse_message_tranlate_video_path(self, video_id):
+    def _process_parse_message_tranlate_video_path(self, video_id, model):
         media_path = None
         for extend_node in self.extend_nodes:
             if canceller.IsCancellationRequested:
@@ -838,6 +833,7 @@ class WeChatParser(Wechat):
 
             node = extend_node.GetByPath('/video/{}.jpg'.format(video_id))
             if node is not None:
+                model.type = model_im.MESSAGE_CONTENT_TYPE_IMAGE
                 media_path = node.AbsolutePath
                 break
         if media_path is None:
@@ -910,10 +906,22 @@ class SnsParser:
             if type(ret) == tuple and len(ret) > 1:
                 ret = ret[1]
                 if type(ret) == dict:
-                    location = feed.create_location()
-                    location.latitude = self._get_ts_value(ret, 2)
-                    location.longitude = self._get_ts_value(ret, 1)
-                    location.address = self._get_ts_value(ret, 4)
+                    latitude = 0
+                    longitude = 0
+                    try:
+                        latitude = float(self._get_ts_value(ret, 2))
+                    except Exception as e:
+                        pass
+                    try:
+                        longitude = float(self._get_ts_value(ret, 1))
+                    except Exception as e:
+                        pass
+                    if latitude != 0 or longitude != 0:
+                        location = feed.create_location()
+                        location.type = model_im.LOCATION_TYPE_GOOGLE
+                        location.latitude = latitude
+                        location.longitude = longitude
+                        location.address = self._get_ts_value(ret, 4)
 
     def get_likes(self, feed):
         ret = self._get_ts_value(self.attr, 9)

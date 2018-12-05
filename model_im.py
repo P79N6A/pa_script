@@ -21,7 +21,7 @@ import sqlite3
 import json
 import uuid
 
-VERSION_VALUE_DB = 14
+VERSION_VALUE_DB = 16
 
 GENDER_NONE = 0
 GENDER_MALE = 1
@@ -100,6 +100,15 @@ FAVORITE_TYPE_LINK = 5  # 链接
 FAVORITE_TYPE_LOCATION = 6  # 位置
 FAVORITE_TYPE_ATTACHMENT = 7  # 附件
 FAVORITE_TYPE_CHAT = 8  # 聊天记录
+
+LOCATION_TYPE_GPS = 1  # GPS坐标
+LOCATION_TYPE_GPS_MC = 2  # GPS米制坐标
+LOCATION_TYPE_GOOGLE = 3  # GCJ02坐标
+LOCATION_TYPE_GOOGLE_MC = 4  # GCJ02米制坐标
+LOCATION_TYPE_BAIDU = 5  # 百度经纬度坐标
+LOCATION_TYPE_BAIDU_MC = 6  # 百度米制坐标
+LOCATION_TYPE_MAPBAR = 7  # mapbar地图坐标
+LOCATION_TYPE_MAP51 = 8  # 51地图坐标
 
 VERSION_KEY_DB = 'db'
 VERSION_KEY_APP = 'app'
@@ -308,13 +317,14 @@ SQL_CREATE_TABLE_LOCATION = '''
         elevation REAL,
         address TEXT,
         timestamp INT,
+        type INT,
         source TEXT,
         deleted INT DEFAULT 0, 
         repeated INT DEFAULT 0)'''
 
 SQL_INSERT_TABLE_LOCATION = '''
-    insert into location(location_id, latitude, longitude, elevation, address, timestamp, source, deleted, repeated) 
-        values(?, ?, ?, ?, ?, ?, ?, ?, ?)'''
+    insert into location(location_id, latitude, longitude, elevation, address, timestamp, type, source, deleted, repeated) 
+        values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
         
 SQL_CREATE_INDEX_ON_TABLE_LOCATION = '''
     create index idxLocation on location (location_id)
@@ -360,7 +370,7 @@ SQL_INSERT_TABLE_SEARCH = '''
 SQL_CREATE_TABLE_FAVORITE = '''
     create table if not exists favorite(
         account_id TEXT, 
-        favorite_id TEXT,
+        favorite_id INT,
         type INT,
         talker TEXT,
         talker_name TEXT,
@@ -951,10 +961,11 @@ class Location(Column):
         self.elevation = None  # 海拔[REAL]
         self.address = None  # 地址名称[TEXT]
         self.timestamp = None  # 时间戳[INT]
+        self.type = LOCATION_TYPE_GPS  # 坐标系[INT]  LOCATION_TYPE
 
     def get_values(self):
         return (self.location_id, self.latitude, self.longitude, self.elevation, self.address, 
-                self.timestamp) + super(Location, self).get_values()
+                self.timestamp, self.type) + super(Location, self).get_values()
 
     def insert_db(self, im):
         if isinstance(im, IM):
@@ -1011,7 +1022,7 @@ class Favorite(Column):
         self.talker = None  # 会话ID[TEXT]
         self.talker_name = None  # 会话昵称[TEXT]
         self.talker_type = None  # 聊天类型[INT] CHAT_TYPE
-        self.timestamp = None  # 时间戳[TEXT]
+        self.timestamp = None  # 时间戳[INT]
 
         self.items = []
 
@@ -1141,8 +1152,8 @@ class GenerateModel(object):
     def get_models(self):
         models = []
 
-        self.db = sqlite3.connect(self.cache_db)
-        self.cursor = self.db.cursor()
+        self.db = SQLite.SQLiteConnection('Data Source = {}'.format(self.cache_db))
+        self.db.Open()
 
         models.extend(self._get_account_models())
         models.extend(self._get_friend_models())
@@ -1153,8 +1164,8 @@ class GenerateModel(object):
         models.extend(self._get_favorite_models())
         models.extend(self._get_browse_history_models())
 
-        self.cursor.close()
-        self.db.close()
+
+        self.db.Close()
         return models
 
     def _get_account_models(self):
@@ -1167,71 +1178,65 @@ class GenerateModel(object):
         sql = '''select account_id, nickname, username, password, photo, telephone, email, gender, age, country, 
                         province, city, address, birthday, signature, source, deleted, repeated
                  from account'''
-        row = None
+        deleted = 0
         try:
-            self.cursor.execute(sql)
-            row = self.cursor.fetchone()
+            cmd = self.db.CreateCommand()
+            cmd.CommandText = sql
+            r = cmd.ExecuteReader()
+            while r.Read():
+                if canceller.IsCancellationRequested:
+                    break
+                deleted = 0
+                try:
+                    source = self._db_reader_get_string_value(r, 15)
+                    deleted = self._db_reader_get_int_value(r, 16, None)
+                    account_id = self._db_reader_get_string_value(r, 0)
+                    nickname = self._db_reader_get_string_value(r, 1)
+                    photo = self._db_reader_get_string_value(r, 4, None)
+                    birthday = self._db_reader_get_int_value(r, 13, None)
+                    
+
+                    user = Common.User()
+                    user.SourceFile.Value = source
+                    user.Deleted = self._convert_deleted_status(deleted)
+                    user.ID.Value = account_id
+                    user.Name.Value = nickname
+                    user.Username.Value = self._db_reader_get_string_value(r, 2)
+                    user.Password.Value = self._db_reader_get_string_value(r, 3)
+                    if photo not in [None, '']:
+                        user.PhotoUris.Add(self._get_uri(photo))
+                    user.PhoneNumber.Value = self._db_reader_get_string_value(r, 5)
+                    user.Email.Value = self._db_reader_get_string_value(r, 6)
+                    user.Sex.Value = self._convert_sex_type(self._db_reader_get_int_value(r, 7))
+                    user.Age.Value = self._db_reader_get_int_value(r, 8)
+                    if birthday:
+                        ts = self._get_timestamp(birthday)
+                        if ts:
+                            user.Birthday.Value = ts
+                    user.Signature.Value = self._db_reader_get_string_value(r, 14)
+
+                    address = Contacts.StreetAddress()
+                    address.Country.Value = self._db_reader_get_string_value(r, 9)
+                    address.Neighborhood.Value = self._db_reader_get_string_value(r, 10)
+                    address.City.Value = self._db_reader_get_string_value(r, 11)
+                    address.FullName.Value = self._db_reader_get_string_value(r, 12)
+                    user.Addresses.Add(address)
+                    models.append(user)
+
+                    if account_id is not None:
+                        contact = {}
+                        contact['user_id'] = account_id
+                        if nickname:
+                            contact['nickname'] = nickname
+                        if photo:
+                            contact['photo'] = photo
+                        self.friends[self._get_user_key(account_id, account_id)] = contact
+                except Exception as e:
+                    if deleted == 0:
+                        TraceService.Trace(TraceLevel.Error, "model_im.py Error: LINE {}".format(traceback.format_exc()))
         except Exception as e:
-            TraceService.Trace(TraceLevel.Error, "model_im.py Error: LINE {}".format(traceback.format_exc()))
-
-        while row is not None:
-            if canceller.IsCancellationRequested:
-                break
-
-            try:
-                user = Common.User()
-                account_id = None
-                contact = {}
-                if row[15] not in [None, '']:
-                    user.SourceFile.Value = row[15]
-                if row[16] is not None:
-                    user.Deleted = self._convert_deleted_status(row[16])
-                if row[0]:
-                    user.ID.Value = row[0]
-                    account_id = row[0]
-                    contact['user_id'] = row[0]
-                if row[1]:
-                    user.Name.Value = row[1]
-                    contact['nickname'] = row[1]
-                if row[2]:
-                    user.Username.Value = row[2]
-                if row[3]:
-                    user.Password.Value = row[3]
-                if row[5]:
-                    user.PhoneNumber.Value= row[5]
-                if row[4] and len(row[4]) > 0:
-                    user.PhotoUris.Add(self._get_uri(row[4]))
-                    contact['photo'] = row[4]
-                if row[6]:
-                    user.Email.Value = row[6]
-                if row[7]:
-                    user.Sex.Value = self._convert_sex_type(row[7])
-                if row[8]:
-                    user.Age.Value = row[8]
-                if row[13]:
-                    ts = self._get_timestamp(row[13])
-                    if ts:
-                        user.Birthday.Value = ts
-                if row[14]:
-                    user.Signature.Value = row[14]
-                address = Contacts.StreetAddress()
-                if row[9]:
-                    address.Country.Value = row[9]
-                if row[10]:
-                    address.Neighborhood.Value = row[10]
-                if row[11]:
-                    address.City.Value = row[11]
-                if row[12]:
-                    address.FullName.Value = row[12]
-                user.Addresses.Add(address)
-                models.append(user)
-
-                if account_id is not None:
-                    self.friends[self._get_user_key(account_id, account_id)] = contact
-            except Exception as e:
+            if deleted == 0:
                 TraceService.Trace(TraceLevel.Error, "model_im.py Error: LINE {}".format(traceback.format_exc()))
-            row = self.cursor.fetchone()
-
         return models 
 
     def _get_friend_models(self):
@@ -1246,77 +1251,78 @@ class GenerateModel(object):
                         friend.birthday, friend.signature, friend.location_id, friend.source, friend.deleted, 
                         friend.repeated, friend.fullname,
                         location.latitude, location.longitude, location.elevation, location.address, location.timestamp,
-                        location.source, location.deleted
+                        location.type, location.source, location.deleted
                  from friend
                  left join location on friend.location_id = location.location_id'''
-        row = None
+        deleted = 0
         try:
-            self.cursor.execute(sql)
-            row = self.cursor.fetchone()
-        except Exception as e:
-            TraceService.Trace(TraceLevel.Error, "model_im.py Error: LINE {}".format(traceback.format_exc()))
+            cmd = self.db.CreateCommand()
+            cmd.CommandText = sql
+            r = cmd.ExecuteReader()
+            while r.Read():
+                if canceller.IsCancellationRequested:
+                    break
+                deleted = 0
+                try:
+                    source = self._db_reader_get_string_value(r, 14, None)
+                    deleted = self._db_reader_get_int_value(r, 15)
+                    account_id = self._db_reader_get_string_value(r, 0)
+                    user_id = self._db_reader_get_string_value(r, 1)
+                    nickname = self._db_reader_get_string_value(r, 2)
+                    remark = self._db_reader_get_string_value(r, 3)
+                    photo = self._db_reader_get_string_value(r, 4, None)
+                    birthday = self._db_reader_get_int_value(r, 11, None)
+                    location_id = self._db_reader_get_int_value(r, 13)
+                    location_latitude = self._db_reader_get_float_value(r, 19)
+                    location_longitude = self._db_reader_get_float_value(r, 20)
+                    location_elevation = self._db_reader_get_float_value(r, 21)
+                    location_address = self._db_reader_get_string_value(r, 22)
+                    location_timestamp = self._db_reader_get_int_value(r, 23)
+                    location_type = self._db_reader_get_int_value(r, 24)
 
-        while row is not None:
-            if canceller.IsCancellationRequested:
-                break
-            try:
-                friend = Common.Friend()
-                account_id = None
-                user_id = None
-                contact = {}
-                if row[14] not in [None, '']:
-                    friend.SourceFile.Value = row[14]
-                if row[15] is not None:
-                    friend.Deleted = self._convert_deleted_status(row[15])
-                if row[0]:
-                    friend.OwnerUserID.Value = row[0]
-                    account_id = row[0]
-                if row[1]:
-                    friend.ID.Value = row[1]
-                    user_id = row[1]
-                    contact['user_id'] = row[1]
-                if row[2]:
-                    friend.NickName.Value = row[2]
-                    contact['nickname'] = row[2]
-                if row[3]:
-                    friend.Remarks.Value = row[3]
-                if row[4] and len(row[4]) > 0:
-                    friend.PhotoUris.Add(self._get_uri(row[4]))
-                    contact['photo'] = row[4]
-                if row[5]:
-                    friend.FriendType.Value = self._convert_friend_type(row[5])
-                if row[6]:
-                    friend.PhoneNumber.Value= row[6]
-                if row[7]:
-                    friend.Email.Value= row[7]
-                if row[8]:
-                    friend.Sex.Value = self._convert_sex_type(row[8])
-                if row[9]:
-                    friend.Age.Value = row[9]
-                if row[10]:
+                    friend = Common.Friend()
+                    friend.SourceFile.Value = source
+                    friend.Deleted = self._convert_deleted_status(deleted)
+                    friend.OwnerUserID.Value = account_id
+                    friend.ID.Value = user_id
+                    friend.NickName.Value = nickname
+                    friend.Remarks.Value = remark
+                    if photo not in [None, '']:
+                        friend.PhotoUris.Add(self._get_uri(photo))
+                    friend.FriendType.Value = self._convert_friend_type(self._db_reader_get_int_value(r, 5))
+                    friend.PhoneNumber.Value = self._db_reader_get_string_value(r, 6)
+                    friend.Email.Value = self._db_reader_get_string_value(r, 7)
+                    friend.Sex.Value = self._convert_sex_type(self._db_reader_get_int_value(r, 8))
+                    friend.Age.Value = self._db_reader_get_int_value(r, 9)
                     address = Contacts.StreetAddress()
-                    address.FullName.Value = row[10]
+                    address.FullName.Value = self._db_reader_get_string_value(r, 10)
                     friend.Addresses.Add(address)
-                if row[11]:
-                    ts = self._get_timestamp(row[11])
-                    if ts:
-                        friend.Birthday.Value = ts
-                if row[12]:
-                    friend.Signature.Value = row[12]
-                if row[13] not in [None, 0]:
-                    location = self._get_location(row[18], row[19], row[20], row[21], row[22], row[23], row[24])
-                    friend.Location.Value = location
-                    models.append(location)
-                if row[17]:
-                    friend.FullName.Value = row[17]
+                    if birthday:
+                        ts = self._get_timestamp(birthday)
+                        if ts:
+                            friend.Birthday.Value = ts
+                    friend.Signature.Value = self._db_reader_get_string_value(r, 12)
+                    if location_id not in [None, 0]:
+                        location = self._get_location(location_latitude, location_longitude, location_elevation, location_address, location_timestamp, location_type, source, deleted)
+                        friend.Location.Value = location
+                        models.append(location)
+                    friend.FullName.Value = self._db_reader_get_string_value(r, 17)
+                    models.append(friend)
 
-                models.append(friend)
-                if account_id is not None and user_id is not None:
-                    self.friends[self._get_user_key(account_id, user_id)] = contact
-            except Exception as e:
+                    if account_id not in [None, ''] and user_id not in [None, '']:
+                        contact = {}
+                        contact['user_id'] = user_id
+                        if nickname:
+                            contact['nickname'] = nickname
+                        if photo:
+                            contact['photo'] = photo
+                        self.friends[self._get_user_key(account_id, user_id)] = contact
+                except Exception as e:
+                    if deleted == 0:
+                        TraceService.Trace(TraceLevel.Error, "model_im.py Error: LINE {}".format(traceback.format_exc()))
+        except Exception as e:
+            if deleted == 0:
                 TraceService.Trace(TraceLevel.Error, "model_im.py Error: LINE {}".format(traceback.format_exc()))
-            row = self.cursor.fetchone()
-
         return models 
 
     def _get_group_models(self):
@@ -1329,63 +1335,59 @@ class GenerateModel(object):
         sql = '''select account_id, chatroom_id, name, photo, type, notice, description, creator_id, 
                         owner_id, member_count, max_member_count, create_time, source, deleted, repeated
                  from chatroom'''
-        row = None
+        deleted = 0
         try:
-            self.cursor.execute(sql)
-            row = self.cursor.fetchone()
+            cmd = self.db.CreateCommand()
+            cmd.CommandText = sql
+            r = cmd.ExecuteReader()
+            while r.Read():
+                if canceller.IsCancellationRequested:
+                    break
+                deleted = 0
+                try:
+                    source = self._db_reader_get_string_value(r, 12)
+                    deleted = self._db_reader_get_int_value(r, 13, None)
+                    account_id = self._db_reader_get_string_value(r, 0)
+                    user_id = self._db_reader_get_string_value(r, 1)
+                    nickname = self._db_reader_get_string_value(r, 2)
+                    photo = self._db_reader_get_string_value(r, 3, None)
+                    timestamp = self._db_reader_get_int_value(r, 11)
+                    
+                    group = Common.Group()
+                    group.SourceFile.Value = source
+                    group.Deleted = self._convert_deleted_status(deleted)
+                    group.OwnerUserID.Value = account_id
+                    group.ID.Value = user_id
+                    group.Name.Value = nickname
+                    group.Members.AddRange(self._get_chatroom_member_models(account_id, user_id, deleted))
+                    if photo not in [None, '']:
+                        group.PhotoUris.Add(self._get_uri(photo))
+                    group.Status.Value = self._convert_group_status(self._db_reader_get_int_value(r, 4))
+                    group.Description.Value = self._db_reader_get_string_value(r, 6)
+                    group.Creator.Value = self._get_user_intro(account_id, self._db_reader_get_string_value(r, 7, None))
+                    group.Managers.Value = self._get_user_intro(account_id, self._db_reader_get_string_value(r, 8, None))
+                    group.MemberCount.Value = self._db_reader_get_int_value(r, 9)
+                    group.MemberMaxCount.Value = self._db_reader_get_int_value(r, 10)
+                    if timestamp:
+                        ts = self._get_timestamp(timestamp)
+                        if ts:
+                            group.JoinTime.Value = ts
+                    models.append(group)
+
+                    if account_id not in [None, ''] and user_id not in [None, '']:
+                        contact = {}
+                        contact['user_id'] = user_id
+                        if nickname:
+                            contact['nickname'] = nickname
+                        if photo:
+                            contact['photo'] = photo
+                        self.chatrooms[self._get_user_key(account_id, user_id)] = contact
+                except Exception as e:
+                    if deleted == 0:
+                        TraceService.Trace(TraceLevel.Error, "model_im.py Error: LINE {}".format(traceback.format_exc()))
         except Exception as e:
-            TraceService.Trace(TraceLevel.Error, "model_im.py Error: LINE {}".format(traceback.format_exc()))
-
-        while row is not None:
-            if canceller.IsCancellationRequested:
-                break
-            try:
-                group = Common.Group()
-                account_id = None
-                user_id = None
-                contact = {}
-                if row[12] not in [None, '']:
-                    group.SourceFile.Value = row[12]
-                if row[13] is not None:
-                    group.Deleted = self._convert_deleted_status(row[13])
-                if row[0]:
-                    group.OwnerUserID.Value = row[0]
-                    account_id = row[0]
-                if row[1]:
-                    group.ID.Value = row[1]
-                    user_id = row[1]
-                    contact['user_id'] = row[1]
-                    group.Members.AddRange(self._get_chatroom_member_models(account_id, user_id))
-                if row[2]:
-                    group.Name.Value = row[2]
-                    contact['nickname'] = row[2]
-                if row[3] and len(row[3]) > 0:
-                    group.PhotoUris.Add(self._get_uri(row[3]))
-                    contact['photo'] = row[3]
-                if row[4]:
-                    group.Status.Value = self._convert_group_status(row[4])
-                if row[6]:
-                    group.Description.Value = row[6]
-                if row[7]:
-                    group.Creator.Value = self._get_user_intro(account_id, row[7])
-                if row[8]:
-                    group.Managers.Value = self._get_user_intro(account_id, row[8])
-                if row[9]:
-                    group.MemberCount.Value = row[9]
-                if row[10]:
-                    group.MemberMaxCount.Value = row[10]
-                if row[11]:
-                    ts = self._get_timestamp(row[11])
-                    if ts:
-                        group.JoinTime.Value = ts
-                models.append(group)
-
-                if account_id is not None and user_id is not None:
-                    self.chatrooms[self._get_user_key(account_id, user_id)] = contact
-            except Exception as e:
+            if deleted == 0:
                 TraceService.Trace(TraceLevel.Error, "model_im.py Error: LINE {}".format(traceback.format_exc()))
-            row = self.cursor.fetchone()
-
         return models 
 
     def _get_chat_models(self):
@@ -1400,7 +1402,7 @@ class GenerateModel(object):
                         message.location_id, message.deal_id, message.link_id, message.status, message.talker_type, 
                         message.source, message.deleted, message.repeated, 
                         location.latitude, location.longitude, location.elevation, location.address, location.timestamp,
-                        location.source, location.deleted,
+                        location.type, location.source, location.deleted,
                         deal.type, deal.money, deal.description, deal.remark, deal.status, deal.create_time, deal.expire_time, 
                         deal.receive_info, deal.source, deal.deleted, 
                         link.url, link.title, link.content, link.image, link.source, link.deleted
@@ -1408,139 +1410,150 @@ class GenerateModel(object):
                  left join location on message.location_id = location.location_id
                  left join deal on message.deal_id = deal.deal_id
                  left join link on message.link_id = link.link_id '''
-        row = None
+        deleted = 0
         try:
-            self.cursor.execute(sql)
-            row = self.cursor.fetchone()
-        except Exception as e:
-            TraceService.Trace(TraceLevel.Error, "model_im.py Error: LINE {}".format(traceback.format_exc()))
+            cmd = self.db.CreateCommand()
+            cmd.CommandText = sql
+            r = cmd.ExecuteReader()
+            while r.Read():
+                if canceller.IsCancellationRequested:
+                    break
+                deleted = 0
+                try:
+                    source = self._db_reader_get_string_value(r, 16)
+                    deleted = self._db_reader_get_int_value(r, 17, None)
+                    account_id = self._db_reader_get_string_value(r, 0)
+                    talker_id = self._db_reader_get_string_value(r, 1)
+                    talker_name = self._db_reader_get_string_value(r, 2, None)
+                    sender_id = self._db_reader_get_string_value(r, 3)
+                    sender_name = self._db_reader_get_string_value(r, 4, None)
+                    msg_type = self._db_reader_get_int_value(r, 7)
+                    content = self._db_reader_get_string_value(r, 8)
+                    media_path = self._db_reader_get_string_value(r, 9)
+                    send_time = self._db_reader_get_int_value(r, 10, None)
+                    location_id = self._db_reader_get_int_value(r, 11)
+                    deal_id = self._db_reader_get_int_value(r, 12)
+                    link_id = self._db_reader_get_int_value(r, 13)
+                    talker_type = self._db_reader_get_int_value(r, 15)
+                    location_latitude = self._db_reader_get_float_value(r, 19)
+                    location_longitude = self._db_reader_get_float_value(r, 20)
+                    location_elevation = self._db_reader_get_float_value(r, 21)
+                    location_address = self._db_reader_get_string_value(r, 22)
+                    location_timestamp = self._db_reader_get_int_value(r, 23)
+                    location_type = self._db_reader_get_int_value(r, 24)
+                    deal_money = self._db_reader_get_string_value(r, 28)
+                    deal_description = self._db_reader_get_string_value(r, 29)
+                    deal_remark = self._db_reader_get_string_value(r, 30)
+                    deal_status = self._db_reader_get_int_value(r, 31)
+                    deal_create_time = self._db_reader_get_int_value(r, 32)
+                    deal_expire_time = self._db_reader_get_int_value(r, 33)
+                    deal_receive_info = self._db_reader_get_string_value(r, 34)
+                    link_url = self._db_reader_get_string_value(r, 37)
+                    link_title = self._db_reader_get_string_value(r, 38)
+                    link_desc = self._db_reader_get_string_value(r, 39)
+                    link_image_path = self._db_reader_get_string_value(r, 40)
 
-        while row is not None:
-            if canceller.IsCancellationRequested:
-                break
-            try:
-                message = Common.Message()
-                message.Content.Value = Common.MessageContent()
-                account_id = None
-                talker_id = None
-                talker_name = None
-                talker_type = row[15]
-
-                if row[16] not in [None, '']:
-                    message.SourceFile.Value = row[16]
-                if row[17] is not None:
-                    message.Deleted = self._convert_deleted_status(row[17])
-                if row[0]:
-                    message.OwnerUserID.Value = row[0]
-                    account_id = row[0]
-                if row[1]:
-                    message.ID.Value = row[1]
-                    talker_id = row[1]
-                if row[2]:
-                    talker_name = row[2]
-                if row[3]:
-                    message.Sender.Value = self._get_user_intro(account_id, row[3], row[4], talker_type==CHAT_TYPE_GROUP)
-                    if row[3] == account_id:
+                    message = Common.Message()
+                    message.Content.Value = Common.MessageContent()
+                    message.SourceFile.Value = source
+                    message.Deleted = self._convert_deleted_status(deleted)
+                    message.OwnerUserID.Value = account_id
+                    message.ID.Value = talker_id
+                    message.Sender.Value = self._get_user_intro(account_id, sender_id, sender_name, talker_type==CHAT_TYPE_GROUP)
+                    if sender_id == account_id:
                         message.Type.Value = Common.MessageType.Send
                     else:
                         message.Type.Value = Common.MessageType.Receive
-                if row[10]:
-                    ts = self._get_timestamp(row[10])
-                    if ts:
-                        message.TimeStamp.Value = ts
-                        message.SendTime.Value = ts
-
-                msg_type = row[7]
-                content = row[8]
-                if content is None:
-                    content = ''
-                media_path = row[9]
-
-                message.Content.Value.Text.Value = content
-                if msg_type == MESSAGE_CONTENT_TYPE_IMAGE:
-                    if media_path and len(media_path) > 0:
+                    if send_time:
+                        ts = self._get_timestamp(send_time)
+                        if ts:
+                            message.TimeStamp.Value = ts
+                            message.SendTime.Value = ts
+                    message.Content.Value.Text.Value = content
+                    if msg_type == MESSAGE_CONTENT_TYPE_IMAGE:
                         message.Content.Value.Image.Value = self._get_uri(media_path)
-                elif msg_type == MESSAGE_CONTENT_TYPE_VOICE:
-                    if media_path and len(media_path) > 0:
+                    elif msg_type == MESSAGE_CONTENT_TYPE_VOICE:
                         message.Content.Value.Audio.Value = self._get_uri(media_path)
-                elif msg_type == MESSAGE_CONTENT_TYPE_VIDEO:
-                    if media_path and len(media_path) > 0:
+                    elif msg_type == MESSAGE_CONTENT_TYPE_VIDEO:
                         message.Content.Value.Video.Value = self._get_uri(media_path)
-                elif msg_type == MESSAGE_CONTENT_TYPE_EMOJI:
-                    if media_path and len(media_path) > 0:
+                    elif msg_type == MESSAGE_CONTENT_TYPE_EMOJI:
                         message.Content.Value.Gif.Value = self._get_uri(media_path)
-                #elif msg_type == MESSAGE_CONTENT_TYPE_CONTACT_CARD:
-                #    pass
-                elif msg_type == MESSAGE_CONTENT_TYPE_LOCATION:
-                    if row[11] not in [None, 0]:
-                        location = self._get_location(row[19], row[20], row[21], row[22], row[23], row[24], row[25])
-                        message.Content.Value.Location.Value = location
-                        models.append(location)
-                elif msg_type == MESSAGE_CONTENT_TYPE_RED_ENVELPOE:
-                    if row[12] not in [None, 0]:
-                        message.Content.Value.RedEnvelope.Value = self._get_aareceipts(row[27], row[28], row[29], row[30], row[31], row[32], row[33], row[34], row[35])
-                        message.Content.Value.RedEnvelope.Value.OwnerUserID.Value = message.OwnerUserID.Value
-                        message.Content.Value.RedEnvelope.Value.OwnerMessage.Value = message
-                elif msg_type == MESSAGE_CONTENT_TYPE_RECEIPT:
-                    if row[12] not in [None, 0]:
-                        message.Content.Value.Receipt.Value = self._get_receipt(row[27], row[28], row[29], row[30], row[31], row[32], row[33], row[34], row[35])
-                        message.Content.Value.Receipt.Value.OwnerUserID.Value = message.OwnerUserID.Value
-                        message.Content.Value.Receipt.Value.OwnerMessage.Value = message
-                elif msg_type == MESSAGE_CONTENT_TYPE_AA_RECEIPT:
-                    if row[12] not in [None, 0]:
-                        message.Content.Value.AAReceipts.Value = self._get_aareceipts(row[27], row[28], row[29], row[30], row[31], row[32], row[33], row[34], row[35])
-                        message.Content.Value.AAReceipts.Value.OwnerUserID.Value = message.OwnerUserID.Value
-                        message.Content.Value.AAReceipts.Value.OwnerMessage.Value = message
-                elif msg_type == MESSAGE_CONTENT_TYPE_LINK:
-                    if row[13] not in [None, 0]:
-                        message.Content.Value.Link.Value = self._get_link(row[36], row[37], row[38], row[39], row[40], row[41])
-                #elif msg_type == MESSAGE_CONTENT_TYPE_VOIP:
-                #    pass
-                elif msg_type == MESSAGE_CONTENT_TYPE_SYSTEM:
-                    message.Type.Value = Common.MessageType.System
+                    #elif msg_type == MESSAGE_CONTENT_TYPE_CONTACT_CARD:
+                    #    pass
+                    elif msg_type == MESSAGE_CONTENT_TYPE_LOCATION:
+                        if location_id not in [None, 0]:
+                            location = self._get_location(location_latitude, location_longitude, location_elevation, location_address, location_timestamp, location_type, source, deleted)
+                            message.Content.Value.Location.Value = location
+                            models.append(location)
+                    elif msg_type == MESSAGE_CONTENT_TYPE_RED_ENVELPOE:
+                        if deal_id not in [None, 0]:
+                            message.Content.Value.RedEnvelope.Value = self._get_aareceipts(deal_money, deal_description, deal_remark, deal_status, deal_create_time, deal_expire_time, deal_receive_info, source, deleted)
+                            message.Content.Value.RedEnvelope.Value.OwnerUserID.Value = message.OwnerUserID.Value
+                            message.Content.Value.RedEnvelope.Value.OwnerMessage.Value = message
+                    elif msg_type == MESSAGE_CONTENT_TYPE_RECEIPT:
+                        if deal_id not in [None, 0]:
+                            message.Content.Value.Receipt.Value = self._get_receipt(deal_money, deal_description, deal_remark, deal_status, deal_create_time, deal_expire_time, deal_receive_info, source, deleted)
+                            message.Content.Value.Receipt.Value.OwnerUserID.Value = message.OwnerUserID.Value
+                            message.Content.Value.Receipt.Value.OwnerMessage.Value = message
+                    elif msg_type == MESSAGE_CONTENT_TYPE_AA_RECEIPT:
+                        if deal_id not in [None, 0]:
+                            message.Content.Value.AAReceipts.Value = self._get_aareceipts(deal_money, deal_description, deal_remark, deal_status, deal_create_time, deal_expire_time, deal_receive_info, source, deleted)
+                            message.Content.Value.AAReceipts.Value.OwnerUserID.Value = message.OwnerUserID.Value
+                            message.Content.Value.AAReceipts.Value.OwnerMessage.Value = message
+                    elif msg_type == MESSAGE_CONTENT_TYPE_LINK:
+                        if link_id not in [None, 0]:
+                            message.Content.Value.Link.Value = self._get_link(link_url, link_title, link_desc, link_image_path, source, deleted)
+                    #elif msg_type == MESSAGE_CONTENT_TYPE_VOIP:
+                    #    pass
+                    elif msg_type == MESSAGE_CONTENT_TYPE_SYSTEM:
+                        message.Type.Value = Common.MessageType.System
 
-                if account_id is not None and talker_id is not None:
-                    key = self._get_user_key(account_id, talker_id)
-                    if key in chats:
-                        chat = chats[key]
-                        chat.Messages.Add(message)
-                        chat.Count.Value += 1
-                        if message.Deleted != DeletedState.Intact:
-                            chat.DeletedCount.Value += 1
-                        message.OwnerChat.Value = chat
-                    else:
-                        chat = Generic.Chat()
-                        chat.SourceFile.Value = message.SourceFile.Value
-                        chat.Deleted = self._convert_deleted_status(0)
-                        chat.OwnerUserID.Value = account_id
-                        chat.ChatId.Value = talker_id
-                        chat.ChatType.Value = self._convert_chat_type(talker_type)
-                        if talker_type == CHAT_TYPE_GROUP:
-                            if talker_name is not None:
-                                chat.ChatName.Value = talker_name
-                            else:
-                                chat.ChatName.Value = self.chatrooms.get(key, {}).get('nickname', '')
-                            chat.Participants.AddRange(self._get_chatroom_member_models(account_id, talker_id))
+                    if account_id not in [None, ''] and talker_id not in [None, '']:
+                        key = self._get_user_key(account_id, talker_id)
+                        if key in chats:
+                            chat = chats[key]
+                            chat.Messages.Add(message)
+                            chat.Count.Value += 1
+                            if message.Deleted != DeletedState.Intact:
+                                chat.DeletedCount.Value += 1
+                            message.OwnerChat.Value = chat
                         else:
-                            if talker_name is not None:
-                                chat.ChatName.Value = talker_name
+                            chat = Generic.Chat()
+                            chat.SourceFile.Value = message.SourceFile.Value
+                            chat.Deleted = self._convert_deleted_status(0)
+                            chat.OwnerUserID.Value = account_id
+                            chat.ChatId.Value = talker_id
+                            chat.ChatType.Value = self._convert_chat_type(talker_type)
+                            if talker_type == CHAT_TYPE_GROUP:
+                                if talker_name is not None:
+                                    chat.ChatName.Value = talker_name
+                                else:
+                                    chat.ChatName.Value = self.chatrooms.get(key, {}).get('nickname', '')
+                                chat.Participants.AddRange(self._get_chatroom_member_models(account_id, talker_id, deleted))
                             else:
-                                chat.ChatName.Value = self.friends.get(key, {}).get('nickname', '')
-                            chat.Participants.Add(self._get_user_intro(account_id, talker_id))
-                            chat.Participants.Add(self._get_user_intro(account_id, account_id))
-                        chat.Messages.Add(message)
-                        chat.Count.Value = 1
-                        chat.DeletedCount.Value = 0 if message.Deleted == DeletedState.Intact else 1
-                        chats[key] = chat
-                        message.OwnerChat.Value = chat
-            except Exception as e:
+                                if talker_name is not None:
+                                    chat.ChatName.Value = talker_name
+                                else:
+                                    chat.ChatName.Value = self.friends.get(key, {}).get('nickname', '')
+                                chat.Participants.Add(self._get_user_intro(account_id, talker_id))
+                                chat.Participants.Add(self._get_user_intro(account_id, account_id))
+                            chat.Messages.Add(message)
+                            chat.Count.Value = 1
+                            chat.DeletedCount.Value = 0 if message.Deleted == DeletedState.Intact else 1
+                            chats[key] = chat
+                            message.OwnerChat.Value = chat
+                except Exception as e:
+                    if deleted == 0:
+                        TraceService.Trace(TraceLevel.Error, "model_im.py Error: LINE {}".format(traceback.format_exc()))
+        except Exception as e:
+            if deleted == 0:
                 TraceService.Trace(TraceLevel.Error, "model_im.py Error: LINE {}".format(traceback.format_exc()))
-            row = self.cursor.fetchone()
+
         v = chats.values()
         v.extend(models)
         return v
 
-    def _get_chatroom_member_models(self, account_id, chatroom_id):
+    def _get_chatroom_member_models(self, account_id, chatroom_id, deleted):
         if account_id in [None, ''] or chatroom_id in [None, '']:
             return []
         models = []
@@ -1548,32 +1561,30 @@ class GenerateModel(object):
                         gender, age, address, birthday, signature, source, deleted, repeated
                  from chatroom_member
                  where account_id='{0}' and chatroom_id='{1}' '''.format(account_id, chatroom_id)
-        cursor = self.db.cursor()
-        row = None
         try:
-            cursor.execute(sql)
-            row = cursor.fetchone()
-        except Exception as e:
-            TraceService.Trace(TraceLevel.Error, "model_im.py Error: LINE {}".format(traceback.format_exc()))
+            cmd = self.db.CreateCommand()
+            cmd.CommandText = sql
+            r = cmd.ExecuteReader()
+            while r.Read():
+                if canceller.IsCancellationRequested:
+                    break
+                try:
+                    member_id = self._db_reader_get_string_value(r, 2)
+                    if member_id not in [None, '']:
+                        nickname = self._db_reader_get_string_value(r, 3, None)
 
-        while row is not None:
-            if canceller.IsCancellationRequested:
-                break
-            try:
-                if row[2]:
-                    model = self._get_user_intro(account_id, row[2])
-                    if row[3]:
-                        model.Name.Value = row[3]
-                    if row[12] not in [None, '']:
-                        model.SourceFile.Value = row[12]
-                    if row[13] is not None:
-                        model.Deleted = self._convert_deleted_status(row[13])
-                    models.append(model)
-            except Exception as e:
+                        model = self._get_user_intro(account_id, member_id)
+                        if nickname not in [None, '']:
+                            model.Name.Value = nickname
+                        model.SourceFile.Value = self._db_reader_get_string_value(r, 12)
+                        model.Deleted = self._convert_deleted_status(self._db_reader_get_int_value(r, 13, None))
+                        models.append(model)
+                except Exception as e:
+                    if deleted == 0:
+                        TraceService.Trace(TraceLevel.Error, "model_im.py Error: LINE {}".format(traceback.format_exc()))
+        except Exception as e:
+            if deleted == 0:
                 TraceService.Trace(TraceLevel.Error, "model_im.py Error: LINE {}".format(traceback.format_exc()))
-            row = cursor.fetchone()
-        if cursor is not None:
-            cursor.close()
         return models
 
     def _get_feed_models(self):
@@ -1588,77 +1599,79 @@ class GenerateModel(object):
                         feed.rtcount, feed.comment_id, feed.commentcount, feed.device, feed.location_id, 
                         feed.source, feed.deleted, feed.repeated,
                         location.latitude, location.longitude, location.elevation, location.address, location.timestamp,
-                        location.source, location.deleted
+                        location.type, location.source, location.deleted
                  from feed
                  left join location on feed.location_id = location.location_id '''
-        row = None
+        deleted = 0
         try:
-            self.cursor.execute(sql)
-            row = self.cursor.fetchone()
+            cmd = self.db.CreateCommand()
+            cmd.CommandText = sql
+            r = cmd.ExecuteReader()
+            while r.Read():
+                if canceller.IsCancellationRequested:
+                    break
+                deleted = 0
+                try:
+                    source = self._db_reader_get_string_value(r, 16)
+                    deleted = self._db_reader_get_int_value(r, 17, None)
+                    account_id = self._db_reader_get_string_value(r, 0)
+                    sender_id = self._db_reader_get_string_value(r, 1)
+                    url = self._db_reader_get_string_value(r, 5, None)
+                    timestamp = self._db_reader_get_int_value(r, 8, None)
+                    like_id = self._db_reader_get_int_value(r, 9)
+                    comment_id = self._db_reader_get_int_value(r, 12)
+                    location_id = self._db_reader_get_int_value(r, 15)
+                    location_latitude = self._db_reader_get_float_value(r, 19)
+                    location_longitude = self._db_reader_get_float_value(r, 20)
+                    location_elevation = self._db_reader_get_float_value(r, 21)
+                    location_address = self._db_reader_get_string_value(r, 22)
+                    location_timestamp = self._db_reader_get_int_value(r, 23)
+                    location_type = self._db_reader_get_int_value(r, 24)
+
+                    moment = Common.Moment()
+                    moment.Content.Value = Common.MomentContent()
+                    moment.SourceFile.Value = source
+                    moment.Deleted = self._convert_deleted_status(deleted)
+                    moment.OwnerUserID.Value = account_id
+                    moment.ID.Value = sender_id
+                    moment.Sender.Value = self._get_user_intro(account_id, sender_id)
+                    moment.Content.Value.Text.Value = self._db_reader_get_string_value(r, 2)
+                    images = self._db_reader_get_string_value(r, 3).split(',')
+                    for image in images:
+                        if image not in [None, '']:
+                            moment.Content.Value.Images.Add(self._get_uri(image))
+                    videos = self._db_reader_get_string_value(r, 4).split(',')
+                    for video in videos:
+                        if video not in [None, '']:
+                            moment.Content.Value.Videos.Add(self._get_uri(video))
+                    if url not in [None, '']:
+                        link = Common.MomentSharp()
+                        link.Uri.Value = self._get_uri(url)
+                        link.Title.Value = self._db_reader_get_string_value(r, 6)
+                        link.Description.Value = self._db_reader_get_string_value(r, 7)
+                        moment.Content.Value.Share.Add(link)
+                    if timestamp:
+                        ts = self._get_timestamp(timestamp)
+                        if ts:
+                            moment.TimeStamp.Value = ts
+                    if like_id not in [None, 0]:
+                        moment.Likes.AddRange(self._get_feed_likes(account_id, like_id, deleted))
+                    moment.LikeCount.Value = self._db_reader_get_int_value(r, 10)
+                    moment.RtCount.Value = self._db_reader_get_int_value(r, 11)
+                    if comment_id not in [None, 0]:
+                        moment.Comments.AddRange(self._get_feed_comments(account_id, comment_id, deleted))
+                    moment.CommentCount.Value = self._db_reader_get_int_value(r, 13)
+                    moment.Device.Value = self._db_reader_get_string_value(r, 14)
+                    if location_id not in [None, 0]:
+                        location = self._get_location(location_latitude, location_longitude, location_elevation, location_address, location_timestamp, location_type, source, deleted)
+                        moment.Location.Value = location
+                    models.append(moment)
+                except Exception as e:
+                    if deleted == 0:
+                        TraceService.Trace(TraceLevel.Error, "model_im.py Error: LINE {}".format(traceback.format_exc()))
         except Exception as e:
-            TraceService.Trace(TraceLevel.Error, "model_im.py Error: LINE {}".format(traceback.format_exc()))
-
-        while row is not None:
-            if canceller.IsCancellationRequested:
-                break
-            try:
-                moment = Common.Moment()
-                moment.Content.Value = Common.MomentContent()
-                account_id = None
-                if row[16] not in [None, '']:
-                    moment.SourceFile.Value = row[16]
-                if row[17] is not None:
-                    moment.Deleted = self._convert_deleted_status(row[17])
-                if row[0]:
-                    moment.OwnerUserID.Value = row[0]
-                    account_id = row[0]
-                if row[1]:
-                    moment.ID.Value = row[1]
-                    moment.Sender.Value = self._get_user_intro(account_id, row[1])
-                if row[2]:
-                    moment.Content.Value.Text.Value = row[2]
-                if row[3]:
-                    medias = row[3].split(',')
-                    for media in medias:
-                        moment.Content.Value.Images.Add(self._get_uri(media))
-                if row[4]:
-                    medias = row[4].split(',')
-                    for media in medias:
-                        moment.Content.Value.Videos.Add(self._get_uri(media))
-                if row[5]:
-                    link = Common.MomentSharp()
-                    link.Uri.Value = self._get_uri(row[5])
-                    if row[6]:
-                        link.Title.Value = row[6]
-                    if row[7]:
-                        link.Description.Value = row[7]
-                    moment.Content.Value.Share.Add(link)
-                if row[8]:
-                    ts = self._get_timestamp(row[8])
-                    if ts:
-                        moment.TimeStamp.Value = ts
-                if row[9]:
-                    moment.Likes.AddRange(self._get_feed_likes(account_id, row[9]))
-                if row[10]:
-                    moment.LikeCount.Value = row[10]
-                if row[11]:
-                    moment.RtCount.Value = row[11]
-                if row[12]:
-                    moment.Comments.AddRange(self._get_feed_comments(account_id, row[13]))
-                if row[13]:
-                    moment.CommentCount.Value = row[13]
-                if row[14]:
-                    moment.Device.Value = row[14]
-                if row[15]:
-                    location = self._get_location(row[19], row[20], row[21], row[22], row[23], row[24], row[25])
-                    location.SourceFile.Value = moment.SourceFile.Value
-                    location.Deleted = moment.Deleted
-                    moment.Location.Value = location
-                models.append(moment)
-            except Exception as e:
+            if deleted == 0:
                 TraceService.Trace(TraceLevel.Error, "model_im.py Error: LINE {}".format(traceback.format_exc()))
-            row = self.cursor.fetchone()
-
         return models 
 
     def _get_search_models(self):
@@ -1670,35 +1683,35 @@ class GenerateModel(object):
 
         sql = '''select account_id, key, create_time, source, deleted, repeated
                  from search'''
-        row = None
+        deleted = 0
         try:
-            self.cursor.execute(sql)
-            row = self.cursor.fetchone()
+            cmd = self.db.CreateCommand()
+            cmd.CommandText = sql
+            r = cmd.ExecuteReader()
+            while r.Read():
+                if canceller.IsCancellationRequested:
+                    break
+                deleted = 0
+                try:
+                    deleted = self._db_reader_get_int_value(r, 4, None)
+                    timestamp = self._db_reader_get_int_value(r, 2, None)
+
+                    search = SearchedItem()
+                    search.SourceFile.Value = self._db_reader_get_string_value(r, 3)
+                    search.Deleted = self._convert_deleted_status(deleted)
+                    search.OwnerUserID.Value = self._db_reader_get_string_value(r, 0)
+                    search.Value.Value = self._db_reader_get_string_value(r, 1)
+                    if timestamp:
+                        ts = self._get_timestamp(timestamp)
+                        if ts:
+                            search.TimeStamp.Value = ts
+                    models.append(search)
+                except Exception as e:
+                    if deleted == 0:
+                        TraceService.Trace(TraceLevel.Error, "model_im.py Error: LINE {}".format(traceback.format_exc()))
         except Exception as e:
-            TraceService.Trace(TraceLevel.Error, "model_im.py Error: LINE {}".format(traceback.format_exc()))
-
-        while row is not None:
-            if canceller.IsCancellationRequested:
-                break
-            try:
-                search = SearchedItem()
-                if row[3] not in [None, '']:
-                    search.SourceFile.Value = row[3]
-                if row[4] is not None:
-                    search.Deleted = self._convert_deleted_status(row[4])
-                if row[0]:
-                    search.OwnerUserID.Value = row[0]
-                if row[1]:
-                    search.Value.Value = row[1]
-                if row[2]:
-                    ts = self._get_timestamp(row[2])
-                    if ts:
-                        search.TimeStamp.Value = ts
-                models.append(search)
-            except Exception as e:
+            if deleted == 0:
                 TraceService.Trace(TraceLevel.Error, "model_im.py Error: LINE {}".format(traceback.format_exc()))
-            row = self.cursor.fetchone()
-
         return models 
 
     def _get_favorite_models(self):
@@ -1711,43 +1724,46 @@ class GenerateModel(object):
         sql = '''select account_id, favorite_id, type, talker, talker_name, talker_type,
                         timestamp, source, deleted, repeated
                  from favorite'''
-        row = None
+        deleted = 0
         try:
-            self.cursor.execute(sql)
-            row = self.cursor.fetchone()
+            cmd = self.db.CreateCommand()
+            cmd.CommandText = sql
+            r = cmd.ExecuteReader()
+            while r.Read():
+                if canceller.IsCancellationRequested:
+                    break
+                deleted = 0
+                try:
+                    source = self._db_reader_get_string_value(r, 7)
+                    deleted = self._db_reader_get_int_value(r, 8, None)
+                    account_id = self._db_reader_get_string_value(r, 0)
+                    favorite_id = self._db_reader_get_int_value(r, 1)
+                    talker_id = self._db_reader_get_string_value(r, 3)
+                    talker_name = self._db_reader_get_string_value(r, 4, None)
+                    talker_type = self._db_reader_get_int_value(r, 5)
+                    timestamp = self._db_reader_get_int_value(r, 6, None)
+
+                    favorite = Common.Collection()
+                    favorite.SourceFile.Value = source
+                    favorite.Deleted = self._convert_deleted_status(deleted)
+                    favorite.OwnerUserID.Value = account_id
+                    if favorite_id not in [None, 0]:
+                        favorite.Content.AddRange(self._get_favorite_item_models(favorite_id, account_id, deleted))
+                    favorite.From.Value = self._get_user_intro(account_id, talker_id, talker_name, talker_type == CHAT_TYPE_GROUP)
+                    if timestamp:
+                        ts = self._get_timestamp(timestamp)
+                        if ts:
+                            favorite.CreateTime.Value = ts
+                    models.append(favorite)
+                except Exception as e:
+                    if deleted == 0:
+                        TraceService.Trace(TraceLevel.Error, "model_im.py Error: LINE {}".format(traceback.format_exc()))
         except Exception as e:
-            TraceService.Trace(TraceLevel.Error, "model_im.py Error: LINE {}".format(traceback.format_exc()))
-
-        while row is not None:
-            if canceller.IsCancellationRequested:
-                break
-            try:
-                favorite = Common.Collection()
-                account_id = row[0]
-                if row[7] not in [None, '']:
-                    favorite.SourceFile.Value = row[7]
-                if row[8] is not None:
-                    favorite.Deleted = self._convert_deleted_status(row[8])
-                if row[0]:
-                    favorite.OwnerUserID.Value = row[0]
-                if row[1]:
-                    items = self._get_favorite_item_models(row[1], account_id)
-                    for item in items:
-                        favorite.Content.Add(item)
-                if row[3]:
-                    favorite.From.Value = self._get_user_intro(account_id, row[3], row[4], row[5] == CHAT_TYPE_GROUP)
-                if row[6]:
-                    ts = self._get_timestamp(row[6])
-                    if ts:
-                        favorite.CreateTime.Value = ts
-                models.append(favorite)
-            except Exception as e:
+            if deleted == 0:
                 TraceService.Trace(TraceLevel.Error, "model_im.py Error: LINE {}".format(traceback.format_exc()))
-            row = self.cursor.fetchone()
-
         return models 
 
-    def _get_favorite_item_models(self, favorite_id, account_id):
+    def _get_favorite_item_models(self, favorite_id, account_id, deleted):
         if canceller.IsCancellationRequested:
             return []
         models = []
@@ -1756,71 +1772,75 @@ class GenerateModel(object):
                         favorite_item.content, favorite_item.media_path, favorite_item.link_id, favorite_item.location_id,
                         favorite_item.timestamp, favorite_item.source, favorite_item.deleted, favorite_item.repeated,
                         location.latitude, location.longitude, location.elevation, location.address, location.timestamp,
-                        location.source, location.deleted,
+                        location.type, location.source, location.deleted,
                         link.url, link.title, link.content, link.image, link.source, link.deleted
                  from favorite_item
                  left join location on favorite_item.location_id = location.location_id
                  left join link on favorite_item.link_id = link.link_id
                  where favorite_item.favorite_id = {} '''.format(favorite_id)
-        row = None
-        cursor = self.db.cursor()
         try:
-            cursor.execute(sql)
-            row = cursor.fetchone()
-        except Exception as e:
-            TraceService.Trace(TraceLevel.Error, "model_im.py Error: LINE {}".format(traceback.format_exc()))
+            cmd = self.db.CreateCommand()
+            cmd.CommandText = sql
+            r = cmd.ExecuteReader()
+            while r.Read():
+                if canceller.IsCancellationRequested:
+                    break
+                try:
+                    fav_type = self._db_reader_get_int_value(r, 1)
+                    sender_id = self._db_reader_get_string_value(r, 2)
+                    sender_name = self._db_reader_get_string_value(r, 3, None)
+                    media_path = self._db_reader_get_string_value(r, 5)
+                    link_id = self._db_reader_get_int_value(r, 6)
+                    location_id = self._db_reader_get_int_value(r, 7)
+                    timestamp = self._db_reader_get_int_value(r, 8, None)
+                    source = self._db_reader_get_string_value(r, 9)
+                    deleted = self._db_reader_get_int_value(r, 10, None)
+                    location_latitude = self._db_reader_get_float_value(r, 12)
+                    location_longitude = self._db_reader_get_float_value(r, 13)
+                    location_elevation = self._db_reader_get_float_value(r, 14)
+                    location_address = self._db_reader_get_string_value(r, 15)
+                    location_timestamp = self._db_reader_get_int_value(r, 16)
+                    location_type = self._db_reader_get_int_value(r, 17)
+                    link_url = self._db_reader_get_string_value(r, 20)
+                    link_title = self._db_reader_get_string_value(r, 21)
+                    link_desc = self._db_reader_get_string_value(r, 22)
+                    link_image_path = self._db_reader_get_string_value(r, 23)
 
-        while row is not None:
-            if canceller.IsCancellationRequested:
-                break
-            try:
-                message = Common.Message()
-                message.Content.Value = Common.MessageContent()
-                message.OwnerUserID.Value = account_id
-                if row[9] not in [None, '']:
-                    message.SourceFile.Value = row[9]
-                if row[10] is not None:
-                    message.Deleted = self._convert_deleted_status(row[10])
-                if row[2]:
-                    message.Sender.Value = self._get_user_intro(account_id, row[2], row[3])
-                if row[8]:
-                    ts = self._get_timestamp(row[8])
-                    if ts:
-                        message.TimeStamp.Value = ts
-                if row[1]:
-                    fav_type = row[1]
-                    media_path = row[6]
+                    message = Common.Message()
+                    message.Content.Value = Common.MessageContent()
+                    message.OwnerUserID.Value = account_id
+                    message.SourceFile.Value = source
+                    message.Deleted = self._convert_deleted_status(deleted)
+                    message.Sender.Value = self._get_user_intro(account_id, sender_id, sender_name)
+                    if timestamp:
+                        ts = self._get_timestamp(timestamp)
+                        if ts:
+                            message.TimeStamp.Value = ts
 
+                    message.Content.Value.Text.Value = self._db_reader_get_string_value(r, 4)
                     if fav_type == FAVORITE_TYPE_IMAGE:
-                        if media_path and len(media_path) > 0:
-                            message.Content.Value.Image.Value = self._get_uri(media_path)
+                        message.Content.Value.Image.Value = self._get_uri(media_path)
                     elif fav_type == FAVORITE_TYPE_VOICE:
-                        if media_path and len(media_path) > 0:
-                            message.Content.Value.Voice.Value = self._get_uri(media_path)
+                        message.Content.Value.Audio.Value = self._get_uri(media_path)
                     elif fav_type == FAVORITE_TYPE_VIDEO:
-                        if media_path and len(media_path) > 0:
-                            message.Content.Value.Video.Value = self._get_uri(media_path)
+                        message.Content.Value.Video.Value = self._get_uri(media_path)
                     elif fav_type == FAVORITE_TYPE_LINK:
-                        message.Content.Value.Link.Value = self._get_link(row[19], row[20], row[21], row[22], row[23], row[24])
+                        if link_id not in [None, 0]:
+                            message.Content.Value.Link.Value = self._get_link(link_url, link_title, link_desc, link_image_path, source, deleted)
                     elif fav_type == FAVORITE_TYPE_LOCATION:
-                        if row[7] not in [None, 0]:
-                            location = self._get_location(row[12], row[13], row[14], row[15], row[16], row[17], row[18])
+                        if location_id not in [None, 0]:
+                            location = self._get_location(location_latitude, location_longitude, location_elevation, location_address, location_timestamp, location_type, source, deleted)
                             message.Content.Value.Location.Value = location
-                            models.append(location)
                     elif fav_type == FAVORITE_TYPE_ATTACHMENT:
-                        if media_path and len(media_path) > 0:
-                            message.Content.Value.File.Value = self._get_uri(media_path)
+                        message.Content.Value.File.Value = self._get_uri(media_path)
 
-                    if row[4]:
-                        message.Content.Value.Text.Value = row[4]
-            
-                models.append(message)
-            except Exception as e:
+                    models.append(message)
+                except Exception as e:
+                    if deleted == 0:
+                        TraceService.Trace(TraceLevel.Error, "model_im.py Error: LINE {}".format(traceback.format_exc()))
+        except Exception as e:
+            if deleted == 0:
                 TraceService.Trace(TraceLevel.Error, "model_im.py Error: LINE {}".format(traceback.format_exc()))
-            row = cursor.fetchone()
-
-        if cursor is not None:
-            cursor.close()
         return models
 
     def _get_browse_history_models(self):
@@ -1833,61 +1853,61 @@ class GenerateModel(object):
         sql = '''select account_id, browse_id, browse_name, lastbrowsetime, followerscount, followeingcount,
                         coverurl, profileurl, verified_reason, description, gender, source, deleted, repeated
                  from browsehistory'''
-        row = None
+        deleted = 0
         try:
-            self.cursor.execute(sql)
-            row = self.cursor.fetchone()
+            cmd = self.db.CreateCommand()
+            cmd.CommandText = sql
+            r = cmd.ExecuteReader()
+            while r.Read():
+                if canceller.IsCancellationRequested:
+                    break
+                deleted = 0
+                try:
+                    timestamp = self._db_reader_get_int_value(r, 3, None)
+                    cover = self._db_reader_get_string_value(r, 6, None)
+                    photo = self._db_reader_get_string_value(r, 7, None)
+                    source = self._db_reader_get_string_value(r, 11)
+                    deleted = self._db_reader_get_int_value(r, 12)
+
+                    history = Generic.VisitedPage()
+                    history.SourceFile.Value = source
+                    history.Deleted = self._convert_deleted_status(deleted)
+                    history.OwnerUserID.Value = self._db_reader_get_string_value(r, 0)
+                    history.ID.Value = self._db_reader_get_string_value(r, 1)
+                    history.NickName.Value = self._db_reader_get_string_value(r, 2)
+                    if timestamp:
+                        ts = self._get_timestamp(timestamp)
+                        if ts:
+                            history.LastVisited.Value = ts
+                    history.FansCount.Value = self._db_reader_get_int_value(r, 4)
+                    history.FocusCount.Value = self._db_reader_get_int_value(r, 5)
+                    if cover not in [None, '']:
+                        history.CoverUris.Add(self._get_uri(cover))
+                    if photo not in [None, '']:
+                        history.PhotoUris.Add(self._get_uri(photo))
+                    history.VerifiedReason.Value = self._db_reader_get_string_value(r, 8)
+                    history.Description.Value = self._db_reader_get_string_value(r, 9)
+                    history.Sex.Value = self._convert_sex_type(self._db_reader_get_int_value(r, 10))
+                    models.append(history)
+                except Exception as e:
+                    if deleted == 0:
+                        TraceService.Trace(TraceLevel.Error, "model_im.py Error: LINE {}".format(traceback.format_exc()))
         except Exception as e:
-            TraceService.Trace(TraceLevel.Error, "model_im.py Error: LINE {}".format(traceback.format_exc()))
-
-        while row is not None:
-            if canceller.IsCancellationRequested:
-                break
-            try:
-                history = Generic.VisitedPage()
-                if row[11] not in [None, '']:
-                    history.SourceFile.Value = row[11]
-                if row[12] is not None:
-                    history.Deleted = self._convert_deleted_status(row[12])
-                if row[0]:
-                    history.OwnerUserID.Value = row[0]
-                if row[1]:
-                    history.ID.Value = row[1]
-                if row[2]:
-                    history.NickName.Value = row[2]
-                if row[3]:
-                    ts = self._get_timestamp(row[3])
-                    if ts:
-                        history.LastVisited.Value = ts
-                if row[4]:
-                    history.FansCount.Value = row[4]
-                if row[5]:
-                    history.FocusCount.Value = row[5]
-                if row[6] not in [None, '']:
-                    history.CoverUris.Add(self._get_uri(row[6]))
-                if row[7] not in [None, '']:
-                    history.PhotoUris.Add(self._get_uri(row[7]))
-                if row[8]:
-                    history.VerifiedReason.Value = row[8]
-                if row[9]:
-                    history.Description.Value = row[9]
-                if row[10]:
-                    history.Sex.Value = self._convert_sex_type(row[10])
-                models.append(history)
-            except Exception as e:
+            if deleted == 0:
                 TraceService.Trace(TraceLevel.Error, "model_im.py Error: LINE {}".format(traceback.format_exc()))
-            row = self.cursor.fetchone()
-
         return models 
 
     def _db_has_table(self, table_name):
         try:
             sql = "select count(*) from sqlite_master where type='table' and name='{}' ".format(table_name)
-            cursor = self.db.cursor()
-            cursor.execute(sql)
-            ret = cursor.fetchone()[0] >= 1
-            cursor.close()
-            return ret
+            cmd = self.db.CreateCommand()
+            cmd.CommandText = sql
+            r = cmd.ExecuteReader()
+            r.Read()
+            if r and self._db_reader_get_int_value(r, 0) >= 1:
+                return True
+            else:
+                return False
         except Exception as e:
             return False
 
@@ -1934,85 +1954,86 @@ class GenerateModel(object):
             else:
                 return ConvertHelper.ToUri(path)
 
-    def _get_feed_likes(self, account_id, like_id):
+    def _get_feed_likes(self, account_id, like_id, deleted):
         models = []
         sql = '''select sender_id, sender_name, create_time, source, deleted, repeated
                  from feed_like
                  where like_id='{0}' '''.format(like_id)
-        cursor = self.db.cursor()
-        row = None
         try:
-            cursor.execute(sql)
-            row = cursor.fetchone()
+            cmd = self.db.CreateCommand()
+            cmd.CommandText = sql
+            r = cmd.ExecuteReader()
+            while r.Read():
+                if canceller.IsCancellationRequested:
+                    break
+                try:
+                    sender_id = self._db_reader_get_string_value(r, 0)
+                    sender_name = self._db_reader_get_string_value(r, 1, None)
+                    timestamp = self._db_reader_get_int_value(r, 2, None)
+                    source = self._db_reader_get_string_value(r, 3)
+                    deleted = self._db_reader_get_int_value(r, 4, None)
+                    
+                    like = Common.MomentLike()
+                    like.User.Value = self._get_user_intro(account_id, sender_id, sender_name)
+                    if timestamp:
+                        ts = self._get_timestamp(timestamp)
+                        if ts:
+                            like.TimeStamp.Value = ts
+                    like.SourceFile.Value = source
+                    like.Deleted = self._convert_deleted_status(deleted)
+                    models.append(like)
+                except Exception as e:
+                    if deleted == 0:
+                        TraceService.Trace(TraceLevel.Error, "model_im.py Error: LINE {}".format(traceback.format_exc()))
         except Exception as e:
-            TraceService.Trace(TraceLevel.Error, "model_im.py Error: LINE {}".format(traceback.format_exc()))
-
-        while row is not None:
-            if canceller.IsCancellationRequested:
-                break
-            try:
-                like = Common.MomentLike()
-                if row[0]:
-                    like.User.Value = self._get_user_intro(account_id, row[0], row[1])
-                if row[2]:
-                    ts = self._get_timestamp(row[2])
-                    if ts:
-                        like.TimeStamp.Value = ts
-                if row[3] not in [None, '']:
-                    like.SourceFile.Value = row[3]
-                if row[4] is not None:
-                    like.Deleted = self._convert_deleted_status(row[4])
-                models.append(like)
-            except Exception as e:
+            if deleted == 0:
                 TraceService.Trace(TraceLevel.Error, "model_im.py Error: LINE {}".format(traceback.format_exc()))
-            row = cursor.fetchone()
-
-        if cursor is not None:
-            cursor.close()
         return models
 
-    def _get_feed_comments(self, account_id, comment_id):
+    def _get_feed_comments(self, account_id, comment_id, deleted):
         models = []
         sql = '''select sender_id, sender_name, ref_user_id, ref_user_name, content, create_time, source, deleted, repeated
                  from feed_comment
                  where comment_id='{0}' '''.format(comment_id)
-        cursor = self.db.cursor()
-        row = None
         try:
-            cursor.execute(sql)
-            row = cursor.fetchone()
+            cmd = self.db.CreateCommand()
+            cmd.CommandText = sql
+            r = cmd.ExecuteReader()
+            while r.Read():
+                if canceller.IsCancellationRequested:
+                    break
+                try:
+                    sender_id = self._db_reader_get_string_value(r, 0)
+                    sender_name = self._db_reader_get_string_value(r, 1, None)
+                    ref_user_id = self._db_reader_get_string_value(r, 2, None)
+                    ref_user_name = self._db_reader_get_string_value(r, 3, None)
+                    timestamp = self._db_reader_get_int_value(r, 5, None)
+                    source = self._db_reader_get_string_value(r, 6)
+                    deleted = self._db_reader_get_int_value(r, 7, None)
+
+
+                    comment = Common.MomentComment()
+                    if sender_id not in [None, '']:
+                        comment.Sender.Value = self._get_user_intro(account_id, sender_id, sender_name)
+                    if ref_user_id not in [None, '']:
+                        comment.Receiver.Value = self._get_user_intro(account_id, ref_user_id, ref_user_name)
+                    comment.Content.Value = self._db_reader_get_string_value(r, 4)
+                    if timestamp:
+                        ts = self._get_timestamp(timestamp)
+                        if ts:
+                            comment.TimeStamp.Value = ts
+                    comment.SourceFile.Value = source
+                    comment.Deleted = self._convert_deleted_status(deleted)
+                    models.append(comment)
+                except Exception as e:
+                    if deleted == 0:
+                        TraceService.Trace(TraceLevel.Error, "model_im.py Error: LINE {}".format(traceback.format_exc()))
         except Exception as e:
-            TraceService.Trace(TraceLevel.Error, "model_im.py Error: LINE {}".format(traceback.format_exc()))
-
-        while row is not None:
-            if canceller.IsCancellationRequested:
-                break
-            try:
-                comment = Common.MomentComment()
-                if row[0]:
-                    comment.Sender.Value = self._get_user_intro(account_id, row[0], row[1])
-                if row[2]:
-                    comment.Receiver.Value = self._get_user_intro(account_id, row[2], row[3])
-                if row[4]:
-                    comment.Content.Value = row[4]
-                if row[5]:
-                    ts = self._get_timestamp(row[5])
-                    if ts:
-                        comment.TimeStamp.Value = ts
-                if row[6] not in [None, '']:
-                    comment.SourceFile.Value = row[6]
-                if row[7] is not None:
-                    comment.Deleted = self._convert_deleted_status(row[7])
-                models.append(comment)
-            except Exception as e:
+            if deleted == 0:
                 TraceService.Trace(TraceLevel.Error, "model_im.py Error: LINE {}".format(traceback.format_exc()))
-            row = cursor.fetchone()
-
-        if cursor is not None:
-            cursor.close()
         return models
 
-    def _get_location(self, latitude, longitude, elevation, address, timestamp, source, deleted):
+    def _get_location(self, latitude, longitude, elevation, address, timestamp, loc_type, source, deleted):
         location = Locations.Location()
         location.Position.Value = Locations.Coordinate()
         if latitude:
@@ -2027,6 +2048,8 @@ class GenerateModel(object):
             ts = self._get_timestamp(timestamp)
             if ts:
                 location.TimeStamp.Value = ts
+        if loc_type:
+            location.Position.Value.Type.Value = self._convert_location_type(loc_type)
         if source not in [None, '']:
             location.SourceFile.Value = source
         if deleted is not None:
@@ -2165,8 +2188,39 @@ class GenerateModel(object):
             return Common.ReceiptStatus.UnReceive
 
     @staticmethod
+    def _convert_location_type(location_type):
+        if location_type == LOCATION_TYPE_GPS_MC:
+            return Locations.CoordinateType.GPSmc
+        elif location_type == LOCATION_TYPE_GOOGLE:
+            return Locations.CoordinateType.Google
+        elif location_type == LOCATION_TYPE_GOOGLE_MC:
+            return Locations.CoordinateType.Googlemc
+        elif location_type == LOCATION_TYPE_BAIDU:
+            return Locations.CoordinateType.Baidu
+        elif location_type == LOCATION_TYPE_BAIDU_MC:
+            return Locations.CoordinateType.Baidumc
+        elif location_type == LOCATION_TYPE_MAPBAR:
+            return Locations.CoordinateType.MapBar
+        elif location_type == LOCATION_TYPE_MAP51:
+            return Locations.CoordinateType.Map51
+        else:
+            return Locations.CoordinateType.GPS
+
+    @staticmethod
     def _convert_deleted_status(deleted):
         if deleted is None:
             return DeletedState.Unknown
         else:
             return DeletedState.Intact if deleted == 0 else DeletedState.Deleted
+
+    @staticmethod
+    def _db_reader_get_string_value(reader, index, default_value=''):
+        return reader.GetString(index) if not reader.IsDBNull(index) else default_value
+
+    @staticmethod
+    def _db_reader_get_int_value(reader, index, default_value=0):
+        return reader.GetInt64(index) if not reader.IsDBNull(index) else default_value
+
+    @staticmethod
+    def _db_reader_get_float_value(reader, index, default_value=0):
+        return reader.GetFloat(index) if not reader.IsDBNull(index) else default_value
