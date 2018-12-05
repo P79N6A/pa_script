@@ -16,6 +16,38 @@ namespace apple_dev
 {
     /// <summary>
     /// c#插件,非常简单,这是一个使用c#来编写PNFA数据解析插件的示例
+    /// 在config.dat的配置如下:
+    /*<dict>
+      <key>Module</key>
+      <string>apple_dev</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>apple_dev.AnalyzeDeviceInfo</string>
+          <key>ExcuteOrder</key>
+          <!-- ExcuteOrder 越大, 执行优先级越高 -->
+          <integer>999</integer>
+          <key>RunnerType</key>
+          <integer>0</integer>
+          <!-- ModuleType = 1 代表这是一个c#语言写的插件 -->
+          <key> ModuleType</key>
+          <integer>1</integer>
+          <key>Patterns</key>
+          <array>
+            <!-- # 表示直接取文件系统根节点 -->
+            <string>#</string>
+          </array>
+          <key>Category</key>
+          <string>DeviceInfo</string>
+          <key>Name</key>
+          <string>设备信息(苹果)</string>
+          <key>Filter</key>
+          <string>基础数据</string>
+        </dict>
+      </array>
+    </dict>
+    /// */
     /// </summary>
     public class AnalyzeDeviceInfo : INativePlugin
     {
