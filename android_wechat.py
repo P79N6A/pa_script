@@ -41,7 +41,7 @@ import tencent_struct
 # Models: Common.User, Common.Friend, Common.Group, Generic.Chat, Common.MomentContent
 
 # app数据库版本
-VERSION_APP_VALUE = 2
+VERSION_APP_VALUE = 3
 
 
 def analyze_wechat(root, extract_deleted, extract_source):
@@ -918,6 +918,7 @@ class SnsParser:
                         pass
                     if latitude != 0 or longitude != 0:
                         location = feed.create_location()
+                        location.type = model_im.LOCATION_TYPE_GOOGLE
                         location.latitude = latitude
                         location.longitude = longitude
                         location.address = self._get_ts_value(ret, 4)

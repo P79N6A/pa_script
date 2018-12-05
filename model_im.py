@@ -21,7 +21,7 @@ import sqlite3
 import json
 import uuid
 
-VERSION_VALUE_DB = 15
+VERSION_VALUE_DB = 16
 
 GENDER_NONE = 0
 GENDER_MALE = 1
@@ -100,6 +100,15 @@ FAVORITE_TYPE_LINK = 5  # 链接
 FAVORITE_TYPE_LOCATION = 6  # 位置
 FAVORITE_TYPE_ATTACHMENT = 7  # 附件
 FAVORITE_TYPE_CHAT = 8  # 聊天记录
+
+LOCATION_TYPE_GPS = 1  # GPS坐标
+LOCATION_TYPE_GPS_MC = 2  # GPS米制坐标
+LOCATION_TYPE_GOOGLE = 3  # GCJ02坐标
+LOCATION_TYPE_GOOGLE_MC = 4  # GCJ02米制坐标
+LOCATION_TYPE_BAIDU = 5  # 百度经纬度坐标
+LOCATION_TYPE_BAIDU_MC = 6  # 百度米制坐标
+LOCATION_TYPE_MAPBAR = 7  # mapbar地图坐标
+LOCATION_TYPE_MAP51 = 8  # 51地图坐标
 
 VERSION_KEY_DB = 'db'
 VERSION_KEY_APP = 'app'
@@ -308,13 +317,14 @@ SQL_CREATE_TABLE_LOCATION = '''
         elevation REAL,
         address TEXT,
         timestamp INT,
+        type INT,
         source TEXT,
         deleted INT DEFAULT 0, 
         repeated INT DEFAULT 0)'''
 
 SQL_INSERT_TABLE_LOCATION = '''
-    insert into location(location_id, latitude, longitude, elevation, address, timestamp, source, deleted, repeated) 
-        values(?, ?, ?, ?, ?, ?, ?, ?, ?)'''
+    insert into location(location_id, latitude, longitude, elevation, address, timestamp, type, source, deleted, repeated) 
+        values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
         
 SQL_CREATE_INDEX_ON_TABLE_LOCATION = '''
     create index idxLocation on location (location_id)
@@ -951,10 +961,11 @@ class Location(Column):
         self.elevation = None  # 海拔[REAL]
         self.address = None  # 地址名称[TEXT]
         self.timestamp = None  # 时间戳[INT]
+        self.type = LOCATION_TYPE_GPS  # 坐标系[INT]  LOCATION_TYPE
 
     def get_values(self):
         return (self.location_id, self.latitude, self.longitude, self.elevation, self.address, 
-                self.timestamp) + super(Location, self).get_values()
+                self.timestamp, self.type) + super(Location, self).get_values()
 
     def insert_db(self, im):
         if isinstance(im, IM):
@@ -1240,7 +1251,7 @@ class GenerateModel(object):
                         friend.birthday, friend.signature, friend.location_id, friend.source, friend.deleted, 
                         friend.repeated, friend.fullname,
                         location.latitude, location.longitude, location.elevation, location.address, location.timestamp,
-                        location.source, location.deleted
+                        location.type, location.source, location.deleted
                  from friend
                  left join location on friend.location_id = location.location_id'''
         deleted = 0
@@ -1267,6 +1278,7 @@ class GenerateModel(object):
                     location_elevation = self._db_reader_get_float_value(r, 21)
                     location_address = self._db_reader_get_string_value(r, 22)
                     location_timestamp = self._db_reader_get_int_value(r, 23)
+                    location_type = self._db_reader_get_int_value(r, 24)
 
                     friend = Common.Friend()
                     friend.SourceFile.Value = source
@@ -1291,7 +1303,7 @@ class GenerateModel(object):
                             friend.Birthday.Value = ts
                     friend.Signature.Value = self._db_reader_get_string_value(r, 12)
                     if location_id not in [None, 0]:
-                        location = self._get_location(location_latitude, location_longitude, location_elevation, location_address, location_timestamp, source, deleted)
+                        location = self._get_location(location_latitude, location_longitude, location_elevation, location_address, location_timestamp, location_type, source, deleted)
                         friend.Location.Value = location
                         models.append(location)
                     friend.FullName.Value = self._db_reader_get_string_value(r, 17)
@@ -1390,7 +1402,7 @@ class GenerateModel(object):
                         message.location_id, message.deal_id, message.link_id, message.status, message.talker_type, 
                         message.source, message.deleted, message.repeated, 
                         location.latitude, location.longitude, location.elevation, location.address, location.timestamp,
-                        location.source, location.deleted,
+                        location.type, location.source, location.deleted,
                         deal.type, deal.money, deal.description, deal.remark, deal.status, deal.create_time, deal.expire_time, 
                         deal.receive_info, deal.source, deal.deleted, 
                         link.url, link.title, link.content, link.image, link.source, link.deleted
@@ -1428,17 +1440,18 @@ class GenerateModel(object):
                     location_elevation = self._db_reader_get_float_value(r, 21)
                     location_address = self._db_reader_get_string_value(r, 22)
                     location_timestamp = self._db_reader_get_int_value(r, 23)
-                    deal_money = self._db_reader_get_string_value(r, 27)
-                    deal_description = self._db_reader_get_string_value(r, 28)
-                    deal_remark = self._db_reader_get_string_value(r, 29)
-                    deal_status = self._db_reader_get_int_value(r, 30)
-                    deal_create_time = self._db_reader_get_int_value(r, 31)
-                    deal_expire_time = self._db_reader_get_int_value(r, 32)
-                    deal_receive_info = self._db_reader_get_string_value(r, 33)
-                    link_url = self._db_reader_get_string_value(r, 36)
-                    link_title = self._db_reader_get_string_value(r, 37)
-                    link_desc = self._db_reader_get_string_value(r, 38)
-                    link_image_path = self._db_reader_get_string_value(r, 39)
+                    location_type = self._db_reader_get_int_value(r, 24)
+                    deal_money = self._db_reader_get_string_value(r, 28)
+                    deal_description = self._db_reader_get_string_value(r, 29)
+                    deal_remark = self._db_reader_get_string_value(r, 30)
+                    deal_status = self._db_reader_get_int_value(r, 31)
+                    deal_create_time = self._db_reader_get_int_value(r, 32)
+                    deal_expire_time = self._db_reader_get_int_value(r, 33)
+                    deal_receive_info = self._db_reader_get_string_value(r, 34)
+                    link_url = self._db_reader_get_string_value(r, 37)
+                    link_title = self._db_reader_get_string_value(r, 38)
+                    link_desc = self._db_reader_get_string_value(r, 39)
+                    link_image_path = self._db_reader_get_string_value(r, 40)
 
                     message = Common.Message()
                     message.Content.Value = Common.MessageContent()
@@ -1469,7 +1482,7 @@ class GenerateModel(object):
                     #    pass
                     elif msg_type == MESSAGE_CONTENT_TYPE_LOCATION:
                         if location_id not in [None, 0]:
-                            location = self._get_location(location_latitude, location_longitude, location_elevation, location_address, location_timestamp, source, deleted)
+                            location = self._get_location(location_latitude, location_longitude, location_elevation, location_address, location_timestamp, location_type, source, deleted)
                             message.Content.Value.Location.Value = location
                             models.append(location)
                     elif msg_type == MESSAGE_CONTENT_TYPE_RED_ENVELPOE:
@@ -1586,7 +1599,7 @@ class GenerateModel(object):
                         feed.rtcount, feed.comment_id, feed.commentcount, feed.device, feed.location_id, 
                         feed.source, feed.deleted, feed.repeated,
                         location.latitude, location.longitude, location.elevation, location.address, location.timestamp,
-                        location.source, location.deleted
+                        location.type, location.source, location.deleted
                  from feed
                  left join location on feed.location_id = location.location_id '''
         deleted = 0
@@ -1613,6 +1626,7 @@ class GenerateModel(object):
                     location_elevation = self._db_reader_get_float_value(r, 21)
                     location_address = self._db_reader_get_string_value(r, 22)
                     location_timestamp = self._db_reader_get_int_value(r, 23)
+                    location_type = self._db_reader_get_int_value(r, 24)
 
                     moment = Common.Moment()
                     moment.Content.Value = Common.MomentContent()
@@ -1649,7 +1663,7 @@ class GenerateModel(object):
                     moment.CommentCount.Value = self._db_reader_get_int_value(r, 13)
                     moment.Device.Value = self._db_reader_get_string_value(r, 14)
                     if location_id not in [None, 0]:
-                        location = self._get_location(location_latitude, location_longitude, location_elevation, location_address, location_timestamp, source, deleted)
+                        location = self._get_location(location_latitude, location_longitude, location_elevation, location_address, location_timestamp, location_type, source, deleted)
                         moment.Location.Value = location
                     models.append(moment)
                 except Exception as e:
@@ -1758,7 +1772,7 @@ class GenerateModel(object):
                         favorite_item.content, favorite_item.media_path, favorite_item.link_id, favorite_item.location_id,
                         favorite_item.timestamp, favorite_item.source, favorite_item.deleted, favorite_item.repeated,
                         location.latitude, location.longitude, location.elevation, location.address, location.timestamp,
-                        location.source, location.deleted,
+                        location.type, location.source, location.deleted,
                         link.url, link.title, link.content, link.image, link.source, link.deleted
                  from favorite_item
                  left join location on favorite_item.location_id = location.location_id
@@ -1786,10 +1800,11 @@ class GenerateModel(object):
                     location_elevation = self._db_reader_get_float_value(r, 14)
                     location_address = self._db_reader_get_string_value(r, 15)
                     location_timestamp = self._db_reader_get_int_value(r, 16)
-                    link_url = self._db_reader_get_string_value(r, 19)
-                    link_title = self._db_reader_get_string_value(r, 20)
-                    link_desc = self._db_reader_get_string_value(r, 21)
-                    link_image_path = self._db_reader_get_string_value(r, 22)
+                    location_type = self._db_reader_get_int_value(r, 17)
+                    link_url = self._db_reader_get_string_value(r, 20)
+                    link_title = self._db_reader_get_string_value(r, 21)
+                    link_desc = self._db_reader_get_string_value(r, 22)
+                    link_image_path = self._db_reader_get_string_value(r, 23)
 
                     message = Common.Message()
                     message.Content.Value = Common.MessageContent()
@@ -1814,7 +1829,7 @@ class GenerateModel(object):
                             message.Content.Value.Link.Value = self._get_link(link_url, link_title, link_desc, link_image_path, source, deleted)
                     elif fav_type == FAVORITE_TYPE_LOCATION:
                         if location_id not in [None, 0]:
-                            location = self._get_location(location_latitude, location_longitude, location_elevation, location_address, location_timestamp, source, deleted)
+                            location = self._get_location(location_latitude, location_longitude, location_elevation, location_address, location_timestamp, location_type, source, deleted)
                             message.Content.Value.Location.Value = location
                     elif fav_type == FAVORITE_TYPE_ATTACHMENT:
                         message.Content.Value.File.Value = self._get_uri(media_path)
@@ -2018,7 +2033,7 @@ class GenerateModel(object):
                 TraceService.Trace(TraceLevel.Error, "model_im.py Error: LINE {}".format(traceback.format_exc()))
         return models
 
-    def _get_location(self, latitude, longitude, elevation, address, timestamp, source, deleted):
+    def _get_location(self, latitude, longitude, elevation, address, timestamp, loc_type, source, deleted):
         location = Locations.Location()
         location.Position.Value = Locations.Coordinate()
         if latitude:
@@ -2033,6 +2048,8 @@ class GenerateModel(object):
             ts = self._get_timestamp(timestamp)
             if ts:
                 location.TimeStamp.Value = ts
+        if loc_type:
+            location.Position.Value.Type.Value = self._convert_location_type(loc_type)
         if source not in [None, '']:
             location.SourceFile.Value = source
         if deleted is not None:
@@ -2169,6 +2186,25 @@ class GenerateModel(object):
             return Common.ReceiptStatus.Expire
         else:
             return Common.ReceiptStatus.UnReceive
+
+    @staticmethod
+    def _convert_location_type(location_type):
+        if location_type == LOCATION_TYPE_GPS_MC:
+            return Locations.CoordinateType.GPSmc
+        elif location_type == LOCATION_TYPE_GOOGLE:
+            return Locations.CoordinateType.Google
+        elif location_type == LOCATION_TYPE_GOOGLE_MC:
+            return Locations.CoordinateType.Googlemc
+        elif location_type == LOCATION_TYPE_BAIDU:
+            return Locations.CoordinateType.Baidu
+        elif location_type == LOCATION_TYPE_BAIDU_MC:
+            return Locations.CoordinateType.Baidumc
+        elif location_type == LOCATION_TYPE_MAPBAR:
+            return Locations.CoordinateType.MapBar
+        elif location_type == LOCATION_TYPE_MAP51:
+            return Locations.CoordinateType.Map51
+        else:
+            return Locations.CoordinateType.GPS
 
     @staticmethod
     def _convert_deleted_status(deleted):
