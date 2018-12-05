@@ -422,6 +422,30 @@
       </array>
     </dict>
 
+	<dict>
+      <key>Module</key>
+      <string>apple_qunar</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_qunar</string>
+          <key>RunnerType</key>
+          <integer>0</integer>
+          <key>Patterns</key>
+          <array>
+            <string>/Library/Preferences/com.qunar.iphoneclient8.plist$</string>
+          </array>
+          <key>Category</key>
+          <string>Qunar</string>
+          <key>Name</key>
+          <string>去哪儿(苹果)</string>
+          <key>Filter</key>
+          <string>应用>商旅</string>
+        </dict>
+      </array>
+    </dict>
+	
     <dict>
       <key>Module</key>
       <string>apple_ctrip</string>
