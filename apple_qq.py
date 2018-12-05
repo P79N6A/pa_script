@@ -121,7 +121,7 @@ class QQParser(object):
                     self.c2cmsgtables =set()
                     self.troopmsgtables =set() 
                     self.discussGrptables = set() 
-                    #self.decode_favorites_info(acc_id)                  
+                    self.decode_favorites_info(acc_id)                  
                     self.decode_friends(acc_id)
                     self.decode_group_info(acc_id)                    
                     self.decode_groupMember_info(acc_id)
@@ -148,6 +148,179 @@ class QQParser(object):
         PA_runtime.save_cache_path(bcp_im.CONTACT_ACCOUNT_TYPE_IM_QQ,self.cachedb,self.bcppath)
         gen = GenerateModel(self.cachedb)
         return gen.get_models()
+    def processFavItem(self,fav,tree_fav_info,msgtype,senderid,sendername,create_time):
+        try:            
+            if(msgtype == 8):
+                brief = tree_fav_info['brief'].Value                
+                original_uri = tree_fav_info['original_uri'].Value
+                title = tree_fav_info['title'].Value                             
+                pic_list = tree_fav_info['pic_list'].Value     
+                if  not (brief ==''  and title =='' and original_uri == ''):
+                    itemcontext = fav.create_item()
+                    itemcontext.type =  FAVORITE_TYPE_LINK
+                    itemcontext.source = fav.source
+                    itemcontext.timestamp = create_time
+                    link = itemcontext.create_link()
+                    link.title = title
+                    link.content = brief 
+                    link.image = original_uri
+                    link.source = fav.source                    
+                for pic in pic_list:
+                    try:
+                        item = fav.create_item()
+                        orginPath = pic['originPath'].Value
+                        url = pic['url'].Value                        
+                        if orginPath is not None:                            
+                            media_path = self.root.FileSystem.Search(orginPath)
+                            for node in media_path:
+                                item.media_path = node.AbsolutePath
+                                break;
+                            else:
+                                item.media_path = url                          
+                        else:
+                            item.media_path = url
+                        item.type = FAVORITE_TYPE_IMAGE
+                        item.sender = senderid
+                        item.sender_name = sendername 
+                        item.source = fav.source
+                        item.timestamp = create_time
+                    except:
+                        pass
+            elif(msgtype == 2):
+                brief = tree_fav_info['brief'].Value                
+                title = tree_fav_info['title'].Value
+                pic_list = tree_fav_info['pic_list'].Value        
+                url = tree_fav_info['url'].Value 
+                if not (brief == "" and title == "" and  urll == ""):
+                    itemcontext = fav.create_item()
+                    itemcontext.type =  FAVORITE_TYPE_LINK
+                    itemcontext.source = fav.source
+                    itemcontext.timestamp = create_time
+                    link = itemcontext.create_link()                
+                    link.title = title
+                    link.content = brief                 
+                    link.image = url
+                    link.source = fav.source 
+                for pic in pic_list:
+                    try:
+                        item = fav.create_item()
+                        orginPath = pic['originPath'].Value
+                        url = pic['url'].Value
+                        name = pic['name'].Valueitem
+                        if orginPath is not None:                            
+                            media_path = self.root.FileSystem.Search(orginPath)
+                            for node in media_path:
+                                item.media_path = node.AbsolutePath
+                                break;                          
+                            else:
+                                item.media_path = url    
+                        else:
+                            item.media_path = url
+                        item.type = FAVORITE_TYPE_IMAGE
+                        item.sender = senderid
+                        item.sender_name = sendername            
+                        item.source = fav.source
+                        item.timestamp = create_time
+                    except:
+                        pass                    
+            elif(msgtype == 6):
+                fav_file_info_data = tree_fav_info['fav_file_info_data'].Value 
+                file_path = tree_fav_info['file_path'].Value 
+                mem = MemoryRange.FromBytes(fav_file_info_data)
+                file_info_tree  = BPReader.GetTree(mem)
+                file_info = file_info_tree['file_info']
+                name = file_info['name'].Value
+                item = fav.create_item()
+                item.type = FAVORITE_TYPE_ATTACHMENT
+                item.sender = senderid
+                item.sender_name = sendername 
+                media_path =  self.root.FileSystem.Search(file_path)
+                for node in media_path:
+                    item.media_path = node.AbsolutePath
+                    break;
+                item.source = fav.source
+                item.timestamp = create_time
+            elif (msgtype == 7):
+                longitude = tree_fav_info['longitude'].Value
+                name = tree_fav_info['name'].Value
+                latitude = tree_fav_info['latitude'].Value
+                altitude = tree_fav_info['altitude'].Value   
+                item = fav.create_item()
+                item.timestamp = create_time
+                item.type = FAVORITE_TYPE_LOCATION
+                item.sender = senderid
+                item.sender_name = sendername 
+                item.source = fav.source
+                location = item.create_location()
+                location.latitude = latitude
+                location.longitude = longitude
+                location.address = name
+                location.elevation = altitude                 
+                location.source = fav.source                
+            elif(msgtype == 9):            
+                item = fav.create_item()                    
+                item.timestamp = create_time
+                note = tree_fav_info['note'].Value
+                duration = tree_fav_info['duration'].Value/1000
+                item.content = note + '时长:' +  str(duration)
+                item.type = FAVORITE_TYPE_VOICE
+                item.sender = senderid
+                item.sender_name = sendername 
+                item.source = fav.source
+        except Exception as e:
+            print (e)
+        pass
+    def decode_favorites_info(self,acc_id):
+        node = self.root.GetByPath('/Documents/contents/' + acc_id + '/QQ.db')
+        if node is None:
+            return
+        table = 'tb_favorites_' + acc_id
+        db = SQLiteParser.Database.FromNode(node,canceller)       
+        if( table not in db.Tables):
+            return
+        ts = SQLiteParser.TableSignature(table)        
+        for row in db.ReadTableRecords(ts, False):
+            try:
+                if canceller.IsCancellationRequested:
+                    return
+                fav = Favorite()
+                loc =  row['local_id'].Value
+                msgtype = row['type'].Value
+                # 群或则个人
+                author_type = row['author_type'].Value
+                author_num_id = row['author_num_id'].Value
+                author_str_id = row['author_str_id'].Value
+                author_group_id = row['author_group_id'].Value  
+                author_group_name = row['author_group_name'].Value                
+                create_time = row['create_time'].Value/1000
+                collect_time = row['collect_time'].Value/1000
+                comm_biz_data_list = row['comm_biz_data_list'].Value
+                fav_info = row['fav_info'].Value
+                fav_detail = row['fav_detail'].Value                
+                mem = MemoryRange.FromBytes(comm_biz_data_list)
+                tree_comm_biz_data = BPReader.GetTree(mem)
+                mem_fav_info = MemoryRange.FromBytes(fav_info)
+                tree_fav_info =BPReader.GetTree(mem_fav_info)
+                mem_fav_detail= MemoryRange.FromBytes(fav_detail)
+                tree_fav_detail =BPReader.GetTree(mem_fav_detail)                    
+                fav.account_id = acc_id       
+                fav.source = node.AbsolutePath
+                if author_type == 2 :
+                    fav.talker =  author_group_id
+                    fav.talker_name = author_group_name
+                    fav.talker_type = CHAT_TYPE_GROUP
+                elif author_type == 1:
+                    fav.talker =  author_num_id
+                    fav.talker_name = author_str_id
+                    fav.talker_type = CHAT_TYPE_FRIEND
+                fav.timestamp = collect_time        
+                self.processFavItem(fav,tree_fav_info,msgtype,author_num_id,author_str_id,create_time)
+                fav.insert_db(self.im)
+            except:
+                pass
+        self.im.db_commit()		
+        return
+
     def decode_fts_messages(self,acc_id):
         node = self.root.GetByPath('/Documents/contents/' + acc_id + '/FTSMsg.db')
         if node is None:
@@ -750,7 +923,8 @@ class QQParser(object):
                     #maybe the system
                     elif(msgtype == 337):                        
                         loc = self.get_location(acc_id,content)
-                        if(loc is not None):                            
+                        if(loc is not None): 
+                            msg.type = MESSAGE_CONTENT_TYPE_LOCATION
                             locat = msg.create_location()                            
                             locat.latitude = float(loc[1])
                             locat.longitude = float(loc[2])
@@ -844,6 +1018,7 @@ class QQParser(object):
                     elif(msgtype == 337):                        
                         loc = self.get_location(acc_id,content)
                         if(loc is not None):                            
+                            msg.type = MESSAGE_CONTENT_TYPE_LOCATION
                             locat = msg.create_location()                            
                             locat.latitude = float(loc[1])
                             locat.longitude = float(loc[2])
@@ -927,7 +1102,8 @@ class QQParser(object):
                     #maybe the system
                     elif(msgtype == 337):
                         loc = self.get_location(acc_id,content)
-                        if(loc is not None):                            
+                        if(loc is not None):     
+                            msg.type = MESSAGE_CONTENT_TYPE_LOCATION
                             locat = msg.create_location()                            
                             locat.latitude = float(loc[1])
                             locat.longitude = float(loc[2])
@@ -1049,7 +1225,13 @@ class QQParser(object):
             val_ind = bp[dict_ind][key].Value
             values[key] = bp[val_ind]
         return values
-
+    def get_dict_from_bplist2(self, bp, dict_ind):
+        values = {}
+        #keyIndex = bp['NS.keys']
+        for keyindex in bp[1]['NS.keys']:            
+            key = bp[keyindex].Value
+            values[key] = bp[val_ind]
+        return values
     def init_model_field_from_bp_field(self, src, dst, extract_source):
         if src is None:
             return
@@ -1165,7 +1347,8 @@ class QQParser(object):
                     #maybe the system
                     elif(msgtype == 337):
                         loc = self.get_location(acc_id,content)
-                        if(loc is not None):                            
+                        if(loc is not None):                  
+                            msg.type = MESSAGE_CONTENT_TYPE_LOCATION
                             locat = msg.create_location()                            
                             locat.latitude = float(loc[1])
                             locat.longitude = float(loc[2])
@@ -1247,7 +1430,8 @@ class QQParser(object):
                     #maybe the system
                     elif(msgtype == 337):
                         loc = self.get_location(acc_id,content)
-                        if(loc is not None):                            
+                        if(loc is not None):                       
+                            msg.type = MESSAGE_CONTENT_TYPE_LOCATION
                             locat = msg.create_location()                            
                             locat.latitude = float(loc[1])
                             locat.longitude = float(loc[2])
