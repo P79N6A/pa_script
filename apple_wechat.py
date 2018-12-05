@@ -38,7 +38,7 @@ from base_wechat import *
 # Models: Common.User, Common.Friend, Common.Group, Generic.Chat, Common.MomentContent
 
 # app数据库版本
-VERSION_APP_VALUE = 4
+VERSION_APP_VALUE = 5
 
 
 def analyze_wechat(root, extract_deleted, extract_source):
@@ -590,6 +590,7 @@ class WeChatParser(Wechat):
                 longitude = self._bpreader_node_get_float_value(location_node, 'location_longitude')
                 if latitude != 0 or longitude != 0:
                     location = feed.create_location()
+                    location.type = model_im.LOCATION_TYPE_GOOGLE
                     location.latitude = latitude
                     location.longitude = longitude
                     location.address = self._bpreader_node_get_string_value(location_node, 'poiName', deleted = feed.deleted)
@@ -867,6 +868,7 @@ class WeChatParser(Wechat):
                             pass
                     if latitude != 0 or longitude != 0:
                         location = fav_item.create_location()
+                        location.type = model_im.LOCATION_TYPE_GOOGLE
                         location.latitude = latitude
                         location.longitude = longitude
                         if locitem.Element('label'):
@@ -930,6 +932,7 @@ class WeChatParser(Wechat):
                                         pass
                                 if latitude != 0 or longitude != 0:
                                     location = fav_item.create_location()
+                                    location.type = model_im.LOCATION_TYPE_GOOGLE
                                     location.latitude = latitude
                                     location.longitude = longitude
                                     if locitem.Element('label'):

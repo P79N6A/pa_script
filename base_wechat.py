@@ -217,6 +217,7 @@ class Wechat(object):
                     pass
             if latitude != 0 or longitude != 0:
                 location = model.create_location()
+                location.type = model_im.LOCATION_TYPE_GOOGLE
                 location.latitude = latitude
                 location.longitude = longitude
                 if loc.Attribute('poiname'):
