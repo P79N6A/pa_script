@@ -203,7 +203,7 @@ namespace apple_dev
                 }
             }
 
-            //返回空的pr,实际的数据已经存在ds.DeviceInfo里面了
+            //返回空的pr,实际的数据已经存在ds.DeviceInfo里面了,这是特殊情况,一般情况下你应该将数据通过pr存储返回给主程序
             return pr;
         }
     }
