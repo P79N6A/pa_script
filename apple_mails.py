@@ -3,7 +3,7 @@ import os
 import PA_runtime
 import hashlib
 import traceback
-import time
+import time as py_time
 
 import clr
 clr.AddReference('PNFA.iPhoneApps')
@@ -445,7 +445,6 @@ def read_mail(mail_dir, envelope_db, protected_db, extractDeleted, extractSource
     return final_results
 
 def read_old_mail(mail_dir, envelope_db, extractDeleted, extractSource):
-
     mailboxes = get_mailboxes(envelope_db, mail_dir, extractDeleted, extractSource)
     part_records = get_data_records(envelope_db, extractDeleted, extractSource)
 
@@ -763,7 +762,7 @@ def analyze_emails(mail_dir, extractDeleted, extractSource):
 ##                添加中间数据库                 ##
 #################################################
 DEBUG = True
-# DEBUG = False
+DEBUG = False
 VERSION_APP_VALUE = 1
 
 def exc():
@@ -833,12 +832,14 @@ class Export2db(object):
             mail.mail_subject     = email.Subject.Value
             mail.mail_abstract    = email.Abstract.Value
             mail.mail_content     = email.Body.Value
-            if email.From.Value.Identifier.Value and email.From.Value.Name.Value:
-                mail.mail_from = email.From.Value.Identifier.Value + ' ' + email.From.Value.Name.Value 
             mail.mail_to          = self._handle_mutimodel(email.To)
             mail.mail_cc          = self._handle_mutimodel(email.Cc)
             mail.mail_bcc         = self._handle_mutimodel(email.Bcc)
             mail.mail_sent_date   = self._convert_2_timestamp(email.TimeStamp)
+            try:
+                mail.mail_from = email.From.Value.Identifier.Value + ' ' + email.From.Value.Name.Value 
+            except:
+                pass
             # status_dict = {
             #     0: MessageStatus.Unread,
             #     1: MessageStatus.Read
@@ -890,8 +891,8 @@ class Export2db(object):
                 if re.match(r'\d', div_str):
                     div_str = ''
                 time_pattren = "%Y{div}%m{div}%d %H:%M:%S".format(div=div_str)
-                ts = time.strptime(str(format_time), time_pattren)
-                return time.mktime(ts)
+                ts = py_time.strptime(str(format_time), time_pattren)
+                return py_time.mktime(ts)
             return 0
         except:
             exc()
