@@ -203,6 +203,14 @@ class Utils(object):
         except:
             return None
 
+    @staticmethod
+    def create_sub_node(node, rpath, vname):
+        mem = MemoryRange.CreateFromFile(rpath)
+        r_node = Node(vname, Files.NodeType.File)
+        r_node.Data = mem
+        node.Children.Add(r_node)
+        return r_node
+
 
 class Logger(object):
     def __init__(self):
@@ -232,6 +240,7 @@ class Logger(object):
 class TaobaoParser(object):
     def __init__(self, root, extract_deleted, extract_source):
         self.root = root
+        print(self.root.PathWithMountPoint)
         self.app_name = 'Taobao'
         self.extract_deleted = extract_deleted
         self.extract_source = extract_source
@@ -996,7 +1005,9 @@ class TaobaoParser(object):
     def _recover_eb_data(self):
         # self.recover_eb_shop_col = self.root.GetByPath("/databases/AmpData")
         # self.recover_eb_products_col = self.root.GetByPath("/databases/data_history")
-        self.recover_eb_log_col = RecoverTableHelper(self.root.GetByPath("/databases/MLTK.db"))
+        db_path = os.path.join(self.data_path, "MLTK.db")
+        node = Utils.create_sub_node(self.root, db_path, "recover_node")
+        self.recover_eb_log_col = RecoverTableHelper(node)
 
         if not self.recover_eb_log_col.is_valid():
             return
@@ -1044,7 +1055,7 @@ class TaobaoParser(object):
     def parse(self):
         """解析的主函数"""
 
-        if self.model_eb_col.need_parse:
+        if DEBUG or self.model_eb_col.need_parse:
             self.model_eb_col.db_create()
 
             self.main()
