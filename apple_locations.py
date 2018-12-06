@@ -467,7 +467,7 @@ class LocationsParser(object):
         return results
 
 def analyze_locations(node, extract_deleted, extract_source):
-    extractDeleted = False #位置相关的数据最好不要恢复
+    #extractDeleted = False #暂时禁用位置相关的数据恢复
     pr = ParserResults()
     pr.Models.AddRange(LocationsParser(node, extract_deleted, extract_source).parse())
     pr.Build('地理位置')
@@ -499,13 +499,14 @@ class FrequentLocationsParser(object):
                 return False
 
     def read_file_path(self,node):
-        wal_path = node.PathWithMountPoint + "-wal"
-        if os.path.exists(wal_path):
+            wal_path = node.PathWithMountPoint + "-wal"
             file_name = os.path.basename(node.PathWithMountPoint)
             dest_file = self.cache + "/{0}".format(file_name)
             dest_wal_file = self.cache +"/{0}-wal".format(file_name)
+            if os.path.exists(wal_path):
+                moveFileto(wal_path, dest_wal_file)
             moveFileto(node.PathWithMountPoint, dest_file)
-            moveFileto(wal_path, dest_wal_file)
+            #moveFileto(wal_path, dest_wal_file)
             return dest_file
     # ios 11 常去地理位置存放在cache.sqlite,cloud.sqlite,local.sqlite 
     # herf = https://blog.elcomsoft.com/2018/06/apple-probably-knows-what-you-did-last-summer/
@@ -571,10 +572,7 @@ class FrequentLocationsParser(object):
             return
         dicts = defaultdict(list)
         reader = None
-        if self.read_file_path(node) is None:
-            connection = System.Data.SQLite.SQLiteConnection('Data Source = {0}; ReadOnly = True'.format(node.PathWithMountPoint))
-        else:
-            connection = System.Data.SQLite.SQLiteConnection('Data Source = {0}; ReadOnly = True'.format(self.read_file_path(node)))
+        connection = System.Data.SQLite.SQLiteConnection('Data Source = {0}; ReadOnly = True'.format(self.read_file_path(node)))
         try:
             connection.Open()
             cmd = System.Data.SQLite.SQLiteCommand(connection)
@@ -613,10 +611,7 @@ class FrequentLocationsParser(object):
                 continue
             if "ZRTLEARNEDLOCATIONOFINTERESTVISITMO" not in db.Tables:
                 continue
-            if self.read_file_path(dbFile) is None:
-                connection = System.Data.SQLite.SQLiteConnection('Data Source = {0}; ReadOnly = True'.format(dbFile.PathWithMountPoint))
-            else:
-                connection = System.Data.SQLite.SQLiteConnection('Data Source = {0}; ReadOnly = True'.format(self.read_file_path(dbFile)))
+            connection = System.Data.SQLite.SQLiteConnection('Data Source = {0}; ReadOnly = True'.format(self.read_file_path(dbFile)))
             dicts = self.get_all_frequent_groups(dbFile)
             if dicts is None:
                 dicts = []
@@ -770,7 +765,6 @@ class FrequentLocationsParser(object):
                 j.Source.Value = self.category
                 j.Deleted = DeletedState.Intact
                 j.WayPoints.Add(loc)
-                j.FromPoint.Value = loc
                 j.StartTime.Init(TimeStamp(epoch.AddSeconds( visitNode['entry_s'].Value), True), MemoryRange(visitNode['entry_s'].Source) if self.extractSource else None)
                 j.EndTime.Init(TimeStamp(epoch.AddSeconds( visitNode['exit_s'].Value), True), MemoryRange(visitNode['exit_s'].Source) if self.extractSource else None)
                 results.append(j)

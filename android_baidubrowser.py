@@ -360,7 +360,11 @@ class BaiduBrowserParser(object):
 
     def _convert_2_nodepath(self, raw_path, file_name):
         try:
-            # huawei: /data/user/0/com.baidu.searchbox/files/template/profile.zip
+            # 判断文件名是否合法
+            invalid_file_name = re.search(r'[\\/:*?"<>|\r\n]+', file_name)
+            if invalid_file_name:
+                return None
+            # 已知可能存在的路径 huawei: /data/user/0/com.baidu.searchbox/files/template/profile.zip
             paths = [
                 '/data.tar/data/data/com.baidu.searchbox/files/template/', 
                 '/storage/emulated/0/baidu/flyflow/downloads/',
@@ -369,11 +373,10 @@ class BaiduBrowserParser(object):
             if not file_name:
                 raw_path_list = raw_path.split(r'/')
                 file_name = raw_path_list[-1]
-            # if  '.' not in file_name:
-            #     return 
             for path in paths:
                 if os.path.isfile(os.path.join(path, file_name)):
                     return os.path.join(path, file_name)
+            # search
             _path = None
             if len(file_name) > 0:
                 try:

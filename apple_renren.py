@@ -35,7 +35,7 @@ CONTACT_TYPE_FRIEND = 1
 CONTACT_TYPE_GROUP = 2
 
 def analyze_renren(root, extract_deleted, extract_source):
-    r = ParserResults()
+    pr = ParserResults()
 
     models = RenRenParser(root, extract_deleted, extract_source).parse()
 

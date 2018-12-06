@@ -251,8 +251,9 @@ class BDNetDisk(object):
         self.nd.im.db_commit()
         reader.Close()
 
+
 def judge_node(node):
-    node = root.Parent.Parent.Parent
+    node = node.Parent.Parent.Parent
     sub = node.GetByPath('Documents')
     if sub is None:
         return None
@@ -277,7 +278,7 @@ def parse_bdy(node, extract_source, extract_deleted):
         models = nd.generate_models()
         mlm = ModelListMerger()
         pr = ParserResults()
-        pr.Categories = DescripCategories.BDN
+        pr.Categories = DescripCategories.BDY
         pr.Models.AddRange(list(mlm.GetUnique(models)))
         pr.Build("百度云")
     except:

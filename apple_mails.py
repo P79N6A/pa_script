@@ -3,7 +3,7 @@ import os
 import PA_runtime
 import hashlib
 import traceback
-import time
+import time as py_time
 
 import clr
 clr.AddReference('PNFA.iPhoneApps')
@@ -243,15 +243,20 @@ def get_emlx_files(mail):
             messages = d.GetFirstNode("Messages")
             if messages != None:
                 for f in messages.Glob("*.emlx*"):
-                    parts = f.Name.split(".", 1)
-                    message_id = parts[0]
-                    if parts[1] == "emlx":
-                        emlx[message_id] = f
-                    elif parts[1].endswith("emlxpart"):
-                        f.Data.seek(0)
-                        data = f.Data.read()
-                        part_num = parts[1].rsplit(".", 1)[0]
-                        emlxpart[message_id].append((part_num, DataRecord(part_num, "", 1, data, f)))
+                    # 检测 邮件文件在文件系统下是否异常
+                    try:
+                        parts = f.Name.split(".", 1)
+                        message_id = parts[0] 
+                        if parts[1] == "emlx":
+                            f.Data.seek(0)
+                            emlx[message_id] = f
+                        elif parts[1].endswith("emlxpart"):
+                            f.Data.seek(0)
+                            data = f.Data.read()
+                            part_num = parts[1].rsplit(".", 1)[0]
+                            emlxpart[message_id].append((part_num, DataRecord(part_num, "", 1, data, f)))
+                    except:
+                        continue
 
     return emlx, emlxpart
 
@@ -405,7 +410,6 @@ def read_mail(mail_dir, envelope_db, protected_db, extractDeleted, extractSource
         if emlx_file != None:
             emlx_file.Data.seek(0)
             data = emlx_file.read()
-
             m = message_from_string(data)
             body, attachments = read_from_mime(m, None)
             add_embedded(emlx_file, attachments, msg)
@@ -445,7 +449,6 @@ def read_mail(mail_dir, envelope_db, protected_db, extractDeleted, extractSource
     return final_results
 
 def read_old_mail(mail_dir, envelope_db, extractDeleted, extractSource):
-
     mailboxes = get_mailboxes(envelope_db, mail_dir, extractDeleted, extractSource)
     part_records = get_data_records(envelope_db, extractDeleted, extractSource)
 
@@ -535,11 +538,9 @@ def read_old_mail(mail_dir, envelope_db, extractDeleted, extractSource):
         if emlx_file != None:
             emlx_file.Data.seek(0)
             data = emlx_file.read()
-
             m = message_from_string(data)
             body, attachments = read_from_mime(m, None)
             add_embedded (emlx_file, attachments, msg)
-
         else:
             parts = {}
             parts.update(part_files[base_name])
@@ -732,11 +733,12 @@ def hasContent(msg):
 	return msg.Body.Value is not None or msg.From.Value is not None or msg.TimeStamp.Value is not None or msg.To.Count > 0 or msg.Subject.Value is not None or msg.Attachments.Count > 0
 
 def analyze_emails(mail_dir, extractDeleted, extractSource):
+
     pr = ParserResults()
+
     envelope_file = mail_dir.GetFirstNode("Envelope Index")
     if envelope_file == None:
         return pr
-
     envelope_db = SQLiteParser.Database.FromNode(envelope_file)
     if envelope_db == None:
         return pr
@@ -763,7 +765,7 @@ def analyze_emails(mail_dir, extractDeleted, extractSource):
 ##                添加中间数据库                 ##
 #################################################
 DEBUG = True
-# DEBUG = False
+DEBUG = False
 VERSION_APP_VALUE = 1
 
 def exc():
@@ -833,12 +835,14 @@ class Export2db(object):
             mail.mail_subject     = email.Subject.Value
             mail.mail_abstract    = email.Abstract.Value
             mail.mail_content     = email.Body.Value
-            if email.From.Value.Identifier.Value and email.From.Value.Name.Value:
-                mail.mail_from = email.From.Value.Identifier.Value + ' ' + email.From.Value.Name.Value 
             mail.mail_to          = self._handle_mutimodel(email.To)
             mail.mail_cc          = self._handle_mutimodel(email.Cc)
             mail.mail_bcc         = self._handle_mutimodel(email.Bcc)
             mail.mail_sent_date   = self._convert_2_timestamp(email.TimeStamp)
+            try:
+                mail.mail_from = email.From.Value.Identifier.Value + ' ' + email.From.Value.Name.Value 
+            except:
+                pass
             # status_dict = {
             #     0: MessageStatus.Unread,
             #     1: MessageStatus.Read
@@ -890,8 +894,8 @@ class Export2db(object):
                 if re.match(r'\d', div_str):
                     div_str = ''
                 time_pattren = "%Y{div}%m{div}%d %H:%M:%S".format(div=div_str)
-                ts = time.strptime(str(format_time), time_pattren)
-                return time.mktime(ts)
+                ts = py_time.strptime(str(format_time), time_pattren)
+                return py_time.mktime(ts)
             return 0
         except:
             exc()

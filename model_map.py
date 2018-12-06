@@ -147,6 +147,30 @@ SQL_INSERT_TABLE_JOURNEY = '''
         values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
     '''
 
+SQL_CREATE_TABLE_PASSENGER = '''
+    create table if not exists passenger(
+        account_id TEXT,
+        account TEXT,
+        sequence_id TEXT,
+        name TEXT,
+        certificate_type TEXT,
+        certificate_code TEXT,
+        phone TEXT,
+        people_type TEXT,
+        source TEXT,
+        sourceApp TEXT,
+        sourceFile TEXT,
+        deleted INT DEFAULT 0,
+        repeated INT DEFAULT 0)
+'''
+
+SQL_INSERT_TABLE_PASSENGER = '''
+    insert into passenger(account_id,account,sequence_id,name,certificate_type,certificate_code,phone,people_type,
+        source,sourceApp,sourceFile,deleted,repeated)
+        values(?,?,?,?,?,?,?,?,?,?,?,?,?)
+'''
+
+
 class Map(object):
     
     def __init__(self):
@@ -340,6 +364,22 @@ class LocationJourney(Column):
         self.destination_above_sealevel,self.flightid,self.purchase_price,self.aircom,self.order_num,self.ticket_status,self.order_time,self.deleted_time,
         self.latest_mod_time,self.name,self.sequence_name,self.deliver_tool,self.materials_name,self.remark) + super(LocationJourney, self).get_values()
 
+# 乘客信息
+class Passenger(Column):
+    def __init__(self):
+        super(Passenger, self).__init__()
+        self.account_id = None
+        self.account = None
+        self.sequence_id = None
+        self.name = None
+        self.certificate_type = None
+        self.certificate_code = None
+        self.phone = None
+        self.people_type = None
+
+    def get_values(self):
+        return (self.account_id,self.account,self.sequence_id,self.name,self.certificate_type,self.certificate_code,self.phone,self.people_type) + super(Passenger, self).get_values()
+
 
 class Genetate(object):
 
@@ -356,6 +396,7 @@ class Genetate(object):
         models.extend(self._get_address_models())
         models.extend(self._get_search_models())
         models.extend(self._get_trip_models())
+        models.extend(self._get_passenger())
 
         self.cursor.close()
         self.db.close()
@@ -775,6 +816,51 @@ class Genetate(object):
         return model
 
 
+    def _get_passenger(self):
+        # if "passenger" not in  self.table_list:
+        #     return []
+
+        model = []
+        sql = '''
+            select account_id,account,sequence_id,name,certificate_type,certificate_code,phone,people_type,
+        source,sourceApp,sourceFile,deleted,repeated from passenger
+        '''
+        row = None
+        try:
+            self.cursor.execute(sql)
+            row = self.cursor.fetchone()
+        except Exception as e:
+            pass
+
+        while row is not None:
+            if canceller.IsCancellationRequested:
+                return
+            passenger = Common.PassengerInfo()
+            passenger.Source.Value = row[8]
+            passenger.SourceApp.Value = row[9]
+            passenger.SourceFile.Value = self._get_source_file(row[10])
+
+            if row[0]:
+                passenger.OwnerUserID.Value = row[0]
+            if row[2]:
+                passenger.SequenceID.Value = row[2]
+            if row[3]:
+                passenger.FullName.Value = row[3]
+            if row[4]:
+                pass
+                # passenger.CertificateType.Value = row[4]
+            if row[5]:
+                passenger.CertificateCode.Value = row[5]
+            if row[6]:
+                passenger.PhoneNumber.Value = row[6]
+            if row[7]:
+                pass
+            passenger.Deleted = DeletedState.Intact if row[11] == 0 else DeletedState.Deleted
+            model.append(passenger)
+
+            row = self.cursor.fetchone()
+        return model
+
     def _get_timestamp(self, timestamp):
         if len(str(timestamp)) == 13:
             timestamp = int(str(timestamp)[0:10])
@@ -796,12 +882,12 @@ class Genetate(object):
         try:
             if value and ctype == 0:
                 # 经度
-                return float(str(value)[:3]+"."+str(value)[3:])
+                return float(str(int(value))[:3]+"."+str(int(value))[3:])
             elif value and ctype == 1:
                 # 维度
-                return float(str(value)[:2]+"."+str(value)[2:])
+                return float(str(int(value))[:2]+"."+str(int(value))[2:])
         except Exception as e:
-            pass
+            return value
 
 def md5(cache_path, node_path):
     m = hashlib.md5()   

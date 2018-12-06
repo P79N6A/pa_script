@@ -38,7 +38,7 @@ from base_wechat import *
 # Models: Common.User, Common.Friend, Common.Group, Generic.Chat, Common.MomentContent
 
 # app数据库版本
-VERSION_APP_VALUE = 3
+VERSION_APP_VALUE = 5
 
 
 def analyze_wechat(root, extract_deleted, extract_source):
@@ -586,10 +586,14 @@ class WeChatParser(Wechat):
 
             if 'locationInfo' in root.Children:
                 location_node = root.Children['locationInfo']
-                location = feed.create_location()
-                location.latitude = self._bpreader_node_get_float_value(location_node, 'location_latitude')
-                location.longitude = self._bpreader_node_get_float_value(location_node, 'location_longitude')
-                location.address = self._bpreader_node_get_string_value(location_node, 'poiName', deleted = feed.deleted)
+                latitude = self._bpreader_node_get_float_value(location_node, 'location_latitude')
+                longitude = self._bpreader_node_get_float_value(location_node, 'location_longitude')
+                if latitude != 0 or longitude != 0:
+                    location = feed.create_location()
+                    location.type = model_im.LOCATION_TYPE_GOOGLE
+                    location.latitude = latitude
+                    location.longitude = longitude
+                    location.address = self._bpreader_node_get_string_value(location_node, 'poiName', deleted = feed.deleted)
 
             if 'contentObj' in root.Children:
                 content_node = root.Children['contentObj']
@@ -849,22 +853,28 @@ class WeChatParser(Wechat):
                         fav_item.sender = source_info.Element('fromusr').Value
                         fav_item.sender_name = self.contacts.get(fav_item.sender, {}).get('nickname')
                 if xml.Element('locitem'):
-                    location = fav_item.create_location()
+                    latitude = 0
+                    longitude = 0
                     locitem = xml.Element('locitem')
                     if locitem.Element('lat'):
                         try:
-                            location.latitude = float(locitem.Element('lat').Value)
+                            latitude = float(locitem.Element('lat').Value)
                         except Exception as e:
                             pass
                     if locitem.Element('lng'):
                         try:
-                            location.longitude = float(locitem.Element('lng').Value)
+                            longitude = float(locitem.Element('lng').Value)
                         except Exception as e:
                             pass
-                    if locitem.Element('label'):
-                        location.address = locitem.Element('label').Value
-                    if locitem.Element('poiname'):
-                        location.address = locitem.Element('poiname').Value
+                    if latitude != 0 or longitude != 0:
+                        location = fav_item.create_location()
+                        location.type = model_im.LOCATION_TYPE_GOOGLE
+                        location.latitude = latitude
+                        location.longitude = longitude
+                        if locitem.Element('label'):
+                            location.address = locitem.Element('label').Value
+                        if locitem.Element('poiname'):
+                            location.address = locitem.Element('poiname').Value
             elif fav_type == FAV_TYPE_CHAT:
                 if xml.Element('datalist'):
                     for item in xml.Element('datalist').Elements('dataitem'):
@@ -907,22 +917,28 @@ class WeChatParser(Wechat):
                                 link.image = self._parse_user_fav_path(item.Element('sourcethumbpath').Value)
                         elif fav_item.type == FAV_TYPE_LOCATION:
                             if item.Element('locitem'):
-                                location = fav_item.create_location()
+                                latitude = 0
+                                longitude = 0
                                 locitem = item.Element('locitem')
                                 if locitem.Element('lat'):
                                     try:
-                                        location.latitude = float(locitem.Element('lat').Value)
+                                        latitude = float(locitem.Element('lat').Value)
                                     except Exception as e:
                                         pass
                                 if locitem.Element('lng'):
                                     try:
-                                        location.longitude = float(locitem.Element('lng').Value)
+                                        longitude = float(locitem.Element('lng').Value)
                                     except Exception as e:
                                         pass
-                                if locitem.Element('label'):
-                                    location.address = locitem.Element('label').Value
-                                if locitem.Element('poiname'):
-                                    location.address = locitem.Element('poiname').Value
+                                if latitude != 0 or longitude != 0:
+                                    location = fav_item.create_location()
+                                    location.type = model_im.LOCATION_TYPE_GOOGLE
+                                    location.latitude = latitude
+                                    location.longitude = longitude
+                                    if locitem.Element('label'):
+                                        location.address = locitem.Element('label').Value
+                                    if locitem.Element('poiname'):
+                                        location.address = locitem.Element('poiname').Value
                         else:
                             fav_item.content = xml_str
                         if item.Element('datasrcname'):
@@ -1212,8 +1228,11 @@ class WeChatParser(Wechat):
         elif msg_type == MSG_TYPE_IMAGE:
             content = '[图片]'
             node = user_node.GetByPath('Img/{0}/{1}.pic'.format(friend_hash, msg_local_id))
+            node_thum = user_node.GetByPath('Img/{0}/{1}.pic_thum'.format(friend_hash, msg_local_id))
             if node is not None:
                 img_path = node.AbsolutePath
+            elif node_thum is not None:
+                img_path = node_thum.AbsolutePath
             else:
                 img_path = user_node.AbsolutePath + '/Img/{0}/{1}.pic'.format(friend_hash, msg_local_id)
         elif msg_type == MSG_TYPE_VOICE:
@@ -1226,10 +1245,12 @@ class WeChatParser(Wechat):
         elif msg_type == MSG_TYPE_VIDEO or msg_type == MSG_TYPE_VIDEO_2:
             content = '[视频]'
             node = user_node.GetByPath('Video/{0}/{1}.mp4'.format(friend_hash, msg_local_id))
-            if node is None:
-                node = user_node.GetByPath('Video/{0}/{1}.video_thum'.format(friend_hash, msg_local_id))
+            node_thum = user_node.GetByPath('Video/{0}/{1}.video_thum'.format(friend_hash, msg_local_id))
             if node is not None:
                 img_path = node.AbsolutePath
+            elif node_thum is not None:
+                model.type = model_im.MESSAGE_CONTENT_TYPE_IMAGE
+                img_path = node_thum.AbsolutePath
             else:
                 img_path = user_node.AbsolutePath + '/Video/{0}/{1}.mp4'.format(friend_hash, msg_local_id)
         elif msg_type == MSG_TYPE_LOCATION:

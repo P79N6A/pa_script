@@ -97,6 +97,9 @@ class Ticketing(object):
             # self.db_command.ExecuteNonQuery()
             self.db_command.CommandText = model_map.SQL_CREATE_TABLE_JOURNEY
             self.db_command.ExecuteNonQuery()
+            self.db_command.CommandText = model_map.SQL_CREATE_TABLE_PASSENGER
+            self.db_command.ExecuteNonQuery()
+            self.db_command.CommandText = model_im.SQL_CREATE_TABLE_VERSION
 
     def db_insert_table(self, sql, values):
         if self.db_command is not None:
@@ -144,4 +147,43 @@ class Ticketing(object):
     def db_insert_table_journey(self, column):
         self.db_insert_table(model_map.SQL_INSERT_TABLE_JOURNEY, column.get_values())
 
+    def db_insert_table_passenger(self, column):
+        self.db_insert_table(model_map.SQL_INSERT_TABLE_PASSENGER, column.get_values())
 
+    def db_insert_table_version(self, key, version):
+        self.db_insert_table(SQL_INSERT_TABLE_VERSION, (key, version))
+
+    '''
+    版本检测分为两部分
+    如果中间数据库结构改变，会修改db_version
+    如果app增加了新的内容，需要修改app_version
+    只有db_version和app_version都没有变化时，才不需要重新解析
+    '''
+    @staticmethod
+    def need_parse(cache_db, app_version):
+        if not os.path.exists(cache_db):
+            return True
+        db = sqlite3.connect(cache_db)
+        cursor = db.cursor()
+        sql = 'select key,version from version'
+        row = None
+        db_version_check = False
+        app_version_check = False
+        try:
+            cursor.execute(sql)
+            row = cursor.fetchone()
+        except Exception as e:
+            TraceService.Trace(TraceLevel.Error, "model_ticketing.py Error: LINE {}".format(e))
+
+        while row is not None:
+            if row[0] == VERSION_KEY_DB and row[1] == VERSION_VALUE_DB:
+                db_version_check = True
+            elif row[0] == VERSION_KEY_APP and row[1] == app_version:
+                app_version_check = True
+            row = cursor.fetchone()
+
+        if cursor is not None:
+            cursor.close()
+        if db is not None:
+            db.close()
+        return not (db_version_check and app_version_check)

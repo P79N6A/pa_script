@@ -791,37 +791,40 @@ class QQParser(object):
                 return
             self.decode_friend_chat_table(acc_id,table)
     def decode_discussGrp_info(self, acc_id):
-        node = self.root.GetByPath('/Documents/contents/' + acc_id + '/QQ.db')
-        if node is None:
-            return
-        d = node.PathWithMountPoint            
-        sql = 'select uin ,name, create_time,owner_uin,member_num  from  tb_discussGrp_list'
-        datasource = "Data Source =  " + d +";ReadOnly=True"
-        conn = SQLiteConnection(datasource)
-        conn.Open()
-        if(conn is None):
-            return
-        command = SQLiteCommand(conn)                
-        command.CommandText = sql
-        reader = command.ExecuteReader()
-        while reader.Read():
-            try:
-                chatroom = Chatroom()
-                chatroom.account_id = acc_id
-                chatroom.chatroom_id = str(SafeGetInt64(reader,0))
-                chatroom.name = SafeGetString(reader,1)
-                chatroom.create_time = SafeGetInt64(reader,2)
-                chatroom.owner_id = str(SafeGetInt64(reader,3))
-                chatroom.member_count = SafeGetInt64(reader,4)  
-                chatroom.source = node.AbsolutePath              
-            except:
-                pass             
-            self.discussGrptables.add("tb_discussGrp_"+ chatroom.chatroom_id)
-            self.im.db_insert_table_chatroom(chatroom)
-        self.im.db_commit()
-        reader.Close()
-        command.Dispose()		
-        conn.Close()   
+        try:
+            node = self.root.GetByPath('/Documents/contents/' + acc_id + '/QQ.db')
+            if node is None:
+                return
+            d = node.PathWithMountPoint            
+            sql = 'select uin ,name, create_time,owner_uin,member_num  from  tb_discussGrp_list'
+            datasource = "Data Source =  " + d +";ReadOnly=True"
+            conn = SQLiteConnection(datasource)
+            conn.Open()
+            if(conn is None):
+                return
+            command = SQLiteCommand(conn)                
+            command.CommandText = sql
+            reader = command.ExecuteReader()
+            while reader.Read():
+                try:
+                    chatroom = Chatroom()
+                    chatroom.account_id = acc_id
+                    chatroom.chatroom_id = str(SafeGetInt64(reader,0))
+                    chatroom.name = SafeGetString(reader,1)
+                    chatroom.create_time = SafeGetInt64(reader,2)
+                    chatroom.owner_id = str(SafeGetInt64(reader,3))
+                    chatroom.member_count = SafeGetInt64(reader,4)  
+                    chatroom.source = node.AbsolutePath              
+                except:
+                    pass             
+                self.discussGrptables.add("tb_discussGrp_"+ chatroom.chatroom_id)
+                self.im.db_insert_table_chatroom(chatroom)
+            self.im.db_commit()
+            reader.Close()
+            command.Dispose()		
+            conn.Close()  
+        except:
+            pass
     def decode_discussgroupMember_info(self, acc_id):
         try:
             node = self.root.GetByPath('/Documents/contents/' + acc_id + '/QQ.db')            
@@ -857,9 +860,12 @@ class QQParser(object):
         return    
     def decode_discussGrp_messages(self, acc_id):
         for table in self.discussGrptables:
-            if canceller.IsCancellationRequested:
-                return     
-            self.decode_discussGrp_chat_table(acc_id,table)            
+            try:
+                if canceller.IsCancellationRequested:
+                    return     
+                self.decode_discussGrp_chat_table(acc_id,table)                        
+            except:
+                pass
     def decode_discussGrp_chat_table(self,acc_id,table_name):
         group_id = table_name[table_name.rfind('_')+1:]
         node = self.root.GetByPath('/Documents/contents/' + acc_id + '/QQ.db')
@@ -905,7 +911,8 @@ class QQParser(object):
                     msg.source = node.AbsolutePath
                     msg.content = content	
                     types  = (MESSAGE_CONTENT_TYPE_TEXT,MESSAGE_CONTENT_TYPE_IMAGE,MESSAGE_CONTENT_TYPE_VOICE,
-                    MESSAGE_CONTENT_TYPE_ATTACHMENT,MESSAGE_CONTENT_TYPE_VIDEO,MESSAGE_CONTENT_TYPE_LOCATION)
+                    MESSAGE_CONTENT_TYPE_ATTACHMENT,MESSAGE_CONTENT_TYPE_VIDEO,MESSAGE_CONTENT_TYPE_LOCATION,
+                    MESSAGE_CONTENT_TYPE_RED_ENVELPOE,MESSAGE_CONTENT_TYPE_RECEIPT)
                     if(msgtype == 0):
                         msg.type = MESSAGE_CONTENT_TYPE_TEXT										
                     elif(msgtype == 1):
@@ -928,7 +935,9 @@ class QQParser(object):
                             locat = msg.create_location()                            
                             locat.latitude = float(loc[1])
                             locat.longitude = float(loc[2])
-                            locat.address = loc[0]                                   
+                            locat.address = loc[0]    
+                    elif(msgtype == 311):
+                        self.get_dealinfo(acc_id,msg)   
                     if(msg.type not in types):	
                         msg.type = MESSAGE_CONTENT_TYPE_SYSTEM
                     msg.insert_db(self.im)
@@ -999,7 +1008,8 @@ class QQParser(object):
                         msg.is_sender = 0
                     msg.content = content	
                     types  = (MESSAGE_CONTENT_TYPE_TEXT,MESSAGE_CONTENT_TYPE_IMAGE,MESSAGE_CONTENT_TYPE_VOICE,
-                    MESSAGE_CONTENT_TYPE_ATTACHMENT,MESSAGE_CONTENT_TYPE_VIDEO,MESSAGE_CONTENT_TYPE_LOCATION)
+                    MESSAGE_CONTENT_TYPE_ATTACHMENT,MESSAGE_CONTENT_TYPE_VIDEO,MESSAGE_CONTENT_TYPE_LOCATION,
+                    MESSAGE_CONTENT_TYPE_RED_ENVELPOE,MESSAGE_CONTENT_TYPE_RECEIPT)
                     if(msgtype == 0):
                         msg.type = MESSAGE_CONTENT_TYPE_TEXT										
                     elif(msgtype == 1):
@@ -1022,7 +1032,9 @@ class QQParser(object):
                             locat = msg.create_location()                            
                             locat.latitude = float(loc[1])
                             locat.longitude = float(loc[2])
-                            locat.address = loc[0]                            
+                            locat.address = loc[0]          
+                    elif(msgtype == 311):
+                        self.get_dealinfo(acc_id,msg)                        
                     if(msg.type not in types):	
                         msg.type = MESSAGE_CONTENT_TYPE_SYSTEM
                     #self.im.db_insert_table_message(msg)
@@ -1084,21 +1096,22 @@ class QQParser(object):
                         msg.sender_name = msg.talker_name	
                     msg.content = content	
                     types  = (MESSAGE_CONTENT_TYPE_TEXT,MESSAGE_CONTENT_TYPE_IMAGE,MESSAGE_CONTENT_TYPE_VOICE,
-                    MESSAGE_CONTENT_TYPE_ATTACHMENT,MESSAGE_CONTENT_TYPE_VIDEO,MESSAGE_CONTENT_TYPE_LOCATION)
+                    MESSAGE_CONTENT_TYPE_ATTACHMENT,MESSAGE_CONTENT_TYPE_VIDEO,MESSAGE_CONTENT_TYPE_LOCATION,
+                    MESSAGE_CONTENT_TYPE_RED_ENVELPOE,MESSAGE_CONTENT_TYPE_RECEIPT)
                     if(msgtype == 0):
-                            msg.type = MESSAGE_CONTENT_TYPE_TEXT										
+                        msg.type = MESSAGE_CONTENT_TYPE_TEXT										
                     elif(msgtype == 1):
-                            msg.type = MESSAGE_CONTENT_TYPE_IMAGE
-                            msg.media_path = self.get_picture_attachment(acc_id,picUrl)											
+                        msg.type = MESSAGE_CONTENT_TYPE_IMAGE
+                        msg.media_path = self.get_picture_attachment(acc_id,picUrl)											
                     elif(msgtype == 3):
-                            msg.type = MESSAGE_CONTENT_TYPE_VOICE
-                            msg.media_path = self.get_audio_attachment(acc_id,picUrl)						
+                        msg.type = MESSAGE_CONTENT_TYPE_VOICE
+                        msg.media_path = self.get_audio_attachment(acc_id,picUrl)						
                     elif(msgtype == 4):
-                            msg.type = MESSAGE_CONTENT_TYPE_ATTACHMENT
-                            msg.media_path = self.get_file_attachment(acc_id,content)						
+                        msg.type = MESSAGE_CONTENT_TYPE_ATTACHMENT
+                        msg.media_path = self.get_file_attachment(acc_id,content)						
                     elif(msgtype == 181):
-                            msg.type = MESSAGE_CONTENT_TYPE_VIDEO
-                            msg.media_path = self.get_video_attachment(acc_id,picUrl)
+                        msg.type = MESSAGE_CONTENT_TYPE_VIDEO
+                        msg.media_path = self.get_video_attachment(acc_id,picUrl)
                     #maybe the system
                     elif(msgtype == 337):
                         loc = self.get_location(acc_id,content)
@@ -1107,7 +1120,9 @@ class QQParser(object):
                             locat = msg.create_location()                            
                             locat.latitude = float(loc[1])
                             locat.longitude = float(loc[2])
-                            locat.address = loc[0]    
+                            locat.address = loc[0]
+                    elif(msgtype == 311):
+                        self.get_dealinfo(acc_id,msg)                        
                     if(msg.type not in types):	
                         msg.type = MESSAGE_CONTENT_TYPE_SYSTEM
                     msg.insert_db(self.im)
@@ -1118,6 +1133,25 @@ class QQParser(object):
         command.Dispose()		
         conn.Close()   	
         return
+    def get_dealinfo(self,acc_id,msg):
+        try:
+            deal = msg.create_deal()
+            j = json.loads(msg.content)                                    
+            if(j['redtype'] == 2 or j['redtype'] == 1):
+                deal.type = DEAL_TYPE_RED_ENVELPOE
+                deal.description = j['subtitle'] 
+                deal.remark = j['title']    
+                msg.type = MESSAGE_CONTENT_TYPE_RED_ENVELPOE
+            elif j['redtype'] == 0:
+                deal.type = DEAL_TYPE_RECEIPT
+                deal.remark = j['content']
+                deal.money =  j['title']         
+                deal.description = j['subtitle']                  
+                msg.type = MESSAGE_CONTENT_TYPE_RECEIPT
+            deal.create_time = msg.send_time
+        except:
+            pass
+        return 
     def get_video_attachment(self ,acc_id,picUrl):
         try:			
             pic_json = json.loads(picUrl)
@@ -1178,46 +1212,53 @@ class QQParser(object):
             pass
     def get_audio_attachment(self, acc_id, js):
         try:			
-            pic_json = json.loads(js)
+            pic_json = json.loads(js)       
+            fileName= ''
+            if 'fileName'  in pic_json[0].keys():
+                fileName = pic_json[0]['fileName']
+            acc_folder = self.root.GetByPath('/Documents/{0}/Audio/{1}.amr'.format(acc_id,fileName))
+            if(acc_folder is None):
+                return ''
+            return acc_folder.AbsolutePath
         except:
             return ''
-        fileName= ''
-        if 'fileName'  in pic_json[0]:
-            fileName = pic_json[0]['fileName']
-        elif 'fileId'  in pic_json[0]:
-            fileName = pic_json[0]['fileId']
-        else:
-            return ''
-        acc_folder = self.root.GetByPath('/Documents/{0}/Audio/{1}.arm'.format(acc_id,fileName))
-        if(acc_folder is None):
-            return ''
-        return acc_folder.AbsolutePath
 
     def get_picture_attachment(self, acc_id, js):	
         try:			
-            pic_json = json.loads(js)
+            pic_json = json.loads(js)        
+            if 'md5'  in pic_json[0].keys():
+                md5 = pic_json[0]['md5']
+            elif 'videoMD5'  in pic_json[0].keys():
+                md5 = pic_json[0]['videoMD5']
+            urlOriginal = ''
+            if 'urlOriginal' in pic_json[0].keys():
+                urlOriginal = pic_json[0]['urlOriginal']
+            
+            acc_folder = self.root.GetByPath('/Documents/{0}/image_original/{1}.png'.format(acc_id,md5))
+            if(acc_folder is None):
+                acc_folder = self.root.GetByPath('/Documents/{0}/image_thumbnail/{1}.png'.format(acc_id,md5))
+                if acc_folder is None:
+                    acc_folder = self.root.GetByPath('/Documents/{0}/image_big/{1}.png'.format(acc_id,md5))
+            if(acc_folder is None):
+                if urlOriginal.find('/offpic_new/') == 0:
+                    url  = "https://c2cpicdw.qpic.cn" + urlOriginal
+                    return url
+                elif urlOriginal.find('/gchatpic_new/') == 0:
+                    url  = "http://gchat.qpic.cn" + urlOriginal
+                    return url                    
+            else:
+                return acc_folder.AbsolutePath
         except:
             return ''
-        if 'md5'  in pic_json[0]:
-            md5 = pic_json[0]['md5']
-        elif 'videoMD5'  in pic_json[0]:
-            md5 = pic_json[0]['videoMD5']
-        else:
-            return ''
-        acc_folder = self.root.GetByPath('/Documents/{0}/image_original/{1}.png'.format(acc_id,md5))
-        if(acc_folder is None):
-            return None
-        return acc_folder.AbsolutePath
-
     def get_file_attachment(self, acc_id, content):
         try:			
-            filename = content[0:content.find('||||||||')]
+            filename = content[0:content.find('||||||||')]       
+            acc_folder = self.root.GetByPath('/Documents/{0}/FileRecv/{1}'.format(acc_id,filename))
+            if(acc_folder is None):
+                return ''
+            return acc_folder.AbsolutePath
         except:
             return ''
-        acc_folder = self.root.GetByPath('/Documents/{0}/FileRecv/{1}'.format(acc_id,filename))
-        if(acc_folder is None):
-            return ''
-        return acc_folder.AbsolutePath
         
     def get_dict_from_bplist(self, bp, dict_ind):
         values = {}
