@@ -80,6 +80,7 @@ class LineParser(object):
     def __init__(self, node, extract_deleted, extract_source):
         ''' node: /data/data/jp.naver.line.android/databases/naver_line
         '''
+        #test_p(node.AbsolutePath)
         self.root = node.Parent
         self.extract_deleted = extract_deleted
         self.extract_source  = extract_source
@@ -155,8 +156,6 @@ class LineParser(object):
         cur_account     = None
 
         for rec in self._read_table('chat_history'):
-            if canceller.IsCancellationRequested:
-                return
             if self._is_empty(rec, 'chat_id', 'created_time'):
                 continue
             if rec['status'].Value == 3 and IsDBNull(rec['from_mid'].Value) and not IsDBNull(rec['server_id'].Value):
@@ -164,17 +163,18 @@ class LineParser(object):
                     friend_chat_ids.append(rec['chat_id'].Value)
             
         for rec in self._read_table('chat'):
-            if canceller.IsCancellationRequested:
-                return            
             if rec['chat_id'].Value in friend_chat_ids:
+
                 if rec['owner_mid'].Value and rec['owner_mid'].Value.startswith('u'):
                     if rec['chat_id'].Value != rec['owner_mid'].Value:
                         account_id = rec['owner_mid'].Value
                         break
+                if rec['last_from_mid'].Value and rec['last_from_mid'].Value.startswith('u'):
+                    if rec['chat_id'].Value != rec['last_from_mid'].Value:
+                        account_id = rec['last_from_mid'].Value
+                        break
 
         for rec in self._read_table('contacts'):
-            if canceller.IsCancellationRequested:
-                return                  
             if rec['m_id'].Value == account_id:
                 account = model_im.Account()
                 account.account_id = account_id
@@ -221,8 +221,10 @@ class LineParser(object):
         for rec in self._read_table(table_name):
             if canceller.IsCancellationRequested:
                 return
-            if self._is_empty(rec, 'id', 'm_id') or not rec['id'].Value.startswith('c') or not rec['m_id'].Value.startswith('u'):
+            if self._is_empty(rec, 'id', 'm_id'):
                 continue    
+            if len(rec['m_id'].Value) > 1 and rec['m_id'].Value[0] not in ('u', 'c', 'r'):
+                continue
             if rec['is_accepted'].Value != 1:
                 continue
             group_id = rec['id'].Value
@@ -281,7 +283,7 @@ class LineParser(object):
                 continue 
             try:
                 pk_value = rec['id'].Value
-                if pk_value[0] != 'c' or self._is_duplicate(rec, 'id'):
+                if pk_value[0] not in  ('c', 'r') or self._is_duplicate(rec, 'id'):
                     continue
             except:
                 continue
@@ -344,7 +346,7 @@ class LineParser(object):
             chat_id = rec['chat_id'].Value  
             if chat_id.startswith('u') and rec['type'].Value == 1: #  好友聊天
                 msg_type = model_im.CHAT_TYPE_FRIEND
-            elif chat_id.startswith('c') and rec['type'].Value == 3: #  群聊天
+            elif chat_id > 1 and chat_id[0] in ('c', 'r') and rec['type'].Value == 3: #  群聊天
                 msg_type = model_im.CHAT_TYPE_GROUP
             else:
                 continue
