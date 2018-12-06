@@ -57,7 +57,6 @@ class Radio(object):
                             if int(results.groups()[1]) in [0,1]:
                                 mcc,mnc,lac,ci = results.groups()
                                 longitude,latitude = self._get_lbs_data(mcc, mnc, lac, ci)
-                                print(longitude,latitude)
                                 if longitude and latitude:
                                     loc = Location()
                                     coord = Coordinate()
@@ -66,7 +65,7 @@ class Radio(object):
                                     loc.Position.Value = coord
                                     models.append(loc)
                         except Exception as e:
-                            print(e)
+                            pass
         return models
 
 
