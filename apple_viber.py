@@ -18,12 +18,13 @@ import model_im
 
 import re
 import hashlib
+import json
 import shutil
 import traceback
 import time
 import datetime
 
-VERSION_APP_VALUE = 4
+VERSION_APP_VALUE = 5
 
 class ViberParser(model_im.IM, model_callrecord.MC):
     def __init__(self, node, extract_deleted, extract_source):
@@ -86,7 +87,7 @@ class ViberParser(model_im.IM, model_callrecord.MC):
             username = ''
             if not sr.HasRows:
                 account = model_im.Account()
-                username = 'unknown user'
+                username = '未知用户'
             while (sr.Read()):
                 try:
                     account = model_im.Account()
@@ -250,7 +251,7 @@ class ViberParser(model_im.IM, model_callrecord.MC):
             self.db = SQLite.SQLiteConnection('Data Source = {}'.format(self.cachedb))
             self.db.Open()
             self.db_cmd = SQLite.SQLiteCommand(self.db)
-        fs = self.node.FileSystem
+        icon_node = self.node.Parent
         try:
             if self.db is None:
                 return
@@ -272,7 +273,7 @@ class ViberParser(model_im.IM, model_callrecord.MC):
                     chatroom_member.member_id = self._db_reader_get_int_value(sr, 1)
                     photoPath = ''
                     if not IsDBNull(sr[3]):
-                        nodes = fs.Search(self._db_reader_get_string_value(sr, 3))
+                        nodes = icon_node.Search(self._db_reader_get_string_value(sr, 3) + '\..*$')
                         for node in nodes:
                             photoPath = node.AbsolutePath
                             break
@@ -308,7 +309,7 @@ class ViberParser(model_im.IM, model_callrecord.MC):
             self.db = SQLite.SQLiteConnection('Data Source = {}'.format(self.cachedb))
             self.db.Open()
             self.db_cmd = SQLite.SQLiteCommand(self.db)
-        fs = self.node.FileSystem
+        attach_node = self.account_db.Parent
         try:
             if db is None:
                 return
@@ -323,10 +324,14 @@ class ViberParser(model_im.IM, model_callrecord.MC):
                 sr.Close()
             except:
                 pass
-            db_cmd.CommandText = '''select a.Z_PK, a.ZTEXT, a.ZSTATE, a.ZLOCATION, b.ZNAME, a.ZDATE, a.ZPHONENUMINDEX,
-                 a.ZCONVERSATION, c.ZDISPLAYFULLNAME, d.ZNAME, d.ZINTERLOCUTOR, e.ZDISPLAYFULLNAME as ZCHATNAME from ZVIBERMESSAGE as a left join ZATTACHMENT as b 
-                 on a.ZATTACHMENT = b.Z_PK left join ZMEMBER as c on a.ZPHONENUMINDEX = c.Z_PK
-                 left join ZCONVERSATION as d on a.ZCONVERSATION = d.Z_PK left join ZMEMBER as e on d.ZINTERLOCUTOR = e.Z_PK'''
+            db_cmd.CommandText = '''select a.Z_PK, a.ZTEXT, a.ZSTATE, a.ZLOCATION, b.ZNAME, a.ZDATE, a.ZPHONENUMINDEX, a.ZCONVERSATION, 
+                                    c.ZDISPLAYFULLNAME, d.ZNAME, d.ZINTERLOCUTOR, e.ZDISPLAYFULLNAME as ZCHATNAME, a.ZMETADATA, a.ZSYSTEMTYPE
+                                    from ZVIBERMESSAGE as a 
+                                    left join ZATTACHMENT as b on a.ZATTACHMENT = b.Z_PK 
+                                    left join ZMEMBER as c on a.ZPHONENUMINDEX = c.Z_PK
+                                    left join ZCONVERSATION as d on a.ZCONVERSATION = d.Z_PK 
+                                    left join ZMEMBER as e on d.ZINTERLOCUTOR = e.Z_PK
+                                    left join ZVIBERLOCATION as f on a.ZLOCATION = f.Z_PK'''
             sr = db_cmd.ExecuteReader()
             while (sr.Read()):
                 try:
@@ -334,18 +339,236 @@ class ViberParser(model_im.IM, model_callrecord.MC):
                     if canceller.IsCancellationRequested:
                         break
                     message.account_id = self.accountid
-                    message.content = self._db_reader_get_string_value(sr, 1)
                     message.deleted =  deleteFlag
                     message.is_sender = 1 if sr[2] != 'received' else 0
-                    issender = sr[2]
-                    mediaPath = ''
-                    if not IsDBNull(sr[4]):
-                        aa = sr[4]
-                        nodes = fs.Search(self._db_reader_get_string_value(sr, 4))
-                        for node in nodes:
-                            mediaPath = node.AbsolutePath
-                            break
-                    message.media_path = mediaPath
+                    message.type = model_im.MESSAGE_CONTENT_TYPE_TEXT
+                    system_type = self._db_reader_get_string_value(sr, 13)
+                    print(system_type)
+                    meta_data = self._db_reader_get_string_value(sr, 12)
+                    text = self._db_reader_get_string_value(sr, 1)
+                    attach_name = self._db_reader_get_string_value(sr, 4)
+                    if system_type is None or system_type is '':  #未知消息类型
+                        if meta_data is not None and meta_data is not '':
+                            data_json = json.loads(meta_data.replace('\n', '\\n'), encoding='utf-8')
+                            if 'pa_message_data' in data_json:
+                                if data_json['pa_message_data']['type'] == 'text' and 'keyboard' in data_json['pa_message_data']:
+                                    try:
+                                        for button in data_json['pa_message_data']['keyboard']['Buttons']:
+                                            link = model_im.Link()
+                                            message.link_id = link.link_id
+                                            button_json = button #json.loads(button, encoding='utf-8')
+                                            link.image = button_json['Image']
+                                            link.content = re.sub('<[^>]*>', '', button_json['Text'])
+                                            link.source = self.node.AbsolutePath
+                                            link.deleted = deleteFlag
+                                            self.db_insert_table_link(link)
+                                            message.account_id = self.accountid
+                                            message.deleted = deleteFlag
+                                            message.is_sender = 1 if sr[2] != 'received' else 0
+                                            message.msg_id = self._db_reader_get_int_value(sr, 0)
+                                            message.type = model_im.MESSAGE_CONTENT_TYPE_LINK
+                                            dstart = DateTime(1970,1,1,0,0,0)
+                                            try:
+                                                cdate = TimeStampFormats.GetTimeStampEpoch1Jan2001(sr.GetDouble(5))
+                                                message.send_time = int((cdate - dstart).TotalSeconds)
+                                            except:
+                                                try:
+                                                    cdate = TimeStampFormats.GetTimeStampEpoch1Jan2001(sr.GetInt32(5))
+                                                    message.send_time = int((cdate - dstart).TotalSeconds)
+                                                except:
+                                                    pass
+                                            message.sender_id = self._db_reader_get_int_value(sr, 6) if message.is_sender != 1 else self.accountid
+                                            message.sender_name = self._db_reader_get_string_value(sr, 8) if message.is_sender != 1 else '我'
+                                            message.source = self.node.AbsolutePath
+                                            message.status = model_im.MESSAGE_STATUS_SENT if sr[2] is 'send' or sr[2] is 'dilivered' else model_im.MESSAGE_STATUS_UNSENT if sr[2] is 'pending' or sr[2] is 'pendingNotSent' else model_im.MESSAGE_STATUS_DEFAULT
+                                            message.talker_type = model_im.CHAT_TYPE_GROUP if sr[7] in self.chatgroupid else model_im.CHAT_TYPE_OFFICIAL if sr[7] in self.publicaccountid else model_im.CHAT_TYPE_FRIEND
+                                            message.talker_id = message.sender_id if message.talker_type == model_im.CHAT_TYPE_FRIEND else self._db_reader_get_int_value(sr, 7)
+                                            message.talker_name = sr[9] if not IsDBNull(sr[9]) else sr[11] if not IsDBNull(sr[11]) else '未知聊天名'
+                                            self.db_insert_table_message(message)
+                                        continue
+                                    except:
+                                        pass
+                                elif data_json['pa_message_data']['type'] == 'picture':
+                                    image_url = data_json['pa_message_data']['media']
+                                    link = model_im.Link()
+                                    message.link_id = link.link_id
+                                    message.type = model_im.MESSAGE_CONTENT_TYPE_LINK
+                                    link.image = image_url
+                                    link.source = self.node.AbsolutePath
+                                    link.deleted = deleteFlag
+                                    self.db_insert_table_link(link)
+                                elif text is not '' and text is not None:
+                                    message.content = text
+                                    message.type = model_im.MESSAGE_CONTENT_TYPE_TEXT
+                                elif attach_name is not None and attach_name is not '':
+                                    nodes = attach_node.Search(attach_name + '$')
+                                    if len(list(nodes)) == 0:
+                                        message.content = '<附件>' + attach_name
+                                        message.type = model_im.MESSAGE_CONTENT_TYPE_TEXT
+                                    for node in nodes:
+                                        mediaPath = node.AbsolutePath
+                                        message.type = model_im.MESSAGE_CONTENT_TYPE_ATTACHMENT
+                                        break
+                                    message.media_path = mediaPath
+                                else:
+                                    continue
+                            else:
+                                continue
+                        else:
+                            if text is not '' and text is not None:
+                                message.content = text
+                                message.type = model_im.MESSAGE_CONTENT_TYPE_TEXT
+                            elif attach_name is not None and attach_name is not '':
+                                nodes = attach_node.Search(attach_name + '$')
+                                if len(list(nodes)) == 0:
+                                    message.content = '<附件>' + attach_name
+                                    message.type = model_im.MESSAGE_CONTENT_TYPE_TEXT
+                                for node in nodes:
+                                    mediaPath = node.AbsolutePath
+                                    message.media_path = mediaPath
+                                    message.type = model_im.MESSAGE_CONTENT_TYPE_ATTACHMENT
+                                    break
+                            else:
+                                continue
+                    elif system_type == 'customLocation':  #地理位置
+                        message.location_id = self._db_reader_get_int_value(sr, 3)
+                    elif system_type == 'formatted':  #名片
+                        formatted_datas = self._db_reader_get_string_value(sr, 1).replace('},{', '}***{').replace('[', '').replace(']', '').split('***')
+                        contact = json.loads(formatted_datas[0], encoding='utf-8')['Action']['parameters']
+                        contact_number = contact['contact_number'] if 'contact_number' in contact else ''
+                        contact_name = contact['contact_name'] if 'contact_name' in contact else ''
+                        message.content = '<联系人名片>\n' + contact_name + '\n' + contact_number
+                        message.type = model_im.MESSAGE_CONTENT_TYPE_TEXT
+                    elif system_type == 'systemCallLog':  #通话记录
+                        message.content = '<通话消息>'
+                        message.type = model_im.MESSAGE_CONTENT_TYPE_TEXT
+                    elif system_type == 'systemInvalidMessage':  #无效消息
+                        continue
+                    elif system_type == 'systemGeneralMessageRemoved':  #未知
+                        continue
+                    elif system_type == 'systemMemberAdded':  #添加好友消息（系统）
+                        message.content = self._db_reader_get_string_value(sr, 1)
+                        message.type = model_im.CHAT_TYPE_SYSTEM
+                    elif system_type == 'systemNameChanged':  #修改名称消息（系统）
+                        message.content = self._db_reader_get_string_value(sr, 1)
+                        message.type = model_im.CHAT_TYPE_SYSTEM
+                    elif system_type == 'systemPinnedMessageDeleted':  #系统固定删除消息（可视为普通消息）
+                        message.content = self._db_reader_get_string_value(sr, 1)
+                        message.type = model_im.MESSAGE_CONTENT_TYPE_TEXT
+                    elif system_type == 'systemIconChanged':
+                        message.content = '更换图片'
+                        message.type = model_im.CHAT_TYPE_SYSTEM
+                    elif system_type == 'url':  #链接消息
+                        url_json = json.loads(meta_data, encoding='utf-8')
+                        link = model_im.Link()
+                        message.link_id = link.link_id
+                        link.source = self.node.AbsolutePath
+                        link.deleted = deleteFlag
+                        if 'URL' in url_json:
+                            link.url = url_json['URL']
+                        if 'Title' in url_json:
+                            link.title = url_json['Title']
+                        if 'Text' in url_json:
+                            link.content = url_json['Text']
+                        if 'ThumbnailURL' in url_json:
+                            link.image = url_json['ThumbnailURL']
+                        message.type = model_im.MESSAGE_CONTENT_TYPE_LINK
+                        self.db_insert_table_link(link)
+                    elif system_type == 'rich':  #rich_media消息
+                        try:
+                            rich_message = json.loads(meta_data, encoding='utf-8')
+                            if 'pa_message_data' in rich_message:
+                                if 'keyboard' in rich_message['pa_message_data']:
+                                    if 'Buttons' in rich_message['pa_message_data']:
+                                        keyboard_items = rich_message['pa_message_data']['Buttons']
+                                        for keyboard_item in keyboard_items:
+                                            link = model_im.Link()
+                                            message.link_id = link.link_id
+                                            link.source = self.node.AbsolutePath
+                                            link.deleted = deleteFlag
+                                            if 'Text' in keyboard_item:
+                                                link.content = re.sub('<[^>]*>', '', keyboard_item['Text'])
+                                            if 'Image' in keyboard_item:
+                                                link.image = keyboard_item['Image']
+                                            self.db_insert_table_link(link)
+                                            message.type = model_im.MESSAGE_CONTENT_TYPE_LINK
+                                            message.account_id = self.accountid
+                                            message.deleted = deleteFlag
+                                            message.is_sender = 1 if sr[2] != 'received' else 0
+                                            message.msg_id = self._db_reader_get_int_value(sr, 0)
+                                            message.type = model_im.MESSAGE_CONTENT_TYPE_LINK
+                                            dstart = DateTime(1970,1,1,0,0,0)
+                                            try:
+                                                cdate = TimeStampFormats.GetTimeStampEpoch1Jan2001(sr.GetDouble(5))
+                                                message.send_time = int((cdate - dstart).TotalSeconds)
+                                            except:
+                                                try:
+                                                    cdate = TimeStampFormats.GetTimeStampEpoch1Jan2001(sr.GetInt32(5))
+                                                    message.send_time = int((cdate - dstart).TotalSeconds)
+                                                except:
+                                                    pass
+                                            message.sender_id = self._db_reader_get_int_value(sr, 6) if message.is_sender != 1 else self.accountid
+                                            message.sender_name = self._db_reader_get_string_value(sr, 8) if message.is_sender != 1 else '我'
+                                            message.source = self.node.AbsolutePath
+                                            message.status = model_im.MESSAGE_STATUS_SENT if sr[2] is 'send' or sr[2] is 'dilivered' else model_im.MESSAGE_STATUS_UNSENT if sr[2] is 'pending' or sr[2] is 'pendingNotSent' else model_im.MESSAGE_STATUS_DEFAULT
+                                            message.talker_type = model_im.CHAT_TYPE_GROUP if sr[7] in self.chatgroupid else model_im.CHAT_TYPE_OFFICIAL if sr[7] in self.publicaccountid else model_im.CHAT_TYPE_FRIEND
+                                            message.talker_id = message.sender_id if message.talker_type == model_im.CHAT_TYPE_FRIEND else self._db_reader_get_int_value(sr, 7)
+                                            message.talker_name = sr[9] if not IsDBNull(sr[9]) else sr[11] if not IsDBNull(sr[11]) else '未知聊天名'
+                                            self.db_insert_table_message(message)
+                                if 'rich_media' in rich_message['pa_message_data']:
+                                    if 'Buttons' in rich_message['pa_message_data']['rich_media']:
+                                        rich_items = rich_message['pa_message_data']['rich_media']['Buttons']
+                                        for rich_item in rich_items:
+                                            link = model_im.Link()
+                                            message.link_id = link.link_id
+                                            link.source = self.node.AbsolutePath
+                                            link.deleted = deleteFlag
+                                            if 'Text' in rich_item:
+                                                link.title = re.sub('<[^>]*>', '', rich_item['Text'])
+                                            if 'Image' in rich_item:
+                                                link.image = rich_item['Image']
+                                            if 'ActionBody' in rich_item:
+                                                link.url = rich_item['ActionBody']
+                                            if 'Map' in rich_item:
+                                                location = model_im.Location()
+                                                message.location_id = location.location_id
+                                                if 'Latitude' in rich_item['Map']:
+                                                    location.latitude = rich_item['Map']['Latitude']
+                                                if 'Longitude' in rich_item['Map']:
+                                                    location.longitude = rich_item['Map']['Longitude']
+                                                    location.source = self.node.AbsolutePath
+                                                    location.deleted = deleteFlag
+                                                self.db_insert_table_location(location)
+                                            self.db_insert_table_link(link)
+                                            message.type = model_im.MESSAGE_CONTENT_TYPE_LINK
+                                            message.account_id = self.accountid
+                                            message.deleted = deleteFlag
+                                            message.is_sender = 1 if sr[2] != 'received' else 0
+                                            message.msg_id = self._db_reader_get_int_value(sr, 0)
+                                            message.type = model_im.MESSAGE_CONTENT_TYPE_LINK
+                                            dstart = DateTime(1970,1,1,0,0,0)
+                                            try:
+                                                cdate = TimeStampFormats.GetTimeStampEpoch1Jan2001(sr.GetDouble(5))
+                                                message.send_time = int((cdate - dstart).TotalSeconds)
+                                            except:
+                                                try:
+                                                    cdate = TimeStampFormats.GetTimeStampEpoch1Jan2001(sr.GetInt32(5))
+                                                    message.send_time = int((cdate - dstart).TotalSeconds)
+                                                except:
+                                                    pass
+                                            message.sender_id = self._db_reader_get_int_value(sr, 6) if message.is_sender != 1 else self.accountid
+                                            message.sender_name = self._db_reader_get_string_value(sr, 8) if message.is_sender != 1 else '我'
+                                            message.source = self.node.AbsolutePath
+                                            message.status = model_im.MESSAGE_STATUS_SENT if sr[2] is 'send' or sr[2] is 'dilivered' else model_im.MESSAGE_STATUS_UNSENT if sr[2] is 'pending' or sr[2] is 'pendingNotSent' else model_im.MESSAGE_STATUS_DEFAULT
+                                            message.talker_type = model_im.CHAT_TYPE_GROUP if sr[7] in self.chatgroupid else model_im.CHAT_TYPE_OFFICIAL if sr[7] in self.publicaccountid else model_im.CHAT_TYPE_FRIEND
+                                            message.talker_id = message.sender_id if message.talker_type == model_im.CHAT_TYPE_FRIEND else self._db_reader_get_int_value(sr, 7)
+                                            message.talker_name = sr[9] if not IsDBNull(sr[9]) else sr[11] if not IsDBNull(sr[11]) else '未知聊天名'
+                                            self.db_insert_table_message(message)
+                                continue
+                            else:
+                                continue
+                        except:
+                            traceback.print_exc()
                     message.msg_id = self._db_reader_get_int_value(sr, 0)
                     dstart = DateTime(1970,1,1,0,0,0)
                     try:
@@ -483,6 +706,7 @@ class ViberParser(model_im.IM, model_callrecord.MC):
         nodes = fs.Search('/Documents/Settings.data$')
         for node in nodes:
             account_db = node.PathWithMountPoint
+            self.account_db = node
             shutil.copy(account_db, self.sourceDB)
             account_db = self.sourceDB + '\\Settings.data'
             break
@@ -527,6 +751,7 @@ class ViberParser(model_im.IM, model_callrecord.MC):
         self.read_deleted_table_member()
         self.read_deleted_table_phonenumber()
         self.read_deleted_table_message()
+        self.read_deleted_table_location()
         self.read_deleted_table_attachment()
         self.read_deleted_table_location()
         self.read_deleted_table_recent()
@@ -562,7 +787,7 @@ class ViberParser(model_im.IM, model_callrecord.MC):
                 (ZMEMBER INTEGER, ZPHONE TEXT)'''
             db_cmd.ExecuteNonQuery()
             db_cmd.CommandText = '''create table if not exists ZVIBERMESSAGE
-                (Z_PK INTEGER, ZTEXT TEXT, ZSTATE TEXT, ZLOCATION INTEGER, ZDATE INTEGER, ZPHONENUMINDEX INTEGER, ZCONVERSATION INTEGER, ZATTACHMENT INTEGER)'''
+                (Z_PK INTEGER, ZTEXT TEXT, ZSTATE TEXT, ZLOCATION INTEGER, ZDATE INTEGER, ZPHONENUMINDEX INTEGER, ZCONVERSATION INTEGER, ZATTACHMENT INTEGER, ZMETADATA TEXT, ZSYSTEMTYPE TEXT)'''
             db_cmd.ExecuteNonQuery()
             db_cmd.CommandText = '''create table if not exists ZATTACHMENT
                 (Z_PK INTEGER, ZNAME TEXT)'''
@@ -575,6 +800,9 @@ class ViberParser(model_im.IM, model_callrecord.MC):
             db_cmd.ExecuteNonQuery()
             db_cmd.CommandText = '''create table if not exists ZRECENTSLINE
                 (Z_PK INTEGER, ZPHONENUMBER TEXT, ZPHONENUMINDEX INTEGER)'''
+            db_cmd.ExecuteNonQuery()
+            db_cmd.CommandText = '''create table if not exists ZVIBERLOCATION
+                (Z_PK INTEGER, ZDATE INTEGER, ZLONGITUDE TEXT, ZLATITUDE TEXT, ZADDRESS TEXT)'''
             db_cmd.ExecuteNonQuery()
         db_cmd.Dispose()
         db.Close()
@@ -705,8 +933,28 @@ class ViberParser(model_im.IM, model_callrecord.MC):
                 try:
                     if canceller.IsCancellationRequested:
                         break
-                    param = (rec['Z_PK'].Value, rec['ZTEXT'].Value, rec['ZSTATE'].Value, rec['ZLOCATION'].Value, rec['ZDATE'].Value, rec['ZPHONENUMINDEX'].Value, rec['ZCONVERSATION'].Value, rec['ZATTACHMENT'].Value, rec['ZPHONENUMINDEX'].Value)
-                    self.db_insert_to_deleted_table('''insert into ZVIBERMESSAGE(Z_PK, ZTEXT, ZSTATE, ZLOCATION, ZDATE, ZPHONENUMINDEX, ZCONVERSATION, ZATTACHMENT, ZPHONENUMINDEX) values(?, ?, ?, ?, ?, ?, ?, ?, ?)''', param)
+                    param = (rec['Z_PK'].Value, rec['ZTEXT'].Value, rec['ZSTATE'].Value, rec['ZLOCATION'].Value, rec['ZDATE'].Value, rec['ZPHONENUMINDEX'].Value, rec['ZCONVERSATION'].Value, rec['ZATTACHMENT'].Value, rec['ZPHONENUMINDEX'].Value, rec['ZMETADATA'].Value, rec['ZSYSTEMTYPE'].Value)
+                    self.db_insert_to_deleted_table('''insert into ZVIBERMESSAGE(Z_PK, ZTEXT, ZSTATE, ZLOCATION, ZDATE, ZPHONENUMINDEX, ZCONVERSATION, ZATTACHMENT, ZPHONENUMINDEX, ZMETADATA, ZSYSTEMTYPE) values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''', param)
+                except:
+                    pass
+        except Exception as e:
+            print(e)
+
+
+    def read_deleted_table_location(self):
+        '''恢复位置表数据'''
+        try:
+            node = self.node.GetByPath('/Contacts.data')
+            db = SQLiteParser.Database.FromNode(node, canceller)
+            if db is None:
+                return
+            ts = SQLiteParser.TableSignature('ZVIBERLOCATION')
+            for rec in db.ReadTableDeletedRecords(ts, False):
+                try:
+                    if canceller.IsCancellationRequested:
+                        break
+                    param = (rec['Z_PK'].Value, rec['ZDATE'].Value, rec['ZLONGITUDE'].Value, rec['ZLATITUDE'].Value, rec['ZADDRESS'].Value)
+                    self.db_insert_to_deleted_table('''insert into ZVIBERLOCATION(Z_PK, ZDATE, ZLONGITUDE, ZLATITUDE, ZADDRESS) values(?, ?, ?, ?, ?, ?, ?)''', param)
                 except:
                     pass
         except Exception as e:
