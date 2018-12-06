@@ -882,12 +882,12 @@ class Genetate(object):
         try:
             if value and ctype == 0:
                 # 经度
-                return float(str(value)[:3]+"."+str(value)[3:])
+                return float(str(int(value))[:3]+"."+str(int(value))[3:])
             elif value and ctype == 1:
                 # 维度
-                return float(str(value)[:2]+"."+str(value)[2:])
+                return float(str(int(value))[:2]+"."+str(int(value))[2:])
         except Exception as e:
-            pass
+            return value
 
 def md5(cache_path, node_path):
     m = hashlib.md5()   

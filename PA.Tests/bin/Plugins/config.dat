@@ -365,6 +365,30 @@
       </array>
     </dict>
 
+    <dict>
+      <key>Module</key>
+      <string>apple_iaround</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_apple_iaround</string>
+          <key>RunnerType</key>
+          <integer>0</integer>
+          <key>Patterns</key>
+          <array>
+            <string>/ZHF_database.sqlite3$</string>
+          </array>
+          <key>Category</key>
+          <string>iAround</string>
+          <key>Name</key>
+          <string>遇见(苹果)</string>
+          <key>Filter</key>
+          <string>应用>社交</string>
+        </dict>
+      </array>
+    </dict>
+
     <!--苹果插件从这里开始,安卓插件请见下面-->
     <!--要个性化自定义运行某些插件,请按此文件的格式建立config.debug.dat文件,调试版的程序程序会优先读取config.debug.dat文件-->
     <dict>
@@ -2718,6 +2742,31 @@
           <string>BeeTalk</string>
           <key>Name</key>
           <string>蜜语(安卓)</string>
+          <key>Filter</key>
+          <string>应用>社交</string>
+        </dict>
+      </array>
+    </dict>
+
+    <dict>
+      <key>Module</key>
+      <string>android_iaround</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_android_iaround</string>
+          <key>RunnerType</key>
+          <integer>2</integer>
+          <key>Patterns</key>
+          <array>
+            <string>/data/net.iaround/databases/iaround_im.db$</string>
+            <string>/Apps/net.iaround/databases/iaround_im.db$</string>
+          </array>
+          <key>Category</key>
+          <string>iAround</string>
+          <key>Name</key>
+          <string>遇见(安卓)</string>
           <key>Filter</key>
           <string>应用>社交</string>
         </dict>

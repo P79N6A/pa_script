@@ -20,7 +20,7 @@ import hashlib
 import shutil
 import traceback
 
-VERSION_APP_VALUE = 1
+VERSION_APP_VALUE = 3
 
 class BeeTalkParser(model_im.IM, model_callrecord.MC):
     def __init__(self, node, extract_deleted, extract_source):
@@ -99,7 +99,8 @@ class BeeTalkParser(model_im.IM, model_callrecord.MC):
                         except:
                             cdate = TimeStampFormats.GetTimeStampEpoch1Jan2001(sr.GetDouble(4))
                         account.birthday = int((cdate - dstart).TotalSeconds)
-                    account.gender = self._db_reader_get_int_value(sr, 5)
+                    gender = self._db_reader_get_int_value(sr, 5)
+                    account.gender = 1 if gender == 0 else 0 if gender == 1 else None
                     account.source = self.node.AbsolutePath
                     account.deleted = 0
                     self.db_insert_table_account(account)
@@ -130,7 +131,7 @@ class BeeTalkParser(model_im.IM, model_callrecord.MC):
                         break
                     friend.account_id = self._db_reader_get_int_value(sr, 1)
                     friend.deleted = self._db_reader_get_int_value(sr, 4)
-                    friend.friend_id = '手机联系人' + str(sr[0]) if not IsDBNull(sr[0]) else 0
+                    friend.friend_id = '本地联系人' + str(sr[0]) if not IsDBNull(sr[0]) else 0
                     friend.fullname = self._db_reader_get_string_value(sr, 3)
                     friend.source = self.node.AbsolutePath
                     friend.telephone = self._db_reader_get_string_value(sr, 2)
@@ -234,7 +235,8 @@ class BeeTalkParser(model_im.IM, model_callrecord.MC):
                         except:
                             cdate = TimeStampFormats.GetTimeStampEpoch1Jan2001(sr.GetDouble(3))
                         chatroom_member.birthday = int((cdate - dstart).TotalSeconds)
-                    chatroom_member.gender = self._db_reader_get_int_value(sr, 4)
+                    gender = self._db_reader_get_int_value(sr, 4)
+                    chatroom_member.gender = 0 if gender == 1 else 1 if gender == 0 else None
                     self.db_insert_table_chatroom_member(chatroom_member)
                 except:
                     traceback.print_exc()
@@ -304,8 +306,12 @@ class BeeTalkParser(model_im.IM, model_callrecord.MC):
                             if test_Key == 'kImageImageUrlKey':
                                 image_name = test_Value
                                 nodes = self.cacheNode.Search(image_name + '$')
+                                if len(list(nodes)) == 0:
+                                    message.content = '<图片消息>' + image_name
+                                    message.type = model_im.MESSAGE_CONTENT_TYPE_TEXT
                                 for node in nodes:
                                     message.media_path = node.AbsolutePath
+                                    message.type = model_im.MESSAGE_CONTENT_TYPE_IMAGE
                                     break
                                 message.type = model_im.MESSAGE_CONTENT_TYPE_IMAGE
                             elif test_Key == 'kImageThumbUrlKey':
@@ -324,15 +330,22 @@ class BeeTalkParser(model_im.IM, model_callrecord.MC):
                             elif test_Key == 'kVNUrlKey':
                                 voice_msg = test_Value
                                 nodes = self.cacheNode.Search(voice_msg + '$')
+                                if len(list(nodes)) == 0:
+                                    message.content = '<语音消息>' + voice_msg
+                                    message.type = model_im.MESSAGE_CONTENT_TYPE_TEXT
                                 for node in nodes:
                                     message.media_path = node.AbsolutePath
                                     break
                                 message.type = model_im.MESSAGE_CONTENT_TYPE_VOICE
                             elif test_Key == 'kCallInfoType':
                                 call_type = test_Value
-                                message.type = model_im.MESSAGE_CONTENT_TYPE_VOIP
+                                message.type = model_im.MESSAGE_CONTENT_TYPE_TEXT
                             elif test_Key == 'kCallInfoDuration':
                                 call_duration = test_Value
+                                message.content = '通话时长:' + str(call_duration) + '秒'
+                            elif test_Key == 'kStickerPath':
+                                message.content = '<表情>' + test_Value
+                                message.type = model_im.MESSAGE_CONTENT_TYPE_TEXT
                             location_id = self._db_reader_get_int_value(sr, 0)
                         if latitude is not None or longitude is not None or location_name is not None:  #如果包含有位置数据，就把数据插入到位置表中
                             location = model_im.Location()
@@ -358,7 +371,8 @@ class BeeTalkParser(model_im.IM, model_callrecord.MC):
                             record.deleted = sr[18]
                             record.source = self.node.AbsolutePath
                             self.db_insert_table_call_records(record)
-                    self.db_insert_table_message(message)
+                    if message.type is not None:
+                        self.db_insert_table_message(message)
                 except:
                     traceback.print_exc()
             sr.Close()
@@ -695,7 +709,8 @@ class BeeTalkParser(model_im.IM, model_callrecord.MC):
                         else:
                             continue
                         param = (rec['Z_PK'].Value, rec['ZGROUPID'].Value, rec['ZMEMBERLISTVERSION'].Value, rec['ZFORMATTEDNAME'].Value, rec['ZOWNER'].Value, rec.IsDeleted)
-                        self.db_insert_to_deleted_table('''insert into ZBTGROUP(Z_PK, ZGROUPID, ZMEMBERLISTVERSION, ZFORMATTEDNAME, ZOWNER, deleted) values(?, ?, ?, ?, ?, ?)''', param)
+                        if rec.IsDeleted == 0:
+                            self.db_insert_to_deleted_table('''insert into ZBTGROUP(Z_PK, ZGROUPID, ZMEMBERLISTVERSION, ZFORMATTEDNAME, ZOWNER, deleted) values(?, ?, ?, ?, ?, ?)''', param)
                 except:
                     traceback.print_exc()
         except Exception as e:
@@ -715,14 +730,15 @@ class BeeTalkParser(model_im.IM, model_callrecord.MC):
                     if canceller.IsCancellationRequested:
                         break
                     if not IsDBNull(rec['Z_13GROUPS'].Value) and rec['Z_13GROUPS'].Value != 0:
-                        if not rec['Z_13GROUPS'].Value in dic.keys():
-                            dic[rec['Z_13GROUPS'].Value] = [rec.IsDeleted]
-                        elif rec.IsDeleted not in dic[rec['Z_13GROUPS'].Value]:
-                            dic[rec['Z_13GROUPS'].Value].append(rec.IsDeleted)
-                        else:
-                            continue
+                        #if not rec['Z_13GROUPS'].Value in dic.keys():
+                        #    dic[rec['Z_13GROUPS'].Value] = [rec.IsDeleted]
+                        #elif rec.IsDeleted not in dic[rec['Z_13GROUPS'].Value]:
+                        #    dic[rec['Z_13GROUPS'].Value].append(rec.IsDeleted)
+                        #else:
+                        #    continue
                         param = (rec['Z_13GROUPS'].Value, rec['Z_23USERS'].Value, rec.IsDeleted)
-                        self.db_insert_to_deleted_table('''insert into Z_13USERS(Z_13GROUPS, Z_23USERS, deleted) values(?, ?, ?)''', param)
+                        if rec.IsDeleted == 0:
+                            self.db_insert_to_deleted_table('''insert into Z_13USERS(Z_13GROUPS, Z_23USERS, deleted) values(?, ?, ?)''', param)
                 except:
                     traceback.print_exc()
         except Exception as e:

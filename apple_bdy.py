@@ -278,7 +278,7 @@ def parse_bdy(node, extract_source, extract_deleted):
         models = nd.generate_models()
         mlm = ModelListMerger()
         pr = ParserResults()
-        pr.Categories = DescripCategories.BDN
+        pr.Categories = DescripCategories.BDY
         pr.Models.AddRange(list(mlm.GetUnique(models)))
         pr.Build("百度云")
     except:
