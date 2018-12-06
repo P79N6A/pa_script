@@ -243,15 +243,20 @@ def get_emlx_files(mail):
             messages = d.GetFirstNode("Messages")
             if messages != None:
                 for f in messages.Glob("*.emlx*"):
-                    parts = f.Name.split(".", 1)
-                    message_id = parts[0]
-                    if parts[1] == "emlx":
-                        emlx[message_id] = f
-                    elif parts[1].endswith("emlxpart"):
-                        f.Data.seek(0)
-                        data = f.Data.read()
-                        part_num = parts[1].rsplit(".", 1)[0]
-                        emlxpart[message_id].append((part_num, DataRecord(part_num, "", 1, data, f)))
+                    # 检测 邮件文件在文件系统下是否异常
+                    try:
+                        parts = f.Name.split(".", 1)
+                        message_id = parts[0] 
+                        if parts[1] == "emlx":
+                            f.Data.seek(0)
+                            emlx[message_id] = f
+                        elif parts[1].endswith("emlxpart"):
+                            f.Data.seek(0)
+                            data = f.Data.read()
+                            part_num = parts[1].rsplit(".", 1)[0]
+                            emlxpart[message_id].append((part_num, DataRecord(part_num, "", 1, data, f)))
+                    except:
+                        continue
 
     return emlx, emlxpart
 
@@ -405,7 +410,6 @@ def read_mail(mail_dir, envelope_db, protected_db, extractDeleted, extractSource
         if emlx_file != None:
             emlx_file.Data.seek(0)
             data = emlx_file.read()
-
             m = message_from_string(data)
             body, attachments = read_from_mime(m, None)
             add_embedded(emlx_file, attachments, msg)
@@ -534,11 +538,9 @@ def read_old_mail(mail_dir, envelope_db, extractDeleted, extractSource):
         if emlx_file != None:
             emlx_file.Data.seek(0)
             data = emlx_file.read()
-
             m = message_from_string(data)
             body, attachments = read_from_mime(m, None)
             add_embedded (emlx_file, attachments, msg)
-
         else:
             parts = {}
             parts.update(part_files[base_name])
@@ -731,11 +733,12 @@ def hasContent(msg):
 	return msg.Body.Value is not None or msg.From.Value is not None or msg.TimeStamp.Value is not None or msg.To.Count > 0 or msg.Subject.Value is not None or msg.Attachments.Count > 0
 
 def analyze_emails(mail_dir, extractDeleted, extractSource):
+
     pr = ParserResults()
+
     envelope_file = mail_dir.GetFirstNode("Envelope Index")
     if envelope_file == None:
         return pr
-
     envelope_db = SQLiteParser.Database.FromNode(envelope_file)
     if envelope_db == None:
         return pr
