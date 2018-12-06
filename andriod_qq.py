@@ -111,11 +111,11 @@ def readVarInt(data):
 
 def checkhit(root):
     nodes = []
-    res =  ['(?i)com.tencent.mobileqq/databases$',
-            '(?i)com.tencent.mobileqqi/databases$',
-            '(?i)com.tencent.qqlite/databases$',
-            '(?i)com.tencent.tim/databases$',
-            '(?i)com.tencent.minihd.qq/databases$']
+    res =  ['(?i)com.tencent.qqlite/databases$',
+                '(?i)com.tencent.mobileqq/databases$',
+                '(?i)com.tencent.mobileqqi/databases$',            
+                '(?i)com.tencent.tim/databases$',
+                '(?i)com.tencent.minihd.qq/databases$']
     for re in res:                 
         node = root.FileSystem.Search(re)
         nodes.append(node)
@@ -347,9 +347,9 @@ class Andriod_QQParser(object):
             return
         d = node.PathWithMountPoint
         if 'TroopInfo' in self.accounttables:
-            sql = 'select troopuin,troopcode,troopowneruin,troopname,fingertroopmemo from TroopInfo'
+            sql = 'select troopuin,troopcode,troopowneruin,troopname,fingertroopmemo,troopCreateTime,wmemberNum from TroopInfo'
         else:
-            sql = 'select troopuin,troopcode,troopowneruin,troopname,fingertroopmemo, troopCreatetime,wmemberNum,administrator from TroopInfoV2'
+            sql = 'select troopuin,troopcode,troopowneruin,troopname,fingertroopmemo, troopCreatetime,wmemberNum from TroopInfoV2'
         datasource = "Data Source =  " + d +";ReadOnly=True"
         conn = SQLiteConnection(datasource)
         conn.Open()
@@ -386,8 +386,8 @@ class Andriod_QQParser(object):
             return
         d = node.PathWithMountPoint
         sql ='''
-               select troopuin, memberuin,friendnick
-            ,autoremark,age,join_time,last_active_time
+               select troopuin, memberuin,friendnick,
+            autoremark,age,join_time,last_active_time,troopnick
             from TroopMemberInfo order by troopuin
             '''
         datasource = "Data Source =  " + d +";ReadOnly=True"
@@ -406,7 +406,10 @@ class Andriod_QQParser(object):
                 mem.account_id = acc_id
                 mem.chatroom_id = decode_text(self.imei,SafeGetString(reader,0))
                 mem.member_id = decode_text(self.imei,SafeGetString(reader,1))
-                mem.display_name = decode_text(self.imei,SafeGetString(reader,2))
+                nickname = SafeGetString(reader,2)
+                if nickname ==  '':
+                    nickname = SafeGetString(reader,7)
+                mem.display_name = decode_text(self.imei,nickname)
                 mem.signature = decode_text(self.imei,SafeGetString(reader,3))
                 mem.age = SafeGetInt64(reader,4)
                 mem.joinTime = SafeGetInt64(reader,5)
@@ -425,6 +428,7 @@ class Andriod_QQParser(object):
 
     def processmedia(self,msg):
         try:
+            picheader = {'/offpic_new/':'https://c2cpicdw.qpic.cn', '/gchatpic_new/': 'http://gchat.qpic.cn'}
             sdcard = '/storage/emulated/0/'
             searchkey = ''
             nodes = list()
@@ -433,24 +437,30 @@ class Andriod_QQParser(object):
                 nodes = self.root.FileSystem.Search(searchkey+'$')
                 if len(list(nodes)) == 0:
                     searchkey = msg.content[msg.content.rfind('/')+1:]
-                    nodes = self.root.FileSystem.Search(searchkey+ '$')
-            for node in nodes:
-                msg.media_path = node.AbsolutePath
-                if msg.media_path.endswith('.mp3') :
-                    msg.type = MESSAGE_CONTENT_TYPE_VOICE
-                elif msg.media_path.endswith('.amr'):
-                    msg.type = MESSAGE_CONTENT_TYPE_VOICE
-                elif msg.media_path.endswith('.slk') :
-                    msg.type = MESSAGE_CONTENT_TYPE_VOICE
-                elif msg.media_path.endswith('.mp4'):
-                    msg.type = MESSAGE_CONTENT_TYPE_VIDEO
-                elif msg.media_path.endswith('.jpg'):
-                    msg.type = MESSAGE_CONTENT_TYPE_IMAGE
-                elif msg.media_path.endswith('.png'):
-                    msg.type = MESSAGE_CONTENT_TYPE_IMAGE
-                else:
-                    msg.type = MESSAGE_CONTENT_TYPE_ATTACHMENT
-                return True
+                    nodes = self.root.FileSystem.Search(searchkey+ '$')                        
+                for node in nodes:
+                    msg.media_path = node.AbsolutePath
+                    if msg.media_path.endswith('.mp3') :
+                        msg.type = MESSAGE_CONTENT_TYPE_VOICE
+                    elif msg.media_path.endswith('.amr'):
+                        msg.type = MESSAGE_CONTENT_TYPE_VOICE
+                    elif msg.media_path.endswith('.slk') :
+                        msg.type = MESSAGE_CONTENT_TYPE_VOICE
+                    elif msg.media_path.endswith('.mp4'):
+                        msg.type = MESSAGE_CONTENT_TYPE_VIDEO
+                    elif msg.media_path.endswith('.jpg'):
+                        msg.type = MESSAGE_CONTENT_TYPE_IMAGE
+                    elif msg.media_path.endswith('.png'):
+                        msg.type = MESSAGE_CONTENT_TYPE_IMAGE
+                    else:
+                        msg.type = MESSAGE_CONTENT_TYPE_ATTACHMENT
+                    return True
+            else:                
+                for header in picheader.keys():
+                    if(msg.content.find(header) == 0):
+                        msg.media_path = picheader[header] + msg.content
+                        msg.type = MESSAGE_CONTENT_TYPE_IMAGE                   
+                        return True
         except Exception as e:
             pass
         return False
@@ -476,10 +486,8 @@ class Andriod_QQParser(object):
                 msg.msg_id = SafeGetInt64(reader,0)
                 msg.account_id = acc_id
                 frienduin = decode_text(self.imei, SafeGetString(reader,2))
-
                 blobdata = SafeGetBlob(reader,3)
                 msgdata = decode_blob(self.imei, blobdata)
-
                 senderuin = decode_text(self.imei, SafeGetString(reader,4))
                 msg.send_time = SafeGetInt64(reader,5)
                 msgtype = SafeGetInt64(reader,6)
@@ -769,7 +777,7 @@ class Andriod_QQParser(object):
                 thumb = str(msgstruct['thumbMsgUrl'])
                 msg.content = str(content)
                 if(self.processmedia(msg) == False):
-                    msg.content = thumb
+                    msg.content = url
                     self.processmedia(msg)
             elif(msgtype == -2006):
                 msg.content	= msgstruct.decode("utf8","ignore")
@@ -798,7 +806,7 @@ class Andriod_QQParser(object):
             elif(msgtype == -2005):
                 sig = 0x16
                 if(msgdata[0] == sig):
-                    msg.content = str(msgdata[1:msgdata.find("|")])
+                    msg.content = str(msgdata[1:msgdata.find("|")]).decode('utf-8',"ignore")
                     self.processmedia(msg)
             elif(msgtype == -2002):
                 if msgstruct is None:
