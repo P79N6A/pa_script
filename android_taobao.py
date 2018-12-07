@@ -320,6 +320,7 @@ class TaobaoParser(object):
                     db_col.execute_sql(sql)
                     while db_col.has_rest():
                         return db_col, RecoverTableHelper(Utils.create_sub_node(self.root, db_file, "im_db"))
+        return None, None
 
     def __search_account_recover_col(self, file_name):
         path = "/databases/{}".format(file_name)
@@ -1044,6 +1045,8 @@ class TaobaoParser(object):
             return
         for account, account_username in self.__generate_accounts():
             self.checking_account_col, self.checking_account_recover_col = self.__search_account_col(account_username)
+            if not all((self.checking_account_col, self.checking_account_recover_col)):
+                return
             self._generate_account_table(account_username, account)
             self._generate_friend_table()
             self._generate_message_table()
