@@ -479,7 +479,7 @@ class BaiduMobileParser(object):
             _path = None
             if len(file_name) > 0:
                 try:
-                    node = fs.Search(r'com\.baidu\.searchbox.*?/{}$'.format(re.escape(file_name)))
+                    node = fs.Search(r'com\.baidu\.searchbox.*?/{}$'.format(file_name))
                     for i in node:
                         _path = i.AbsolutePath
                 except:
