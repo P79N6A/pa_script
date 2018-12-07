@@ -29,9 +29,10 @@ import uuid
 import time
 import gc
 import re
+import time
 
 # app数据库版本
-VERSION_APP_VALUE = 1
+VERSION_APP_VALUE = 2
 
 def analyze_youxin(root, extract_deleted, extract_source):
     if root.AbsolutePath == '/data/media/0/Android/data/com.yx':
@@ -55,7 +56,7 @@ class YouXinParser():
     def __init__(self, node, extract_deleted, extract_source):
         self.extract_deleted = False
         self.extract_source = extract_source
-        self.root = node
+        self.root = node.Parent
         self.im = model_im.IM()
         self.cache_path =ds.OpenCachePath('YouXin')
         if not os.path.exists(self.cache_path):
@@ -88,6 +89,8 @@ class YouXinParser():
     def get_user_list(self):
         user_list = []
         node = self.root.GetByPath('/databases')
+        print(self.root.PathWithMountPoint)
+        print(node.PathWithMountPoint)
         if node is not None:
             for file in os.listdir(node.PathWithMountPoint):
                 str = re.search('\\d+', file, re.M | re.I)
@@ -122,13 +125,16 @@ class YouXinParser():
             ts = SQLiteParser.TableSignature('MY_NAME_CARD')
             SQLiteParser.Tools.AddSignatureToTable(ts, 'UID', SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
             for rec in db.ReadTableRecords(ts, self.extract_deleted):
-                account.username = rec['NAME'].Value
+                account.username = self._db_record_get_string_value(rec, 'NAME')
                 self.username = account.username
-                account.gender = 2 if rec['GENDER'].Value == '女' else 1
-                account.telephone = rec['MOBILE_NUMBER'].Value
-                account.email = rec['EMAIL'].Value
-                account.birthday = rec['BIRTHDAY'].Value
-                account.photo = rec['PHOTO_LOCATION'].Value
+                account.gender = 2 if self._db_record_get_string_value(rec, 'GENDER') == '女' else 1
+                account.telephone = self._db_record_get_string_value(rec, 'MOBILE_NUMBER')
+                account.email = self._db_record_get_string_value(rec, 'EMAIL')
+                birthday = self._db_record_get_string_value(rec, 'BIRTHDAY')
+                ts = time.strptime(birthday, '%Y-%m-%d')
+                birthday = int(time.mktime(ts))
+                account.birthday = birthday
+                account.photo = self._db_record_get_string_value(rec, 'PHOTO_LOCATION')
 
         self.im.db_insert_table_account(account)
         self.im.db_commit()
@@ -148,27 +154,34 @@ class YouXinParser():
             for rec in db.ReadTableRecords(ts, self.extract_deleted):
                 if canceller.IsCancellationRequested:
                     return
-                id = rec['UID'].Value
-                if id == self.user or id in self.contacts.keys():
-                    continue
-                friend = model_im.Friend()
-                self.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
-                friend.source = dbPath.AbsolutePath
-                friend.account_id = self.user
-                friend.friend_id = id
-                friend.nickname = rec['NAME'].Value
-                friend.gender = 2 if rec['SEX'].Value == '女' else 1
-                friend.signature = rec['SIGNATURE'].Value
-                friend.email = rec['BIRTHDAY'].Value
-                friend.province = rec['PROVINCE'].Value
-                friend.city = rec['CITY'].Value
-                friend.telephone = rec['MOBILE_NUMBER'].Value
-                friend.photo = rec['PICTURE'].Value
-                friend.type = model_im.FRIEND_TYPE_FRIEND
-                if IsDBNull(friend.photo):
-                    friend.photo = None
-                self.contacts[id] = friend
-                self.im.db_insert_table_friend(friend)
+                try:
+                    id = self._db_record_get_string_value(rec, 'UID')
+                    if id == self.user or id in self.contacts.keys():
+                        continue
+                    friend = model_im.Friend()
+                    self.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
+                    friend.source = dbPath.AbsolutePath
+                    friend.account_id = self.user
+                    friend.friend_id = id
+                    friend.nickname = self._db_record_get_string_value(rec, 'NAME')
+                    friend.gender = 2 if self._db_record_get_string_value(rec, 'SEX') == '女' else 1
+                    friend.signature = self._db_record_get_string_value(rec, 'SIGNATURE')
+                    friend.email = self._db_record_get_string_value(rec, 'EMAIL')
+                    birthday = self._db_record_get_string_value(rec, 'BIRTHDAY')
+                    ts = time.strptime(birthday, '%Y-%m-%d')
+                    birthday = int(time.mktime(ts))
+                    friend.birthday = birthday
+                    friend.province = self._db_record_get_string_value(rec, 'PROVINCE')
+                    friend.city = self._db_record_get_string_value(rec, 'CITY')
+                    friend.telephone = self._db_record_get_string_value(rec, 'MOBILE_NUMBER')
+                    friend.photo = self._db_record_get_string_value(rec, 'PICTURE')
+                    friend.type = model_im.FRIEND_TYPE_FRIEND
+                    if IsDBNull(friend.photo):
+                        friend.photo = None
+                    self.contacts[id] = friend
+                    self.im.db_insert_table_friend(friend)
+                except:
+                    pass
 
         if 'contact' in db.Tables:
             ts = SQLiteParser.TableSignature('contact')
@@ -176,28 +189,30 @@ class YouXinParser():
             for rec in db.ReadTableRecords(ts, self.extract_deleted):
                 if canceller.IsCancellationRequested:
                     return
+                try:
+                    id = self._db_record_get_string_value(rec, 'UID')
+                    if id == '':
+                        id = self._db_record_get_string_value(rec, 'NUMBER')
 
-                id = rec['UID'].Value
-                if id == '':
-                    id = rec['NUMBER'].Value
+                    if id in self.contacts.keys():
+                        continue
 
-                if id in self.contacts.keys():
-                    continue
-
-                friend = model_im.Friend()
-                self.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
-                friend.source = dbPath.AbsolutePath
-                friend.account_id = self.user
-                friend.friend_id = rec['UID'].Value
-                friend.nickname = rec['NAME'].Value
-                friend.telephone = rec['NUMBER'].Value
-                friend.photo = rec['HEAD_URL'].Value
-                friend.address = rec['LOCATION'].Value
-                friend.type = model_im.FRIEND_TYPE_FRIEND
-                if IsDBNull(friend.photo):
-                    friend.photo = None
-                self.contacts[id] = friend
-                self.im.db_insert_table_friend(friend)
+                    friend = model_im.Friend()
+                    self.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
+                    friend.source = dbPath.AbsolutePath
+                    friend.account_id = self.user
+                    friend.friend_id = self._db_record_get_string_value(rec, 'UID')
+                    friend.nickname = self._db_record_get_string_value(rec, 'NAME')
+                    friend.telephone = self._db_record_get_string_value(rec, 'NUMBER')
+                    friend.photo = self._db_record_get_string_value(rec, 'HEAD_URL')
+                    friend.address = self._db_record_get_string_value(rec, 'LOCATION')
+                    friend.type = model_im.FRIEND_TYPE_FRIEND
+                    if IsDBNull(friend.photo):
+                        friend.photo = None
+                    self.contacts[id] = friend
+                    self.im.db_insert_table_friend(friend)
+                except:
+                    pass
         self.im.db_commit()
 
     def get_chats(self):
@@ -217,34 +232,37 @@ class YouXinParser():
                 for rec in db.ReadTableRecords(ts, self.extract_deleted):
                     if canceller.IsCancellationRequested:
                         return
-                    if id != rec['uid'].Value:
-                        continue
+                    try:
+                        if id != self._db_record_get_string_value(rec, 'uid'):
+                            continue
 
-                    friend = self.contacts.get(id)
+                        friend = self.contacts.get(id)
 
-                    message = model_im.Message()
-                    message.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
-                    message.source = dbPath.AbsolutePath
-                    message.account_id = self.user
-                    message.talker_id = id
-                    message.talker_name = friend.nickname
-                    message.talker_type = model_im.CHAT_TYPE_FRIEND
-                    message.is_sender = model_im.MESSAGE_TYPE_SEND if rec['type'].Value else model_im.MESSAGE_TYPE_RECEIVE
-                    message.sender_id = self.user if message.is_sender == model_im.MESSAGE_TYPE_SEND else id
-                    message.sender_name = friend.nickname if message.sender_id == id else self.username
-                    message.msg_id = str(uuid.uuid1()).replace('-', '')
-                    message.type = self.parse_message_type(rec['extra_mime'].Value)
-                    message.content = rec['body'].Value
-                    message.media_path = self.get_media_path(message.content, message.type)
-                    message.send_time = rec['date'].Value
-                    if message.is_sender == model_im.MESSAGE_TYPE_SEND:
-                        message.status = model_im.MESSAGE_STATUS_SENT if rec['status'].Value == 1 else model_im.MESSAGE_STATUS_UNSENT
-                    if message.is_sender == model_im.MESSAGE_TYPE_RECEIVE:
-                        message.status = model_im.MESSAGE_STATUS_READ if rec['status'].Value == 1 else model_im.MESSAGE_STATUS_UNREAD
-                    if message.type == model_im.MESSAGE_CONTENT_TYPE_LOCATION:
-                        message.location_obj = message.create_location()
-                        message.location_id = self.get_location(message.location_obj, message.content, message.send_time)
-                    self.im.db_insert_table_message(message)
+                        message = model_im.Message()
+                        message.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
+                        message.source = dbPath.AbsolutePath
+                        message.account_id = self.user
+                        message.talker_id = id
+                        message.talker_name = friend.nickname
+                        message.talker_type = model_im.CHAT_TYPE_FRIEND
+                        message.is_sender = model_im.MESSAGE_TYPE_SEND if self._db_record_get_int_value(rec, 'type') else model_im.MESSAGE_TYPE_RECEIVE
+                        message.sender_id = self.user if message.is_sender == model_im.MESSAGE_TYPE_SEND else id
+                        message.sender_name = friend.nickname if message.sender_id == id else self.username
+                        message.msg_id = str(uuid.uuid1()).replace('-', '')
+                        message.type = self.parse_message_type(self._db_record_get_int_value(rec, 'extra_mime'))
+                        message.content = self._db_record_get_string_value(rec, 'body')
+                        message.media_path = self.get_media_path(message.content, message.type)
+                        message.send_time = int(self._db_record_get_string_value(rec, 'date')[0:10:])
+                        if message.is_sender == model_im.MESSAGE_TYPE_SEND:
+                            message.status = model_im.MESSAGE_STATUS_SENT if self._db_record_get_int_value(rec, 'status') == 1 else model_im.MESSAGE_STATUS_UNSENT
+                        if message.is_sender == model_im.MESSAGE_TYPE_RECEIVE:
+                            message.status = model_im.MESSAGE_STATUS_READ if self._db_record_get_int_value(rec, 'status') == 1 else model_im.MESSAGE_STATUS_UNREAD
+                        if message.type == model_im.MESSAGE_CONTENT_TYPE_LOCATION:
+                            message.location_obj = message.create_location()
+                            message.location_id = self.get_location(message.location_obj, message.content, message.send_time)
+                        self.im.db_insert_table_message(message)
+                    except:
+                        pass
         self.im.db_commit()
 
     def parse_message_type(self, type):
@@ -277,3 +295,34 @@ class YouXinParser():
         self.im.db_insert_table_location(location)
         self.im.db_commit()
         return location.location_id
+
+    @staticmethod
+    def _db_record_get_string_value(record, column, default_value=''):
+        if not record[column].IsDBNull:
+            try:
+                value = str(record[column].Value)
+                #if record.Deleted != DeletedState.Intact:
+                #    value = filter(lambda x: x in string.printable, value)
+                return value
+            except Exception as e:
+                return default_value
+        return default_value
+
+    @staticmethod
+    def _db_record_get_int_value(record, column, default_value=0):
+        if not record[column].IsDBNull:
+            try:
+                return int(record[column].Value)
+            except Exception as e:
+                return default_value
+        return default_value
+
+    @staticmethod
+    def _db_record_get_blob_value(record, column, default_value=None):
+        if not record[column].IsDBNull:
+            try:
+                value = record[column].Value
+                return bytes(value)
+            except Exception as e:
+                return default_value
+        return default_value

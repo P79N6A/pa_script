@@ -2073,7 +2073,8 @@
           <integer>2</integer>
           <key>Patterns</key>
           <array>
-            <string>/data/com.yx$</string>
+            <string>/data/com.yx/databases$</string>
+            <string>/Apps/com.yx/databases$</string>
           </array>
           <key>Category</key>
           <string>YouXin</string>
