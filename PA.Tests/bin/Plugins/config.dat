@@ -2188,6 +2188,30 @@
 
     <dict>
       <key>Module</key>
+      <string>android_radio_log</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_radio</string>
+          <key>RunnerType</key>
+          <integer>2</integer>
+          <key>Patterns</key>
+          <array>
+            <string>#</string>
+          </array>
+          <key>Category</key>
+          <string>RadioLog</string>
+          <key>Name</key>
+          <string>Radio(安卓)</string>
+          <key>Filter</key>
+          <string>基础数据</string>
+        </dict>
+      </array>
+    </dict>
+
+    <dict>
+      <key>Module</key>
       <string>android_calendar</string>
       <key>Runners</key>
       <array>
