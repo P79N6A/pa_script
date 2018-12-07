@@ -34,7 +34,7 @@ from PA.Common.Utilities.Types import TimeStampFormats
 
 # CONST
 Taobao_VERSION = 1
-DEBUG = False
+DEBUG = True
 
 
 class ColHelper(object):
@@ -203,6 +203,14 @@ class Utils(object):
         except:
             return None
 
+    @staticmethod
+    def create_sub_node(node, rpath, vname):
+        mem = MemoryRange.CreateFromFile(rpath)
+        r_node = Node(vname, Files.NodeType.File)
+        r_node.Data = mem
+        node.Children.Add(r_node)
+        return r_node
+
 
 class Logger(object):
     def __init__(self):
@@ -232,6 +240,7 @@ class Logger(object):
 class TaobaoParser(object):
     def __init__(self, root, extract_deleted, extract_source):
         self.root = root
+        print(self.root.PathWithMountPoint)
         self.app_name = 'Taobao'
         self.extract_deleted = extract_deleted
         self.extract_source = extract_source
@@ -310,7 +319,8 @@ class TaobaoParser(object):
                     sql = """SELECT _id from profile where NICK = '{}'""".format(account_name)
                     db_col.execute_sql(sql)
                     while db_col.has_rest():
-                        return db_col, self.__search_account_recover_col(f)
+                        return db_col, RecoverTableHelper(Utils.create_sub_node(self.root, db_file, "im_db"))
+        return None, None
 
     def __search_account_recover_col(self, file_name):
         path = "/databases/{}".format(file_name)
@@ -500,7 +510,7 @@ class TaobaoParser(object):
                             BIZ_TYPE, 
                             EXT_INFO 
                     FROM profile 
-                    WHERE PROFILE_ID like '%{username}';""".format(username=account_username)
+                    WHERE NICK = '{username}';""".format(username=account_username)
             db_col.execute_sql(sql)
             while db_col.has_rest():
                 a = model_im.Account()
@@ -996,7 +1006,9 @@ class TaobaoParser(object):
     def _recover_eb_data(self):
         # self.recover_eb_shop_col = self.root.GetByPath("/databases/AmpData")
         # self.recover_eb_products_col = self.root.GetByPath("/databases/data_history")
-        self.recover_eb_log_col = RecoverTableHelper(self.root.GetByPath("/databases/MLTK.db"))
+        db_path = os.path.join(self.data_path, "MLTK.db")
+        node = Utils.create_sub_node(self.root, db_path, "recover_node")
+        self.recover_eb_log_col = RecoverTableHelper(node)
 
         if not self.recover_eb_log_col.is_valid():
             return
@@ -1033,6 +1045,8 @@ class TaobaoParser(object):
             return
         for account, account_username in self.__generate_accounts():
             self.checking_account_col, self.checking_account_recover_col = self.__search_account_col(account_username)
+            if not all((self.checking_account_col, self.checking_account_recover_col)):
+                return
             self._generate_account_table(account_username, account)
             self._generate_friend_table()
             self._generate_message_table()
@@ -1044,7 +1058,7 @@ class TaobaoParser(object):
     def parse(self):
         """解析的主函数"""
 
-        if self.model_eb_col.need_parse:
+        if DEBUG or self.model_eb_col.need_parse:
             self.model_eb_col.db_create()
 
             self.main()

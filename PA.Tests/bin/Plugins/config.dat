@@ -365,7 +365,38 @@
       </array>
     </dict>
 
-    <dict>
+	<dict>
+      <key>Module</key>
+      <string>Android_dev</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>Android_Dev.AnalyzeAndroidDeviceInfo</string>
+          <key>ExcuteOrder</key>
+          <!-- ExcuteOrder 越大,执行优先级越高 -->
+          <integer>999</integer>
+          <key>RunnerType</key>
+          <integer>2</integer>
+          <!-- ModuleType = 1 代表这是一个c#语言写的插件 -->
+          <key>ModuleType</key>
+          <integer>1</integer>
+          <key>Patterns</key>
+          <array>
+            <!-- # 表示直接取文件系统根节点 -->
+            <string>#</string>
+          </array>
+          <key>Category</key>
+          <string>DeviceInfo</string>
+          <key>Name</key>
+          <string>设备信息(安卓)</string>
+          <key>Filter</key>
+          <string>基础数据</string>
+        </dict>
+      </array>
+    </dict>
+	
+	<dict>
       <key>Module</key>
       <string>apple_iaround</string>
       <key>Runners</key>
@@ -389,6 +420,7 @@
       </array>
     </dict>
 
+	
     <!--苹果插件从这里开始,安卓插件请见下面-->
     <!--要个性化自定义运行某些插件,请按此文件的格式建立config.debug.dat文件,调试版的程序程序会优先读取config.debug.dat文件-->
     <dict>
@@ -469,7 +501,6 @@
         </dict>
       </array>
     </dict>
-	
     <dict>
       <key>Module</key>
       <string>apple_ctrip</string>
@@ -2073,7 +2104,8 @@
           <integer>2</integer>
           <key>Patterns</key>
           <array>
-            <string>/data/com.yx$</string>
+            <string>/data/com.yx/databases$</string>
+            <string>/Apps/com.yx/databases$</string>
           </array>
           <key>Category</key>
           <string>YouXin</string>
@@ -2181,6 +2213,30 @@
           <string>QQ浏览器(安卓)</string>
           <key>Filter</key>
           <string>应用>浏览器</string>
+        </dict>
+      </array>
+    </dict>
+
+    <dict>
+      <key>Module</key>
+      <string>android_radio_log</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_radio</string>
+          <key>RunnerType</key>
+          <integer>2</integer>
+          <key>Patterns</key>
+          <array>
+            <string>#</string>
+          </array>
+          <key>Category</key>
+          <string>RadioLog</string>
+          <key>Name</key>
+          <string>Radio(安卓)</string>
+          <key>Filter</key>
+          <string>基础数据</string>
         </dict>
       </array>
     </dict>
@@ -2725,6 +2781,30 @@
 
     <dict>
       <key>Module</key>
+      <string>android_linelite</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_linelite</string>
+          <key>RunnerType</key>
+          <integer>2</integer>
+          <key>Patterns</key>
+          <array>
+            <string>/com\.linecorp\.linelite/databases/LINE_LITE$</string>
+          </array>
+          <key>Category</key>
+          <string>LINELite</string>
+          <key>Name</key>
+          <string>LINELite(安卓)</string>
+          <key>Filter</key>
+          <string>应用>即时通讯</string>
+        </dict>
+      </array>
+    </dict> 
+
+    <dict>
+      <key>Module</key>
       <string>android_beetalk</string>
       <key>Runners</key>
       <array>
@@ -2772,6 +2852,5 @@
         </dict>
       </array>
     </dict>
-
   </array>
 </plist>

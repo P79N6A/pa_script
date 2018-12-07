@@ -3,14 +3,6 @@ import hashlib
 import os
 
 import clr
-import model_eb
-import model_im
-import PA_runtime
-import System
-from PA_runtime import *
-from System.Data.SQLite import *
-from System.Xml.Linq import *
-from System.Xml.XPath import Extensions as XPathExtensions
 
 __author__ = "TaoJianping"
 
@@ -25,8 +17,16 @@ try:
 except Exception as e:
     print("debug", e)
 
-del clr
+import model_eb
+import model_im
+import PA_runtime
+import System
+from PA_runtime import *
+from System.Data.SQLite import *
+from System.Xml.Linq import *
+from System.Xml.XPath import Extensions as XPathExtensions
 
+del clr
 # CONST
 JD_VERSION = 1
 # 消息状态
