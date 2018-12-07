@@ -633,6 +633,9 @@ class LineParser(object):
             return 
         file_path = raw_file_path.replace('file://', '').replace('content://', '')
 
+        if re.search(r'[\\/:*?"<>|\r\n]+', file_path):
+            return    
+
         fs = self.root.FileSystem
         node_list = list(fs.Search(file_path))
         try:
