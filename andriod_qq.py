@@ -35,7 +35,7 @@ from QQ_struct import tencent_struct
 import json
 import bcp_im
 import base64
-
+import threading
 def SafeGetString(reader,i):
     try:
         if not reader.IsDBNull(i):
@@ -109,33 +109,52 @@ def readVarInt(data):
                 return l
             i = i + 7
 
+hitdict =  {'(?i)com.tencent.qqlite/databases$':('QQ轻聊版',ParserResults()),
+            '(?i)com.tencent.mobileqq/databases$':('QQ',ParserResults()),
+            '(?i)com.tencent.mobileqqi/databases$':('QQ国际版',ParserResults()),
+            '(?i)com.tencent.tim/databases$':('QQ TIM',ParserResults()),
+            '(?i)com.tencent.minihd.qq/databases$':('平板QQ',ParserResults())}    
 def checkhit(root):
     nodes = []
-    res =  ['(?i)com.tencent.qqlite/databases$',
-                '(?i)com.tencent.mobileqq/databases$',
-                '(?i)com.tencent.mobileqqi/databases$',            
-                '(?i)com.tencent.tim/databases$',
-                '(?i)com.tencent.minihd.qq/databases$']
-    for re in res:                 
+    global hitdict
+    for re in hitdict.keys():                 
         node = root.FileSystem.Search(re)
-        nodes.append(node)
+        if(len(list(node)) != 0):
+            nodes.append((node,hitdict[re]))
     return nodes
    
-def analyze_andriod_qq(root, extract_deleted, extract_source):
-    try:        
-        pr = ParserResults()
-        nodes = checkhit(root)
-        for node in nodes:
-            for root in node:
-                try:
-                    pr.Models.AddRange(Andriod_QQParser(root, extract_deleted, extract_source).parse())
-                except:                    
-                    pass
-        pr.Build('QQ')
-        return pr
+def startthread(root,extdata,extract_deleted,extract_source):        
+    try:
+        sourceApp = extdata[0]
+        pr = extdata[1]
+        pr.Models.AddRange(Andriod_QQParser(root, extract_deleted, extract_source).parse())
+        pr.Build(sourceApp)    
     except:
         pass
-
+    
+def analyze_andriod_qq(root, extract_deleted, extract_source):
+    try:     
+        pr = ParserResults()
+        nodes = checkhit(root)
+        threads = []
+        for node in nodes:
+            for root in node[0]:
+                try:
+                    global hitdict
+                    arg = (root,node[1],extract_deleted,extract_source)                    
+                    t = threading.Thread(target=startthread,args= arg)   
+                    threads.append(t)                                  
+                except:                    
+                    pass 
+        for th in threads:
+            th.start()
+        for th in threads:
+            th.join() 
+        for node in nodes:           
+            pr.Add(node[1][1])        
+    except:
+        pass
+    return pr
 class Andriod_QQParser(object):
     def __init__(self, app_root_dir, extract_deleted, extract_source):
         self.root = app_root_dir.Parent
