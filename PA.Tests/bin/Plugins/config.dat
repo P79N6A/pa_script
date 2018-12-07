@@ -2781,6 +2781,30 @@
 
     <dict>
       <key>Module</key>
+      <string>android_linelite</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_linelite</string>
+          <key>RunnerType</key>
+          <integer>2</integer>
+          <key>Patterns</key>
+          <array>
+            <string>/com\.linecorp\.linelite/databases/LINE_LITE$</string>
+          </array>
+          <key>Category</key>
+          <string>LINELite</string>
+          <key>Name</key>
+          <string>LINELite(安卓)</string>
+          <key>Filter</key>
+          <string>应用>即时通讯</string>
+        </dict>
+      </array>
+    </dict> 
+
+    <dict>
+      <key>Module</key>
       <string>android_beetalk</string>
       <key>Runners</key>
       <array>
