@@ -289,6 +289,7 @@ def analyse_twitter(root, extract_deleted, extract_source):
             t.parse_account()
             t.im.db_insert_table_version(model_im.VERSION_KEY_DB, model_im.VERSION_VALUE_DB)
             t.im.db_insert_table_version(model_im.VERSION_KEY_APP, VERSION_APP_VALUE)
+            t.im.db_commit()
             t.im.db_close()
         nameValues.SafeAddValue('1330005', t.cache + "/{}".format(t.hash))
         models = model_im.GenerateModel(t.cache + "/{}".format(t.hash)).get_models()
