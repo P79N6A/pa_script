@@ -86,7 +86,7 @@ namespace apple_dev
 
                     //System/Library/LaunchDaemons/com.apple.atc.plist
                     var atcNode = fs.Search("/Preferences/com.apple.atc.plist$").FirstOrDefault();
-                    if(atcNode!=null && atcNode.Type==NodeType.File)
+                    if (atcNode != null && atcNode.Type == NodeType.File)
                     {
                         var plist = PlistHelper.ReadPlist<NSDictionary>(atcNode);
                         if(plist!=null)
