@@ -1359,7 +1359,8 @@ class GenerateModel(object):
                     group.OwnerUserID.Value = account_id
                     group.ID.Value = user_id
                     group.Name.Value = nickname
-                    group.Members.AddRange(self._get_chatroom_member_models(account_id, user_id, deleted))
+                    members = self._get_chatroom_member_models(account_id, user_id, deleted)
+                    group.Members.AddRange(members)
                     if photo not in [None, '']:
                         group.PhotoUris.Add(self._get_uri(photo))
                     group.Status.Value = self._convert_group_status(self._db_reader_get_int_value(r, 4))
@@ -1368,6 +1369,8 @@ class GenerateModel(object):
                     group.Managers.Value = self._get_user_intro(account_id, self._db_reader_get_string_value(r, 8, None))
                     group.MemberCount.Value = self._db_reader_get_int_value(r, 9)
                     group.MemberMaxCount.Value = self._db_reader_get_int_value(r, 10)
+                    if group.MemberCount.Value == 0:
+                        group.MemberCount.Value = len(members)
                     if timestamp:
                         ts = self._get_timestamp(timestamp)
                         if ts:
@@ -1480,6 +1483,12 @@ class GenerateModel(object):
                         message.Content.Value.Gif.Value = self._get_uri(media_path)
                     #elif msg_type == MESSAGE_CONTENT_TYPE_CONTACT_CARD:
                     #    pass
+                    elif msg_type == MESSAGE_CONTENT_TYPE_ATTACHMENT:
+                        file = Generic.Attachment()
+                        file.Title.Value = content
+                        file.URL.Value = media_path
+                        file.Uri.Value = self._get_uri(media_path)
+                        message.Content.Value.File.Value = file
                     elif msg_type == MESSAGE_CONTENT_TYPE_LOCATION:
                         if location_id not in [None, 0]:
                             location = self._get_location(location_latitude, location_longitude, location_elevation, location_address, location_timestamp, location_type, source, deleted)
@@ -1832,7 +1841,11 @@ class GenerateModel(object):
                             location = self._get_location(location_latitude, location_longitude, location_elevation, location_address, location_timestamp, location_type, source, deleted)
                             message.Content.Value.Location.Value = location
                     elif fav_type == FAVORITE_TYPE_ATTACHMENT:
-                        message.Content.Value.File.Value = self._get_uri(media_path)
+                        file = Generic.Attachment()
+                        file.Title.Value = message.Content.Value.Text.Value
+                        file.URL.Value = media_path
+                        file.Uri.Value = self._get_uri(media_path)
+                        message.Content.Value.File.Value = file
 
                     models.append(message)
                 except Exception as e:
