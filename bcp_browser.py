@@ -15,6 +15,7 @@ import System.Data.SQLite as SQLite
 import os
 import sqlite3
 import traceback
+import datetime
 import model_browser
 
 
@@ -1030,13 +1031,13 @@ class GenerateBcp(object):
             cookies.url             = row[1]
             cookies.key_name        = row[2]
             cookies.key_value       = row[3]
-            cookies.create_time     = row[4]
-            cookies.expire_time     = row[5]
+            cookies.create_time     = self._convert_webkit_timestamp(row[4])
+            cookies.expire_time     = self._convert_webkit_timestamp(row[5])
             # cookies.VISIT_TIME     = row[5]
             # cookies.VISITS         = row[5]
             # cookies.ACCOUNT_ID     = row[5]
             cookies.account         = row[8]
-            cookies.latest_mod_time = row[6]
+            cookies.latest_mod_time = self._convert_webkit_timestamp(row[6])
             cookies.name            = row[2]
             cookies.delete_status   = self._convert_delete_status(row[10])
             self.bcp_mb.db_insert_table_cookies(cookies)
@@ -1118,4 +1119,18 @@ class GenerateBcp(object):
             return DELETE_STATUS_NOT_DELETED
         else:
             return DELETE_STATUS_DELETED
+
+    @staticmethod
+    def _convert_webkit_timestamp(webkit_timestamp):
+        ''' convert 17 digits webkit timestamp to 10 digits timestamp '''
+        try:
+            epoch_start = datetime.datetime(1601,1,1)
+            delta = datetime.timedelta(microseconds=int(webkit_timestamp))
+            timestamp = time.mktime((epoch_start + delta).timetuple())
+            return int(timestamp)     
+        except:
+            return 
+
+
+
 

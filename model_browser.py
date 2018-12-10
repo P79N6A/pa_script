@@ -2,24 +2,17 @@
 
 from PA_runtime import *
 import clr
-clr.AddReference('System.Core')
-clr.AddReference('System.Xml.Linq')
 clr.AddReference('System.Data.SQLite')
 del clr
 
-from System.IO import MemoryStream
-from System.Text import Encoding
-from System.Xml.Linq import *
-from System.Linq import Enumerable
-from System.Xml.XPath import Extensions as XPathExtensions
-
 import os
+import datetime
 import System
 import System.Data.SQLite as SQLite
 import sqlite3
 
 VERSION_KEY_DB  = 'db'
-VERSION_VALUE_DB = 1
+VERSION_VALUE_DB = 2
 
 VERSION_KEY_APP = 'app'
 
@@ -694,11 +687,11 @@ class Generate(object):
                 if not IsDBNull(row[3]):
                     cookie.Value.Value = row[3]
                 if not IsDBNull(row[4]):
-                    cookie.CreationTime.Value = self._get_timestamp(row[4])
+                    cookie.CreationTime.Value = self._convert_webkit_timestamp(row[4])
                 if not IsDBNull(row[5]):
-                    cookie.Expiry.Value = self._get_timestamp(row[5])
+                    cookie.Expiry.Value = self._convert_webkit_timestamp(row[5])
                 if not IsDBNull(row[6]):
-                    cookie.LastAccessTime.Value = self._get_timestamp(row[6])
+                    cookie.LastAccessTime.Value = self._convert_webkit_timestamp(row[6])
                 if not IsDBNull(row[7]) and row[7] not in [None, '']:
                     cookie.SourceFile.Value = self._get_source_file(str(row[7]))
                 if not IsDBNull(row[8]):
@@ -723,7 +716,7 @@ class Generate(object):
 
     def _get_timestamp(self, timestamp):
         try:
-            if isinstance(timestamp, (long, float, str)) and len(str(timestamp)) > 10:
+            if isinstance(timestamp, (long, float, str, Int64)) and len(str(timestamp)) > 10:
                 timestamp = int(str(timestamp)[:10])
             if isinstance(timestamp, int) and len(str(timestamp)) == 10:
                 ts = TimeStamp.FromUnixTime(timestamp, False)
@@ -732,4 +725,18 @@ class Generate(object):
                 return ts
         except:
             return TimeStamp.FromUnixTime(0, False)
-    
+
+    def _convert_webkit_timestamp(self, webkit_timestamp):
+        ''' convert 17 digits webkit timestamp to 10 digits timestamp '''
+        try:
+            epoch_start = datetime.datetime(1601,1,1)
+            delta = datetime.timedelta(microseconds=int(webkit_timestamp))
+            timestamp = time.mktime((epoch_start + delta).timetuple())
+            ts = TimeStamp.FromUnixTime(int(timestamp), False)
+            if not ts.IsValidForSmartphone():
+                ts = TimeStamp.FromUnixTime(0, False)
+            return ts            
+        except:
+            return TimeStamp.FromUnixTime(0, False)
+
+
