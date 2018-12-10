@@ -25,6 +25,9 @@ import model_im
 import bcp_im
 import gc
 
+DEBUG = True
+DEBUG = False
+
 # app 数据库版本
 VERSION_APP_VALUE = 1
 
@@ -61,7 +64,8 @@ class YiXinParser():
         nameValues.SafeAddValue(bcp_im.CONTACT_ACCOUNT_TYPE_IM_YIXIN, self.cache_db)
 
     def parse(self):
-        if self.im.need_parse(self.cache_db, VERSION_APP_VALUE):
+
+        if DEBUG or self.im.need_parse(self.cache_db, VERSION_APP_VALUE):
             self.im.db_create(self.cache_db)
             user_list = self.get_user_list()
             for user in user_list:
@@ -120,7 +124,6 @@ class YiXinParser():
                 self.username = account.username
                 account.gender = 2 if rec['gender'].Value == 0 else 1
                 account.email = rec['email'].Value
-                account.birthday = rec['birthday'].Value
                 account.signature = rec['signature'].Value
                 account.address = rec['address']
         self.im.db_insert_table_account(account)
@@ -154,7 +157,6 @@ class YiXinParser():
                 friend.photo = rec['photourl'].Value
                 friend.gender = 2 if rec['gender'].Value == 0 else 1
                 friend.signature = rec['signature'].Value
-                friend.birthday = rec['birthday'].Value
                 friend.email = rec['email'].Value
                 friend.address = rec['address'].Value
                 friend.type = model_im.FRIEND_TYPE_FRIEND
@@ -211,7 +213,6 @@ class YiXinParser():
                             chatroom_member.email = friend.email
                             chatroom_member.gender = friend.gender
                             chatroom_member.address = friend.address
-                            chatroom_member.birthday = friend.birthday
                             chatroom_member.signature = friend.signature
                             chatroom_member.photo = friend.photo
                         self.im.db_insert_table_chatroom_member(chatroom_member)
