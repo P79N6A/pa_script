@@ -737,6 +737,6 @@ class Generate(object):
                 ts = TimeStamp.FromUnixTime(0, False)
             return ts            
         except:
-            return TimeStamp.FromUnixTime(0, False)
+            return None
 
 
