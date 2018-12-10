@@ -673,7 +673,7 @@
           <integer>0</integer>
           <key>Patterns</key>
           <array>
-            <string>/\.fseventsd$</string>
+            <string>#</string>
           </array>
           <key>Category</key>
           <string>Logs</string>

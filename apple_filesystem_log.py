@@ -25,19 +25,26 @@ import sqlite3
 # EnterPoint: analyze_fsevents(root, extract_deleted, extract_source):
 # Patterns: '/\.fseventsd$'
 
-DB_VERSION = 10003
+DB_VERSION = 10005
+
+
+TYPE_SYSTEM = 1
+TYPE_USER = 2
+
 
 SQL_CREATE_TABLE_FSEVENT = '''
     create table if not exists fsevent(
+        ID INTEGER PRIMARY KEY AUTOINCREMENT,
         event_id INTEGER,
         path TEXT,
         flags INTEGER,
         node_id INTEGER,
+        type INTEGER,
         source TEXT)'''
 
 SQL_INSERT_TABLE_FSEVENT = '''
-    insert into fsevent(event_id, path, flags, node_id, source) 
-        values(?, ?, ?, ?, ?)'''
+    insert into fsevent(event_id, path, flags, node_id, type, source) 
+        values(?, ?, ?, ?, ?, ?)'''
 
 SQL_CREATE_TABLE_VERSION = '''
     create table if not exists version(
@@ -97,10 +104,6 @@ def analyze_fsevents(root, extract_deleted, extract_source):
     return pr
 
 
-def execute(node,extracteDeleted):
-    return analyze_fsevents(node, extracteDeleted, False)
-
-
 class Parser():
 
     def __init__(self, node, extract_deleted, extract_source):
@@ -109,21 +112,24 @@ class Parser():
         self.extract_source = extract_source
 
         self.cache_path = ds.OpenCachePath('fsevents')
-        self.cache_db = os.path.join(self.cache_path, self.get_db_name())
-        self.path_prefix = node.Parent.AbsolutePath
-        self.db = None
-        self.cursor = None
+        self.cache_db = os.path.join(self.cache_path, 'cache.db')
 
     def parse(self):
         if self.need_parse():
+            self.db = None
             self.db_create()
-            self.parse_fsevent()
+            node = self.root.GetByPath('.fseventsd')
+            if node is not None:
+                self.parse_fsevent(node, TYPE_SYSTEM)
+            node = self.root.GetByPath('private/var/.fseventsd')
+            if node is not None:
+                self.parse_fsevent(node, TYPE_USER)
             if not canceller.IsCancellationRequested:
                 self.db_insert_table_version(DB_VERSION)
             self.db_commit()
             self.db_close()
 
-        models = GenerateModel(self.cache_db).get_models()
+        models = GenerateModel(self.cache_db).get_sp_models()
         return models
 
     def get_db_name(self):
@@ -136,24 +142,27 @@ class Parser():
             return 'fsevents.db'
 
     def need_parse(self):
-        if not os.path.exists(self.cache_db):
-            return True
-        db = sqlite3.connect(self.cache_db)
-        cursor = db.cursor()
-        sql = 'select version from version'
-        row = None
         try:
-            cursor.execute(sql)
-            row = cursor.fetchone()
-        except Exception as e:
-            TraceService.Trace(TraceLevel.Error, "apple_filesystem_log.py Error: LINE {}".format(traceback.format_exc()))
+            if not os.path.exists(self.cache_db):
+                return True
+            db = sqlite3.connect(self.cache_db)
+            cursor = db.cursor()
+            sql = 'select version from version'
+            row = None
+            try:
+                cursor.execute(sql)
+                row = cursor.fetchone()
+            except Exception as e:
+                TraceService.Trace(TraceLevel.Error, "apple_filesystem_log.py Error: LINE {}".format(traceback.format_exc()))
 
-        ret = True
-        if row is not None:
-            ret = not (row[0] == DB_VERSION)
-        cursor.close()
-        db.close()
-        return ret
+            ret = True
+            if row is not None:
+                ret = not (row[0] == DB_VERSION)
+            cursor.close()
+            db.close()
+            return ret
+        except Exception as e:
+            return True
 
     def db_create(self):
         if os.path.exists(self.cache_db):
@@ -194,14 +203,14 @@ class Parser():
                 self.db_cmd.Parameters.Add(param)
             self.db_cmd.ExecuteNonQuery()
 
-    def db_insert_table_fsevent(self, event_id, path, flags, node_id, source):
-        self.db_insert_table(SQL_INSERT_TABLE_FSEVENT, (event_id, path, flags, node_id, source))
+    def db_insert_table_fsevent(self, event_id, path, flags, node_id, fs_type, source):
+        self.db_insert_table(SQL_INSERT_TABLE_FSEVENT, (event_id, path, flags, node_id, fs_type, source))
 
     def db_insert_table_version(self, version):
         self.db_insert_table(SQL_INSERT_TABLE_VERSION, (version,))
 
-    def parse_fsevent(self):
-        for node in self.root.GetAllNodes(NodeType.File):
+    def parse_fsevent(self, root, fs_type):
+        for node in root.GetAllNodes(NodeType.File):
             if canceller.IsCancellationRequested:
                 break
             buf = None
@@ -217,13 +226,16 @@ class Parser():
             while offset < buf_size - PAGE_HEADER_SIZE:   
                 if canceller.IsCancellationRequested:
                     break
-                (magic, size) = self.parse_page_header(buf[offset:offset+PAGE_HEADER_SIZE])
-                if magic == '1SLD' or magic == '2SLD':
-                    if offset + size <= buf_size:
-                        self.parse_page_body(magic, buf[offset+PAGE_HEADER_SIZE:offset+size], node.AbsolutePath)
-                    offset += size
-                else:
-                    break
+                try:
+                    (magic, size) = self.parse_page_header(buf[offset:offset+PAGE_HEADER_SIZE])
+                    if magic == '1SLD' or magic == '2SLD':
+                        if offset + size <= buf_size:
+                            self.parse_page_body(magic, buf[offset+PAGE_HEADER_SIZE:offset+size], fs_type, node.AbsolutePath)
+                        offset += size
+                    else:
+                        break
+                except Exception as e:
+                    pass
             self.db_commit()
 
     def enumerate_flags(self, flag, f_map):
@@ -238,7 +250,7 @@ class Parser():
         size = struct.unpack('<I', buf[8:12])[0]
         return (magic, size)
 
-    def parse_page_body(self, magic, buf, source):
+    def parse_page_body(self, magic, buf, fs_type, source):
         size = len(buf)
         offset = 0
         while offset < size:
@@ -260,23 +272,23 @@ class Parser():
 
             if len(path) == 0:
                 path = 'NULL'
+            elif fs_type == TYPE_USER:
+                path = '/private/var/' + path
             else:
-                path = self.path_prefix + '/' + path
+                path = '/' + path
             # path = filter(lambda x: x in string.printable, path)
             event_id = struct.unpack('<Q', buf[offset:offset+8])[0]
             offset += 8
             flags = struct.unpack('>I', buf[offset:offset+4])[0]
             offset += 4
             
-            if event_id == 3669549:
-                pass
             if magic == '2SLD':
                 node_id = struct.unpack('<Q', buf[offset:offset+8])[0]
                 offset += 8
 
             # fs_flags = self.enumerate_flags(flags, EVENTMASK)
             try:
-                self.db_insert_table_fsevent(event_id, path, flags, node_id, source)
+                self.db_insert_table_fsevent(event_id, path, flags, node_id, fs_type, source)
             except Exception as e:
                 pass
 
@@ -287,6 +299,32 @@ class GenerateModel():
     
     def __init__(self, cache_db):
         self.cache_db = cache_db
+
+    def get_sp_models(self):
+        models = []
+        try:
+            model = KeyValueModel()
+            model.Key.Value = 'apple_filesystem_log_db_path'
+            model.Value.Value = self.cache_db
+            models.append(model)
+        except Exception as e:
+            TraceService.Trace(TraceLevel.Error, "apple_filesystem_log.py Error: LINE {}".format(traceback.format_exc()))
+        try:
+            db = sqlite3.connect(self.cache_db)
+            sql = 'select count(*) from fsevent'
+            cursor = db.cursor()
+            cursor.execute(sql)
+            row = cursor.fetchone()
+            if row is not None:
+                model = KeyValueModel()
+                model.Key.Value = 'apple_filesystem_log_db_count'
+                model.Value.Value = str(row[0])
+                models.append(model)
+            cursor.close()
+            db.close()
+        except Exception as e:
+            TraceService.Trace(TraceLevel.Error, "apple_filesystem_log.py Error: LINE {}".format(traceback.format_exc()))
+        return models
 
     def get_models(self):
         models = []
