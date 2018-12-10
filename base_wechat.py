@@ -306,7 +306,7 @@ class Wechat(object):
                 if revoke.Element('text'):
                     content += revoke.Element('text').Value
                 if revoke.Element('link') and revoke.Element('link').Element('revokecontent'):
-                    content += '[' + revoke.Element('link').Element('revokecontent').Value +']'
+                    content += '\n撤回内容：[' + revoke.Element('link').Element('revokecontent').Value +']'
         if content not in [None, '']:
             return content
         else:
