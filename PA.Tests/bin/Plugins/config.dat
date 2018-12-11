@@ -1958,7 +1958,7 @@
           <integer>2</integer>
           <key>Patterns</key>
           <array>
-            <string>/system_ce/0/accounts_ce\.db$</string>
+            <string>/system_ce/.*/accounts_ce\.db$</string>
           </array>
           <key>Category</key>
           <string>Keychains</string>
