@@ -41,7 +41,11 @@ import tencent_struct
 # Models: Common.User, Common.Friend, Common.Group, Generic.Chat, Common.MomentContent
 
 # app数据库版本
-VERSION_APP_VALUE = 3
+VERSION_APP_VALUE = 4
+
+
+g_app_id = 0
+g_app_set = set()
 
 
 def analyze_wechat(root, extract_deleted, extract_source):
@@ -51,8 +55,21 @@ def analyze_wechat(root, extract_deleted, extract_source):
     mlm = ModelListMerger()
     
     pr.Models.AddRange(list(mlm.GetUnique(models)))
-    pr.Build('微信')
+    build = '微信'
+    app_id = get_app_id(root)
+    if app_id > 1:
+        build += str(app_id)
+    pr.Build(build)
     return pr
+
+
+def get_app_id(root):
+    global g_app_id, g_app_set
+    app_path = root.Parent.Parent.Parent
+    if app_path not in g_app_set:
+        g_app_set.add(app_path)
+        g_app_id += 1
+    return g_app_id
 
 
 class WeChatParser(Wechat):
@@ -640,6 +657,7 @@ class WeChatParser(Wechat):
             if canceller.IsCancellationRequested:
                 break
             cm.member_id = room_member
+            cm.display_name = None
             if i < len(display_names) and display_names[i] != room_member:
                 cm.display_name = display_names[i]
             cm.insert_db(self.im)

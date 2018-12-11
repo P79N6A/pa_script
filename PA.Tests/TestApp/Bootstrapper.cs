@@ -51,7 +51,7 @@ namespace TestApp
             //3.测试
             //4.
             //这个路径改成你们电脑上的实际案例路径,支持多镜像案例(比如安卓的全盘包括data.img和external_data.img)
-            string casePath = @"E:\测试案例\iPhone 6_11.1.2_201811261525_逻辑提取(提权)\Manifest.PGFD";
+            string casePath = @"E:\Cases\HUAWEI NXT-AL10__201811161117_NOR\Manifest.PGFD";
             var pack = CasePackage.FromPath(casePath);
             if(pack!=null && pack.RpcClient.Connect())
             {

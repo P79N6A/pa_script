@@ -40,6 +40,9 @@ from base_wechat import *
 # app数据库版本
 VERSION_APP_VALUE = 5
 
+g_app_id = 0
+g_app_set = set()
+
 
 def analyze_wechat(root, extract_deleted, extract_source):
     pr = ParserResults()
@@ -48,8 +51,21 @@ def analyze_wechat(root, extract_deleted, extract_source):
     mlm = ModelListMerger()
     
     pr.Models.AddRange(list(mlm.GetUnique(models)))
-    pr.Build('微信')
+    build = '微信'
+    app_id = get_app_id(root)
+    if app_id > 1:
+        build += str(app_id)
+    pr.Build(build)
     return pr
+
+
+def get_app_id(root):
+    global g_app_id, g_app_set
+    app_path = root.Parent.Parent
+    if app_path not in g_app_set:
+        g_app_set.add(app_path)
+        g_app_id += 1
+    return g_app_id
 
 
 class WeChatParser(Wechat):
