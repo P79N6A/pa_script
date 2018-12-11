@@ -547,7 +547,7 @@
         </dict>
       </array>
     </dict>
-	
+
 	<dict>
       <key>Module</key>
       <string>apple_application_permission</string>
@@ -571,7 +571,6 @@
         </dict>
       </array>
     </dict>
-	
     <dict>
       <key>Module</key>
       <string>apple_sms</string>
