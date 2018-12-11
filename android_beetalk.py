@@ -80,7 +80,7 @@ class BeeTalkParser(model_im.IM, model_callrecord.MC):
             try:
                 if not sr.HasRows:
                     account = model_im.Account()
-                    account.account_id = -1
+                    account.account_id = ''
                     account.username = '未知用户'
                     account.source = self.node.AbsolutePath
                     account.deleted = 0
@@ -89,7 +89,7 @@ class BeeTalkParser(model_im.IM, model_callrecord.MC):
                     self.db_insert_table_account(account)
                 while(sr.Read()):
                     account = model_im.Account()
-                    account.account_id = sr.GetInt64(0) if not sr.IsDBNull(0) else -1
+                    account.account_id = sr.GetInt64(0) if not sr.IsDBNull(0) else ''
                     account.telephone = self._db_reader_get_string_value(sr, 1)
                     account.username = sr.GetString(2) if not sr.IsDBNull(3) else '未知用户'
                     account.birthday = self._db_reader_get_int_value(sr, 4)
