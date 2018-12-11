@@ -498,7 +498,7 @@ class Generate(object):
         models.extend(self._get_bookmark_models())
         models.extend(self._get_browse_record_models())
         models.extend(self._get_downloadfile_models())
-        models.extend(self._get_fileinfo_models())
+        # models.extend(self._get_fileinfo_models())
         models.extend(self._get_savepage_models())
         models.extend(self._get_search_history_models())
         models.extend(self._get_plugin_models())
