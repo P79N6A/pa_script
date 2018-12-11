@@ -2158,6 +2158,24 @@
           <string>QQ</string>
           <key>Name</key>
           <string>QQ(安卓)</string>
+    <dict>
+      <key>Module</key>
+      <string>android_momo</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>parse_mm</string>
+          <key>RunnerType</key>
+          <integer>2</integer>
+          <key>Patterns</key>
+          <array>
+            <string>com.immomo.momo/databases$</string>
+          </array>
+          <key>Category</key>
+          <string>Momo</string>
+          <key>Name</key>
+          <string>陌陌(安卓)</string>
           <key>Filter</key>
           <string>应用>即时通讯</string>
         </dict>
