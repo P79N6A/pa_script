@@ -295,11 +295,11 @@ class QQBrowserParse(object):
                 cookie.name  = rec['name'].Value if 'name' in rec and rec['name'].Value is not '' else None
                 cookie.value = rec['value'].Value if 'value' in rec and rec['value'].Value is not '' else None
                 if not IsDBNull(rec['creation_utc'].Value):
-                    cookie.createdate = self._timeHandler(rec['creation_utc'].Value) if 'creation_utc' in rec else None
+                    cookie.createdate = rec['creation_utc'].Value if 'creation_utc' in rec else None
                 if not IsDBNull(rec['expires_utc'].Value):
-                    cookie.expiredate = self._timeHandler(rec['expires_utc'].Value) if 'expires_utc' in rec else None
+                    cookie.expiredate = rec['expires_utc'].Value if 'expires_utc' in rec else None
                 if not IsDBNull(rec['last_access_utc'].Value):
-                    cookie.lastaccessdate = self._timeHandler(rec['last_access_utc'].Value) if 'last_access_utc' in rec else None
+                    cookie.lastaccessdate = rec['last_access_utc'].Value if 'last_access_utc' in rec else None
                 cookie.hasexipred = rec['has_expires'].Value if 'has_expires' in rec else None
                 cookie.source = node.AbsolutePath
                 self.mb.db_insert_table_cookies(cookie)
