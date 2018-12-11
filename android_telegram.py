@@ -16,6 +16,7 @@ try:
     clr.AddReference('model_im')
 except:
     pass
+
 del clr
 
 import System
@@ -171,6 +172,8 @@ class Telegram(object):
         :return: (dict)
         """
         # TODO 有机会可以优化
+        if not user_id:
+            return
         conn = self.__get_con()
         conn.Open()
         cmd = System.Data.SQLite.SQLiteCommand(conn)
@@ -193,7 +196,7 @@ class Telegram(object):
         account.account_id = account_info.id
         first_name = account_info.first_name if account_info.first_name else ""
         last_name = account_info.last_name if account_info.last_name else ""
-        account.username = first_name + " " + last_name
+        account.username = account.nickname = first_name + " " + last_name
         account.telephone = account_info.phone
         account.deleted = 0 if account_info.deleted is False else 1
         account.source = self.root.GetByPath(self.account_db_path).PathWithMountPoint
@@ -257,16 +260,40 @@ class Telegram(object):
             try:
                 message = model_im.Message()
                 message.account_id = self.account
-                message.talker_id = GetInt64(reader, 1)
+                message.talker_id = abs(GetInt64(reader, 1))
                 message.talker_name = GetString(reader, 2)
                 message.msg_id = GetInt64(reader, 0)
                 message.send_time = GetInt64(reader, 5)
                 message.source = self.root.GetByPath(self.account_db_path).PathWithMountPoint
+                message.talker_type = model_im.CHAT_TYPE_FRIEND if GetInt64(reader, 1) > 0 else model_im.CHAT_TYPE_GROUP
                 # 下面的这些通过TelegramDecoder解码
                 message_info = TelegramDecodeHelper.decode_message(GetBlob(reader, 6))
                 if message_info:
                     message.sender_id = message_info.from_id
                     message.is_sender = 1 if self.account == message.sender_id else 0
+
+                    if message_info.media:
+                        media_type = str(message_info.media)
+                        if "messageMediaWebPage" in media_type:
+                            message.type = model_im.MESSAGE_CONTENT_TYPE_LINK
+                            link = message.create_link()
+                            link.url = message_info.media.webpage.url
+                            link.source = self.account_db_path
+                            link.title = message_info.media.webpage.title
+                            link.content = message_info.media.webpage.description
+                            link.from_app = message_info.media.webpage.site_name
+                            link.insert_db(self.model_col)
+                        elif "messageMediaContact" in media_type:
+                            message.type = model_im.MESSAGE_CONTENT_TYPE_CONTACT_CARD
+                            message.content = "{} {} 的名片".format(message_info.media.first_name,
+                                                                 message_info.media.last_name)
+                        elif "messageMediaGeo" in media_type:
+                            message.type = model_im.MESSAGE_CONTENT_TYPE_LOCATION
+                            location = message.create_location()
+                            location.source = self.account_db_path
+                            location.longitude = message_info.media.geo._long
+                            location.latitude = message_info.media.geo.lat
+                            location.insert_db(self.model_col)
                     sender_info = self.__query_user_info(message.sender_id)
                     if sender_info is not None:
                         first_name = sender_info.first_name if sender_info.first_name else ""
@@ -389,6 +416,7 @@ class Telegram(object):
                 message.msg_id = rec["mid"].Value
                 message.send_time = rec["date"].Value
                 message.talker_id = rec["uid"].Value
+                message.deleted = 1
                 message.source = self.root.GetByPath(self.account_db_path).PathWithMountPoint
                 talker_info = self.__query_user_info(message.talker_id)
                 if talker_info is not None:
@@ -399,6 +427,28 @@ class Telegram(object):
                 message_info = TelegramDecodeHelper.decode_message(rec["data"].Value)
                 if message_info:
                     message.sender_id = message_info.from_id
+                    if message_info.media:
+                        media_type = str(message_info.media)
+                        if "messageMediaWebPage" in media_type:
+                            message.type = model_im.MESSAGE_CONTENT_TYPE_LINK
+                            link = message.create_link()
+                            link.url = message_info.media.webpage.url
+                            link.source = self.account_db_path
+                            link.title = message_info.media.webpage.title
+                            link.content = message_info.media.webpage.description
+                            link.from_app = message_info.media.webpage.site_name
+                            link.insert_db(self.model_col)
+                        elif "messageMediaContact" in media_type:
+                            message.type = model_im.MESSAGE_CONTENT_TYPE_CONTACT_CARD
+                            message.content = "{} {} 的名片".format(message_info.media.first_name,
+                                                                 message_info.media.last_name)
+                        elif "messageMediaGeo" in media_type:
+                            message.type = model_im.MESSAGE_CONTENT_TYPE_LOCATION
+                            location = message.create_location()
+                            location.source = self.account_db_path
+                            location.longitude = message_info.media.geo._long
+                            location.latitude = message_info.media.geo.lat
+                            location.insert_db(self.model_col)
                     sender_info = self.__query_user_info(message.sender_id)
                     if sender_info is not None:
                         first_name = sender_info.first_name if sender_info.first_name else ""
@@ -429,6 +479,7 @@ class Telegram(object):
                 friend = model_im.Friend()
                 data = rec['data'].Value
                 name = rec['name'].Value
+                friend.deleted = 1
                 friend.account_id = self.account
                 friend.source = self.root.GetByPath(self.account_db_path).PathWithMountPoint
                 if name:
@@ -436,7 +487,8 @@ class Telegram(object):
                 friend.friend_id = rec['uid'].Value
                 friend_info = TelegramDecodeHelper.decode_user(data)
                 if friend_info is not None:
-                    friend.deleted = 0 if friend_info.deleted is False else 1
+                    if friend_info.deleted is False:
+                        friend.deleted = 0
                     friend.telephone = friend_info.phone
                     first_name = friend_info.first_name if friend_info.first_name else ""
                     last_name = friend_info.last_name if friend_info.last_name else ""
@@ -465,6 +517,8 @@ class Telegram(object):
                 chat_room.source = self.root.GetByPath(self.account_db_path).PathWithMountPoint
                 chat_room.chatroom_id = rec['uid'].Value
                 chat_room.name = rec['name'].Value
+                chat_room.deleted = 1
+
                 # 没有找到解析chats表data的decoder类
                 self.model_col.db_insert_table_chatroom(chat_room)
             except Exception as e:
@@ -490,13 +544,16 @@ class Telegram(object):
                 chatroom_member.chatroom_id = rec['did'].Value
                 chatroom_member.member_id = rec['uid'].Value
                 chatroom_member_data = rec['data'].Value
+                chatroom_member.deleted = 1
                 if chatroom_member_data:
                     user_info = TelegramDecodeHelper.decode_user(chatroom_member_data)
-                    chatroom_member.deleted = 0 if user_info.deleted is False else 1
-                    chatroom_member.telephone = user_info.phone
-                    first_name = user_info.first_name if user_info.first_name else ""
-                    last_name = user_info.last_name if user_info.last_name else ""
-                    chatroom_member.display_name = first_name + " " + last_name
+                    if user_info:
+                        if user_info.deleted is False:
+                            chatroom_member.deleted = 0
+                        chatroom_member.telephone = user_info.phone
+                        first_name = user_info.first_name if user_info.first_name else ""
+                        last_name = user_info.last_name if user_info.last_name else ""
+                        chatroom_member.display_name = first_name + " " + last_name
                 self.model_col.db_insert_table_chatroom_member(chatroom_member)
             except Exception as e:
                 print("error happen", e)

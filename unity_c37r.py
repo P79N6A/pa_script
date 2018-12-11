@@ -479,3 +479,15 @@ def check_sqlite_maturity(sqlite_node, cache):
             mapping_file_with_copy(pth + '-shm', out_file + '-shm')
         return out_file
     return pth
+
+#
+# 恢复数据中的相关内容
+#
+def try_get_rec_value(rec, key, def_val = None):
+    try:
+        if not rec[key].IsDBNull:
+            return rec[key].Value
+        else:
+            return def_val
+    except:
+        return def_val
