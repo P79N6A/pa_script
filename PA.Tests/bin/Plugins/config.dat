@@ -563,7 +563,7 @@
             <string>/private/var/mobile/Library/TCC/TCC.db$</string>
           </array>
           <key>Category</key>
-          <string>Applications</string>
+          <string>IOSPermission</string>
           <key>Name</key>
           <string>应用列表(苹果)</string>
           <key>Filter</key>
