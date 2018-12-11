@@ -40,8 +40,8 @@ def exc(e=''):
             msg = 'DEBUG {} case:<{}> :'.format(py_name, CASE_NAME)
             TraceService.Trace(TraceLevel.Warning, (msg+'{}{}').format(traceback.format_exc(), e))
     except:
-        pass    
-
+        pass   
+        
 def test_p(*e):
     ''' Highlight print in test environments vs console '''
     if DEBUG:
@@ -64,7 +64,6 @@ def analyze_email(node, extract_deleted, extract_source):
     return pr
 
 
-
 class EmailParser(object):
     def __init__(self, node, extract_deleted, extract_source):
 
@@ -74,9 +73,9 @@ class EmailParser(object):
 
         self.mm = MM()
         self.cachepath = ds.OpenCachePath("AndroidEmail")
-        hash_str = hashlib.md5(node.AbsolutePath).hexdigest()
+        hash_str = hashlib.md5(node.AbsolutePath).hexdigest()[8:-8]
 
-        self.cache_db = self.cachepath + '\\{}.db'.format(hash_str)
+        self.cache_db = self.cachepath + '\\a_email_{}.db'.format(hash_str)
 
         self.accounts    = {}
         self.mail_folder = {}
@@ -130,10 +129,8 @@ class EmailParser(object):
         self.parse_account('EmailProvider.db', 'Account')     
         self.parse_mail('EmailProvider.db', 'Message')     
         self.parse_attachment('EmailProvider.db', 'Attachment')     
-
         self.parse_contact('Contact.db', 'contact_table') # 华为没有此数据库
    
-
     def pre_parse_mail_box(self, db_path, table_name):
         """ EmailProvider - Mailbox 
             RecNo	FieldName	SQLType	
@@ -173,7 +170,7 @@ class EmailParser(object):
         if not self._read_db(db_path):
             return        
         for rec in self._read_table(table_name):
-            if self.is_empty(rec, 'displayName', 'accountKey'):
+            if self._is_empty(rec, 'displayName', 'accountKey') or self._is_duplicate(rec, '_id'):
                 continue
             account_id = rec['accountKey'].Value
             folderName = rec['displayName'].Value.replace('\0','')
@@ -226,6 +223,8 @@ class EmailParser(object):
                 return
             if not self._is_email_format(rec, 'emailAddress'):
                 continue
+            if self._is_duplicate(rec, '_id'):
+                continue                    
             account = Account()
             account.account_id    = rec['_id'].Value
             account.account_alias = rec['displayName'].Value
@@ -291,15 +290,17 @@ class EmailParser(object):
             for rec in self._read_table(table_name):
                 if canceller.IsCancellationRequested:
                     return
-                if self.is_empty(rec, 'displayName', 'subject', 'accountKey'):
+                if self._is_empty(rec, 'displayName', 'subject', 'accountKey'):
                     continue
+                if self._is_duplicate(rec, 'timeStamp'):
+                    continue                    
                 mail = Mail()
                 mail.mail_id          = self.convert_primary_key(rec['_id'].Value)
                 mail.owner_account_id = rec['accountKey'].Value
                 mail.mail_group       = self.mail_folder.get(rec['mailboxKey'].Value, None)
                 mail.mail_subject     = rec['subject'].Value
                 mail.mail_abstract    = rec['snippet'].Value
-                mail.mail_from        = rec['fromList'].Value        # TODO 类型 提取 邮箱地址
+                mail.mail_from        = rec['fromList'].Value
                 mail.mail_to          = rec['toList'].Value
                 mail.mail_cc          = rec['ccList'].Value
                 mail.mail_bcc         = rec['bccList'].Value
@@ -346,12 +347,12 @@ class EmailParser(object):
             return        
         try:
             for rec in self._read_table(table_name):
-                if canceller.IsCancellationRequested:
-                    return
                 if not self._read_db(db_path):
                     return
-                if self.is_empty(rec, 'htmlContent', 'messageKey'):
-                    continue            
+                if self._is_empty(rec, 'htmlContent', 'messageKey'):
+                    continue           
+                if self._is_duplicate(rec, '_id'):
+                    continue                     
                 mailId = rec['messageKey'].Value
                 mailContent = rec['htmlContent'].Value
                 try:
@@ -394,7 +395,7 @@ class EmailParser(object):
         for rec in self._read_table(table_name):
             if canceller.IsCancellationRequested:
                 return
-            if self.is_empty(rec, 'fileName', 'size'):
+            if self._is_empty(rec, 'fileName', 'size') or self._is_duplicate(rec, '_id'):
                 continue
             attach = Attachment()
             attach.attachment_id       = rec['_id'].Value
@@ -438,15 +439,15 @@ class EmailParser(object):
             14	selected	        text
             15	color	        integer
             16	unread2top	        integer
-            17	pop	        integer
+            17	pop	            integer
             18	dirty	        integer
-            19	lastTimestamp	        integer
+            19	lastTimestamp	integer
         """
         try:        
             if not self._read_db(db_path):
                 return
             for rec in self._read_table(table_name):
-                if self.is_empty(rec, 'name', 'email'):
+                if self._is_empty(rec, 'name', 'email') or self._is_duplicate(rec, '_id'):
                     continue
                 contact = Contact()
                 contact.contact_id          = rec['_id'].Value
@@ -484,8 +485,8 @@ class EmailParser(object):
             return None
 
     def _read_db(self, db_path):
-        """ 
-            读取手机数据库
+        """ 读取手机数据库
+
         :type db_path: str
         :rtype: bool                              
         """
@@ -497,19 +498,39 @@ class EmailParser(object):
         return True
 
     def _read_table(self, table_name, extract_deleted=None):
-        """ 
-            读取手机数据库 - 表
+        ''' 读取手机数据库 - 表
+
         :type table_name: str
         :rtype: db.ReadTableRecords()                                       
-        """
-        if extract_deleted is None:
+        '''
+        if extract_deleted == None:
             extract_deleted = self.extract_deleted
+        self._PK_LIST = []
         try:
             tb = SQLiteParser.TableSignature(table_name)  
             return self.cur_db.ReadTableRecords(tb, extract_deleted, True)
         except:
-            exc()   
+            exc()
             return []
+
+    def _is_duplicate(self, rec, pk_name):
+        ''' filter duplicate record
+        
+        Args:
+            rec (record): 
+            pk_name (str): 
+        Returns:
+            bool: rec[pk_name].Value in self._PK_LIST
+        '''
+        try:
+            pk_value = rec[pk_name].Value
+            if IsDBNull(pk_value) or pk_value in self._PK_LIST:
+                return True
+            self._PK_LIST.append(pk_value)
+            return False
+        except:
+            exc()
+            return True            
 
     def _get_account_id(self, my_email):
         ''' return corresponding account_id by email
@@ -523,22 +544,29 @@ class EmailParser(object):
         return None
 
     @staticmethod
-    def is_empty(rec, *args):
-        ''' 过滤 DBNull, 空数据 
+    def _is_empty(rec, *args):
+        ''' 过滤 DBNull 空数据, 有一空值就跳过
         
         :type rec:   rec
         :type *args: str
-        :rtype:      bool
+        :rtype: bool
         '''
-        for i in args:
-            if IsDBNull(rec[i].Value) or rec[i].Value in ('', ' ', None, [], {}):
-                return True
-        return False
-
+        try:
+            for i in args:
+                value = rec[i].Value
+                if IsDBNull(value) or value in ('', ' ', None, [], {}):
+                    return True
+                if isinstance(value, str) and re.search(r'[\x00-\x08\x0b-\x0c\x0e-\x1f]', str(value)):
+                    return True
+            return False
+        except:
+            exc()
+            return True   
 
     @staticmethod
     def _is_email_format(rec, key):
         """ 匹配邮箱地址 
+
         :type rec: type: <rec>
         :type key: str
         :rtype:    bool        
@@ -554,7 +582,6 @@ class EmailParser(object):
         except:
             exc()
             return False
-
 
     def convert_primary_key(self, mailId):
         if mailId == 0:
