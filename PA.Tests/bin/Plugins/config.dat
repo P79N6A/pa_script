@@ -2181,6 +2181,8 @@
           <string>QQ</string>
           <key>Name</key>
           <string>QQ(安卓)</string>
+      </array>
+    </dict>
     <dict>
       <key>Module</key>
       <string>android_momo</string>
