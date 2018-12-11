@@ -714,7 +714,8 @@ class Generate(object):
             return source_file.replace('/', '\\')
         return source_file
 
-    def _get_timestamp(self, timestamp):
+    @staticmethod
+    def _get_timestamp(timestamp):
         try:
             if isinstance(timestamp, (long, float, str, Int64)) and len(str(timestamp)) > 10:
                 timestamp = int(str(timestamp)[:10])
@@ -726,7 +727,8 @@ class Generate(object):
         except:
             return TimeStamp.FromUnixTime(0, False)
 
-    def _convert_webkit_timestamp(self, webkit_timestamp):
+    @staticmethod
+    def _convert_webkit_timestamp(webkit_timestamp):
         ''' convert 17 digits webkit timestamp to 10 digits timestamp '''
         try:
             epoch_start = datetime.datetime(1601,1,1)

@@ -20,7 +20,7 @@ from model_browser import *
 import bcp_browser
 
 # app数据库版本
-VERSION_APP_VALUE = 1
+VERSION_APP_VALUE = 2
 
 
 DEBUG = True
@@ -49,8 +49,9 @@ def analyze_baidumobile(node, extract_deleted, extract_source):
     """
         android 华为 (data/data/com.baidu.searchbox/)
     """
+    res = []
     pr = ParserResults()
-    cache_db_name = "BaiduSearchbox"
+    cache_db_name = "BaiduMobile"
     try:
         res = BaiduMobileParser(node, extract_deleted, extract_source, cache_db_name).parse()
     except:
@@ -66,7 +67,7 @@ def analyze_baidumobile_lite(node, extract_deleted, extract_source):
         android 华为 (data/data/com.baidu.searchbox.lite/)
     """
     pr = ParserResults()
-    cache_db_name = "BaiduSearchbox_Lite"
+    cache_db_name = "BaiduMobileLite"
     try:
         res = BaiduMobileParser(node, extract_deleted, extract_source, cache_db_name).parse()
     except:
@@ -86,20 +87,20 @@ class BaiduMobileParser(object):
         self.extract_source = extract_source
 
         self.mb = MB()
-        self.cachepath = ds.OpenCachePath("BaiduMobile")
+        self.cachepath = ds.OpenCachePath(cache_db_name)
 
-        hash_str = hashlib.md5(node.AbsolutePath).hexdigest()
-        self.cache_db = self.cachepath + '\\{}_{}.db'.format(cache_db_name, hash_str)
+        hash_str = hashlib.md5(node.AbsolutePath).hexdigest()[8:-8]
+        self.cache_db = self.cachepath + '\\a_{}_{}.db'.format(cache_db_name, hash_str)
 
         self.uid_list = ['anony']
 
     def parse(self):
-        '''
-            databases/SearchBox.db
+        ''' databases/SearchBox.db
             databases/\d_searchbox.db 
             databases/box_visit_history.db
             databases/downloads.db
             app_webview_baidu/Cookies
+            app_webview/Cookies
         '''
         if DEBUG or self.mb.need_parse(self.cache_db, VERSION_APP_VALUE):
             if not self._read_db('databases/SearchBox.db'):
@@ -111,7 +112,7 @@ class BaiduMobileParser(object):
                     self.parse_Bookmark('databases/' + uid + '_searchbox.db', 'favor')
             self.parse_Bookmark('databases/anony_searchbox.db', 'favor')
             self.parse_Browserecord("databases/box_visit_history.db", 'visit_search_history')
-            self.parse_Cookies('app_webview_baidu/Cookies', 'cookies')
+            self.parse_Cookies(('app_webview_baidu/Cookies','app_webview/Cookies'), 'cookies')
             self.parse_DownloadFile('databases/downloads.db', 'downloads')
             self.parse_SearchHistory("databases/SearchBox.db", 'clicklog')
 
@@ -120,8 +121,6 @@ class BaiduMobileParser(object):
                 self.mb.db_insert_table_version(VERSION_KEY_APP, VERSION_APP_VALUE)
                 self.mb.db_commit()
             self.mb.db_close()
-
-
         tmp_dir = ds.OpenCachePath('tmp')
         save_cache_path(bcp_browser.NETWORK_APP_BAIDUMOBILE, self.cache_db, tmp_dir)
 
@@ -202,12 +201,13 @@ class BaiduMobileParser(object):
         '''
         if not self._read_db(db_path):
             return 
-
         for rec in self._read_table(table_name):
             if canceller.IsCancellationRequested:
                 return
             if rec['datatype'].Value == '2' or not self._is_url(rec, 'url'):
                 continue # datatype==2 是文件夹
+            if self._is_duplicate(rec, '_id'):
+                continue
             bookmark = Bookmark()
             bookmark.id         = rec['_id'].Value
             # bookmark.account_id = rec['account_uid'].Value
@@ -227,10 +227,10 @@ class BaiduMobileParser(object):
 
     def parse_Browserecord(self, db_path, table_name):
         ''' 浏览记录 databases\box_visit_history.db 
-                _ visit_feed_history
-                - visit_history
-                - visit_search_history
-                - visit_swan_history
+                                _ visit_feed_history
+                                - visit_history
+                                - visit_search_history
+                                - visit_swan_history
 
             - visit_search_history
             RecNo	FieldName	SQLType	
@@ -262,13 +262,15 @@ class BaiduMobileParser(object):
         if not self._read_db(db_path):
             return 
         if not self.cur_db.GetTable(table_name):
-            # lite box_visit_history.db  has no visit_search_history table
+            # lite box_visit_history.db  has no 'visit_search_history' table
             table_name = 'visit_history'
         for rec in self._read_table(table_name):
             if canceller.IsCancellationRequested:
                 return
             if self._is_empty(rec, 'title', 'url') or not self._is_url(rec, 'url'):
                 continue
+            if self._is_duplicate(rec, '_id'):
+                continue                    
             browser_record = Browserecord()
             browser_record.id        = rec['_id'].Value
             browser_record.name      = rec['title'].Value
@@ -339,6 +341,8 @@ class BaiduMobileParser(object):
                 return   
             if self._is_empty(rec, 'uri', 'title') or not self._is_url(rec, 'uri'):
                 continue
+            if self._is_duplicate(rec, '_id'):
+                continue                    
             downloads = DownloadFile()
             downloads.id             = rec['_id'].Value
             downloads.url            = rec['uri'].Value
@@ -360,7 +364,7 @@ class BaiduMobileParser(object):
         except:
             exc()
 
-    def parse_Cookies(self, db_path, table_name):
+    def parse_Cookies(self, db_paths, table_name):
         """ Cookies.db - cookies
             RecNo	FieldName
             1   	creation_utc	            INTEGER
@@ -377,14 +381,15 @@ class BaiduMobileParser(object):
             12  	priority	            INTEGER
             13  	encrypted_value	BLOB
             14  	firstpartyonly	            INTEGER
-        """        
+        """     
+        db_path = db_paths[0] if self.root.GetByPath(db_paths[0]) else db_paths[1]
         if not self._read_db(db_path):
             return 
         for rec in self._read_table(table_name):
             if canceller.IsCancellationRequested:
                 return
-            if self._is_empty(rec, 'creation_utc'):
-                continue
+            if self._is_empty(rec, 'creation_utc') or self._is_duplicate(rec, 'creation_utc'):
+                continue                    
             cookies = Cookie()
             # cookies.id
             cookies.host_key       = rec['host_key'].Value
@@ -396,7 +401,7 @@ class BaiduMobileParser(object):
             cookies.hasexipred     = rec['has_expires'].Value
             # cookies.owneruser      = rec['owneruser'].Value
             cookies.source         = self.cur_db_source
-            cookies.deleted = 1 if rec.IsDeleted else 0            
+            cookies.deleted        = 1 if rec.IsDeleted else 0            
             try:
                 self.mb.db_insert_table_cookies(cookies)
             except:
@@ -412,7 +417,7 @@ class BaiduMobileParser(object):
         1	_id	            INTEGER
         2	intent_key	        TEXT
         3	query	            TEXT
-        4	hit_time	            INTEGER
+        4	hit_time	        INTEGER
         5	source	            TEXT
         """        
         if not self._read_db(db_path):
@@ -420,7 +425,7 @@ class BaiduMobileParser(object):
         for rec in self._read_table(table_name):
             if canceller.IsCancellationRequested:
                 return
-            if self._is_empty(rec, 'intent_key', 'query'):
+            if self._is_empty(rec, 'intent_key', 'query') or self._is_duplicate(rec, '_id'):
                 continue
             search_history = SearchHistory()
             search_history.id       = rec['_id'].Value
@@ -438,26 +443,29 @@ class BaiduMobileParser(object):
         except:
             exc()
 
-
     def _read_db(self, db_path):
         """ 
             读取手机数据库
         :type table_name: str
         :rtype: bool                              
         """
-        node = self.root.GetByPath(db_path)
-        self.cur_db = SQLiteParser.Database.FromNode(node,canceller)
-        if self.cur_db is None:
+        try:
+            node = self.root.GetByPath(db_path)
+            self.cur_db = SQLiteParser.Database.FromNode(node, canceller)
+            if self.cur_db is None:
+                return False
+            self.cur_db_source = node.AbsolutePath
+            return True
+        except:
             return False
-        self.cur_db_source = node.AbsolutePath
-        return True
 
     def _read_table(self, table_name):
-        """ 
-            读取手机数据库 - 表
+        ''' 读取手机数据库 - 表
+
         :type table_name: str
         :rtype: db.ReadTableRecords()                                       
-        """
+        '''
+        self._PK_LIST = []
         try:
             tb = SQLiteParser.TableSignature(table_name)  
             return self.cur_db.ReadTableRecords(tb, self.extract_deleted, True)
@@ -465,13 +473,34 @@ class BaiduMobileParser(object):
             exc()
             return []
 
+    def _is_duplicate(self, rec, pk_name):
+        ''' filter duplicate record
+        
+        Args:
+            rec (record): 
+            pk_name (str): 
+        Returns:
+            bool: rec[pk_name].Value in self._PK_LIST
+        '''
+        try:
+            pk_value = rec[pk_name].Value
+            if IsDBNull(pk_value) or pk_value in self._PK_LIST:
+                return True
+            self._PK_LIST.append(pk_value)
+            return False
+        except:
+            exc()
+            return True
+
     def _convert_2_nodepath(self, raw_path, file_name):
         # raw_path = '/data/user/0/com.baidu.searchbox/files/template/profile.zip'
         try:
-            invalid_file_name = re.search(r'[\\/:*?"<>|\r\n]+', file_name)
-            if invalid_file_name:
-                return file_name            
             fs = self.root.FileSystem
+            file_node = list(fs.Search(raw_path))
+            if file_node:
+                path = file_node[0].AbsolutePath
+                if os.path.isfile(path):
+                    return path
             if not file_name:
                 raw_path_list = raw_path.split(r'/')
                 file_name = raw_path_list[-1]
@@ -479,7 +508,7 @@ class BaiduMobileParser(object):
             _path = None
             if len(file_name) > 0:
                 try:
-                    node = fs.Search(r'com\.baidu\.searchbox.*?/{}$'.format(file_name))
+                    node = fs.Search(r'baidu.*?/{}$'.format(file_name))
                     for i in node:
                         _path = i.AbsolutePath
                 except:
@@ -488,20 +517,28 @@ class BaiduMobileParser(object):
             return _path if _path else file_name
         except:
             exc()
+            print 'raw_path:', raw_path, 'file_name:', file_name
             return file_name
 
     @staticmethod
     def _is_empty(rec, *args):
-        ''' 过滤 DBNull, 空数据 
+        ''' 过滤 DBNull 空数据, 有一空值就跳过
         
         :type rec:   rec
         :type *args: str
         :rtype: bool
         '''
-        for i in args:
-            if IsDBNull(rec[i].Value) or rec[i].Value in ('', ' ', None, [], {}):
-                return True
-        return False
+        try:
+            for i in args:
+                value = rec[i].Value
+                if IsDBNull(value) or value in ('', ' ', None, [], {}):
+                    return True
+                if isinstance(value, str) and re.search(r'[\x00-\x08\x0b-\x0c\x0e-\x1f]', str(value)):
+                    return True
+            return False
+        except:
+            exc()
+            return True   
 
     @staticmethod
     def _is_url(rec, *args):
