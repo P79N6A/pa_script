@@ -271,6 +271,7 @@ class Telegram(object):
                 if message_info:
                     message.sender_id = message_info.from_id
                     message.is_sender = 1 if self.account == message.sender_id else 0
+                    message.content = message_info.message
 
                     if message_info.media:
                         media_type = str(message_info.media)
@@ -299,7 +300,6 @@ class Telegram(object):
                         first_name = sender_info.first_name if sender_info.first_name else ""
                         last_name = sender_info.last_name if sender_info.last_name else ""
                         message.sender_name = first_name + " " + last_name
-                    message.content = message_info.message
                     message.status = MESSAGE_STATUS_READ if message_info.unread is False else MESSAGE_STATUS_UNREAD
                 self.model_col.db_insert_table_message(message)
             except Exception as e:
@@ -426,6 +426,7 @@ class Telegram(object):
                 # 下面的这些通过TelegramDecoder解码
                 message_info = TelegramDecodeHelper.decode_message(rec["data"].Value)
                 if message_info:
+                    message.content = message_info.message
                     message.sender_id = message_info.from_id
                     if message_info.media:
                         media_type = str(message_info.media)
@@ -454,7 +455,7 @@ class Telegram(object):
                         first_name = sender_info.first_name if sender_info.first_name else ""
                         last_name = sender_info.last_name if sender_info.last_name else ""
                         message.sender_name = first_name + " " + last_name
-                    message.content = message_info.message
+                    
                     message.status = MESSAGE_STATUS_READ if message_info.unread is False else MESSAGE_STATUS_UNREAD
                 self.model_col.db_insert_table_message(message)
             except Exception as e:

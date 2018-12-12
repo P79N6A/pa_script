@@ -547,7 +547,7 @@
         </dict>
       </array>
     </dict>
-	
+
 	<dict>
       <key>Module</key>
       <string>apple_application_permission</string>
@@ -563,7 +563,7 @@
             <string>/private/var/mobile/Library/TCC/TCC.db$</string>
           </array>
           <key>Category</key>
-          <string>Applications</string>
+          <string>IOSPermission</string>
           <key>Name</key>
           <string>应用列表(苹果)</string>
           <key>Filter</key>
@@ -571,7 +571,6 @@
         </dict>
       </array>
     </dict>
-	
     <dict>
       <key>Module</key>
       <string>apple_sms</string>
@@ -1958,7 +1957,7 @@
           <integer>2</integer>
           <key>Patterns</key>
           <array>
-            <string>/system_ce/0/accounts_ce\.db$</string>
+            <string>/system_ce/.*/accounts_ce\.db$</string>
           </array>
           <key>Category</key>
           <string>Keychains</string>
@@ -2182,6 +2181,11 @@
           <string>QQ</string>
           <key>Name</key>
           <string>QQ(安卓)</string>
+          <key>Filter</key>
+          <string>应用>即时通讯</string>
+      </array>
+    </dict>
+    
     <dict>
       <key>Module</key>
       <string>android_momo</string>

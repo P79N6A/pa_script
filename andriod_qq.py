@@ -133,13 +133,15 @@ def startthread(root,extdata,extract_deleted,extract_source):
         pass
     
 def analyze_andriod_qq(root, extract_deleted, extract_source):
-    try:     
-        pr = ParserResults()
+    pr = ParserResults()
+    try:             
         nodes = checkhit(root)
         threads = []
+        if len(nodes) != 0:
+            progress.Start()
         for node in nodes:
             for root in node[0]:
-                try:
+                try:                    
                     global hitdict
                     arg = (root,node[1],extract_deleted,extract_source)                    
                     t = threading.Thread(target=startthread,args= arg)   
