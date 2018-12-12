@@ -93,15 +93,21 @@ PAGE_HEADER_SIZE = 12
 DLS1_RECORD_BIN_SIZE = 12
 DLS2_RECORD_BIN_SIZE = 20
 
+
 def analyze_fsevents(root, extract_deleted, extract_source):
     pr = ParserResults()
     pr.Categories = DescripCategories.Project #声明这是微信应用解析的数据集
-    models = Parser(root, extract_deleted, extract_source).parse()
-    mlm = ModelListMerger()
-    
-    pr.Models.AddRange(list(mlm.GetUnique(models)))
-    pr.Build('文件日志')
+    if have_fsevents(root):
+        progress.Start()
+        models = Parser(root, extract_deleted, extract_source).parse()
+        mlm = ModelListMerger()
+        pr.Models.AddRange(list(mlm.GetUnique(models)))
+        pr.Build('文件日志')
     return pr
+
+
+def have_fsevents(root):
+    return root.GetByPath('.fseventsd') is not None or root.GetByPath('private/var/.fseventsd') is not None
 
 
 class Parser():
