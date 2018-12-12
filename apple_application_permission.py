@@ -42,14 +42,16 @@ class AppPerm(object):
     def get_models(self, dicts):
         models = []
         for key in dicts:
-            application = InstalledApplication()
-            application.Identifier.Value = key
+        #     application = KeyValueModel()
+        #     application.Key.Value = key
             for per in dicts[key]:
                 try:
-                    application.Permissions.Add(per)
+                    application = KeyValueModel()
+                    application.Key.Value = key
+                    application.Value.Value = per
                 except Exception as e:
                     print(e)
-            models.append(application)
+                models.append(application)
         return models
 
     

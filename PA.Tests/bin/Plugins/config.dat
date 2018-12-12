@@ -2335,6 +2335,30 @@
       </array>
     </dict>
 
+	<dict>
+      <key>Module</key>
+      <string>android_wifi_pwd</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_wifipwd</string>
+          <key>RunnerType</key>
+          <integer>2</integer>
+          <key>Patterns</key>
+          <array>
+            <string>/data/misc/wifi/wpa_supplicant\.conf$</string>
+          </array>
+          <key>Category</key>
+          <string>Keychains</string>
+          <key>Name</key>
+          <string>钥匙串(安卓)</string>
+          <key>Filter</key>
+          <string>基础数据</string>
+        </dict>
+      </array>
+    </dict>
+
     <dict>
       <key>Module</key>
       <string>android_contact</string>
