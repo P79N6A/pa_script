@@ -649,11 +649,11 @@ class Generate(object):
             row = self.db_cmd.ExecuteReader()             
             while(row.Read()):
                 canceller.ThrowIfCancellationRequested()
-                search = Generic.Search()
+                search = Generic.SearchedItem()
                 if not IsDBNull(row[2]):
-                    search.Content.Value = row[2]
+                    search.Value.Value = row[2]
                 if not IsDBNull(row[3]):
-                    search.Time.Value = self._get_timestamp(row[3])
+                    search.TimeStamp.Value = self._get_timestamp(row[3])
                 if not IsDBNull(row[5]) and row[5] not in [None, '']:
                     search.SourceFile.Value = self._get_source_file(row[5])
                 if not IsDBNull(row[6]):
