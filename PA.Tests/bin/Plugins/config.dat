@@ -2181,8 +2181,11 @@
           <string>QQ</string>
           <key>Name</key>
           <string>QQ(安卓)</string>
+          <key>Filter</key>
+          <string>应用>即时通讯</string>
       </array>
     </dict>
+    
     <dict>
       <key>Module</key>
       <string>android_momo</string>
