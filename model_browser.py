@@ -9,6 +9,7 @@ import os
 import datetime
 import System
 import System.Data.SQLite as SQLite
+from PA.InfraLib.Utils import ConvertHelper
 import sqlite3
 
 VERSION_KEY_DB  = 'db'
@@ -605,8 +606,10 @@ class Generate(object):
             while(row.Read()):
                 canceller.ThrowIfCancellationRequested()
                 download = Generic.Attachment()
-                if not IsDBNull(row[3]):
-                    download.URL.Value = row[3]
+                if not IsDBNull(row[3]) and row[3]:
+                    download.Uri.Value = self._get_uri(row[3])
+                elif not IsDBNull(row[1]) and row[1]:
+                    download.Uri.Value = self._get_uri(row[1])
                 if not IsDBNull(row[2]):
                     download.Filename.Value = row[2]  
                 if not IsDBNull(row[4]):
@@ -764,4 +767,9 @@ class Generate(object):
         except:
             return None
 
+    def _get_uri(self, path):
+        try:
+            return ConvertHelper.ToUri(path)
+        except:
+            pass
 

@@ -2615,6 +2615,71 @@
 
     <dict>
       <key>Module</key>
+      <string>android_baidumobile</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_baidumobile</string>
+          <key>RunnerType</key>
+          <integer>2</integer>
+          <key>Patterns</key>
+          <array>
+            <string>com\.baidu\.searchbox/databases/SearchBox\.db$</string>
+          </array>
+          <key>Category</key>
+          <string>BaiduMobile</string>
+          <key>Name</key>
+          <string>手机百度(安卓)</string>
+          <key>Filter</key>
+          <string>应用>浏览器</string>
+        </dict>
+
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_baidumobile_lite</string>
+          <key>RunnerType</key>
+          <integer>2</integer>
+          <key>Patterns</key>
+          <array>
+            <string>com\.baidu\.searchbox\.lite/databases/SearchBox\.db$</string>
+          </array>
+          <key>Category</key>
+          <string>BaiduMobileLite</string>
+          <key>Name</key>
+          <string>百度极速版(安卓)</string>
+          <key>Filter</key>
+          <string>应用>浏览器</string>
+        </dict>
+      </array>
+    </dict>    
+
+    <dict>
+        <key>Module</key>
+        <string>android_ucbrowser</string>
+        <key>Runners</key>
+        <array>
+            <dict>
+                <key>EntryPoint</key>
+                <string>analyze_ucbrowser</string>
+                <key>RunnerType</key>
+                <integer>2</integer>
+                <key>Patterns</key>
+                <array>
+                    <string>/com\.UCMobile/databases$</string>
+                </array>
+                <key>Category</key>
+                <string>UCBrowser</string>
+                <key>Name</key>
+                <string>UC浏览器(安卓)</string>
+                <key>Filter</key>
+                <string>应用>浏览器</string>
+            </dict>
+        </array>
+    </dict>
+
+    <dict>
+      <key>Module</key>
       <string>android_telegram</string>
       <key>Runners</key>
       <array>
@@ -2727,47 +2792,6 @@
           <string>BDY</string>
           <key>Name</key>
           <string>百度网盘(安卓)</string>
-          <key>Filter</key>
-          <string>应用>其他</string>
-        </dict>
-      </array>
-    </dict>
-
-    <dict>
-      <key>Module</key>
-      <string>android_baidumobile</string>
-      <key>Runners</key>
-      <array>
-        <dict>
-          <key>EntryPoint</key>
-          <string>analyze_baidumobile</string>
-          <key>RunnerType</key>
-          <integer>2</integer>
-          <key>Patterns</key>
-          <array>
-            <string>com\.baidu\.searchbox/databases/SearchBox\.db$</string>
-          </array>
-          <key>Category</key>
-          <string>BaiduMobile</string>
-          <key>Name</key>
-          <string>手机百度(安卓)</string>
-          <key>Filter</key>
-          <string>应用>其他</string>
-        </dict>
-
-        <dict>
-          <key>EntryPoint</key>
-          <string>analyze_baidumobile_lite</string>
-          <key>RunnerType</key>
-          <integer>2</integer>
-          <key>Patterns</key>
-          <array>
-            <string>com\.baidu\.searchbox\.lite/databases/SearchBox\.db$</string>
-          </array>
-          <key>Category</key>
-          <string>BaiduMobileLite</string>
-          <key>Name</key>
-          <string>百度极速版(安卓)</string>
           <key>Filter</key>
           <string>应用>其他</string>
         </dict>
