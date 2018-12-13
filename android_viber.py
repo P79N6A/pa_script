@@ -21,7 +21,7 @@ import json
 import shutil
 import traceback
 
-VERSION_APP_VALUE = 4
+VERSION_APP_VALUE = 5
 
 class ViberParser(model_im.IM, model_callrecord.MC):
     def __init__(self, node, extract_deleted, extract_source):
@@ -303,6 +303,28 @@ class ViberParser(model_im.IM, model_callrecord.MC):
                     if extra_mime == 0:  #文本
                         message.content = self._db_reader_get_string_value(sr, 0)
                         message.type = model_im.MESSAGE_CONTENT_TYPE_TEXT
+                        if message.content == '' and not IsDBNull(sr[13]):
+                            content = self._db_reader_get_string_value(sr, 13)
+                            text = json.loads(content) if content != '' else {}
+                            if 'pin' in text:
+                                if 'action' in text['pin']:
+                                    if text['pin']['action'] == 'create':
+                                        message.content = '创建群聊'
+                                        message.type = model_im.MESSAGE_CONTENT_TYPE_SYSTEM
+                            elif 'pa_message_data' in text:
+                                if 'keyboard' in text['pa_message_data']:
+                                    if 'Buttons' in text['pa_message_data']['keyboard']:
+                                        values = text['pa_message_data']['keyboard']['Buttons']
+                                        content = []
+                                        for value in values:
+                                            if 'ActionBody' in value and re.match('http', value['ActionBody']):
+                                                content.append(value['ActionBody'])
+                                            if 'Text' in value:
+                                                content.append(re.sub('<[^>]*>', '', value['Text']))
+                                            if 'InternalBrowser' in value:
+                                                content.append(value['InternalBrowser']['CustomTitle'])
+                                        message.content = '\n'.join(content)
+
                     elif extra_mime == 1:  #图片
                         try:
                             if not IsDBNull(sr[2]):
@@ -383,9 +405,9 @@ class ViberParser(model_im.IM, model_callrecord.MC):
                                 texts = json.loads(content)
                                 filename = texts['fileInfo']['FileName']
                                 filesize = texts['fileInfo']['FileSize']
-                                nodes = fs.Search(filename + '$')
+                                nodes = self.node.Parent.Parent.Search(filename + '$')
                                 if len(list(nodes)) == 0:
-                                    text = '附件' + '\n' + '文件名：' + filename + '\n' + '文件大小：' + filesize
+                                    message.content = '附件' + '\n' + '文件名：' + filename + '\n' + '文件大小：' + filesize
                                     message.type = model_im.MESSAGE_CONTENT_TYPE_TEXT
                                 for node in nodes:
                                     message.media_path = node.AbsolutePath
@@ -412,7 +434,8 @@ class ViberParser(model_im.IM, model_callrecord.MC):
                     message.talker_id = self._db_reader_get_int_value(sr, 9)
                     message.talker_name = self._db_reader_get_string_value(sr, 10)
                     if extra_mime in [0, 1, 3, 8, 9, 10, 1000, 1002]:
-                        self.db_insert_table_message(message)
+                        if self._isValid(message.content) or self._isValid(message.media_path) or message.location_id != 0 or message.link_id != 0:
+                            self.db_insert_table_message(message)
                 except:
                     traceback.print_exc()
             sr.Close()
@@ -745,6 +768,13 @@ class ViberParser(model_im.IM, model_callrecord.MC):
                 return timestamp
         except:
             return None
+
+    @staticmethod
+    def _isValid(content):
+        if content is '' or content is None:
+            return False
+        else:
+            return True
 
 def analyze_android_viber(node, extractDeleted, extractSource):
     pr = ParserResults()
