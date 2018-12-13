@@ -487,7 +487,7 @@ class IM(object):
             try:
                 os.remove(db_path)
             except Exception as e:
-                TraceService.Trace(TraceLevel.Error, "model_im.py Error: LINE {}".format(traceback.format_exc()))
+                TraceService.Trace(TraceLevel.Error, "model_im.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
                 return False
 
         self.db = SQLite.SQLiteConnection('Data Source = {}'.format(db_path))
@@ -645,7 +645,7 @@ class IM(object):
             cursor.execute(sql)
             row = cursor.fetchone()
         except Exception as e:
-            TraceService.Trace(TraceLevel.Error, "model_im.py Error: LINE {}".format(traceback.format_exc()))
+            TraceService.Trace(TraceLevel.Error, "model_im.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
 
         while row is not None:
             if row[0] == VERSION_KEY_DB and row[1] == VERSION_VALUE_DB:
@@ -1144,11 +1144,29 @@ class APPLog(Column):
 
 
 class GenerateModel(object):
-    def __init__(self, cache_db, mount_dir=None):
+    def __init__(self, cache_db, build=None, categories=None, progress_value=0):
         self.cache_db = cache_db
-        self.mount_dir = mount_dir
+        self.build = build
+        self.categories = categories
+        self.progress_value = progress_value
         self.friends = {}
         self.chatrooms = {}
+
+    def push_models(self, models):
+        if self.build is not None:
+            if len(models) > 0:
+                pr = ParserResults()
+                if self.categories is not None:
+                    pr.Categories = self.categories
+                pr.Models.AddRange(list(ModelListMerger().GetUnique(models)))
+                pr.Build(self.build)
+                ds.Add(pr)
+            return True
+        else:
+            return False
+
+    def set_progress(self, value):
+        progress.Value = self.progress_value + int(value * (100 - self.progress_value) / 100)
 
     def get_models(self):
         models = []
@@ -1157,14 +1175,21 @@ class GenerateModel(object):
         self.db.Open()
 
         models.extend(self._get_account_models())
+        self.set_progress(5)
         models.extend(self._get_friend_models())
+        self.set_progress(15)
         models.extend(self._get_group_models())
+        self.set_progress(25)
         models.extend(self._get_chat_models())
+        self.set_progress(65)
         models.extend(self._get_feed_models())
+        self.set_progress(85)
         models.extend(self._get_search_models())
+        self.set_progress(90)
         models.extend(self._get_favorite_models())
+        self.set_progress(95)
         models.extend(self._get_browse_history_models())
-
+        self.set_progress(100)
 
         self.db.Close()
         return models
@@ -1224,6 +1249,9 @@ class GenerateModel(object):
                     user.Addresses.Add(address)
                     models.append(user)
 
+                    if len(models) >= 1000 and self.push_models(models):
+                        models = []
+
                     if account_id is not None:
                         contact = {}
                         contact['user_id'] = account_id
@@ -1234,11 +1262,14 @@ class GenerateModel(object):
                         self.friends[self._get_user_key(account_id, account_id)] = contact
                 except Exception as e:
                     if deleted == 0:
-                        TraceService.Trace(TraceLevel.Error, "model_im.py Error: LINE {}".format(traceback.format_exc()))
+                        TraceService.Trace(TraceLevel.Error, "model_im.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
         except Exception as e:
             if deleted == 0:
-                TraceService.Trace(TraceLevel.Error, "model_im.py Error: LINE {}".format(traceback.format_exc()))
-        return models 
+                TraceService.Trace(TraceLevel.Error, "model_im.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
+
+        if self.push_models(models):
+            models = []
+        return models
 
     def _get_friend_models(self):
         if canceller.IsCancellationRequested:
@@ -1310,6 +1341,9 @@ class GenerateModel(object):
                     friend.FullName.Value = self._db_reader_get_string_value(r, 17)
                     models.append(friend)
 
+                    if len(models) >= 1000 and self.push_models(models):
+                        models = []
+
                     if account_id not in [None, ''] and user_id not in [None, '']:
                         contact = {}
                         contact['user_id'] = user_id
@@ -1320,11 +1354,14 @@ class GenerateModel(object):
                         self.friends[self._get_user_key(account_id, user_id)] = contact
                 except Exception as e:
                     if deleted == 0:
-                        TraceService.Trace(TraceLevel.Error, "model_im.py Error: LINE {}".format(traceback.format_exc()))
+                        TraceService.Trace(TraceLevel.Error, "model_im.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
         except Exception as e:
             if deleted == 0:
-                TraceService.Trace(TraceLevel.Error, "model_im.py Error: LINE {}".format(traceback.format_exc()))
-        return models 
+                TraceService.Trace(TraceLevel.Error, "model_im.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
+
+        if self.push_models(models):
+            models = []
+        return models
 
     def _get_group_models(self):
         if canceller.IsCancellationRequested:
@@ -1378,6 +1415,9 @@ class GenerateModel(object):
                             group.JoinTime.Value = ts
                     models.append(group)
 
+                    if len(models) >= 1000 and self.push_models(models):
+                        models = []
+
                     if account_id not in [None, ''] and user_id not in [None, '']:
                         contact = {}
                         contact['user_id'] = user_id
@@ -1388,18 +1428,20 @@ class GenerateModel(object):
                         self.chatrooms[self._get_user_key(account_id, user_id)] = contact
                 except Exception as e:
                     if deleted == 0:
-                        TraceService.Trace(TraceLevel.Error, "model_im.py Error: LINE {}".format(traceback.format_exc()))
+                        TraceService.Trace(TraceLevel.Error, "model_im.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
         except Exception as e:
             if deleted == 0:
-                TraceService.Trace(TraceLevel.Error, "model_im.py Error: LINE {}".format(traceback.format_exc()))
-        return models 
+                TraceService.Trace(TraceLevel.Error, "model_im.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
+        
+        if self.push_models(models):
+            models = []
+        return models
 
     def _get_chat_models(self):
         if canceller.IsCancellationRequested:
             return []
         if not self._db_has_table('message'):
             return []
-        chats = {}
         models = []
         sql = '''select message.account_id, message.talker_id, message.talker_name, message.sender_id, message.sender_name, 
                         message.is_sender, message.msg_id, message.type, message.content, message.media_path, message.send_time, 
@@ -1413,12 +1455,15 @@ class GenerateModel(object):
                  from message
                  left join location on message.location_id = location.location_id
                  left join deal on message.deal_id = deal.deal_id
-                 left join link on message.link_id = link.link_id '''
+                 left join link on message.link_id = link.link_id 
+                 order by message.account_id, message.talker_id, message.talker_type '''
         deleted = 0
         try:
             cmd = self.db.CreateCommand()
             cmd.CommandText = sql
             r = cmd.ExecuteReader()
+            chat = None
+            chat_key = None
             while r.Read():
                 if canceller.IsCancellationRequested:
                     break
@@ -1519,15 +1564,12 @@ class GenerateModel(object):
                         message.Type.Value = Common.MessageType.System
 
                     if account_id not in [None, ''] and talker_id not in [None, '']:
-                        key = self._get_user_key(account_id, talker_id)
-                        if key in chats:
-                            chat = chats[key]
-                            chat.Messages.Add(message)
-                            chat.Count.Value += 1
-                            if message.Deleted != DeletedState.Intact:
-                                chat.DeletedCount.Value += 1
-                            message.OwnerChat.Value = chat
-                        else:
+                        key = account_id + '#' + talker_id + '#' + str(talker_type)
+                        if key != chat_key:
+                            if self.push_models(models):
+                                models = []
+
+                            chat_key = key
                             chat = Generic.Chat()
                             chat.SourceFile.Value = message.SourceFile.Value
                             chat.Deleted = self._convert_deleted_status(0)
@@ -1550,18 +1592,24 @@ class GenerateModel(object):
                             chat.Messages.Add(message)
                             chat.Count.Value = 1
                             chat.DeletedCount.Value = 0 if message.Deleted == DeletedState.Intact else 1
-                            chats[key] = chat
+                            message.OwnerChat.Value = chat
+                            models.append(chat)
+                        else:
+                            chat.Messages.Add(message)
+                            chat.Count.Value += 1
+                            if message.Deleted != DeletedState.Intact:
+                                chat.DeletedCount.Value += 1
                             message.OwnerChat.Value = chat
                 except Exception as e:
                     if deleted == 0:
-                        TraceService.Trace(TraceLevel.Error, "model_im.py Error: LINE {}".format(traceback.format_exc()))
+                        TraceService.Trace(TraceLevel.Error, "model_im.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
         except Exception as e:
             if deleted == 0:
-                TraceService.Trace(TraceLevel.Error, "model_im.py Error: LINE {}".format(traceback.format_exc()))
+                TraceService.Trace(TraceLevel.Error, "model_im.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
 
-        v = chats.values()
-        v.extend(models)
-        return v
+        if self.push_models(models):
+            models = []
+        return models
 
     def _get_chatroom_member_models(self, account_id, chatroom_id, deleted):
         if account_id in [None, ''] or chatroom_id in [None, '']:
@@ -1591,10 +1639,10 @@ class GenerateModel(object):
                         models.append(model)
                 except Exception as e:
                     if deleted == 0:
-                        TraceService.Trace(TraceLevel.Error, "model_im.py Error: LINE {}".format(traceback.format_exc()))
+                        TraceService.Trace(TraceLevel.Error, "model_im.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
         except Exception as e:
             if deleted == 0:
-                TraceService.Trace(TraceLevel.Error, "model_im.py Error: LINE {}".format(traceback.format_exc()))
+                TraceService.Trace(TraceLevel.Error, "model_im.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
         return models
 
     def _get_feed_models(self):
@@ -1676,12 +1724,17 @@ class GenerateModel(object):
                         location = self._get_location(location_latitude, location_longitude, location_elevation, location_address, location_timestamp, location_type, source, deleted)
                         moment.Location.Value = location
                     models.append(moment)
+
+                    if len(models) > 1000 and self.push_models(models):
+                        models = []
                 except Exception as e:
                     if deleted == 0:
-                        TraceService.Trace(TraceLevel.Error, "model_im.py Error: LINE {}".format(traceback.format_exc()))
+                        TraceService.Trace(TraceLevel.Error, "model_im.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
         except Exception as e:
             if deleted == 0:
-                TraceService.Trace(TraceLevel.Error, "model_im.py Error: LINE {}".format(traceback.format_exc()))
+                TraceService.Trace(TraceLevel.Error, "model_im.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
+        if self.push_models(models):
+            models = []
         return models 
 
     def _get_search_models(self):
@@ -1716,12 +1769,17 @@ class GenerateModel(object):
                         if ts:
                             search.TimeStamp.Value = ts
                     models.append(search)
+
+                    if len(models) > 1000 and self.push_models(models):
+                        models = []
                 except Exception as e:
                     if deleted == 0:
-                        TraceService.Trace(TraceLevel.Error, "model_im.py Error: LINE {}".format(traceback.format_exc()))
+                        TraceService.Trace(TraceLevel.Error, "model_im.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
         except Exception as e:
             if deleted == 0:
-                TraceService.Trace(TraceLevel.Error, "model_im.py Error: LINE {}".format(traceback.format_exc()))
+                TraceService.Trace(TraceLevel.Error, "model_im.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
+        if self.push_models(models):
+            models = []
         return models 
 
     def _get_favorite_models(self):
@@ -1765,12 +1823,17 @@ class GenerateModel(object):
                         if ts:
                             favorite.CreateTime.Value = ts
                     models.append(favorite)
+
+                    if len(models) > 1000 and self.push_models(models):
+                        models = []
                 except Exception as e:
                     if deleted == 0:
-                        TraceService.Trace(TraceLevel.Error, "model_im.py Error: LINE {}".format(traceback.format_exc()))
+                        TraceService.Trace(TraceLevel.Error, "model_im.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
         except Exception as e:
             if deleted == 0:
-                TraceService.Trace(TraceLevel.Error, "model_im.py Error: LINE {}".format(traceback.format_exc()))
+                TraceService.Trace(TraceLevel.Error, "model_im.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
+        if self.push_models(models):
+            models = []
         return models 
 
     def _get_favorite_item_models(self, favorite_id, account_id, deleted):
@@ -1851,10 +1914,10 @@ class GenerateModel(object):
                     models.append(message)
                 except Exception as e:
                     if deleted == 0:
-                        TraceService.Trace(TraceLevel.Error, "model_im.py Error: LINE {}".format(traceback.format_exc()))
+                        TraceService.Trace(TraceLevel.Error, "model_im.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
         except Exception as e:
             if deleted == 0:
-                TraceService.Trace(TraceLevel.Error, "model_im.py Error: LINE {}".format(traceback.format_exc()))
+                TraceService.Trace(TraceLevel.Error, "model_im.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
         return models
 
     def _get_browse_history_models(self):
@@ -1903,12 +1966,17 @@ class GenerateModel(object):
                     history.Description.Value = self._db_reader_get_string_value(r, 9)
                     history.Sex.Value = self._convert_sex_type(self._db_reader_get_int_value(r, 10))
                     models.append(history)
+
+                    if len(models) > 1000 and self.push_models(models):
+                        models = []
                 except Exception as e:
                     if deleted == 0:
-                        TraceService.Trace(TraceLevel.Error, "model_im.py Error: LINE {}".format(traceback.format_exc()))
+                        TraceService.Trace(TraceLevel.Error, "model_im.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
         except Exception as e:
             if deleted == 0:
-                TraceService.Trace(TraceLevel.Error, "model_im.py Error: LINE {}".format(traceback.format_exc()))
+                TraceService.Trace(TraceLevel.Error, "model_im.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
+        if self.push_models(models):
+            models = []
         return models 
 
     def _db_has_table(self, table_name):
@@ -1963,10 +2031,7 @@ class GenerateModel(object):
         if path.startswith('http') or len(path) == 0:
             return ConvertHelper.ToUri(path)
         else:
-            if self.mount_dir:
-                return ConvertHelper.ToUri(self.mount_dir + path.replace("/", "\\"))
-            else:
-                return ConvertHelper.ToUri(path)
+            return ConvertHelper.ToUri(path)
 
     def _get_feed_likes(self, account_id, like_id, deleted):
         models = []
@@ -1998,10 +2063,10 @@ class GenerateModel(object):
                     models.append(like)
                 except Exception as e:
                     if deleted == 0:
-                        TraceService.Trace(TraceLevel.Error, "model_im.py Error: LINE {}".format(traceback.format_exc()))
+                        TraceService.Trace(TraceLevel.Error, "model_im.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
         except Exception as e:
             if deleted == 0:
-                TraceService.Trace(TraceLevel.Error, "model_im.py Error: LINE {}".format(traceback.format_exc()))
+                TraceService.Trace(TraceLevel.Error, "model_im.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
         return models
 
     def _get_feed_comments(self, account_id, comment_id, deleted):
@@ -2041,10 +2106,10 @@ class GenerateModel(object):
                     models.append(comment)
                 except Exception as e:
                     if deleted == 0:
-                        TraceService.Trace(TraceLevel.Error, "model_im.py Error: LINE {}".format(traceback.format_exc()))
+                        TraceService.Trace(TraceLevel.Error, "model_im.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
         except Exception as e:
             if deleted == 0:
-                TraceService.Trace(TraceLevel.Error, "model_im.py Error: LINE {}".format(traceback.format_exc()))
+                TraceService.Trace(TraceLevel.Error, "model_im.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
         return models
 
     def _get_location(self, latitude, longitude, elevation, address, timestamp, loc_type, source, deleted):

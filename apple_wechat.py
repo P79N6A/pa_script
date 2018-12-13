@@ -51,21 +51,20 @@ def analyze_wechat(root, extract_deleted, extract_source):
     mlm = ModelListMerger()
     
     pr.Models.AddRange(list(mlm.GetUnique(models)))
-    build = '微信'
-    app_id = get_app_id(root)
-    if app_id > 1:
-        build += str(app_id)
-    pr.Build(build)
+    pr.Build(get_build(root.Parent.Parent))
     return pr
 
 
-def get_app_id(root):
+def get_build(node):
     global g_app_id, g_app_set
-    app_path = root.Parent.Parent
+    app_path = node.AbsolutePath
     if app_path not in g_app_set:
         g_app_set.add(app_path)
         g_app_id += 1
-    return g_app_id
+    build = '微信'
+    if g_app_id > 1:
+        build += str(g_app_id)
+    return build
 
 
 class WeChatParser(Wechat):
@@ -75,6 +74,7 @@ class WeChatParser(Wechat):
         self.root = node.Parent.Parent
         self.extract_deleted = extract_deleted
         self.extract_source = extract_source
+        self.progress_value = 0
 
         self.user_hash = self.get_user_hash()
         self.private_root = self.root.Parent.Parent.GetByPath('/Library/WechatPrivate/'+self.user_hash)
@@ -95,23 +95,28 @@ class WeChatParser(Wechat):
                 self.user_account.account_id = self.user_hash
                 self.user_account.insert_db(self.im)
                 self.im.db_commit()
+            self.set_progress(1)
 
             try:
                 self._parse_user_contact_db(self.root.GetByPath('/DB/WCDB_Contact.sqlite'))
             except Exception as e:
                 TraceService.Trace(TraceLevel.Error, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
+            self.set_progress(5)
             try:
                 self._parse_user_mm_db(self.root.GetByPath('/DB/MM.sqlite'))
             except Exception as e:
                 TraceService.Trace(TraceLevel.Error, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
+            self.set_progress(30)
             try:
                 self._parse_user_wc_db(self.root.GetByPath('/wc/wc005_008.db'))
             except Exception as e:
                 TraceService.Trace(TraceLevel.Error, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
+            self.set_progress(50)
             try:
                 self._parse_user_fts_db(self.root.GetByPath('/fts/fts_message.db'))
             except Exception as e:
                 TraceService.Trace(TraceLevel.Error, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
+            self.set_progress(65)
             if self.private_root is not None:
                 try:
                     self._parse_user_fav_db(self.private_root.GetByPath('/Favorites/fav.db'))
@@ -121,7 +126,7 @@ class WeChatParser(Wechat):
                     self._parse_user_search(self.private_root.GetByPath('/searchH5/cache/wshistory.pb'))
                 except Exception as e:
                     TraceService.Trace(TraceLevel.Error, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
-
+            self.set_progress(70)
             self.im.db_create_index()
             # 数据库填充完毕，请将中间数据库版本和app数据库版本插入数据库，用来检测app是否需要重新解析
             if not canceller.IsCancellationRequested:
@@ -135,8 +140,12 @@ class WeChatParser(Wechat):
         return models
 
     def get_models_from_cache_db(self):
-        models = model_im.GenerateModel(self.cache_db).get_models()
+        models = model_im.GenerateModel(self.cache_db, get_build(self.root), DescripCategories.Wechat, self.progress_value).get_models()
         return models
+
+    def set_progress(self, value):
+        self.progress_value = value
+        progress.Value = value
 
     def get_user_hash(self):
         path = self.root.AbsolutePath
@@ -427,6 +436,7 @@ class WeChatParser(Wechat):
         db.close()
         self.db_remove_mapping(db_path)
 
+        self.set_progress(22)
         if self.extract_deleted:
             if canceller.IsCancellationRequested:
                 return False
@@ -549,6 +559,7 @@ class WeChatParser(Wechat):
         db.close()
         self.db_remove_mapping(db_path)
 
+        self.set_progress(40)
         if self.extract_deleted:
             if canceller.IsCancellationRequested:
                 return False
@@ -1089,6 +1100,7 @@ class WeChatParser(Wechat):
         db.Close()
         self.db_remove_mapping(db_path)
 
+        self.set_progress(57)
         if self.extract_deleted:
             if canceller.IsCancellationRequested:
                 return False
