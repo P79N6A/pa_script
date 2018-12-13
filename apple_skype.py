@@ -144,8 +144,11 @@ class Utils(object):
             return f.read()
 
     @staticmethod
-    def base64_to_str(encoded_data):
-        pass
+    def decode_base64(encoded_data):
+        try:
+            return base64.b64decode(encoded_data)
+        except Exception as e:
+            return None
 
     @staticmethod
     def str_to_base64(origin_data):
@@ -670,7 +673,7 @@ class SkypeParser(object):
                 return "未接电话"
             return "{} 未接电话".format(root_node['partlist'].child[0]['name'].data)
         elif call_type == 'started':
-            raise Exception("do not handle this system message")
+            return '开始通话'
         elif call_type == 'ended':
             return "通话 {} 秒".format(root_node['partlist'].child[0]['duration'].data)
         return None
