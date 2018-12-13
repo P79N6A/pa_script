@@ -752,7 +752,7 @@ class SkypeParser(object):
             else:
                 return content
         except Exception as e:
-            return None
+            return content 
 
     @staticmethod
     def __convert_message_content_type(_type):

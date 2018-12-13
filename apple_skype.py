@@ -191,6 +191,12 @@ class HtmlNode(object):
                 answer.append(node)
         return answer
 
+    def get(self, key, default=None):
+        for node in self.child:
+            if node.tag_name == key:
+                return node
+        return default
+
 
 class PaHtmlParser(HTMLParser):
     def __init__(self):
@@ -205,6 +211,8 @@ class PaHtmlParser(HTMLParser):
         self.__inner_node_list.append(node)
 
     def handle_data(self, data):
+        if not self.__inner_node_list:
+            return
         self.__inner_node_list[-1].data = data
 
     def handle_endtag(self, tag):
@@ -693,47 +701,57 @@ class SkypeParser(object):
         return "{} 已更改对话图片".format(self.__query_sender_name(root_node['pictureupdate']['initiator'].data))
 
     def __convert_message_content(self, content, msg_obj):
-        if not content.startswith("<") and content.endswith(">"):
+        content = content.strip()
+        if not (content.startswith("<") and content.endswith(">")):
             return content
 
         hp = PaHtmlParser()
         hp.feed(content)
         hp.close()
 
-        tag_name = hp.first_dom.tag_name
-        if tag_name == "deletemember":
-            executor = hp.root['deletemember']['initiator'].data
-            target = hp.root['deletemember']['target'].data
-            return self.__assemble_message_delete_member(executor, target)
-        elif tag_name == "addmember":
-            executor = hp.root['addmember']['initiator'].data
-            target = hp.root['addmember']['target'].data
-            return self.__assemble_message_add_member(executor, target)
-        elif tag_name == "ss":
-            nodes = hp.root.get_all("ss")
-            return self.__assemble_message_emoji(nodes)
-        elif tag_name == "uriobject":
-            return hp.root['uriobject']['originalname'].property['v']
-        elif tag_name == 'partlist':
-            return self.__assemble_message_call(hp.root)
-        elif tag_name == 'topicupdate':
-            return self.__assemble_message_rename_group(hp.root)
-        elif tag_name == 'location':
-            address = hp.root['location'].property['address']
-            latitude = hp.root['location'].property['latitude']
-            longitude = hp.root['location'].property['longitude']
-            ts = Utils.convert_timestamp(hp.root['location'].property.get("timestamp", None))
-            self.__add_location(msg_obj, address, latitude, longitude, ts)
-            return None
-        elif tag_name == 'historydisclosedupdate':
-            return self.__assemble_message_history_closure(hp.root)
-        elif tag_name == '':
-            return self.__assemble_message_close_add_memeber(hp.root)
-        elif tag_name == "sms":
-            return hp.root['sms']['defaults']['content'].data
-        elif tag_name == "pictureupdate":
-            return self.__assemble_message_change_pic_bak(hp.root)
-        else:
+        try:
+            tag_name = hp.first_dom.tag_name
+            if tag_name == "deletemember":
+                executor = hp.root['deletemember']['initiator'].data
+                target = hp.root['deletemember']['target'].data
+                return self.__assemble_message_delete_member(executor, target)
+            elif tag_name == "addmember":
+                executor = hp.root['addmember']['initiator'].data
+                target = hp.root['addmember']['target'].data
+                return self.__assemble_message_add_member(executor, target)
+            elif tag_name == "ss":
+                nodes = hp.root.get_all("ss")
+                return self.__assemble_message_emoji(nodes)
+            elif tag_name == "uriobject":
+                if hp.root['uriobject'].get("swift", None):
+                    encoded_info = hp.root['uriobject']['swift'].property['b64']
+                    decoded_info = Utils.decode_base64(encoded_info)
+                    attachment = json.loads(decoded_info)["attachments"][0]
+                    url = attachment["content"]['images'][0]['url']
+                    return url
+                return hp.root['uriobject']['originalname'].property['v']
+            elif tag_name == 'partlist':
+                return self.__assemble_message_call(hp.root)
+            elif tag_name == 'topicupdate':
+                return self.__assemble_message_rename_group(hp.root)
+            elif tag_name == 'location':
+                address = hp.root['location'].property['address']
+                latitude = float(hp.root['location'].property['latitude']) / 1000000
+                longitude = float(hp.root['location'].property['longitude']) / 1000000
+                ts = Utils.convert_timestamp(hp.root['location'].property.get("timestamp", None))
+                self.__add_location(msg_obj, address, latitude, longitude, ts)
+                return None
+            elif tag_name == 'historydisclosedupdate':
+                return self.__assemble_message_history_closure(hp.root)
+            elif tag_name == 'joiningenabledupdate':
+                return self.__assemble_message_close_add_memeber(hp.root)
+            elif tag_name == "sms":
+                return hp.root['sms']['defaults']['content'].data
+            elif tag_name == "pictureupdate":
+                return self.__assemble_message_change_pic_bak(hp.root)
+            else:
+                return content
+        except Exception as e:
             return content
 
     def __add_location(self, msg, address, latitude, longitude, ts=None):
