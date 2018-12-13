@@ -9,10 +9,11 @@ import os
 import datetime
 import System
 import System.Data.SQLite as SQLite
+from PA.InfraLib.Utils import ConvertHelper
 import sqlite3
 
 VERSION_KEY_DB  = 'db'
-VERSION_VALUE_DB = 2
+VERSION_VALUE_DB = 3
 
 VERSION_KEY_APP = 'app'
 
@@ -498,11 +499,11 @@ class Generate(object):
         models.extend(self._get_bookmark_models())
         models.extend(self._get_browse_record_models())
         models.extend(self._get_downloadfile_models())
-        # models.extend(self._get_fileinfo_models())
         models.extend(self._get_savepage_models())
         models.extend(self._get_search_history_models())
-        models.extend(self._get_plugin_models())
         models.extend(self._get_cookies_models())
+        # models.extend(self._get_fileinfo_models())
+        # models.extend(self._get_plugin_models())
         self.db_cmd.Dispose()
         self.db.Close()
         return models
@@ -523,7 +524,7 @@ class Generate(object):
                 if not IsDBNull(row[2]):
                     user.TimeLastLogin.Value = self._get_timestamp(row[2])
                 if not IsDBNull(row[3]) and row[3] not in [None, '']:
-                    user.SourceFile.Value = self._get_source_file(row[3])
+                    user.SourceFile.Value = row[3]
                 if not IsDBNull(row[4]):
                     user.Deleted = self._convert_deleted_status(row[4])
                 model.append(user)
@@ -548,7 +549,7 @@ class Generate(object):
                 if not IsDBNull(row[3]):
                     bookmark.Url.Value = row[3]
                 if not IsDBNull(row[5]) and row[5] not in [None, '']:
-                    bookmark.SourceFile.Value = self._get_source_file(row[5])
+                    bookmark.SourceFile.Value = row[5]
                 if not IsDBNull(row[6]):
                     bookmark.Deleted = self._convert_deleted_status(row[6])
                 model.append(bookmark)
@@ -573,7 +574,7 @@ class Generate(object):
                 if not IsDBNull(row[3]):
                     visited.LastVisited.Value = self._get_timestamp(row[3])
                 if not IsDBNull(row[5]) and row[5] not in [None, '']:
-                    visited.SourceFile.Value = self._get_source_file(row[5])
+                    visited.SourceFile.Value = row[5]
                 if not IsDBNull(row[6]):
                     visited.Deleted = self._convert_deleted_status(row[6])
                 model.append(visited)
@@ -585,22 +586,38 @@ class Generate(object):
     def _get_downloadfile_models(self):
         model = []
         sql = '''select distinct * from download_files'''
+        '''
+        0   id INTEGER,
+        1   url TEXT,
+        2   filename TEXT,
+        3   filefolderpath TEXT,
+        4   totalsize INTEGER,
+        5   createdate INTEGER,
+        6   donedate INTEGER,
+        7   costtime INTEGER,
+        8   owneruser TEXT,
+        9   source TEXT,
+        10  deleted INTEGER,
+        11  repeated INTEGER
+        '''
         try:
             self.db_cmd.CommandText = sql
             row = self.db_cmd.ExecuteReader()             
             while(row.Read()):
                 canceller.ThrowIfCancellationRequested()
                 download = Generic.Attachment()
-                if not IsDBNull(row[1]):
-                    download.URL.Value = row[1]
-                if not IsDBNull(row[3]):
-                    download.Filename.Value = row[3]  #因为下载文件有两个地址（下载地址和本地保存路径，于是把下载地址给了URL，本地地址给了Filename），本地地址用Filename储存时会警告文件名不合法，该问题正在解决
+                if not IsDBNull(row[3]) and row[3]:
+                    download.Uri.Value = self._get_uri(row[3])
+                elif not IsDBNull(row[1]) and row[1]:
+                    download.Uri.Value = self._get_uri(row[1])
+                if not IsDBNull(row[2]):
+                    download.Filename.Value = row[2]  
                 if not IsDBNull(row[4]):
                     download.Size.Value = row[4]
                 if not IsDBNull(row[5]):
                     download.DownloadTime.Value = self._get_timestamp(row[5])
                 if not IsDBNull(row[9]) and row[9] not in [None, '']:
-                    download.SourceFile.Value = self._get_source_file(row[9])
+                    download.SourceFile.Value = row[9]
                 if row[10] is not None:
                     download.Deleted = self._convert_deleted_status(row[10])
                 model.append(download)
@@ -627,7 +644,7 @@ class Generate(object):
                 if not IsDBNull(row[5]):
                     browseload.Title.Value = row[5]
                 if not IsDBNull(row[6]) and row[6] not in [None, '']:
-                    browseload.SourceFile.Value = self._get_source_file(row[6])
+                    browseload.SourceFile.Value = row[6]
                 if not IsDBNull(row[7]):
                     browseload.Deleted = self._convert_deleted_status(row[7])
                 model.append(browseload)
@@ -649,13 +666,13 @@ class Generate(object):
             row = self.db_cmd.ExecuteReader()             
             while(row.Read()):
                 canceller.ThrowIfCancellationRequested()
-                search = Generic.SearchedItem()
+                search = SearchedItem()
                 if not IsDBNull(row[2]):
                     search.Value.Value = row[2]
                 if not IsDBNull(row[3]):
                     search.TimeStamp.Value = self._get_timestamp(row[3])
                 if not IsDBNull(row[5]) and row[5] not in [None, '']:
-                    search.SourceFile.Value = self._get_source_file(row[5])
+                    search.SourceFile.Value = row[5]
                 if not IsDBNull(row[6]):
                     search.Deleted = self._convert_deleted_status(row[6])
                 model.append(search)
@@ -674,6 +691,20 @@ class Generate(object):
     def _get_cookies_models(self):
         model = []
         sql = '''select distinct * from cookies'''
+        '''
+            0    id INTEGER PRIMARY KEY AUTOINCREMENT,
+            1    host_key TEXT,
+            2    name TEXT,
+            3    value TEXT,
+            4    createdate INTEGER,
+            5    expiredate INTEGER,
+            6    lastaccessdate INTEGER,
+            7    hasexipred INTEGER,
+            8    owneruser TEXT,
+            9    source TEXT,
+            10    deleted INTEGER,
+            11    repeated INTEGER
+        '''
         try:
             self.db_cmd.CommandText = sql
             row = self.db_cmd.ExecuteReader()             
@@ -692,10 +723,10 @@ class Generate(object):
                     cookie.Expiry.Value = self._convert_webkit_timestamp(row[5])
                 if not IsDBNull(row[6]):
                     cookie.LastAccessTime.Value = self._convert_webkit_timestamp(row[6])
-                if not IsDBNull(row[7]) and row[7] not in [None, '']:
-                    cookie.SourceFile.Value = self._get_source_file(str(row[7]))
-                if not IsDBNull(row[8]):
-                    cookie.Deleted = self._convert_deleted_status(row[8])
+                if not IsDBNull(row[9]) and row[9] not in [None, '']:
+                    cookie.SourceFile.Value = str(row[9])
+                if not IsDBNull(row[10]):
+                    cookie.Deleted = self._convert_deleted_status(row[10])
                 model.append(cookie)
             row.Close()
         except Exception as e:
@@ -708,11 +739,6 @@ class Generate(object):
             return DeletedState.Unknown
         else:
             return DeletedState.Intact if deleted == 0 else DeletedState.Deleted
-
-    def _get_source_file(self, source_file):
-        if isinstance(source_file, str):
-            return source_file.replace('/', '\\')
-        return source_file
 
     @staticmethod
     def _get_timestamp(timestamp):
@@ -741,4 +767,9 @@ class Generate(object):
         except:
             return None
 
+    def _get_uri(self, path):
+        try:
+            return ConvertHelper.ToUri(path)
+        except:
+            pass
 
