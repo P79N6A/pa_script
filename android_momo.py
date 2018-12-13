@@ -358,13 +358,16 @@ class momo(object):
                     m.type = model_im.MESSAGE_CONTENT_TYPE_TEXT
                 #暂时不知道怎么解析
                 elif tp == 1:
-                    pass
+                    m.content = "暂不支持的内容"
+                    m.type = model_im.MESSAGE_CONTENT_TYPE_TEXT
                 #???没内容
                 elif tp == 2:
-                    pass
+                    m.content = "暂不支持的内容"
+                    m.type = model_im.MESSAGE_CONTENT_TYPE_TEXT
                 #暂未分析
                 elif tp == 6:
-                    pass
+                    m.content = "暂不支持的内容"
+                    m.type = model_im.MESSAGE_CONTENT_TYPE_TEXT
                 #群成员的动态，没有feed连接，只有图片
                 #拆分成两条消息
                 elif tp == 20:
@@ -376,7 +379,10 @@ class momo(object):
                 #分享
                 elif tp == 12:
                     m.content = js.get('content')
-                    m.type = model_im.MESSAGE_CONTENT_TYPE_TEXT    
+                    m.type = model_im.MESSAGE_CONTENT_TYPE_TEXT
+                else:
+                    m.content = content
+                    m.type = model_im.MESSAGE_CONTENT_TYPE_TEXT
                 self.im.db_insert_table_message(m)
             reader.Close()   
         cmd.Dispose()
