@@ -79,8 +79,8 @@ class AppLists(object):
                             except Exception as e:
                                 print(e)
                     
-                    elif line.find("application-label-zh-CN")!= -1:
-                        reg = re.compile("application-label-zh-CN:'(.*?)'")
+                    elif line.find("application-label")!= -1:
+                        reg = re.compile("application-label:'(.*?)'")
                         results = re.match(reg, line)
                         if results:
                             try:
