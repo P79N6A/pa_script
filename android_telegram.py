@@ -497,7 +497,7 @@ class Telegram(object):
                 self.model_col.db_insert_table_friend(friend)
 
             except Exception as e:
-                print("error happen", e)
+                pass
         self.model_col.db_commit()
 
     def decode_recover_chatroom(self):

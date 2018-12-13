@@ -36,7 +36,7 @@ SQL_CREATE_TABLE_CALENDAR = '''
         interval INTEGER,
         until INTEGER,
         calendar_displayName TEXT,
-        source INTEGER,
+        source TEXT,
         deleted INTEGER,
         repeated INTEGER
     )'''
@@ -57,7 +57,7 @@ VERSION_KEY_DB = 'db'
 VERSION_KEY_APP = 'app'
 
 #中间数据库版本
-VERSION_VALUE_DB = 1
+VERSION_VALUE_DB = 2
 
 class MC(object):
     def __init__(self):
