@@ -732,6 +732,10 @@
           <key>Category</key>
           <string>Logs</string>
           <key>Name</key>
+          
+          
+          
+          
           <string>文件日志(苹果)</string>
           <key>Filter</key>
           <string>基础数据</string>
@@ -2081,7 +2085,7 @@
           <key>Category</key>
           <string>SogouMap</string>
           <key>Name</key>
-          <string>搜头地图(安卓)</string>
+          <string>搜狗地图(安卓)</string>
           <key>Filter</key>
           <string>应用>地图</string>
         </dict>
@@ -2389,7 +2393,6 @@
         </dict>
       </array>
     </dict>
-
     <dict>
       <key>Module</key>
       <string>android_contact</string>
