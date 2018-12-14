@@ -365,7 +365,7 @@
       </array>
     </dict>
 
-	<dict>
+    <dict>
       <key>Module</key>
       <string>Android_dev</string>
       <key>Runners</key>
@@ -395,8 +395,8 @@
         </dict>
       </array>
     </dict>
-	
-	<dict>
+
+    <dict>
       <key>Module</key>
       <string>apple_iaround</string>
       <key>Runners</key>
@@ -420,7 +420,7 @@
       </array>
     </dict>
 
-	
+
     <!--苹果插件从这里开始,安卓插件请见下面-->
     <!--要个性化自定义运行某些插件,请按此文件的格式建立config.debug.dat文件,调试版的程序程序会优先读取config.debug.dat文件-->
     <dict>
@@ -478,7 +478,7 @@
       </array>
     </dict>
 
-	<dict>
+    <dict>
       <key>Module</key>
       <string>apple_qunar</string>
       <key>Runners</key>
@@ -548,7 +548,7 @@
       </array>
     </dict>
 
-	<dict>
+    <dict>
       <key>Module</key>
       <string>apple_application_permission</string>
       <key>Runners</key>
@@ -683,11 +683,11 @@
           </array>
           <key>Category</key>
           <string>DropBox</string>
-		  <key>Name</key>
+          <key>Name</key>
           <string>DropBox(苹果)</string>
           <key>Filter</key>
-          <string>应用>DropBox</string>
-		</dict>
+          <string>应用>其他</string>
+        </dict>
       </array>
     </dict>
 
@@ -732,6 +732,10 @@
           <key>Category</key>
           <string>Logs</string>
           <key>Name</key>
+          
+          
+          
+          
           <string>文件日志(苹果)</string>
           <key>Filter</key>
           <string>基础数据</string>
@@ -2081,7 +2085,7 @@
           <key>Category</key>
           <string>SogouMap</string>
           <key>Name</key>
-          <string>搜头地图(安卓)</string>
+          <string>搜狗地图(安卓)</string>
           <key>Filter</key>
           <string>应用>地图</string>
         </dict>
@@ -2175,7 +2179,7 @@
           <integer>2</integer>
           <key>Patterns</key>
           <array>
-            <string>#</string>  
+            <string>#</string>
           </array>
           <key>Category</key>
           <string>QQ</string>
@@ -2183,9 +2187,40 @@
           <string>QQ(安卓)</string>
           <key>Filter</key>
           <string>应用>即时通讯</string>
+        </dict>
       </array>
     </dict>
-    
+
+	<dict>
+      <key>Module</key>
+      <string>android_icon</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_icon</string>
+          <key>RunnerType</key>
+          <integer>2</integer>
+          <key>Patterns</key>
+          <array>
+            <string>/system/theme_magic/customized_icons$</string>
+          </array>
+          <key>Category</key>
+          <string>AndroidIcon</string>
+          <key>Name</key>
+          <string>图标(安卓)</string>
+          <key>Filter</key>
+          <string>基础数据</string>
+          <key>Dependents</key>
+          <array>
+            <!-- EntryPoint#RunnerType#ModuleType@Module -->
+            <string>analyze_app_lists#2#0@andriod_app_lists</string>
+          </array>
+        </dict>
+      </array>
+    </dict>
+	
+	
     <dict>
       <key>Module</key>
       <string>android_momo</string>
@@ -2358,7 +2393,6 @@
         </dict>
       </array>
     </dict>
-
     <dict>
       <key>Module</key>
       <string>android_contact</string>
@@ -2945,5 +2979,6 @@
         </dict>
       </array>
     </dict>
+
   </array>
 </plist>

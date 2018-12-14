@@ -154,85 +154,105 @@ class Facebook(object):
             conn.Open()
             cmd = System.Data.SQLite.SQLiteCommand(conn)
             cmd.CommandText = '''
-                select messages.thread_key, text, sender, messages.timestamp_ms, messages.timestamp_sent_ms, shares, msg_type,pending_send_media_attachment from messages, folders where messages.thread_key = folders.thread_key and messages.thread_key like "ONE%"
+                select messages.thread_key, text, sender, messages.timestamp_ms, messages.timestamp_sent_ms, shares, msg_type,messages.attachments from messages, folders where messages.thread_key = folders.thread_key and messages.thread_key like "ONE%"
             '''
             reader= cmd.ExecuteReader()
             fs = self.root.FileSystem
             while reader.Read():
-                if canceller.IsCancellationRequested:
-                    return
-                message = model_im.Message()
-                message.source = friends_chat.AbsolutePath
-                message.account_id = self.account_id
-                send_info = GetString(reader, 2) if GetString(reader, 2) else None
-                msg_type = GetInt64(reader, 6) if GetInt64(reader, 6) else None 
-                if send_info:
-                    send_dic = json.loads(send_info)
-                    if "name" in send_dic:
-                        message.sender_name = send_dic.get("name")
-                    if "user_key" in send_dic:
-                        message.sender_id = send_dic.get("user_key")
-                        if send_dic.get("user_key") == self.account_id:
-                            message.is_sender = 1
-                    thread_key = GetString(reader, 0)
-                    talk_id = "FACEBOOK:" + thread_key[len("ONE_TO_ONE:"):len("ONE_TO_ONE:")+len("000000000000000")]
-                    message.talker_id = talk_id
-                    if talk_id in self.contacts_dict:
-                        message.talker_name = self.contacts_dict.get(talk_id)
-                    message.content = GetString(reader, 1)
-                    if GetString(reader, 1):
-                        message.type = 1
-                    if GetInt64(reader, 4):
-                        message.send_time = int(str(GetInt64(reader, 4))[:-3])
-                    else:
-                        message.send_time = int(str(GetInt64(reader, 3))[:-3])
+                try:
+                    if canceller.IsCancellationRequested:
+                        return
+                    message = model_im.Message()
+                    message.source = friends_chat.AbsolutePath
+                    message.account_id = self.account_id
+                    send_info = GetString(reader, 2) if GetString(reader, 2) else None
+                    msg_type = GetInt64(reader, 6) if GetInt64(reader, 6) else None 
+                    if send_info:
+                        send_dic = json.loads(send_info)
+                        if "name" in send_dic:
+                            message.sender_name = send_dic.get("name")
+                        if "user_key" in send_dic:
+                            message.sender_id = send_dic.get("user_key")
+                            if send_dic.get("user_key") == self.account_id:
+                                message.is_sender = 1
+                        thread_key = GetString(reader, 0)
+                        talk_id = "FACEBOOK:" + thread_key[len("ONE_TO_ONE:"):len("ONE_TO_ONE:")+len("000000000000000")]
+                        message.talker_id = talk_id
+                        if talk_id in self.contacts_dict:
+                            message.talker_name = self.contacts_dict.get(talk_id)
+                        message.content = GetString(reader, 1)
+                        if GetString(reader, 1):
+                            message.type = 1
+                        if GetInt64(reader, 4):
+                            message.send_time = int(str(GetInt64(reader, 4))[:-3])
+                        else:
+                            message.send_time = int(str(GetInt64(reader, 3))[:-3])
 
-                    message.talker_type = 1 # 好友聊天
-                    attachment = GetString(reader, 7)
-                    if attachment:
-                        attachment_str = json.loads(attachment)
-                        attachment_dict = attachment_str[0]
-                        if "type" in attachment_dict:
-                            tmp_type = attachment_dict["type"] 
-                            if tmp_type == "VIDEO":
-                                message.type = 3
-                            elif tmp_type == "PHOTO":
-                                message.type = 2
-                            elif tmp_type == "VIDEO":
-                                message.type = 4
-                            if "uri" in attachment_dict:
-                                media_path = attachment_dict.get("uri")
-                                if media_path.startswith("file:"):
-                                    lists = re.split("/", media_path)
-                                    media_name = lists[-1]
+                        message.talker_type = 1 # 好友聊天
+                        attachment = GetString(reader, 7)
+                        if attachment:
+                            attachment_str = json.loads(attachment)
+                            attachment_dict = attachment_str[0]
+                            if "type" in attachment_dict:
+                                tmp_type = attachment_dict["type"] 
+                                if tmp_type == "VIDEO":
+                                    message.type = 3
+                                elif tmp_type == "PHOTO":
+                                    message.type = 2
+                                elif tmp_type == "VIDEO":
+                                    message.type = 4
+                                if "uri" in attachment_dict:
+                                    media_path = attachment_dict.get("uri")
+                                    if media_path.startswith("file:"):
+                                        lists = re.split("/", media_path)
+                                        media_name = lists[-1]
+                                        media_path_list = fs.Search(media_name)
+                                        for i in media_path_list:
+                                            message.media_path = i.AbsolutePath
+                                            message.content = media_name
+                                        else:
+                                            message.content = media_name + "(本地资源已被删除)"
+                                    elif media_path.startswith("http"):
+                                        message.media_path = media_path
+                            elif "mime_type" in attachment_dict:
+                                if attachment_dict["mime_type"] == "image/jpeg":
+                                    message.type = 2
+                                elif attachment_dict["mime_type"] == "audio/mpeg":
+                                    message.type = 3
+                                if "filename" in attachment_dict:
+                                    media_name = attachment_dict.get("filename")
                                     media_path_list = fs.Search(media_name)
-                                    for i in media_path_list:
-                                        message.media_path = i.AbsolutePath
-                                elif media_path.startswith("http"):
-                                    message.media_path = media_path
-                    
-                    if GetString(reader, 5):
-                        share_list = json.loads(GetString(reader, 5))
-                        share_dict = share_list[0]
-                        if "media" in share_dict:
-                            media_info = share_dict.get("media")
-                            if "type" in media_info[0] and media_info[0]["type"] == "VIDEO":
-                                message.type = 4
-                            if "type" in media_info[0] and media_info[0]["type"] == "LINK":
-                                message.type = 8
-                        if "href" in share_dict:
-                            message.media_path = share_dict["href"]
-                        if "name" in share_dict:
-                            message.content = share_dict.get("name")
-                    try:
-                        self.facebook_db.db_insert_table_message(message)       
-                    except Exception as e:
-                        print(e)
-                        #pass
-                elif send_info == "" and msg_type == -1:   # 无效的信息
-                    continue
+                                    if media_path_list:
+                                        for i in media_path_list:
+                                            message.media_path = i.AbsolutePath
+                                            message.content = media_name
+                                    else:
+                                        message.content = media_name+ "(本地资源已被删除)"
+                        
+                        if GetString(reader, 5):
+                            share_list = json.loads(GetString(reader, 5))
+                            share_dict = share_list[0]
+                            if "media" in share_dict:
+                                media_info = share_dict.get("media")
+                                if "type" in media_info[0] and media_info[0]["type"] == "VIDEO":
+                                    message.type = 4
+                                if "type" in media_info[0] and media_info[0]["type"] == "LINK":
+                                    message.type = 8
+                            if "href" in share_dict:
+                                message.media_path = share_dict["href"]
+                            if "name" in share_dict:
+                                message.content = share_dict.get("name")
+                        try:
+                            self.facebook_db.db_insert_table_message(message)       
+                        except Exception as e:
+                            print(e)
+                            #pass
+                    elif send_info == "" and msg_type == -1:   # 无效的信息
+                        continue
+                except Exception as e:
+                    pass
         except Exception as e:
-            print(e)
+            pass
             #pass
         release_connection(reader, conn)
         self.facebook_db.db_commit()
@@ -247,82 +267,103 @@ class Facebook(object):
             conn.Open()
             cmd = System.Data.SQLite.SQLiteCommand(conn)
             cmd.CommandText = '''
-                select messages.thread_key, text, sender, messages.timestamp_ms, messages.timestamp_sent_ms, shares, msg_type,pending_send_media_attachment from messages, folders where messages.thread_key = folders.thread_key and messages.thread_key like "GROUP%"
+                select messages.thread_key, text, sender, messages.timestamp_ms, messages.timestamp_sent_ms, shares, msg_type,messages.attachments from messages, folders where messages.thread_key = folders.thread_key and messages.thread_key like "GROUP%"
             '''
             reader= cmd.ExecuteReader()
             fs = self.root.FileSystem
             while reader.Read():
-                if canceller.IsCancellationRequested:
-                    return
-                message = model_im.Message()
-                message.source = groups_chat.AbsolutePath
-                message.account_id = self.account_id
-                send_info = GetString(reader, 2) if GetString(reader, 2) else None
-                msg_type = GetInt64(reader, 6) if GetInt64(reader, 6) else None 
-                if send_info:
-                    send_dic = json.loads(send_info)
-                    if "name" in send_dic:
-                        message.sender_name = send_dic.get("name")
-                    if "user_key" in send_dic:
-                        message.sender_id = send_dic.get("user_key")
-                        if send_dic.get("user_key") == self.account_id:
-                            message.is_sender = 1
-                    
-                    message.talker_id = GetString(reader, 0)
-                    message.content = GetString(reader, 1)
-                    if GetString(reader, 1):
-                        message.type = 1
-                    if GetInt64(reader, 4):
-                        message.send_time = int(str(GetInt64(reader, 4))[:-3])
-                    else:
-                        message.send_time = int(str(GetInt64(reader, 3))[:-3])
+                try:
+                    if canceller.IsCancellationRequested:
+                        return
+                    message = model_im.Message()
+                    message.source = groups_chat.AbsolutePath
+                    message.account_id = self.account_id
+                    send_info = GetString(reader, 2) if GetString(reader, 2) else None
+                    msg_type = GetInt64(reader, 6) if GetInt64(reader, 6) else None 
+                    if send_info:
+                        send_dic = json.loads(send_info)
+                        if "name" in send_dic:
+                            message.sender_name = send_dic.get("name")
+                        if "user_key" in send_dic:
+                            message.sender_id = send_dic.get("user_key")
+                            if send_dic.get("user_key") == self.account_id:
+                                message.is_sender = 1
+                        
+                        message.talker_id = GetString(reader, 0)
+                        message.content = GetString(reader, 1)
+                        if GetString(reader, 1):
+                            message.type = 1
+                        if GetInt64(reader, 4):
+                            message.send_time = int(str(GetInt64(reader, 4))[:-3])
+                        else:
+                            message.send_time = int(str(GetInt64(reader, 3))[:-3])
 
-                    message.talker_type = 2 # 群聊天
-                    attachment = GetString(reader, 7)
-                    if attachment:
-                        attachment_str = json.loads(attachment)
-                        attachment_dict = attachment_str[0]
-                        if "type" in attachment_dict:
-                            tmp_type = attachment_dict["type"] 
-                            if tmp_type == "VIDEO":
-                                message.type = 3
-                            elif tmp_type == "PHOTO":
-                                message.type = 2
-                            elif tmp_type == "VIDEO":
-                                message.type = 4
-                            if "uri" in attachment_dict:
-                                media_path = attachment_dict.get("uri")
-                                if media_path.startswith("file:"):
-                                    lists = re.split("/", media_path)
-                                    media_name = lists[-1]
+                        message.talker_type = 2 # 群聊天
+                        attachment = GetString(reader, 7)
+                        if attachment:
+                            attachment_str = json.loads(attachment)
+                            attachment_dict = attachment_str[0]
+                            if "type" in attachment_dict:
+                                tmp_type = attachment_dict["type"] 
+                                if tmp_type == "VIDEO":
+                                    message.type = 3
+                                elif tmp_type == "PHOTO":
+                                    message.type = 2
+                                elif tmp_type == "VIDEO":
+                                    message.type = 4
+                                if "uri" in attachment_dict:
+                                    media_path = attachment_dict.get("uri")
+                                    if media_path.startswith("file:"):
+                                        lists = re.split("/", media_path)
+                                        media_name = lists[-1]
+                                        media_path_list = fs.Search(media_name)
+                                        if media_path_list:
+                                            for i in media_path_list:
+                                                message.media_path = i.AbsolutePath
+                                                message.content = media_name
+                                        else:
+                                            message.content = media_name + "(本地资源已被删除)"        
+                                    elif media_path.startswith("http"):
+                                        message.media_path = media_path
+                            elif "mime_type" in attachment_dict:
+                                if attachment_dict["mime_type"] == "image/jpeg":
+                                    message.type = 2
+                                elif attachment_dict["mime_type"] == "audio/mpeg":
+                                    message.type = 3
+                                if "filename" in attachment_dict:
+                                    media_name = attachment_dict.get("filename")
                                     media_path_list = fs.Search(media_name)
-                                    for i in media_path_list:
-                                        message.media_path = i.AbsolutePath
-                                elif media_path.startswith("http"):
-                                    message.media_path = media_path
-                    
-                    if GetString(reader, 5):
-                        share_list = json.loads(GetString(reader, 5))
-                        share_dict = share_list[0]
-                        if "media" in share_dict:
-                            media_info = share_dict.get("media")
-                            if "type" in media_info[0] and media_info[0]["type"] == "VIDEO":
-                                message.type = 4
-                            if "type" in media_info[0] and media_info[0]["type"] == "LINK":
-                                message.type = 8
-                        if "href" in share_dict:
-                            message.media_path = share_dict["href"]
-                        if "name" in share_dict:
-                            message.content = share_dict.get("name")
-                    try:
-                        self.facebook_db.db_insert_table_message(message)       
-                    except Exception as e:
-                        print(e)
-                        #pass
-                elif send_info == "" and msg_type == -1:   # 无效的信息
-                    continue
+                                    if media_path_list:
+                                        for i in media_path_list:
+                                            message.media_path = i.AbsolutePath
+                                            message.content = media_name
+                                    else:
+                                        message.content = media_name + "(本地资源已被删除)"
+                        
+                        if GetString(reader, 5):
+                            share_list = json.loads(GetString(reader, 5))
+                            share_dict = share_list[0]
+                            if "media" in share_dict:
+                                media_info = share_dict.get("media")
+                                if "type" in media_info[0] and media_info[0]["type"] == "VIDEO":
+                                    message.type = 4
+                                if "type" in media_info[0] and media_info[0]["type"] == "LINK":
+                                    message.type = 8
+                            if "href" in share_dict:
+                                message.media_path = share_dict["href"]
+                            if "name" in share_dict:
+                                message.content = share_dict.get("name")
+                        try:
+                            self.facebook_db.db_insert_table_message(message)       
+                        except Exception as e:
+                            print(e)
+                            #pass
+                    elif send_info == "" and msg_type == -1:   # 无效的信息
+                        continue
+                except Exception as e:
+                    pass
         except Exception as e:
-            print(e)
+            pass
             #pass
         release_connection(reader, conn)
         self.facebook_db.db_commit()

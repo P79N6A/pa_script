@@ -17,6 +17,7 @@ class CookieParser(object):
         self.node = node
         self.extractDeleted = extractDeleted
         self.extractSource = extractSource
+        self.app = ds.GetApplication(node.AbsolutePath)
     
     def Parse(self):                
         results = []
@@ -148,13 +149,14 @@ class CookieParser(object):
         return c
 
     def find_RelatedApplication(self, f):
-        curr = f.Parent
-        while curr is not None:
-            app_name = self.to_app_name(curr.Name)
-            if app_name is not None:
-                return app_name
-            curr = curr.Parent
-        return None
+        # curr = f.Parent
+        # while curr is not None:
+        #     app_name = self.to_app_name(curr.Name)
+        #     if app_name is not None:
+        #         return app_name
+        #     curr = curr.Parent
+        # return None
+        return self.app
 
     def to_app_name(self, s):
         for ia in ds.Models[InstalledApplication]:

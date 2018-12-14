@@ -55,21 +55,20 @@ def analyze_wechat(root, extract_deleted, extract_source):
     mlm = ModelListMerger()
     
     pr.Models.AddRange(list(mlm.GetUnique(models)))
-    build = '微信'
-    app_id = get_app_id(root)
-    if app_id > 1:
-        build += str(app_id)
-    pr.Build(build)
+    pr.Build(root.Parent.Parent.Parent)
     return pr
 
 
-def get_app_id(root):
+def get_build(node):
     global g_app_id, g_app_set
-    app_path = root.Parent.Parent.Parent
+    app_path = node.AbsolutePath
     if app_path not in g_app_set:
         g_app_set.add(app_path)
         g_app_id += 1
-    return g_app_id
+    build = '微信'
+    if g_app_id > 1:
+        build += str(g_app_id)
+    return build
 
 
 class WeChatParser(Wechat):
@@ -80,6 +79,8 @@ class WeChatParser(Wechat):
         self.user_node = node.Parent
         self.extract_deleted = extract_deleted
         self.extract_source = extract_source
+        self.progress_value = 0
+
         self.is_valid_user_dir = self._is_valid_user_dir()
         self.uin = self._get_uin()
         self.imei = self._get_imei(self.root.GetByPath('/MicroMsg/CompatibleInfo.cfg'))
@@ -111,18 +112,22 @@ class WeChatParser(Wechat):
             mm_db_path = os.path.join(self.cache_path, self.cache_db_name + '_mm.db')
             try:
                 if Decryptor.decrypt(node, self._get_db_key(self.imei, self.uin), mm_db_path):
+                    self.set_progress(15)
                     self._parse_mm_db(mm_db_path, node.AbsolutePath)
             except Exception as e:
                 TraceService.Trace(TraceLevel.Error, "android_wechat.py Error: LINE {}".format(traceback.format_exc()))
+            self.set_progress(45)
             try:
                 self._parse_wc_db(self.user_node.GetByPath('/SnsMicroMsg.db'))
             except Exception as e:
                 TraceService.Trace(TraceLevel.Error, "android_wechat.py Error: LINE {}".format(traceback.format_exc()))
+            self.set_progress(60)
             try:
                 self._parse_fts_db(self.user_node.GetByPath('/FTS5IndexMicroMsg.db'))
             except Exception as e:
                 TraceService.Trace(TraceLevel.Error, "android_wechat.py Error: LINE {}".format(traceback.format_exc()))
 
+            self.set_progress(70)
             self.im.db_create_index()
             # 数据库填充完毕，请将中间数据库版本和app数据库版本插入数据库，用来检测app是否需要重新解析
             if not canceller.IsCancellationRequested:
@@ -134,8 +139,12 @@ class WeChatParser(Wechat):
         models = self.get_models_from_cache_db()
         return models
 
+    def set_progress(self, value):
+        self.progress_value = value
+        progress.Value = value
+
     def get_models_from_cache_db(self):
-        models = model_im.GenerateModel(self.cache_db).get_models()
+        models = model_im.GenerateModel(self.cache_db, get_build(self.root), DescripCategories.Wechat, self.progress_value).get_models()
         return models
 
     def _is_valid_user_dir(self):
@@ -225,9 +234,13 @@ class WeChatParser(Wechat):
                 return
         db = sqlite3.connect(mm_db_path)
         self._parse_mm_db_user_info(db, source, node_db)
+        self.set_progress(16)
         self._parse_mm_db_contact(db, source, node_db)
+        self.set_progress(20)
         self._parse_mm_db_chatroom_member(db, source, node_db)
+        self.set_progress(25)
         self._parse_mm_db_message(db, source, node_db)
+        self.set_progress(45)
         db.close()
 
     def _parse_wc_db(self, node):
@@ -269,6 +282,7 @@ class WeChatParser(Wechat):
         db.close()
         self.db_remove_mapping(db_path)
 
+        self.set_progress(52)
         if self.extract_deleted:
             if canceller.IsCancellationRequested:
                 return False
@@ -992,11 +1006,14 @@ class Decryptor:
         if key in (None, ''):
             return False
         if os.path.exists(dst_db_path):
-            try:
-                os.remove(dst_db_path)
-            except Exception as e:
-                TraceService.Trace(TraceLevel.Error, "android_wechat.py Error: LINE {}".format(traceback.format_exc()))
-                return False
+            if Decryptor.is_valid_decrypted_db(dst_db_path):
+                return True
+            else:
+                try:
+                    os.remove(dst_db_path)
+                except Exception as e:
+                    TraceService.Trace(TraceLevel.Error, "android_wechat.py Error: LINE {}".format(traceback.format_exc()))
+                    return False
 
         size = src_node.Size
         src_node.Data.seek(0)
@@ -1037,7 +1054,47 @@ class Decryptor:
         de.close()
 
         Decryptor.db_fix_header(dst_db_path)
+        Decryptor.db_insert_flag(dst_db_path)
         return True
+
+    @staticmethod
+    def is_valid_decrypted_db(db_path):
+        if not os.path.exists(db_path):
+            return False
+        db = None
+        cursor = None
+        ret = False
+        try:
+            db = sqlite3.connect(db_path)
+            cursor = db.cursor()
+            sql = "select count(*) from sqlite_master where type='table' and name='PNFA' "
+            cursor.execute(sql)
+            row = cursor.fetchone()
+            ret = row is not None and row[0] > 0
+        except Exception as e:
+            pass
+        finally:
+            if cursor is not None:
+                cursor.close()
+            if db is not None:
+                db.close()
+        return ret
+
+    @staticmethod
+    def db_insert_flag(db_path):
+        if not os.path.exists(db_path):
+            return
+        db = None
+        ret = False
+        try:
+            db = sqlite3.connect(db_path)
+            sql = "create table if not exists PNFA(ID INTEGER PRIMARY KEY AUTOINCREMENT)"
+            db.execute(sql)
+        except Exception as e:
+            pass
+        finally:
+            if db is not None:
+                db.close()
 
     @staticmethod
     def is_valid_decrypted_header(header):
