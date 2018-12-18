@@ -969,7 +969,7 @@ def GetBlob(reader, idx):
 
 class Telegram(object):
     
-    def __init__(self, root, container_root, extract_deleted, extract_source):
+    def __init__(self, root, container_root, extract_deleted, extract_source, tp = 0):
         self.root = root
         self.extract_deleted = extract_deleted
         self.extract_source = extract_source
@@ -979,6 +979,7 @@ class Telegram(object):
         self.need_parse = False
         self.im = model_im.IM()
         self.container = container_root
+        self.tp = tp
         self.__find_account()
         if self.im.need_parse(self.cache + '/{}.C37R'.format(self.hash_code), 1):
             self.im.db_create(self.cache + '/{}.C37R'.format(self.hash_code))
@@ -997,7 +998,12 @@ class Telegram(object):
                 return
         else:
             print('try to find account from container documents, old version detected...')
-            pnode = self.container.GetByPath('Library/Preferences/ph.telegra.Telegraph.plist')
+            if self.tp == 0:
+                pnode = self.container.GetByPath('Library/Preferences/ph.telegra.Telegraph.plist')
+            elif self.tp == 1:
+                pnode = self.container.GetByPath('Library/Preferences/org.potatochat.PotatoEnterprise.plist')
+            else:
+                pnode = None
             if pnode is None:
                 raise IOError("Can't find Accounts! parse EXIT!")
             p = BPReader.GetTree(pnode.Data)
@@ -1378,7 +1384,7 @@ def try_to_get_telegram_group(grps):
     res = list()
     for g in grps:
         try:
-            node = g.GetByPath('Documents/tgdata.db')
+            node = g.GetByPath('Library/Preferences/group.ph.telegra.Telegraph.plist')
             if node is None:
                 continue
             res.append(g)
@@ -1389,6 +1395,7 @@ def try_to_get_telegram_group(grps):
 def parse_telegram(root, extract_deleted, extract_source):
     group_container_nodes = ds.GroupContainers.ToArray()
     r_nodes = try_to_get_telegram_group(group_container_nodes)
+    root = root.Parent.Parent.Parent
     try:
         if len(r_nodes) is 0:
             print('''can't find group node''')
@@ -1403,6 +1410,8 @@ def parse_telegram(root, extract_deleted, extract_source):
                         continue
                     t.im.db_insert_table_version(model_im.VERSION_KEY_DB, model_im.VERSION_VALUE_DB)
                     t.im.db_insert_table_version(model_im.VERSION_KEY_APP, 1)
+                    t.im.db_commit()
+                    t.im.db_close()
                 models = model_im.GenerateModel(t.cache + '/{}.C37R'.format(t.hash_code)).get_models()
                 nameValues.SafeAddValue('1030063', t.cache + '/{}.C37R'.format(t.hash_code))
                 res.extend(models)
