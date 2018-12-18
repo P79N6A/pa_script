@@ -7,6 +7,7 @@ import clr
 clr.AddReference('System.Data.SQLite')
 clr.AddReference('Base3264-UrlEncoder')
 try:
+    clr.AddReference('PA_runtime')
     clr.AddReference('model_im')
     clr.AddReference('unity_c37r')
     clr.AddReference('model_nd')
