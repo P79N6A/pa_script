@@ -95,8 +95,8 @@ class Radio(object):
         # 每5分钟限制查询300次,基站接口每日限制查询1000次
 
         lbs_api = "http://api.cellocation.com:81/cell/"
-        json_data =  requests.get(lbs_api, params=payload)
         try:
+            json_data =  requests.get(lbs_api, params=payload, timeout=5)
             longitude, latitude = None, None
             response = json.loads(json_data.content.decode("utf-8"))
             if "lon" in response:

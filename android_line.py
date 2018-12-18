@@ -24,7 +24,7 @@ UNKNOWN_USER_ID       = -1
 UNKNOWN_USER_NICKNAME = '未知用户'
 UNKNOWN_USER_USERNAME = '未知用户'
 
-VERSION_APP_VALUE = 1
+VERSION_APP_VALUE = 2
 
 def print_run_time(func): 
     ''' decorator ''' 
@@ -49,7 +49,7 @@ def exc(e=''):
     except:
         pass    
 
-def test_p(*e):
+def tp(*e):
     ''' Highlight print in vs '''
     if DEBUG:
         TraceService.Trace(TraceLevel.Warning, "{}".format(e))
@@ -61,7 +61,7 @@ def analyze_line(node, extract_deleted, extract_source):
 
         jp.naver.line.android
     '''
-    test_p('android_line.py is running ...')
+    tp('android_line.py is running ...')
     pr = ParserResults()
     res = []
     try:
@@ -72,7 +72,7 @@ def analyze_line(node, extract_deleted, extract_source):
     if res:
         pr.Models.AddRange(res)
         pr.Build('LINE')
-        test_p('android_line.py is finished !')
+        tp('android_line.py is finished !')
     return pr
 
 class LineParser(object):
@@ -80,7 +80,7 @@ class LineParser(object):
     def __init__(self, node, extract_deleted, extract_source):
         ''' node: /data/data/jp.naver.line.android/databases/naver_line
         '''
-        #test_p(node.AbsolutePath)
+        #tp(node.AbsolutePath)
         self.root = node.Parent
         self.extract_deleted = extract_deleted
         self.extract_source  = extract_source
@@ -89,6 +89,13 @@ class LineParser(object):
 
         hash_str = hashlib.md5(node.AbsolutePath).hexdigest()[8:-8]
         self.cache_db = self.cachepath + '\\a_line_{}.db'.format(hash_str)
+        # search profile, sticker
+        self.media_node = None
+
+        if self.root.FileSystem.Name.endswith('.tar'):
+            self.rename_file_path = ['/storage/emulated', '/data/media'] 
+        else:
+            self.rename_file_path = None        
 
     def parse(self):
         if DEBUG or self.im.need_parse(self.cache_db, VERSION_APP_VALUE):
@@ -357,6 +364,7 @@ class LineParser(object):
             }
         return CHAT_DICT
 
+    @print_run_time
     def parse_Message(self, table_name, CHAT_DICT, CHATROOM_ID_NAME, FRIEND_ID_NAME):
         ''' naver_line chat_history '''
         '''
@@ -402,31 +410,23 @@ class LineParser(object):
             message.content     = rec['content'].Value
             message.send_time   = self._get_im_ts(rec['created_time'].Value)
             message.status      = self._convert_send_status(rec['status'].Value)
-            
+
             # CHAT_TYPE
             msg_chat = CHAT_DICT.get(rec['chat_id'].Value, {})    
             message.talker_type = msg_chat.get('msg_type', None)
-
-            # MESSAGE_CONTENT_TYPE
-            message.type = self._convert_msg_type(rec['type'].Value, rec['attachement_type'].Value)
-
-            if message.type in [
-                                model_im.MESSAGE_CONTENT_TYPE_IMAGE, 
-                                model_im.MESSAGE_CONTENT_TYPE_VOICE,
-                                model_im.MESSAGE_CONTENT_TYPE_VIDEO,
-                                model_im.MESSAGE_CONTENT_TYPE_ATTACHMENT,
-                            ]:
-                message.media_path = self._get_msg_media_path(str(rec['id'].Value), rec['chat_id'].Value)
-                if not message.media_path:
-                    raw_file_path = rec['attachement_local_uri'].Value
-                    message.media_path = self._search_file(raw_file_path)
-
-            
+            # talker_name
             if message.talker_type == model_im.CHAT_TYPE_GROUP:
                 message.talker_name = CHATROOM_ID_NAME.get(rec['chat_id'].Value, None)
             else:
                 message.talker_name = FRIEND_ID_NAME.get(rec['chat_id'].Value, None)
-
+            # MESSAGE_CONTENT_TYPE
+            message.type = self._convert_msg_type(rec['type'].Value, rec['attachement_type'].Value)
+            # media_path
+            message.media_path = self._get_msg_media_path(str(rec['id'].Value), 
+                                                          rec['chat_id'].Value,
+                                                          rec['parameter'].Value,
+                                                          rec['attachement_local_uri'].Value,
+                                                          message.type)
             # location
             if message.type == model_im.MESSAGE_CONTENT_TYPE_LOCATION:
                 location = message.create_location()
@@ -566,58 +566,141 @@ class LineParser(object):
         except:
             exc()
 
+    def _get_sticker_path(self, parameter):
+        ''' LINE 表情
+        
+            STKPKGID	11537	
+            STKVER	1	
+            STKID	52002741	
+            STKOPT	A	
+            STKHASH		
+            STK_IMG_TXT		
+            message_relation_server_message_id		
+            message_relation_service_code		
+            message_relation_type_code
 
-    def _get_msg_media_path(self, msg_PK, msg_CHAT_ID):
+            STKTXT	[Sticker]	
+            STKID	187	
+            PUBLIC	true	
+            STKPKGID	3	
+            STKVER	100	
+            message_relation_server_message_id		
+            message_relation_service_code		
+            message_relation_type_code	
+        '''
+        sticker_dict = {}
+        try:
+            par = parameter.split('\t')
+            for i in range(0, len(par), 2):
+                sticker_dict[par[i]] = par[i+1]
+            img_pattern = ('/jp.naver.line.android/stickers/' 
+                           + sticker_dict['STKPKGID'] + '/'
+                           + sticker_dict['STKID'])
+            res = self._search_media_file(img_pattern)   
+            #tp('stickers >>>>>>>>> ', res)  
+            return res       
+        except:
+            exc()
+            return None
+
+    def _get_msg_media_path(self, msg_PK, 
+                                  msg_CHAT_ID, 
+                                  rec_parameter, 
+                                  attachement_local_uri, 
+                                  message_type):
         ''' 获取聊天 media_path
+
+        Return:
+            media_path(str)
 
         storage/emulated/0/Android/data
                 /jp.naver.line.android/storage/mo
         '''
-        msg_media_pattern_1 = 'jp.naver.line.android/storage/mo/' + msg_CHAT_ID + '/' + msg_PK + '$'
-        msg_media_pattern_2 = msg_media_pattern_1 + '.thumb' + '$'
-        msg_media_pattern_3 = 'jp.naver.line.android/storage/mo/' + msg_CHAT_ID + '/f/' + msg_PK
-        for mmp in (msg_media_pattern_1, msg_media_pattern_2, msg_media_pattern_3):
-            file_path = self._search_file(mmp)
-            if file_path:
-                return file_path        
+        patterns = {
+            'voice': ('jp.naver.line.android/storage/mo/' 
+                            + msg_CHAT_ID + '/' 
+                            + 'voice_' + msg_PK + '.aac$'),
+            'file': ('jp.naver.line.android/storage/mo/' 
+                            + msg_CHAT_ID + '/f/' 
+                            + msg_PK),
+            'image_vodeo1': ('jp.naver.line.android/storage/mo/' 
+                            + msg_CHAT_ID + '/' 
+                            + msg_PK + '$'),
+            'image_vodeo2': ('jp.naver.line.android/storage/mo/' 
+                            + msg_CHAT_ID + '/' 
+                            + msg_PK + '.thumb$'),
+        }
+        msg_pattern = None
+        if not message_type:
+            return
+        elif message_type == model_im.MESSAGE_CONTENT_TYPE_EMOJI:
+            media_path = self._get_sticker_path(rec_parameter)
+            if media_path:
+                return media_path
+        elif message_type == model_im.MESSAGE_CONTENT_TYPE_VOICE:
+            msg_pattern = [patterns['voice']]
+        elif message_type == model_im.MESSAGE_CONTENT_TYPE_ATTACHMENT:
+            msg_pattern = [patterns['file']]
+        elif message_type in [
+                model_im.MESSAGE_CONTENT_TYPE_IMAGE, 
+                model_im.MESSAGE_CONTENT_TYPE_VIDEO,
+            ]:  
+            msg_pattern = [patterns['image_vodeo1'], patterns['image_vodeo2']]
+        else:
+            return
+        if msg_pattern:
+            for _pattern in msg_pattern:
+                file_path = self._search_media_file(_pattern)
+                return file_path     
+        # finally by uri   replace '/storage/emulated', '/data/media'
+        if not IsDBNull(attachement_local_uri) and not attachement_local_uri:  
+            attact_path = attachement_local_uri.lstrip('content://file://')
+            attact_path = attact_path.replace(self.rename_file_path[0], 
+                                              self.rename_file_path[1])
+            return self._fs_search(attact_path)
 
     def _get_profile_img(self, file_name):
         ''' 附件路径 db:
             com_linecorp_linebox_android
 
             storage/emulated/0/Android/data
-                /jp.naver.line.android/storage
-                    /ad
-                    /g             群头像
-                    /mmicon        图标
-                    /mo            聊天附件, 文件名 msg_pk
-                        /CHAT_MID 
-                            /f     存放聊天附件
-                                MSGPK_原文件名及后缀
-                            MSG_PK.thumb 
-                            
-                    /obse          乱码 怀疑是动态      
-                        /draft_post
-                        /group_cover
-                        /home
-                        /home_media
-                        /home_profile
-                        /post
-                        /timeline
-                    /p            profile 用户头像, 文件名称是 mid
-                    /temp
-                    /toyboxing     
-                        /line     什么缓存都有
-                    /write
-                        /本人动态原图
+                /jp.naver.line.android
+                    /storage
+                        /ad
+                        /g             群头像
+                        /mmicon        图标
+                        /mo            聊天附件, 文件名 msg_pk
+                            /CHAT_MID 
+                                /f     存放聊天附件
+                                    MSGPK_原文件名及后缀
+                                MSG_PK.thumb 
+                                
+                        /obse          乱码 怀疑是动态      
+                            /draft_post
+                            /group_cover
+                            /home
+                            /home_media
+                            /home_profile
+                            /post
+                            /timeline
+                        /p            profile 用户头像, 文件名称是 mid
+                        /temp
+                        /toyboxing     
+                            /line     什么缓存都有
+                        /write
+                            /本人动态原图
+                    /stickers
+                        /11537   # STKPKGID
+                            /STKID
         '''
         img_pattern =  '/jp.naver.line.android/storage/p/' + file_name
-        #test_p('friend pic url pattern ', pattern)
-        res = self._search_file(img_pattern +'$')
-        # test_p('_get_profile_img', res)
-        return res if res else self._search_file(img_pattern + '.thumb')
+        #tp('friend pic url pattern ', pattern)
+        res = self._search_media_file(img_pattern +'$')
+        if not res:
+            res = self._search_media_file(img_pattern + '.thumb')
+        return res
 
-    def _search_file(self, raw_file_path):
+    def _search_media_file(self, raw_file_path):
         ''' search file
         
         Args:
@@ -625,28 +708,45 @@ class LineParser(object):
         Returns:
             str:        /storage/emulated/0/DCIM/LINE/line_ + id(15....)
             附件路径 db: com_linecorp_linebox_android
-            群图片:      jp.naver.line.android\cache\image_manager_disk_cache
-            视频:       \jp.naver.line.android\cache\ad2
-            实际图片:    /storage/emulated/0/DCIM/LINE/line_ + id(15....)
+            群图片:      jp.naver.line.android/cache/image_manager_disk_cache
+            视频:       /jp.naver.line.android/cache/ad2
+            实际图片:    /storage/emulated/0/DCIM/LINE/line_ + id(15....)       # 不需要
         '''
-        if IsDBNull(raw_file_path):
-            return 
-        file_path = raw_file_path.replace('file://', '').replace('content://', '')
-
-        if re.search(r'[\\/:*?"<>|\r\n]+', file_path):
-            return    
-
-        fs = self.root.FileSystem
-        node_list = list(fs.Search(file_path))
         try:
-            res_file_path = node_list[0].AbsolutePath
-            test_p('!!!!!!!!! find file_path:', res_file_path)
-            return res_file_path
+            if not raw_file_path:
+                return 
+            if self.media_node:
+                file_path = raw_file_path.split('jp.naver.line.android')[1]
+                res_file_path = self.media_node.GetByPath(file_path).AbsolutePath
+                if res_file_path:
+                    tp('!!!!!!!!! find file_path:', res_file_path) 
+                    return res_file_path
+            else: # save media file node
+                res_file_path = self._fs_search(raw_file_path)
+                if res_file_path and 'jp.naver.line.android' in res_file_path:
+                    _path = res_file_path.split('jp.naver.line.android')[0]
+                    self.media_node = self.root.FileSystem.GetByPath(_path+'jp.naver.line.android')
+                if res_file_path:
+                    tp('!!!!!!!!! find file_path:', res_file_path) 
+                return res_file_path
         except:
-            # test_p('not found')
             return 
-
         
+    def _fs_search(self, raw_file_path):
+        ''' fs search
+        
+        Args:
+            raw_file_path ([type]): [description]
+        
+        Returns:
+            node.AbsolutePath: [description]
+        '''
+        fs = self.root.FileSystem
+        try:
+            return list(fs.Search(raw_file_path))[0].AbsolutePath
+        except:
+            return None
+
     @staticmethod
     def _convert_chat_type(ZTYPE):
         ''' ZCHAT 'ZTYPE' field to model_im.py CHAT_TYPE
@@ -661,7 +761,7 @@ class LineParser(object):
         try:
             return type_map[ZTYPE]
         except:
-            test_p('new CHAT_TYPE {}!!!!!!!!!!!!!!!!!'.format(ZTYPE))
+            tp('new CHAT_TYPE {}!!!!!!!!!!!!!!!!!'.format(ZTYPE))
 
     @staticmethod
     def _convert_msg_type(msg_type, msg_attachement_type):
@@ -694,24 +794,24 @@ class LineParser(object):
             18: 删除群照片        
         '''
         ATTACHEMENT_TYPE_MAP = {
-            0: model_im.MESSAGE_CONTENT_TYPE_TEXT,        # TEXT
-            1: model_im.MESSAGE_CONTENT_TYPE_IMAGE,       # 图片
-            2: model_im.MESSAGE_CONTENT_TYPE_VIDEO,       # 视频
-            3: model_im.MESSAGE_CONTENT_TYPE_VOICE,       # 语音
-            6: model_im.MESSAGE_CONTENT_TYPE_VOIP,        # 网络电话
+            0: model_im.MESSAGE_CONTENT_TYPE_TEXT,        # 1 TEXT
+            1: model_im.MESSAGE_CONTENT_TYPE_IMAGE,       # 2 图片
+            2: model_im.MESSAGE_CONTENT_TYPE_VIDEO,       # 4 视频
+            3: model_im.MESSAGE_CONTENT_TYPE_VOICE,       # 3 语音
+            6: model_im.MESSAGE_CONTENT_TYPE_VOIP,        # 9 网络电话
             # 5: model_im.MESSAGE_CONTENT_TYPE_,            
-            7: model_im.MESSAGE_CONTENT_TYPE_EMOJI,       # 表情
+            7: model_im.MESSAGE_CONTENT_TYPE_EMOJI,       # 5 表情
             # 13: model_im.MESSAGE_CONTENT_TYPE_,
-            14: model_im.MESSAGE_CONTENT_TYPE_ATTACHMENT, # 附件
-            15: model_im.MESSAGE_CONTENT_TYPE_LOCATION,   # 位置
-            16: model_im.MESSAGE_CONTENT_TYPE_SYSTEM,     # 上传群相册
-            18: model_im.MESSAGE_CONTENT_TYPE_SYSTEM,     # 删除图片
+            14: model_im.MESSAGE_CONTENT_TYPE_ATTACHMENT, # 10 附件
+            15: model_im.MESSAGE_CONTENT_TYPE_LOCATION,   # 7 位置
+            16: model_im.MESSAGE_CONTENT_TYPE_SYSTEM,     # 99 上传群相册
+            18: model_im.MESSAGE_CONTENT_TYPE_SYSTEM,     # 99 删除图片
         }
         TYPE_MAP = {
             # 1: text, 语音, 图片, 视频
             2: model_im.MESSAGE_CONTENT_TYPE_SYSTEM,   # 系统消息-加入群
             # 4: 网络电话  
-            # 5: 表情
+            5: model_im.MESSAGE_CONTENT_TYPE_EMOJI,       #表情
             8: model_im.MESSAGE_CONTENT_TYPE_SYSTEM,   # 上传群相册
             9: model_im.MESSAGE_CONTENT_TYPE_SYSTEM,   # 系统消息-邀请xxx    server_id 为空
             11: model_im.MESSAGE_CONTENT_TYPE_SYSTEM,  # 系统消息-踢出群xxx  server_id 为空
@@ -722,7 +822,7 @@ class LineParser(object):
         elif msg_type in TYPE_MAP:
             return TYPE_MAP[msg_type]
         else:
-            return
+            return None
 
     @staticmethod
     def _convert_friend_type(contact_type):
@@ -751,7 +851,7 @@ class LineParser(object):
         try:
             return type_map[contact_type]
         except:
-            test_p('new contact_type {}!!!!!!!!!!!!!!!!!'.format(contact_type))
+            tp('new contact_type {}!!!!!!!!!!!!!!!!!'.format(contact_type))
 
     @staticmethod
     def _convert_send_status(status):
@@ -781,7 +881,7 @@ class LineParser(object):
         try:
             return type_map[status]
         except:
-            test_p('new status {}!!!!!!!!!!!!!!!!!'.format(status))
+            tp('new status {}!!!!!!!!!!!!!!!!!'.format(status))
 
 
     def _read_db(self, db_path):

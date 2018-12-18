@@ -1,9 +1,6 @@
 #coding=utf-8
 
-import PA_runtime
 import clr
-clr.AddReference('System.Core')
-clr.AddReference('System.Xml.Linq')
 try:
     clr.AddReference('model_im')
     clr.AddReference('bcp_im')
@@ -11,15 +8,8 @@ except:
     pass
 del clr
 
-from System.IO import MemoryStream
-from System.Text import Encoding
-from System.Xml.Linq import *
-from System.Linq import Enumerable
-from System.Xml.XPath import Extensions as XPathExtensions
 from PA_runtime import *
-
-import os
-import sqlite3
+import hashlib
 import json
 import model_im
 import bcp_im
@@ -29,22 +19,40 @@ DEBUG = True
 DEBUG = False
 
 # app 数据库版本
-VERSION_APP_VALUE = 1
+VERSION_APP_VALUE = 2
+
+def exc(e=''):
+    ''' Exception output '''
+    try:
+        if DEBUG:
+            py_name = os.path.basename(__file__)
+            msg = 'DEBUG {} case:<{}> :'.format(py_name, CASE_NAME)
+            TraceService.Trace(TraceLevel.Warning,
+                               (msg+'{}{}').format(traceback.format_exc(), e))
+    except:
+        pass
+
+
+def tp(*e):
+    ''' Highlight print in vs '''
+    if DEBUG:
+        TraceService.Trace(TraceLevel.Warning, '{}'.format(e))
+    else:
+        pass
+
 
 def analyze_yixin(root, extract_deleted, extract_source):
+    tp('android_yixin.py is running ...')
     if root.AbsolutePath == '/data/media/0/Android/data/im.yixin':
         return
-
     pr = ParserResults()
-
     models = YiXinParser(root, extract_deleted, extract_source).parse()
-
     mlm = ModelListMerger()
-
     pr.Models.AddRange(list(mlm.GetUnique(models)))
-
     pr.Build('易信')
     gc.collect()
+    
+    tp('android_yixin.py is finished !')
     return pr
 
 def execute(node,extracteDeleted):
@@ -59,12 +67,12 @@ class YiXinParser():
         self.cache_path = ds.OpenCachePath('YiXin')
         if not os.path.exists(self.cache_path):
             os.makedirs(self.cache_path)
-        self.cache_db = os.path.join(self.cache_path, 'cache.db')
-
-        nameValues.SafeAddValue(bcp_im.CONTACT_ACCOUNT_TYPE_IM_YIXIN, self.cache_db)
+        hash_str = hashlib.md5(node.AbsolutePath).hexdigest()[8:-8]
+        self.cache_db = os.path.join(self.cache_path, 'a_line_{}.db'.format(hash_str))
+        
+        self.media_node = None
 
     def parse(self):
-
         if DEBUG or self.im.need_parse(self.cache_db, VERSION_APP_VALUE):
             self.im.db_create(self.cache_db)
             user_list = self.get_user_list()
@@ -80,6 +88,9 @@ class YiXinParser():
             self.im.db_insert_table_version(model_im.VERSION_KEY_APP, VERSION_APP_VALUE)
             self.im.db_commit()
             self.im.db_close()
+
+        nameValues.SafeAddValue(bcp_im.CONTACT_ACCOUNT_TYPE_IM_YIXIN, self.cache_db)
+
         models  = self.get_models_from_cache_db()
         return models
 
@@ -100,6 +111,29 @@ class YiXinParser():
         self.get_chats()
 
     def get_user(self):
+        ''' main.db - yixin_contact
+        
+            FieldName	SQLType	Size	Precision	PKDisplay	
+            uid         	Varchar	16
+            yid         	Varchar	64
+            ecpid          	Varchar	64
+            mobile         	varchar	16
+            email          	Varchar	64
+            nickname           Varchar	64
+            photourl           Varchar	256
+            gender         	INTEGER
+            birthday           Varchar	16
+            address        	Varchar	128
+            signature          Varchar	64
+            bkimage        	Varchar	256
+            fullspelling       Varchar	128
+            shortspelling      Varchar	64
+            sinaweibo          Varchar	64
+            qqweibo        	archar	64
+            renren         	Varchar	64
+            config         	Varchar	512
+            socials        	Varchar	512
+        '''
         if self.user is None:
             return
 
@@ -242,6 +276,22 @@ class YiXinParser():
         self.im.db_commit()
                         
     def get_chats(self):
+        '''
+            FieldName	SQLType         	
+            seqid	        Long
+            msgid	        Varchar
+            id	            Varchar
+            fromid	        Varchar
+            sessiontype	    Integer
+            time	        Long
+            status	        Integer
+            direct	        Integer
+            msgtype	        Integer
+            content	        Varchar
+            extra	        TEXT
+            attachstr	    Varchar
+            msgSvrId	    Long
+        '''
         if self.user is None:
             return
 
@@ -259,7 +309,6 @@ class YiXinParser():
                         return
                     if id != rec['id'].Value:
                         continue
-
                     friend = self.friends.get(id)
                     
                     message = model_im.Message()
@@ -276,54 +325,74 @@ class YiXinParser():
                     message.type = self.parse_message_type(rec['msgtype'].Value)
                     message.send_time = rec['time'].Value
                     message.content = rec['content'].Value
-                    media_path = self.get_media_path(rec['attachstr'].Value, message.type)
+
+                    message.media_path = self.get_media_path(rec['attachstr'].Value, message.type)
+
                     if message.type == model_im.MESSAGE_CONTENT_TYPE_LOCATION:
                         message.location_obj = message.create_location()
                         message.location_id = self.get_location(message.location_obj, message.content, rec['attachstr'].Value, message.send_time)
+
                     self.im.db_insert_table_message(message)
         self.im.db_commit()
 
-    def parse_message_type(self, type):
+    def parse_message_type(self, raw_msgtype):
         msgtype = model_im.MESSAGE_CONTENT_TYPE_TEXT
-        if type == 1:
+        if raw_msgtype == 1:
             msgtype = model_im.MESSAGE_CONTENT_TYPE_IMAGE
-        if type == 2:
+        elif raw_msgtype == 2:
             msgtype = model_im.MESSAGE_CONTENT_TYPE_VOICE
-        if type == 3:
+        elif raw_msgtype == 3:
             msgtype = model_im.MESSAGE_CONTENT_TYPE_VIDEO
-        if type == 4:
+        elif raw_msgtype == 4:
             msgtype = model_im.MESSAGE_CONTENT_TYPE_LOCATION
         return msgtype
 
-    def get_media_path(self, attachstr, type):
-        if attachstr == '':
-            return None
-
-        media_path = ''
+    def get_media_path(self, attachstr, msg_type):
+        '''[summary]
+        
+        Args:
+            attachstr ([type]): [description]
+            type ([type]): [description]
+        
+        Returns:
+            [type]: [description]
+            {
+                'id': 27,
+                'key': '3d7e404c305007a660a95bcfbd81543d',
+                'medialen': 13153,
+                'mimetype': 'video/mp4',
+                'name': '3d7e404c305007a660a95bcfbd81543d.mp4',
+                'size': 1617189,
+                'status': 2,
+                'url': 'http://nos-yx.netease.com/yixinpublic/pr_azmjz0hhtlspvuaamywglw==_50_1524639201_15502109'
+            }            
+        '''
         try:
+            if IsDBNull(attachstr) or not attachstr:
+                return None
             obj = json.loads(attachstr)
-        except:
-            traceback.print_exc()
-        if type == model_im.MESSAGE_CONTENT_TYPE_VOICE:
-            node = self.root.GetByPath('../../media/0/Yixin/audio/')
-            if node is not None:
-                key = obj['key']
-                filepath = key[0:2] + '/' + key[2:4] + '/' + key + '.aac'
-                media_path = os.path.join(node.AbsolutePath, filepath)
-        if type == model_im.MESSAGE_CONTENT_TYPE_IMAGE:
-            node = self.root.GetByPath('../../media/0/Yixin/image/')
-            if node is not None:
-                key = obj['key']
-                filepath = key[0:2] + '/' + key[2:4] + '/' + key + '.jpg'
-                media_path = os.path.join(node.AbsolutePath, filepath)
-        if type == model_im.MESSAGE_CONTENT_TYPE_VIDEO:
-            node = self.root.GetByPath('../../media/0/Yixin/video/')
-            if node is not None:
-                key = obj['key']
-                filepath = key[0:1] + '/' + key[2:3] + '/' + key + '.mp4'
-                media_path = os.path.join(node.AbsolutePath, filepath)
-        return media_path
+            file_name = obj.get('name', None)
+            relative_file_path = file_name[0:2] + '/' + file_name[2:4] + '/' + file_name
 
+            media_patterns = {
+                'audio': 'Yixin/audio/',
+                'image': 'Yixin/image/',
+                'video': 'Yixin/video/',
+            }
+            if msg_type == model_im.MESSAGE_CONTENT_TYPE_VOICE:
+                pattern = media_patterns['audio'] + relative_file_path
+            elif msg_type == model_im.MESSAGE_CONTENT_TYPE_IMAGE:
+                pattern = media_patterns['image'] + relative_file_path
+            elif msg_type == model_im.MESSAGE_CONTENT_TYPE_VIDEO:
+                pattern = media_patterns['video'] + relative_file_path
+            else:
+                return 
+            
+            media_path =  self._search_media_file(pattern)
+            return media_path
+        except:
+            return None
+            
     def get_location(self, location, content, attachstr, time):
         location.account_id = self.user
         location.timestamp = time
@@ -337,3 +406,42 @@ class YiXinParser():
         self.im.db_insert_table_location(location)
         self.im.db_commit()
         return location.location_id
+
+    def _search_media_file(self, raw_file_path, path_flag='Yixin'):
+        try:
+            if not raw_file_path:
+                return 
+            if self.media_node:
+                file_path = raw_file_path.split(path_flag)[1]
+                _node = self.media_node.GetByPath(file_path)
+                if _node:
+                    tp('!!!!!!!!! find file_path:', _node.AbsolutePath) 
+                    return _node.AbsolutePath
+            else:  # save media file node
+                res_file_path = self._fs_search(raw_file_path)
+                if res_file_path and path_flag in res_file_path:
+                    _path = res_file_path.split(path_flag)[0]
+                    self.media_node = self.root.FileSystem.GetByPath(_path+path_flag)
+                if res_file_path:
+                    tp('!!!!!!!!! find file_path:', res_file_path) 
+                return res_file_path
+        except:
+            exc()
+            return         
+
+    def _fs_search(self, raw_file_path):
+        ''' fs search
+        
+        Args:
+            raw_file_path ([type]): 
+        
+        Returns:
+            node.AbsolutePath: 
+        '''
+        fs = self.root.FileSystem
+        try:
+            return list(fs.Search(raw_file_path))[0].AbsolutePath
+        except:
+            return None
+
+
