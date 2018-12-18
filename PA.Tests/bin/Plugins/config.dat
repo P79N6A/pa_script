@@ -894,7 +894,7 @@
           <key>EntryPoint</key>
           <string>parse_telegram</string>
           <key>RunnerType</key>
-          <integer>1</integer>
+          <integer>0</integer>
           <key>Patterns</key>
           <array>
             <string>Library/Preferences/ph\.telegra\.Telegraph\.plist$</string>
