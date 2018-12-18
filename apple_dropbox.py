@@ -378,7 +378,7 @@ class DropBoxParser(object):
         account.username = account_info.get("name", {}).get("display", None)
         account.nickname = account.username
         account.email = account_info.get("email_addresses", [None])[0]
-        account.email = account_info.get("phone_numbers", [None])[0]
+        account.telephone = account_info.get("phone_numbers", [None])[0]
         account.photo = account_info.get("account_info", {}).get("photo_url", None)
         account.source = account_file
 
