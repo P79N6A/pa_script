@@ -628,14 +628,13 @@ class ViberParser(model_im.IM, model_callrecord.MC):
                     dstart = DateTime(1970,1,1,0,0,0)
                     try:
                         cdate = TimeStampFormats.GetTimeStampEpoch1Jan2001(sr.GetDouble(2))
-                        chatroom.create_time = int((cdate - dstart).TotalSeconds)
+                        location.timestamp = int((cdate - dstart).TotalSeconds)
                     except:
                         try:
                             cdate = TimeStampFormats.GetTimeStampEpoch1Jan2001(sr.GetInt32(2))
-                            chatroom.create_time = int((cdate - dstart).TotalSeconds)
+                            location.timestamp = int((cdate - dstart).TotalSeconds)
                         except:
                             pass
-                    location.timestamp = int((cdate - dstart).TotalSeconds)
                     self.db_insert_table_location(location)
                 except:
                     traceback.print_exc()
