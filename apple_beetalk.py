@@ -22,7 +22,7 @@ import hashlib
 import shutil
 import traceback
 
-VERSION_APP_VALUE = 3
+VERSION_APP_VALUE = 4
 
 class BeeTalkParser(model_im.IM, model_callrecord.MC):
     def __init__(self, node, extract_deleted, extract_source):
@@ -563,7 +563,8 @@ class BeeTalkParser(model_im.IM, model_callrecord.MC):
         for node in nodes:
             self.fnode = node
             break
-
+        
+        self.rdb_trans = self.rdb.BeginTransaction()
         self.read_deleted_table_account()
         self.read_deleted_table_user()
         self.read_deleted_table_contact()
@@ -573,6 +574,7 @@ class BeeTalkParser(model_im.IM, model_callrecord.MC):
         self.read_deleted_table_chat()
         self.read_deleted_table_feed()
         self.read_deleted_table_feed_comments()
+        self.rdb_trans.Commit()
 
         self.rdb_cmd.Dispose()
         self.rdb.Close()
@@ -860,7 +862,6 @@ class BeeTalkParser(model_im.IM, model_callrecord.MC):
     def db_insert_to_deleted_table(self, sql, values):
         '''插入数据到恢复数据库'''
         try:
-            self.rdb_trans = self.rdb.BeginTransaction()
             if self.rdb_cmd is not None:
                 self.rdb_cmd.CommandText = sql
                 self.rdb_cmd.Parameters.Clear()
@@ -869,7 +870,6 @@ class BeeTalkParser(model_im.IM, model_callrecord.MC):
                     param.Value = value
                     self.rdb_cmd.Parameters.Add(param)
                 self.rdb_cmd.ExecuteNonQuery()
-            self.rdb_trans.Commit()
         except Exception as e:
             print(e)
 

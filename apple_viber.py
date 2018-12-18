@@ -26,7 +26,7 @@ import traceback
 import time
 import datetime
 
-VERSION_APP_VALUE = 5
+VERSION_APP_VALUE = 6
 
 class ViberParser(model_im.IM, model_callrecord.MC):
     def __init__(self, node, extract_deleted, extract_source):
@@ -744,7 +744,8 @@ class ViberParser(model_im.IM, model_callrecord.MC):
         self.db.Open()
         self.db_cmd = SQLite.SQLiteCommand(self.db)
         self.db_trans.Commit()
-
+        
+        self.db_trans = self.db.BeginTransaction()
         self.read_deleted_table_contact()
         self.read_deleted_table_contact_number()
         self.read_deleted_table_conversation()
@@ -757,6 +758,7 @@ class ViberParser(model_im.IM, model_callrecord.MC):
         self.read_deleted_table_location()
         self.read_deleted_table_recent()
         self.read_deleted_table_recentline()
+        self.db_trans.Commit()
 
         self.db_cmd.Dispose()
         self.db.Close()
@@ -1040,7 +1042,6 @@ class ViberParser(model_im.IM, model_callrecord.MC):
     def db_insert_to_deleted_table(self, sql, values):
         '''插入数据到恢复数据库'''
         try:
-            self.db_trans = self.db.BeginTransaction()
             if self.db_cmd is not None:
                 self.db_cmd.CommandText = sql
                 self.db_cmd.Parameters.Clear()
@@ -1049,7 +1050,6 @@ class ViberParser(model_im.IM, model_callrecord.MC):
                     param.Value = value
                     self.db_cmd.Parameters.Add(param)
                 self.db_cmd.ExecuteNonQuery()
-            self.db_trans.Commit()
         except Exception as e:
             print(e)
 
