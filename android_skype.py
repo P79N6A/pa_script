@@ -20,6 +20,7 @@ clr.AddReference('System.Xml.Linq')
 clr.AddReference('System.Data.SQLite')
 
 del clr
+import time
 
 import model_im
 import PA_runtime
@@ -216,7 +217,7 @@ class PaHtmlParser(HTMLParser):
 
     def handle_data(self, data):
         if not self.__inner_node_list:
-            return 
+            return
         self.__inner_node_list[-1].data = data
 
     def handle_endtag(self, tag):
@@ -269,6 +270,14 @@ class SkypeParser(object):
         m.update(self.root.AbsolutePath)
         return os.path.join(self.cache_path, m.hexdigest().upper())
 
+    @staticmethod
+    def _handle_birthday(birthday):
+        if not birthday:
+            return
+        time_tuple = time.strptime(birthday, "%Y-%m-%d")
+        ts = int(time.mktime(time_tuple))
+        return ts
+
     def _generate_account_table(self):
         file_name = os.path.basename(self.checking_col.db_path)
         account_sign = file_name.split(".")[0].split("-")[1]
@@ -296,7 +305,7 @@ class SkypeParser(object):
     def _generate_friend_table(self):
         with self.checking_col as db_col:
             sql = """SELECT nsp_data 
-                    FROM {};""".format(self.table_name["profilecache"])
+                        FROM {};""".format(self.table_name["profilecache"])
             db_col.execute_sql(sql)
             while db_col.has_rest():
                 try:
@@ -316,7 +325,7 @@ class SkypeParser(object):
                     friend.telephone = self.__choose_phone_number(friend_info.get("phones", []))
                     friend.photo = friend_info.get("thumbUrl", None)
                     friend.type = model_im.FRIEND_TYPE_FRIEND if friend_type == "8" else None
-                    friend.birthday = friend_info.get("birthday", None)
+                    friend.birthday = self._handle_birthday(friend_info.get("birthday", None))
                     if friend_info.get("city") or friend_info.get("country"):
                         friend.address = friend_info.get("city", "") + " " + friend_info.get("country", "")
 
@@ -329,7 +338,7 @@ class SkypeParser(object):
         chatroom_member = []
         with self.checking_col as db_col:
             sql = """SELECT nsp_data 
-                    FROM {};""".format(self.table_name["conversations"])
+                        FROM {};""".format(self.table_name["conversations"])
             db_col.execute_sql(sql)
             while db_col.has_rest():
                 try:
@@ -354,7 +363,7 @@ class SkypeParser(object):
                     # 获取成员并return 出去方便拿到chatroom_member表
                     if chatroom_info["conv"].get("_threadMembers", None):
                         for member in chatroom_info["conv"]["_threadMembers"]:
-                            member["id"] = member["id"].split(":")[1]
+                            member["id"] = member["id"].split(":", 1)[1]
                             member["chatroom_id"] = chatroom.chatroom_id
                             chatroom_member.append(member)
 
@@ -368,7 +377,7 @@ class SkypeParser(object):
     def _generate_message_table(self):
         with self.checking_col as db_col:
             sql = """SELECT nsp_data 
-                    FROM {};""".format(self.table_name["messages"])
+                        FROM {};""".format(self.table_name["messages"])
             db_col.execute_sql(sql)
             while db_col.has_rest():
                 try:
@@ -398,25 +407,30 @@ class SkypeParser(object):
 
     def _generate_chatroom_member_table(self, member_list):
         for member in member_list:
-            member_id = member["id"]
-            chatroom_id = member["chatroom_id"]
-            account_info = json.loads(self.__query_account_info(member_id))
+            try:
+                member_id = member["id"]
+                chatroom_id = member["chatroom_id"]
+                serialized_info = self.__query_account_info(member_id)
+                if not serialized_info:
+                    continue
+                account_info = json.loads(serialized_info)
 
-            chatroom_member = model_im.ChatroomMember()
-            chatroom_member.chatroom_id = chatroom_id
-            chatroom_member.member_id = member_id
-            chatroom_member.account_id = self.using_account.account_id
-            chatroom_member.photo = account_info.get("thumbUrl", None)
-            if account_info.get("city") or account_info.get("country"):
-                chatroom_member.address = account_info.get("city", "") + " " + account_info.get("country", "")
-            chatroom_member.telephone = self.__choose_phone_number(account_info.get("phones", []))
-            chatroom_member.gender = self.__convert_gender(account_info.get("gender", 0))
-            chatroom_member.birthday = account_info.get("birthday", None)
-            chatroom_member.signature = account_info.get("mood", None)
-            chatroom_member.display_name = account_info.get("displayNameOverride", None)
-            chatroom_member.source = self.checking_col.db_path
-
-            self.model_im_col.db_insert_table_chatroom_member(chatroom_member)
+                chatroom_member = model_im.ChatroomMember()
+                chatroom_member.chatroom_id = chatroom_id
+                chatroom_member.member_id = member_id
+                chatroom_member.account_id = self.using_account.account_id
+                chatroom_member.photo = account_info.get("thumbUrl", None)
+                if account_info.get("city") or account_info.get("country"):
+                    chatroom_member.address = account_info.get("city", "") + " " + account_info.get("country", "")
+                chatroom_member.telephone = self.__choose_phone_number(account_info.get("phones", []))
+                chatroom_member.gender = self.__convert_gender(account_info.get("gender", 0))
+                chatroom_member.birthday = self._handle_birthday(account_info.get("birthday", None))
+                chatroom_member.signature = account_info.get("mood", None)
+                chatroom_member.display_name = account_info.get("displayNameOverride", None)
+                chatroom_member.source = self.checking_col.db_path
+                self.model_im_col.db_insert_table_chatroom_member(chatroom_member)
+            except Exception as e:
+                pass
         self.model_im_col.db_commit()
 
     def decode_recover_friend(self):
@@ -544,9 +558,9 @@ class SkypeParser(object):
     def __query_account_info(self, account_sign):
         with self.checking_col as db_col:
             sql = """select nsp_pk,
-                            nsp_data
-                    from profilecachev8 
-                    where nsp_pk like '%{}%';""".format(account_sign)
+                                nsp_data
+                        from profilecachev8 
+                        where nsp_pk like '%{}%';""".format(account_sign)
             db_col.execute_sql(sql)
             while db_col.has_rest():
                 return db_col.get_string(1)
@@ -562,7 +576,7 @@ class SkypeParser(object):
         for table_name in table_name_list:
             with self.checking_col as db_col:
                 sql = """SELECT name _id FROM sqlite_master 
-                        WHERE type ='table' and _id like '{}%' limit 1;""".format(table_name)
+                            WHERE type ='table' and _id like '{}%' limit 1;""".format(table_name)
                 db_col.execute_sql(sql)
                 while db_col.has_rest():
                     try:
@@ -573,8 +587,8 @@ class SkypeParser(object):
 
     def __query_sender_name(self, sender_id):
         sql = """SELECT nsp_data 
-                FROM {table_name}
-                WHERE nsp_pk = 'C{sender_id}';""".format(
+                    FROM {table_name}
+                    WHERE nsp_pk = 'C{sender_id}';""".format(
             table_name=self.table_name["profilecache"],
             sender_id=sender_id,
         )
@@ -752,7 +766,7 @@ class SkypeParser(object):
             else:
                 return content
         except Exception as e:
-            return content 
+            return content
 
     @staticmethod
     def __convert_message_content_type(_type):
