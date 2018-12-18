@@ -2529,8 +2529,8 @@
           <integer>2</integer>
           <key>Patterns</key>
           <array>
-            <string>/data/com.android.providers.media/databases/internal.db$</string>
-            <string>/Apps/com.android.providers.media/databases/internal.db$</string>
+            <string>/media/0/DCIM$</string>
+            <string>^/storage/emulated/0/DCIM$</string>
           </array>
           <key>Category</key>
           <string>Photos</string>
