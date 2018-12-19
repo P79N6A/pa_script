@@ -269,6 +269,14 @@ class SkypeParser(object):
             self.recovering_helper = RecoverTableHelper(node)
             yield new_db_path
 
+    @staticmethod
+    def _handle_birthday(birthday):
+        if not birthday:
+            return
+        time_tuple = time.strptime(birthday, "%Y-%m-%d")
+        ts = int(time.mktime(time_tuple))
+        return ts
+
     def __get_cache_db(self):
         """获取中间数据库的db路径"""
         self.cache_path = ds.OpenCachePath("Skype")
@@ -290,7 +298,7 @@ class SkypeParser(object):
         account.source = self.checking_col.db_path
         account.signature = account_info.get("mood", None)
         account.telephone = self.__choose_phone_number(account_info.get("phones", []))
-        account.birthday = account_info.get("birthday", None)
+        account.birthday = self._handle_birthday(account_info.get("birthday", None))
         account.country = account_info.get("country", None)
         account.city = account_info.get("city", None)
 
@@ -323,7 +331,7 @@ class SkypeParser(object):
                     friend.telephone = self.__choose_phone_number(friend_info.get("phones", []))
                     friend.photo = friend_info.get("thumbUrl", None)
                     friend.type = model_im.FRIEND_TYPE_FRIEND if friend_type == "8" else None
-                    friend.birthday = friend_info.get("birthday", None)
+                    friend.birthday = self._handle_birthday(friend_info.get("birthday", None))
                     if friend_info.get("city") or friend_info.get("country"):
                         friend.address = friend_info.get("city", "") + " " + friend_info.get("country", "")
 
@@ -360,7 +368,7 @@ class SkypeParser(object):
                     # 获取成员并return 出去方便拿到chatroom_member表
                     if chatroom_info["conv"].get("_threadMembers", None):
                         for member in chatroom_info["conv"]["_threadMembers"]:
-                            member["id"] = member["id"].split(":")[1]
+                            member["id"] = member["id"].split(":", 1)[1]
                             member["chatroom_id"] = chatroom.chatroom_id
                             chatroom_member.append(member)
 
@@ -403,25 +411,30 @@ class SkypeParser(object):
 
     def _get_chatroom_member_table(self, member_list):
         for member in member_list:
-            member_id = member["id"]
-            chatroom_id = member["chatroom_id"]
-            account_info = json.loads(self.__query_account_info(member_id))
+            try:
+                member_id = member["id"]
+                chatroom_id = member["chatroom_id"]
+                serialized_info = self.__query_account_info(member_id)
+                if not serialized_info:
+                    continue
+                account_info = json.loads(serialized_info)
 
-            chatroom_member = model_im.ChatroomMember()
-            chatroom_member.chatroom_id = chatroom_id
-            chatroom_member.member_id = member_id
-            chatroom_member.account_id = self.using_account.account_id
-            chatroom_member.photo = account_info.get("thumbUrl", None)
-            if account_info.get("city") or account_info.get("country"):
-                chatroom_member.address = account_info.get("city", "") + " " + account_info.get("country", "")
-            chatroom_member.telephone = self.__choose_phone_number(account_info.get("phones", []))
-            chatroom_member.gender = self.__convert_gender(account_info.get("gender", 0))
-            chatroom_member.birthday = account_info.get("birthday", None)
-            chatroom_member.signature = account_info.get("mood", None)
-            chatroom_member.display_name = account_info.get("displayNameOverride", None)
-            chatroom_member.source = self.checking_col.db_path
-
-            self.model_im_col.db_insert_table_chatroom_member(chatroom_member)
+                chatroom_member = model_im.ChatroomMember()
+                chatroom_member.chatroom_id = chatroom_id
+                chatroom_member.member_id = member_id
+                chatroom_member.account_id = self.using_account.account_id
+                chatroom_member.photo = account_info.get("thumbUrl", None)
+                if account_info.get("city") or account_info.get("country"):
+                    chatroom_member.address = account_info.get("city", "") + " " + account_info.get("country", "")
+                chatroom_member.telephone = self.__choose_phone_number(account_info.get("phones", []))
+                chatroom_member.gender = self.__convert_gender(account_info.get("gender", 0))
+                chatroom_member.birthday = self._handle_birthday(account_info.get("birthday", None))
+                chatroom_member.signature = account_info.get("mood", None)
+                chatroom_member.display_name = account_info.get("displayNameOverride", None)
+                chatroom_member.source = self.checking_col.db_path
+                self.model_im_col.db_insert_table_chatroom_member(chatroom_member)
+            except Exception as e:
+                pass
         self.model_im_col.db_commit()
 
     def decode_recover_friend(self):
@@ -454,7 +467,7 @@ class SkypeParser(object):
                 friend.photo = friend_info.get("thumbUrl", None)
                 if friend_type == "8":
                     friend.type = model_im.FRIEND_TYPE_FRIEND
-                friend.birthday = friend_info.get("birthday", None)
+                friend.birthday = self._handle_birthday(friend_info.get("birthday", None))
                 if friend_info.get("city") or friend_info.get("country"):
                     friend.address = friend_info.get("city", "") + " " + friend_info.get("country", "")
 
