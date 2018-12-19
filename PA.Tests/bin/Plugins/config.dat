@@ -1694,8 +1694,8 @@
           <integer>0</integer>
           <key>Patterns</key>
           <array>
-            <string>Library/Preferences/com.telecom-guoling.feiin.plist$</string>
-            <string>Library/Preferences/com.network.uxin.plist$</string>
+            <string>/com.telecom-guoling.feiin.plist$</string>
+            <string>/com.network.uxin.plist$</string>
           </array>
           <key>Category</key>
           <string>YouXin</string>
