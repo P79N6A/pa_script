@@ -71,8 +71,9 @@ IntNotNull = SQLiteParser.Signatures.SignatureFactory.GetFieldSignature(SQLitePa
 BlobNotNull = SQLiteParser.Signatures.SignatureFactory.GetFieldSignature(SQLiteParser.FieldType.Blob, SQLiteParser.FieldConstraints.NotNull)
 
 def LinkModels(a,b):
-    a.AddJumpTarget(b)
-    b.AddJumpTarget(a)
+    #a.AddJumpTarget(b)
+    #b.AddJumpTarget(a)
+    pass
 
 def to_byte_array(s):
     return Encoding.UTF8.GetBytes(s)
@@ -81,9 +82,6 @@ def update_app_model(parser_results, installed_apps, app_id):
     if parser_results is not None and (len(parser_results.Models) > 0) and app_id in installed_apps:
         app = installed_apps[app_id]
         app.DecodingStatus.Value = DecodingStatus.Decoded
-        for model in parser_results.Models:
-            model.AddJumpTarget(app)
-            app.AddJumpTarget(model)
 
 def update_name_tag(name, identifier, installed_apps):
     if identifier is None:
