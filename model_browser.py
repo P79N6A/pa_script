@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 
 from PA_runtime import *
 import clr
@@ -13,7 +13,7 @@ from PA.InfraLib.Utils import ConvertHelper
 import sqlite3
 
 VERSION_KEY_DB  = 'db'
-VERSION_VALUE_DB = 3
+VERSION_VALUE_DB = 4
 
 VERSION_KEY_APP = 'app'
 
@@ -345,9 +345,9 @@ class Column(object):
 class Account(Column):
     def __init__(self):
         super(Account, self).__init__()
-        self.id = None
-        self.name = None
-        self.logindate = None
+        self.id = None         # INTEGER PRIMARY KEY AUTOINCREMENT
+        self.name = None       # TEXT
+        self.logindate = None  # INTEGER
 
     def get_values(self):
         return (self.id, self.name, self.logindate) + super(Account, self).get_values()
@@ -614,8 +614,12 @@ class Generate(object):
                     download.Filename.Value = row[2]  
                 if not IsDBNull(row[4]):
                     download.Size.Value = row[4]
-                if not IsDBNull(row[5]):
+
+                if not IsDBNull(row[5]) and row[5]:
                     download.DownloadTime.Value = self._get_timestamp(row[5])
+                elif not IsDBNull(row[6]) and row[6]:
+                    download.DownloadTime.Value = self._get_timestamp(row[6])
+
                 if not IsDBNull(row[9]) and row[9] not in [None, '']:
                     download.SourceFile.Value = row[9]
                 if row[10] is not None:
@@ -742,16 +746,16 @@ class Generate(object):
 
     @staticmethod
     def _get_timestamp(timestamp):
+        zero_ts = TimeStamp.FromUnixTime(0, False)
         try:
-            if isinstance(timestamp, (long, float, str, Int64)) and len(str(timestamp)) > 10:
+            if len(str(timestamp)) >= 10:
                 timestamp = int(str(timestamp)[:10])
-            if isinstance(timestamp, int) and len(str(timestamp)) == 10:
                 ts = TimeStamp.FromUnixTime(timestamp, False)
-                if not ts.IsValidForSmartphone():
-                    ts = TimeStamp.FromUnixTime(0, False)
-                return ts
+                if ts.IsValidForSmartphone():
+                    return ts
+            return zero_ts
         except:
-            return TimeStamp.FromUnixTime(0, False)
+            return zero_ts
 
     @staticmethod
     def _convert_webkit_timestamp(webkit_timestamp):
