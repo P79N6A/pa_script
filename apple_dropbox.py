@@ -369,6 +369,7 @@ class DropBoxParser(object):
         :param account_file: 保存账户信息的文件地址
         :return:
         """
+        print(account_file)
         account_info = Utils.json_loads(Utils.open_file(account_file)).get("contacts", [None])[0]
         if not account_info:
             return
@@ -613,8 +614,8 @@ class DropBoxParser(object):
         target_node = self.root.GetByPath("/Library/Application Support/Dropbox")
         if not target_node:
             return None, None
-        account_nodes = list(target_node.FileSystem.Search("me$"))
-        friend_nodes = list(target_node.FileSystem.Search("all_searchable$"))
+        account_nodes = list(target_node.Search("me$"))
+        friend_nodes = list(target_node.Search("all_searchable$"))
         if account_nodes and friend_nodes:
             return account_nodes[0].PathWithMountPoint, friend_nodes[0].PathWithMountPoint
         return None, None

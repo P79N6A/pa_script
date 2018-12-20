@@ -292,7 +292,7 @@ class SkypeParser(object):
         account.source = self.checking_col.db_path
         account.signature = account_info.get("mood", None)
         account.telephone = self.__choose_phone_number(account_info.get("phones", []))
-        account.birthday = account_info.get("birthday", None)
+        account.birthday = self._handle_birthday(account_info.get("birthday", None))
         account.country = account_info.get("country", None)
         account.city = account_info.get("city", None)
 
@@ -463,7 +463,7 @@ class SkypeParser(object):
                 friend.photo = friend_info.get("thumbUrl", None)
                 if friend_type == "8":
                     friend.type = model_im.FRIEND_TYPE_FRIEND
-                friend.birthday = friend_info.get("birthday", None)
+                friend.birthday = self._handle_birthday(friend_info.get("birthday", None))
                 if friend_info.get("city") or friend_info.get("country"):
                     friend.address = friend_info.get("city", "") + " " + friend_info.get("country", "")
 
