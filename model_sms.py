@@ -35,7 +35,6 @@ def test_p(*e):
     else:
         pass
 
-
 SMS_TYPE_ALL    = 0
 SMS_TYPE_INBOX  = 1
 SMS_TYPE_SENT   = 2
@@ -438,16 +437,16 @@ class GenerateModel(object):
 
     @staticmethod
     def _get_timestamp(timestamp):
+        zero_ts = TimeStamp.FromUnixTime(0, False)
         try:
-            if isinstance(timestamp, (long, float, str, Int64)) and len(str(timestamp)) > 10:
-                timestamp = int(str(timestamp)[:10])
-            if isinstance(timestamp, (int, Int64)) and len(str(timestamp)) == 10:
+            if len(str(timestamp)) >= 10:
+                timestamp = int(str(timestamp)[:10]) + 28800
                 ts = TimeStamp.FromUnixTime(timestamp, False)
-                if not ts.IsValidForSmartphone():
-                    ts = TimeStamp.FromUnixTime(0, False)
-                return ts
+                if ts.IsValidForSmartphone():
+                    return ts
+            return zero_ts
         except:
-            return TimeStamp.FromUnixTime(0, False)
+            return zero_ts
 
     @staticmethod
     def _convert_deleted_status(deleted):

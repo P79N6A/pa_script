@@ -642,13 +642,13 @@ class Generate(object):
             7    a.mail_ip, 
             8    a.mail_to, 
             9     a.mail_cc, 
-            10    a.mail_bcc,               # 9 以下 +1
-            11    a.mail_abstract,          # 14 以上 -3
-            12    a.mail_size, 
-            13    a.mail_recall_status, 
-            14    c.account_alias, 
-            15    c.account_user, 
-            16    c.account_last_login, 
+            10    a.mail_bcc, 
+            11    a.mail_abstract,
+            12    a.mail_size,
+            13    a.mail_recall_status,
+            14    c.account_alias,
+            15    c.account_user,
+            16    c.account_last_login,
             17    c.account_email, 
             18    c.account_id, 
             19    a.mail_read_status, 
@@ -806,13 +806,13 @@ class Generate(object):
 
     @staticmethod
     def _get_timestamp(timestamp):
+        zero_ts = TimeStamp.FromUnixTime(0, False)
         try:
-            if isinstance(timestamp, (long, float, str, Int64)) and len(str(timestamp)) > 10:
-                timestamp = int(str(timestamp)[:10])
-            if isinstance(timestamp, (int, Int64)) and len(str(timestamp)) == 10:
+            if len(str(timestamp)) >= 10:
+                timestamp = int(str(timestamp)[:10]) + 28800
                 ts = TimeStamp.FromUnixTime(timestamp, False)
-                if not ts.IsValidForSmartphone():
-                    ts = TimeStamp.FromUnixTime(0, False)
-                return ts
+                if ts.IsValidForSmartphone():
+                    return ts
+            return zero_ts
         except:
-            return TimeStamp.FromUnixTime(0, False)
+            return zero_ts

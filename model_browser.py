@@ -749,7 +749,7 @@ class Generate(object):
         zero_ts = TimeStamp.FromUnixTime(0, False)
         try:
             if len(str(timestamp)) >= 10:
-                timestamp = int(str(timestamp)[:10])
+                timestamp = int(str(timestamp)[:10]) + 28800
                 ts = TimeStamp.FromUnixTime(timestamp, False)
                 if ts.IsValidForSmartphone():
                     return ts
@@ -761,10 +761,10 @@ class Generate(object):
     def _convert_webkit_timestamp(webkit_timestamp):
         ''' convert 17 digits webkit timestamp to 10 digits timestamp '''
         try:
-            epoch_start = datetime.datetime(1601,1,1)
+            epoch_start = datetime.datetime(1601, 1, 1)
             delta = datetime.timedelta(microseconds=int(webkit_timestamp))
             timestamp = time.mktime((epoch_start + delta).timetuple())
-            ts = TimeStamp.FromUnixTime(int(timestamp), False)
+            ts = TimeStamp.FromUnixTime(int(timestamp) + 28800, False)
             if not ts.IsValidForSmartphone():
                 ts = TimeStamp.FromUnixTime(0, False)
             return ts            
