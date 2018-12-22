@@ -281,7 +281,7 @@ def handleFile(f, lPALocations) :
 
             cLoc = Location()
             cLoc.Deleted = f.Deleted
-            cLoc.Category.Value = LocationCategories.MEDIA;
+            cLoc.Category.Value = LocationCategories.MEDIA
             cLoc.Position.Value = Coordinate(float(locval[0]), float(locval[1]), float(locval[2]))
             cLoc.Name.Value = f.Name
             cLoc.Description.Value = key

@@ -212,6 +212,7 @@ def decode_smss(fs, extract_deleted, extract_source):
         if d.Type == NodeType.Directory:   
             if first_time:
                 TraceService.Trace(TraceLevel.Info, "正在解析 {0}".format("短信"))
+                progress.Start()
                 first_time = False
             try:  
                 parser = MessageParser(d, extract_deleted, extract_source)      

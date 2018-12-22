@@ -2921,7 +2921,7 @@
           <key>Patterns</key>
           <array>
             <string>/appinfo/appinfo\.db$</string>
-            <string>/data\.tar/data/app$</string>
+            <string>/data/app$</string>
           </array>
           <key>Category</key>
           <string>Applications</string>
