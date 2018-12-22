@@ -118,7 +118,7 @@ class ChromeParser(object):
     def parse_main(self):
         ''' self.root: /com.android.chrome/ '''
         accounts = self.parse_Account('app_chrome/Default/Preferences')
-        self.cur_account_name = accounts[0].get('full_name', 'default_account')
+        self.cur_account_name = accounts[0].get('email', 'default_account')
 
         self.parse_Bookmark('app_chrome/Default/Bookmarks')
         self.parse_Cookie('app_chrome/Default/Cookies', 'cookies')
@@ -153,7 +153,7 @@ class ChromeParser(object):
 
         default_user = [{
             "account_id": "default_user",
-            "full_name": "default_user",
+            "email": "default_user",
         }]
         accounts = pfs.get('account_info', default_user)
         self.download_path = set([
@@ -166,7 +166,7 @@ class ChromeParser(object):
                 account = model_browser.Account()
                 account_id     = account_dict.get('account_id', '111')
                 account.id     = int(account_id[:len(account_id)/3])
-                account.name   = account_dict.get('full_name', None)
+                account.name   = account_dict.get('email', None)
                 account.source = self.cur_json_source
                 self.mb.db_insert_table_accounts(account)
             except:
@@ -432,7 +432,6 @@ class ChromeParser(object):
 
             fs = self.root.FileSystem
             for prefix in ['', '/data', ]:
-                '/storage/emulated'
                 file_node = fs.GetByPath(prefix + raw_path)
                 if file_node and file_node.Type == NodeType.File:
                     return file_node.AbsolutePath
