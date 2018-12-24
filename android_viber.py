@@ -41,6 +41,11 @@ class ViberParser(model_im.IM, model_callrecord.MC):
         self.sourceDB = self.cachepath + '\\ViberSourceDB'
         self.account_id = '未知联系人'
         self.account_name = '未知联系人'
+        fs = self.node.FileSystem
+        media_folder = fs.Search('/media/0/Android/data/com.viber.voip')
+        media_folder1 = list(media_folder)[0] if media_folder is not None else None
+        media_folder2 = self.node.Parent.Parent
+        self.media_folders = [media_folder1, media_folder2]
 
     def db_create_table(self):
         model_im.IM.db_create_table(self)
@@ -117,7 +122,7 @@ class ViberParser(model_im.IM, model_callrecord.MC):
             if db1 is None:
                 return
             try:
-                db_cmd1.CommandText = '''select a.native_id, a.display_name, group_concat(b.data2) from phonebookcontact as a 
+                db_cmd1.CommandText = '''select distinct a.native_id, a.display_name, group_concat(b.data2) from phonebookcontact as a 
                     left join phonebookdata as b on a._id = b.contact_id group by a._id'''
                 sr = db_cmd1.ExecuteReader()
                 while (sr.Read()):
@@ -146,7 +151,7 @@ class ViberParser(model_im.IM, model_callrecord.MC):
             db2.Open()
             db_cmd2 = SQLite.SQLiteCommand(db2)
             try:
-                db_cmd2.CommandText = '''select _id, display_name, number from participants_info'''
+                db_cmd2.CommandText = '''select distinct _id, display_name, number from participants_info'''
                 sr = db_cmd2.ExecuteReader()
                 while (sr.Read()):
                     try:
@@ -187,7 +192,7 @@ class ViberParser(model_im.IM, model_callrecord.MC):
         try:
             if db is None:
                 return
-            db_cmd.CommandText = '''select _id, date, participant_id_1, participant_id_2, participant_id_3, participant_id_4, name from conversations where conversation_type = 1'''
+            db_cmd.CommandText = '''select distinct _id, date, participant_id_1, participant_id_2, participant_id_3, participant_id_4, name from conversations where conversation_type = 1'''
             sr = db_cmd.ExecuteReader()
             dic = {}
             while (sr.Read()):
@@ -241,7 +246,7 @@ class ViberParser(model_im.IM, model_callrecord.MC):
         try:
             if self.db is None:
                 return
-            db_cmd.CommandText = '''select a._id, a.date, a.participant_id_1, b.number, b.display_name, a.participant_id_2, c.number, c.display_name, 
+            db_cmd.CommandText = '''select distinct a._id, a.date, a.participant_id_1, b.number, b.display_name, a.participant_id_2, c.number, c.display_name, 
             a.participant_id_3, d.number, d.display_name, a.participant_id_4, e.number, e.display_name, a.name from conversations as a 
             left join participants_info as b on a.participant_id_1 = b._id left join participants_info as c on a.participant_id_2 = c._id
             left join participants_info as d on a.participant_id_3 = d._id left join participants_info as e on a.participant_id_4 = e._id where conversation_type = 1'''
@@ -327,16 +332,18 @@ class ViberParser(model_im.IM, model_callrecord.MC):
 
                     elif extra_mime == 1:  #图片
                         try:
-                            if not IsDBNull(sr[2]):
+                            if not IsDBNull(sr[0]):
                                 message.type = model_im.MESSAGE_CONTENT_TYPE_IMAGE
-                                mediaPath = re.sub('.*/', '', sr[2])
-                                nodes = fs.Search(mediaPath)
-                                if len(list(nodes)) == 0:
-                                    message.content = mediaPath
-                                    messgae.type = model_im.MESSAGE_CONTENT_TYPE_TEXT
-                                for node in nodes:
-                                    message.media_path = node.AbsolutePath
-                                    break
+                                mediaPath = re.sub('.*/', '', sr[0])
+                                for media_node in self.media_folders:
+                                    if media_node is not None:
+                                        nodes = media_node.Search(mediaPath)
+                                        if len(list(nodes)) == 0:
+                                            message.content = self._db_reader_get_string_value(sr, 12) + self._db_reader_get_string_value(sr, 0)
+                                            messgae.type = model_im.MESSAGE_CONTENT_TYPE_TEXT
+                                        for node in nodes:
+                                            message.media_path = node.AbsolutePath
+                                            break
                             else:
                                 message.content = self._db_reader_get_string_value(sr, 12) + self._db_reader_get_string_value(sr, 0)
                                 messgae.type = model_im.MESSAGE_CONTENT_TYPE_TEXT
@@ -359,33 +366,41 @@ class ViberParser(model_im.IM, model_callrecord.MC):
                                 messgae.type = model_im.MESSAGE_CONTENT_TYPE_TEXT
                         except:
                             pass
-                    elif extra_mime == 8:  #链接
+                    elif extra_mime == 4:  #未知消息
                         try:
-                            if not IsDBNull(sr[0]):
-                                dics = self._db_reader_get_string_value(sr, 0)
-                                dics = dics.replace('\\', '').replace('[', '').replace(']', '').replace('},{', '}***{').split('***')
-                                image_url = ''
-                                push_text = ''
-                                push_url = ''
-                                for dic in dics:
-                                    dic = json.loads(dic)
-                                    if dic['Type'] == 'img':
-                                        image_url = dic['Action']['parameters']['url']
-                                    elif dic['Type'] == 'info':
-                                        push_text = dic['PushText']
-                                        push_url = dic['PreviewText']
-                                link = model_im.Link()
-                                message.link_id = link.link_id
-                                link.url = push_url
-                                link.content = push_text
-                                link.image = image_url
-                                self.db_insert_table_link(link)
-                                message.type = model_im.MESSAGE_CONTENT_TYPE_LINK
-                            else:
-                                message.content = self._db_reader_get_string_value(sr, 0)
-                                messgae.type = model_im.MESSAGE_CONTENT_TYPE_TEXT
+                            message.content = '<表情包-未加载>'
+                            messgae.type = model_im.MESSAGE_CONTENT_TYPE_TEXT
                         except:
                             pass
+                    elif extra_mime == 8:  #链接
+                        try:
+                            message.content = self._db_reader_get_string_value(sr, 0)
+                            message.type = model_im.MESSAGE_CONTENT_TYPE_TEXT
+                            #if not IsDBNull(sr[0]):
+                            #    dics = self._db_reader_get_string_value(sr, 0)
+                            #    dics = dics.replace('\\', '').replace('[', '').replace(']', '').replace('},{', '}***{').split('***')
+                            #    image_url = ''
+                            #    push_text = ''
+                            #    push_url = ''
+                            #    for dic in dics:
+                            #        dic = json.loads(dic)
+                            #        if dic['Type'] == 'img':
+                            #            image_url = dic['Action']['parameters']['url']
+                            #        elif dic['Type'] == 'info':
+                            #            push_text = dic['PushText']
+                            #            push_url = dic['PreviewText']
+                            #    link = model_im.Link()
+                            #    message.link_id = link.link_id
+                            #    link.url = push_url
+                            #    link.content = push_text
+                            #    link.image = image_url
+                            #    self.db_insert_table_link(link)
+                            #    message.type = model_im.MESSAGE_CONTENT_TYPE_LINK
+                            #else:
+                            #    message.content = self._db_reader_get_string_value(sr, 0)
+                            #    messgae.type = model_im.MESSAGE_CONTENT_TYPE_TEXT
+                        except:
+                            traceback.print_exc()
                     elif extra_mime == 9:  #名片
                         try:
                             content = self._db_reader_get_string_value(sr, 0)
@@ -424,6 +439,22 @@ class ViberParser(model_im.IM, model_callrecord.MC):
                     elif extra_mime == 1002:  #通话消息
                         message.content = self._db_reader_get_string_value(sr, 0)
                         message.type = model_im.MESSAGE_CONTENT_TYPE_TEXT
+                    elif extra_mime == 1006:  #富文本消息
+                        if not IsDBNull(sr[13]):
+                            text = sr[13].replace(r'\"', "'").replace("\'", '')
+                            if text.find('Latitude') != -1:
+                                latitude = re.findall('"Latitude":(.*?),', text)[0]
+                                longitude = re.findall('"Longitude":(.*?)}', text)[0]
+                                location = model_im.Location()
+                                message.location_id = location.location_id
+                                location.latitude = latitude
+                                location.longitude = longitude
+                                location.source = self.node.AbsolutePath
+                                self.db_insert_table_location(location)
+                                message.type = model_im.MESSAGE_CONTENT_TYPE_LOCATION
+                            else:
+                                message.content = text
+                                message.type = model_im.MESSAGE_CONTENT_TYPE_TEXT
                     message.msg_id = self._db_reader_get_int_value(sr, 3)
                     message.send_time = self._get_timestamp(sr[4]) if not IsDBNull(sr[4]) else 0
                     message.sender_id = self._db_reader_get_int_value(sr, 5)
@@ -433,7 +464,7 @@ class ViberParser(model_im.IM, model_callrecord.MC):
                     message.talker_type = model_im.CHAT_TYPE_GROUP if sr[8] == 1 else model_im.CHAT_TYPE_OFFICIAL if sr[8] == 2 else model_im.CHAT_TYPE_FRIEND if sr[8] == 0 else model_im.CHAT_TYPE_SYSTEM
                     message.talker_id = self._db_reader_get_int_value(sr, 9)
                     message.talker_name = self._db_reader_get_string_value(sr, 10)
-                    if extra_mime in [0, 1, 3, 8, 9, 10, 1000, 1002]:
+                    if extra_mime in [0, 1, 3, 4, 8, 9, 10, 1000, 1002, 1006]:
                         if self._isValid(message.content) or self._isValid(message.media_path) or message.location_id != 0 or message.link_id != 0:
                             self.db_insert_table_message(message)
                 except:
@@ -572,10 +603,17 @@ class ViberParser(model_im.IM, model_callrecord.MC):
             if db is None:
                 return
             ts = SQLiteParser.TableSignature('participants_info')
+            dic = []
             for rec in db.ReadTableDeletedRecords(ts, False):
                 try:
                     if canceller.IsCancellationRequested:
                         break
+                    if rec['_id'].Value == 0:
+                        continue
+                    if rec['_id'].Value not in dic:
+                        dic.append(rec['_id'].Value)
+                    else:
+                        continue
                     param = (rec['_id'].Value, rec['display_name'].Value, rec['number'].Value)
                     self.db_insert_to_deleted_table('''insert into participants_info(_id, display_name, number) values(?, ?, ?)''', param)
                 except:
@@ -591,10 +629,17 @@ class ViberParser(model_im.IM, model_callrecord.MC):
             if db is None:
                 return
             ts = SQLiteParser.TableSignature('phonebookcontact')
+            dic = []
             for rec in db.ReadTableDeletedRecords(ts, False):
                 try:
                     if canceller.IsCancellationRequested:
                         break
+                    if rec['_id'].Value == 0:
+                        continue
+                    if rec['_id'].Value not in dic:
+                        dic.append(rec['_id'].Value)
+                    else:
+                        continue
                     param = (rec['_id'].Value, rec['native_id'].Value, rec['display_name'].Value)
                     self.db_insert_to_deleted_table('''insert into phonebookcontact(_id, native_id, display_name) values(?, ?, ?)''', param)
                 except:
@@ -610,10 +655,17 @@ class ViberParser(model_im.IM, model_callrecord.MC):
             if db is None:
                 return
             ts = SQLiteParser.TableSignature('phonebookdata')
+            dic = []
             for rec in db.ReadTableDeletedRecords(ts, False):
                 try:
                     if canceller.IsCancellationRequested:
                         break
+                    if rec['contact_id'].Value == 0:
+                        continue
+                    if rec['contact_id'].Value not in dic:
+                        dic.append(rec['contact_id'].Value)
+                    else:
+                        continue
                     param = (rec['contact_id'].Value, rec['data2'].Value)
                     self.db_insert_to_deleted_table('''insert into phonebookdata(contact_id, data2) values(?, ?)''', param)
                 except:
