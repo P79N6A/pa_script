@@ -684,6 +684,8 @@ class Generate(object):
                 search = SearchedItem()
                 if not IsDBNull(row[1]):
                     search.Value.Value = row[1]
+                if not IsDBNull(row[2]):
+                    search.SearchResults.Add(row[2])
                 if not IsDBNull(row[3]):
                     search.TimeStamp.Value = self._get_timestamp(row[3])
                 if not IsDBNull(row[5]) and row[5] not in [None, '']:
