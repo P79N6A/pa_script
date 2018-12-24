@@ -663,16 +663,27 @@ class Generate(object):
         return model
 
     def _get_search_history_models(self):
+        
         model = []
         sql = '''select distinct * from search_history'''
+        '''
+        0    id INTEGER,
+        1    name TEXT,
+        2    url TEXT,
+        3    datetime INTEGER,
+        4    owneruser TEXT,
+        5    source TEXT,
+        6    deleted INTEGER,
+        7    repeated INTEGER
+        '''
         try:
             self.db_cmd.CommandText = sql
             row = self.db_cmd.ExecuteReader()             
             while(row.Read()):
                 canceller.ThrowIfCancellationRequested()
                 search = SearchedItem()
-                if not IsDBNull(row[2]):
-                    search.Value.Value = row[2]
+                if not IsDBNull(row[1]):
+                    search.Value.Value = row[1]
                 if not IsDBNull(row[3]):
                     search.TimeStamp.Value = self._get_timestamp(row[3])
                 if not IsDBNull(row[5]) and row[5] not in [None, '']:
