@@ -154,7 +154,7 @@ class Facebook(object):
             conn.Open()
             cmd = System.Data.SQLite.SQLiteCommand(conn)
             cmd.CommandText = '''
-                select messages.thread_key, text, sender, messages.timestamp_ms, messages.timestamp_sent_ms, shares, msg_type,messages.attachments from messages, folders where messages.thread_key = folders.thread_key and messages.thread_key like "ONE%"
+                select messages.thread_key, text, sender, messages.timestamp_ms, messages.timestamp_sent_ms, shares, msg_type,messages.attachments from messages, folders where messages.thread_key = folders.thread_key and messages.thread_key like "ONE%" ORDER BY messages.timestamp_ms
             '''
             reader= cmd.ExecuteReader()
             fs = self.root.FileSystem
@@ -267,7 +267,7 @@ class Facebook(object):
             conn.Open()
             cmd = System.Data.SQLite.SQLiteCommand(conn)
             cmd.CommandText = '''
-                select messages.thread_key, text, sender, messages.timestamp_ms, messages.timestamp_sent_ms, shares, msg_type,messages.attachments from messages, folders where messages.thread_key = folders.thread_key and messages.thread_key like "GROUP%"
+                select messages.thread_key, text, sender, messages.timestamp_ms, messages.timestamp_sent_ms, shares, msg_type,messages.attachments from messages, folders where messages.thread_key = folders.thread_key and messages.thread_key like "GROUP%" ORDER BY messages.timestamp_ms
             '''
             reader= cmd.ExecuteReader()
             fs = self.root.FileSystem

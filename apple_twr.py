@@ -63,6 +63,7 @@ class TIphone(object):
         if self.im.need_parse(cache + '/{}'.format(self.hash), VERSION_APP_VALUE):
             self.im.db_create(cache + '/{}'.format(self.hash))
             self.need_parse = True
+        self.db_dict = dict()
         
     @staticmethod
     def check_account_id(account_str):
@@ -187,6 +188,39 @@ class TIphone(object):
             pass
         pass
 
+    def parse_recovery(self):
+        for aid in self.account:
+            db_path = self.db_dict[aid]
+            node = self.node.GetByPath(db_path)
+            if node is None:
+                continue
+            db = SQLiteParser.Database.FromNode(node)
+            ts = SQLiteParser.TableSignature('Users')
+            SQLiteParser.Tools.AddSignatureToTable(ts, "id", SQLiteParser.FieldType.Int, SQLiteParser.FieldConstraints.NotNull)
+            for rec in db.ReadTableDeletedRecords(ts, False):
+                f = model_im.Friend()
+                f.account_id = aid
+                f.friend_id = int(unity_c37r.try_get_rec_value(rec, "id", 0))
+                f.nickname = str(unity_c37r.try_get_rec_value(rec, "name", ""))
+                f.remark = str(unity_c37r.try_get_rec_value(rec, "screenName", ""))
+                f.address = str(unity_c37r.try_get_rec_value(rec, "location", ""))
+                f.signature = str(unity_c37r.try_get_rec_value(rec, "description", ""))
+                f.deleted = 1
+                self.im.db_insert_table_friend(f)
+            self.im.db_commit()
+            ts = SQLiteParser.TableSignature('Statuses')
+            SQLiteParser.Tools.AddSignatureToTable(ts, "userId", SQLiteParser.FieldType.Int, SQLiteParser.FieldConstraints.NotNull)
+            for rec in db.ReadTableDeletedRecords(ts, False):
+                feed = model_im.Feed()
+                feed.account_id = aid
+                feed.sender_id = int(unity_c37r.try_get_rec_value(rec, "userId", 0))
+                feed.content = str(unity_c37r.try_get_rec_value(rec, "text", ""))
+                feed.send_time = int(unity_c37r.try_get_rec_value(rec, "date", 0))
+                feed.deleted = 1
+                self.im.db_insert_table_feed(feed)
+            self.im.db_commit()
+
+
     def parse(self):
         for aid in self.account:
             m_dir = self.node.PathWithMountPoint
@@ -205,6 +239,8 @@ class TIphone(object):
             if sub_node is None:
                 print('fatal error!')
                 continue
+            # add to dict
+            self.db_dict[aid] = m_sql
             r_sql = sql.SQLiteConnection('Data Source = {}; ReadOnly = True'.format(sub_node.PathWithMountPoint))
             r_sql.Open()
             cmd = sql.SQLiteCommand(r_sql)
@@ -212,34 +248,34 @@ class TIphone(object):
                 select id, screenName, name, location, description from Users where screenName = '{}'
             '''.format(aid)
             reader = cmd.ExecuteReader()
-            reader.Read()
-            a = model_im.Account()
-            a.account_id = GetInt64(reader, 0)
-            a.username = aid
-            current_id = GetInt64(reader, 0)
-            a.photo = ""
-            a.nickname = GetString(reader, 2)
-            a.address = GetString(reader, 3)
-            a.signature = GetString(reader, 4)
-            self.im.db_insert_table_account(a)
-            cmd.Dispose()
+            if reader.Read():
+                a = model_im.Account()
+                a.account_id = GetInt64(reader, 0)
+                a.username = aid
+                current_id = GetInt64(reader, 0)
+                a.photo = ""
+                a.nickname = GetString(reader, 2)
+                a.address = GetString(reader, 3)
+                a.signature = GetString(reader, 4)
+                self.im.db_insert_table_account(a)
+            reader.Close()
             cmd.CommandText = '''
                 select id, screenName, name, location, description from Users where screenName != '{}'
             '''.format(aid)
             reader = cmd.ExecuteReader()
             while reader.Read():
-                    if canceller.IsCancellationRequested:
-                        raise IOError('E')
-                    f = model_im.Friend()
-                    f.account_id = current_id
-                    f.friend_id = GetInt64(reader, 0)
-                    f.remark = GetString(reader, 1)
-                    f.address = GetString(reader, 3)
-                    f.nickname = GetString(reader, 2)
-                    f.signature = GetString(reader, 4)
-                    self.im.db_insert_table_friend(f)
+                if canceller.IsCancellationRequested:
+                    raise IOError('E')
+                f = model_im.Friend()
+                f.account_id = current_id
+                f.friend_id = GetInt64(reader, 0)
+                f.remark = GetString(reader, 1)
+                f.address = GetString(reader, 3)
+                f.nickname = GetString(reader, 2)
+                f.signature = GetString(reader, 4)
+                self.im.db_insert_table_friend(f)
             self.im.db_commit()
-            cmd.Dispose()
+            reader.Close()
             cmd.CommandText = '''
                 select userId, text, date from Statuses
             '''
@@ -250,11 +286,15 @@ class TIphone(object):
                 blog = model_im.Feed()
                 blog.account_id = current_id
                 blog.content = GetString(reader, 1)
-                blog.send_time = unity_c37r.format_mac_timestamp(unity_c37r.c_sharp_try_get_time(reader, 2))
+                #blog.send_time = unity_c37r.format_mac_timestamp(unity_c37r.c_sharp_try_get_time(reader, 2))
                 blog.send_time = int(GetReal(reader, 2))
                 blog.sender_id = GetInt64(reader, 0)
                 self.im.db_insert_table_feed(blog)
             self.im.db_commit()
+            #clean up
+            reader.Close()
+            cmd.Dispose()
+            r_sql.Close()
             root_path = self.node.PathWithMountPoint
             m_path = os.path.join(root_path, 'Documents/com.atebits.tweetie.application-state')
             talk_file = None
@@ -287,6 +327,7 @@ def analyse_twitter(root, extract_deleted, extract_source):
         t = TIphone(node, extract_deleted, extract_source)
         if t.need_parse:
             t.parse_account()
+            t.parse_recovery()
             t.im.db_insert_table_version(model_im.VERSION_KEY_DB, model_im.VERSION_VALUE_DB)
             t.im.db_insert_table_version(model_im.VERSION_KEY_APP, VERSION_APP_VALUE)
             t.im.db_commit()
