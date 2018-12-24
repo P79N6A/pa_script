@@ -26,6 +26,7 @@ MailAcc      = 3
 BrowserPsd   = 4
 Others       = 5
 BackupPsd    = 6
+ExtraID      = 1
 
 class Param():
     def __init__(self, t, name, createDate, modiyDate, id, password, url = None, ptcl = None):
@@ -37,7 +38,10 @@ class Param():
         self.password = password
         self.url = url
         self.ptcl = ptcl
-        self.extra_id = str(uuid.uuid1()).replace('-', '')
+        global ExtraID
+        self.extra_id = str(ExtraID)
+        ExtraID = ExtraID + 1
+        self.ptcl = ptcl
 
 class KeyChainParser():
     def __init__(self, node, extract_deleted, extract_source):
@@ -511,6 +515,15 @@ class KeyChainParser():
     @staticmethod
     def _get_map_value(map, key, format = None):
         try:
+            if map.ContainsKey(key) == False:
+                if format == 'bool':
+                    return False
+                elif format == 'int':
+                    return 0
+                elif format == 'str':
+                    return ""
+                elif format == 'data':
+                    return Encoding.UTF8.GetBytes("0")
             if hasattr(map[key],"Bytes"):
                 if format == 'str':
                     return Encoding.UTF8.GetString(map[key].Bytes)
