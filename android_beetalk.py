@@ -19,6 +19,7 @@ import model_im
 import model_callrecord
 
 import re
+import os
 import hashlib
 import shutil
 import traceback
@@ -64,6 +65,7 @@ class BeeTalkParser(model_im.IM, model_callrecord.MC):
         models = []
         models_im = model_im.GenerateModel(self.cachedb).get_models()
         models.extend(models_im)
+        print(len(models))
         models_record = model_callrecord.Generate(self.cachedb).get_models()
         models.extend(models_record)
         return models
@@ -83,8 +85,8 @@ class BeeTalkParser(model_im.IM, model_callrecord.MC):
             try:
                 if not sr.HasRows:
                     account = model_im.Account()
-                    account.account_id = ''
-                    account.username = '未知用户'
+                    account.account_id = re.sub('\D', '', os.path.basename(self.node.AbsolutePath))
+                    account.username = '未知用户名'
                     account.source = self.node.AbsolutePath
                     account.deleted = 0
                     self.account_id = account.account_id
@@ -132,6 +134,7 @@ class BeeTalkParser(model_im.IM, model_callrecord.MC):
                     friend.deleted = self._db_reader_get_int_value(sr, 7)
                     friend.friend_id = self._db_reader_get_int_value(sr, 0)
                     friend.birthday = self._db_reader_get_int_value(sr, 1)
+                    friend.nickname = self._db_reader_get_string_value(sr, 4)
                     friend.fullname = self._db_reader_get_string_value(sr, 4)
                     friend.source = self.node.AbsolutePath
                     friend.gender = 1 if self._db_reader_get_int_value(sr, 3) == 0 else 0
@@ -278,7 +281,6 @@ class BeeTalkParser(model_im.IM, model_callrecord.MC):
                                 img_name = img_hex[img_start*2: img_end*2: ].decode('hex').decode('utf-8')
                                 break
                         nodes = self.cacheNode.Search('/' + img_name + '.*\..*$')
-                        print(list(nodes))
                         if len(list(nodes)) == 0:
                             message.content = '<图片消息>:' + img_name
                             message.type = model_im.MESSAGE_CONTENT_TYPE_TEXT
@@ -298,7 +300,6 @@ class BeeTalkParser(model_im.IM, model_callrecord.MC):
                             break
                     elif re.match('loc', metatag):
                         message.content = '<地理位置消息>：' + str(self._db_reader_get_blob_value(sr, 0))[2:-10:].decode('utf-8')
-                        print(message.content)
                         message.type = model_im.MESSAGE_CONTENT_TYPE_TEXT
                     elif re.match('vcall', metatag):
                         record_id += 1
@@ -439,7 +440,6 @@ class BeeTalkParser(model_im.IM, model_callrecord.MC):
                         feed.content = text_content
                         image_name = []
                         for image in img_name:
-                            print(image)
                             nodes = self.cacheNode.Search('/' + image + '.*\..*$')
                             for node in nodes:
                                 image_name.append(node.AbsolutePath)
