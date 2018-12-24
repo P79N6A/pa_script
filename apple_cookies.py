@@ -7,9 +7,10 @@ from PA_runtime import *
 解析二进制Cookie文件(*.binarycookies)
 """
 def analyze_cookies(node, extractDeleted, extractSource):
+    app = ds.GetApplication(node.AbsolutePath)
     pr = ParserResults()
     pr.Models.AddRange(CookieParser(node, extractDeleted, extractSource).Parse())
-    pr.Build('全部')
+    pr.Build(app.Name.Value)
     return pr
 
 class CookieParser(object):

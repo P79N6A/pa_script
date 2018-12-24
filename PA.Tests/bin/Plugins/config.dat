@@ -395,6 +395,7 @@
         </dict>
       </array>
     </dict>
+	
 	<dict>
       <key>Module</key>
       <string>data_files</string>
@@ -762,10 +763,6 @@
           <key>Category</key>
           <string>Logs</string>
           <key>Name</key>
-          
-          
-          
-          
           <string>文件日志(苹果)</string>
           <key>Filter</key>
           <string>基础数据</string>
