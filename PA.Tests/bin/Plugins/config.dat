@@ -2396,6 +2396,30 @@
         </dict>
       </array>
     </dict>
+	
+	<dict>
+      <key>Module</key>
+      <string>android_qunar</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_qunar</string>
+          <key>RunnerType</key>
+          <integer>2</integer>
+          <key>Patterns</key>
+          <array>
+            <string>/com\.Qunar/databases$</string>
+          </array>
+          <key>Category</key>
+          <string>Qunar</string>
+          <key>Name</key>
+          <string>去哪儿(安卓)</string>
+          <key>Filter</key>
+          <string>应用>商旅</string>
+        </dict>
+      </array>
+    </dict>
 
     <dict>
       <key>Module</key>
