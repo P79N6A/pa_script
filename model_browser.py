@@ -13,9 +13,24 @@ from PA.InfraLib.Utils import ConvertHelper
 import sqlite3
 
 VERSION_KEY_DB  = 'db'
-VERSION_VALUE_DB = 4
+VERSION_VALUE_DB = 5
 
 VERSION_KEY_APP = 'app'
+
+DEBUG = True
+DEBUG = False
+
+CASE_NAME = ds.ProjectState.ProjectDir.Name
+def exc(e=''):
+    ''' Exception output '''
+    try:
+        if DEBUG:
+            py_name = os.path.basename(__file__)
+            msg = 'DEBUG {} case:<{}> :'.format(py_name, CASE_NAME)
+            TraceService.Trace(TraceLevel.Warning,
+                               (msg+'{}{}').format(traceback.format_exc(), e))
+    except:
+        pass
 
 
 SQL_CREATE_TABLE_BOOKMARK = '''
@@ -96,13 +111,18 @@ SQL_CREATE_TABLE_BROWSERECORDS = '''
         url TEXT,
         datetime INTEGER,
         owneruser TEXT,
+        visit_count INTEGER DEFAULT 1,
         source TEXT,
         deleted INTEGER,
         repeated INTEGER
     )'''
 
 SQL_INSERT_TABLE_BROWSERECORDS = '''
-    INSERT INTO browse_records(id, name, url, datetime, owneruser, source, deleted, repeated) values(? ,? ,? ,? ,? ,? ,?, ?)
+    INSERT INTO 
+    browse_records
+        (id, name, url, datetime, owneruser, visit_count, source, deleted, repeated) 
+    values
+        (? ,? ,? ,? ,? ,? ,?, ?, ?)
     '''
 
 SQL_CREATE_TABLE_ACCOUNTS = '''
@@ -374,9 +394,10 @@ class Browserecord(Column):
         self.url = None
         self.datetime = None
         self.owneruser = 'default_user'
+        self.visit_count = 1
 
     def get_values(self):
-        return (self.id, self.name, self.url, self.datetime, self.owneruser) + super(Browserecord, self).get_values()
+        return (self.id, self.name, self.url, self.datetime, self.owneruser, self.visit_count) + super(Browserecord, self).get_values()
 
 
 class DownloadFile(Column):
@@ -561,6 +582,18 @@ class Generate(object):
     def _get_browse_record_models(self):
         model = []
         sql = '''select distinct * from browse_records'''
+        '''
+        0    id INTEGER,
+        1    name TEXT,
+        2    url TEXT,
+        3    datetime INTEGER,
+        4    owneruser TEXT,
+        5    visit_count INTEGER DEFAULT 1,
+
+        6    source TEXT,
+        7    deleted INTEGER,
+        8    repeated INTEGER
+        '''
         try:
             self.db_cmd.CommandText = sql
             row = self.db_cmd.ExecuteReader()             
@@ -573,10 +606,12 @@ class Generate(object):
                     visited.Url.Value = row[2]
                 if not IsDBNull(row[3]):
                     visited.LastVisited.Value = self._get_timestamp(row[3])
-                if not IsDBNull(row[5]) and row[5] not in [None, '']:
-                    visited.SourceFile.Value = row[5]
-                if not IsDBNull(row[6]):
-                    visited.Deleted = self._convert_deleted_status(row[6])
+                if not IsDBNull(row[5]):
+                    visited.VisitCount.Value = row[5]
+                if not IsDBNull(row[6]) and row[6] not in [None, '']:
+                    visited.SourceFile.Value = row[6]
+                if not IsDBNull(row[7]):
+                    visited.Deleted = self._convert_deleted_status(row[7])
                 model.append(visited)
             row.Close()
         except Exception as e:
@@ -790,3 +825,32 @@ class Generate(object):
         except:
             pass
 
+
+def convert_2_SearchedItem(_VisitedPage):
+    ''' 有些搜索记录没有存储, 需要将浏览记录转化为搜索记录(SearchedItem), "网页搜索_"为神马搜索
+    
+    Args:
+        VisitedPage: Generic.VisitedPage()
+    Return:
+        SearchedItem: SearchedItem()
+    '''
+    SEARCH_ENGINES = r'((?P<keyword1>.*?)( - 百度| - 搜狗搜索|_360搜索| - 国内版 Bing)$)|(^网页搜索_(?P<keyword2>.*))|'
+    try:
+        if _VisitedPage.Title.Value:
+            match_res = re.match(SEARCH_ENGINES, _VisitedPage.Title.Value)
+            if match_res and (match_res.group('keyword1') or match_res.group('keyword2')):
+                keyword1 = match_res.group('keyword1')
+                keyword2 = match_res.group('keyword2')
+                keyword = keyword1 if keyword1 else keyword2
+                search = SearchedItem()
+                if _VisitedPage.Url.Value:
+                    search.SearchResults.Add(_VisitedPage.Url.Value)
+                search.Value.Value      = keyword
+                search.TimeStamp.Value  = _VisitedPage.LastVisited.Value
+                search.SourceFile.Value = _VisitedPage.Source.Value
+                search.Deleted          = _VisitedPage.Deleted
+
+                return search
+    except:
+        exc()
+        return 

@@ -38,7 +38,7 @@ def exc(e=''):
     except:
         pass   
 
-def test_p(*e):
+def tp(*e):
     ''' Highlight print in test environments vs console '''
     if DEBUG:
         TraceService.Trace(TraceLevel.Warning, "{}".format(e))
@@ -102,6 +102,7 @@ class BaiduMobileParser(object):
             app_webview_baidu/Cookies
             app_webview/Cookies
         '''
+        tp(os.path)
         if DEBUG or self.mb.need_parse(self.cache_db, VERSION_APP_VALUE):
             if not self._read_db('databases/SearchBox.db'):
                 return []             
@@ -233,31 +234,31 @@ class BaiduMobileParser(object):
                                 - visit_swan_history
 
             - visit_search_history
-            RecNo	FieldName	SQLType	
-            1	_id	INTEGER False			
-            2	ukey	TEXT    False			
-            3	serverid	TEXT    False			
-            4	tplid	TEXT    False			
-            5	status	TEXT    False			
-            6	title	TEXT    True		False			
-            7	desc	TEXT    False			
-            8	img	TEXT    False			
-            9	url	TEXT    False			
-            10	cmd	TEXT    False			
-            11	opentype	TEXT    False			
-            12	feature	TEXT    False			
-            13	datatype	TEXT    True		False			
-            14	parent	TEXT    False			
-            15	visible	TEXT    False			
-            16	enable	TEXT    False			
-            17	createtime	TEXT    False			
-            18	modifytime	TEXT    False			
-            19	visittime	TEXT    False			
-            20	visits	INTEGER False			
-            21	extra1	TEXT    False			
-            22	extra2	TEXT    False			
-            23	isfavored	INTEGER False			
-            24	uid	TEXT    False			
+            RecNo	    
+            1	_id	            INTEGER     
+            2	ukey	            TEXT        
+            3	serverid	            TEXT        
+            4	tplid	            TEXT        
+            5	status	            TEXT        
+            6	title	            TEXT	    
+            7	desc	            TEXT        
+            8	img	            TEXT        
+            9	url	            TEXT        
+            10	cmd	            TEXT        
+            11	opentype	        TEXT        
+            12	feature	            TEXT        
+            13	datatype	        TEXT	    
+            14	parent	            TEXT        
+            15	visible	            TEXT        
+            16	enable	            TEXT        
+            17	createtime	            TEXT        
+            18	modifytime	            TEXT        
+            19	visittime	            TEXT        
+            20	visits	            INTEGER     
+            21	extra1	            TEXT        
+            22	extra2	            TEXT        
+            23	isfavored	        INTEGER     
+            24	uid	            TEXT        
         '''
         if not self._read_db(db_path):
             return 
@@ -272,13 +273,14 @@ class BaiduMobileParser(object):
             if self._is_duplicate(rec, '_id'):
                 continue                    
             browser_record = Browserecord()
-            browser_record.id        = rec['_id'].Value
-            browser_record.name      = rec['title'].Value
-            browser_record.url       = rec['url'].Value
-            browser_record.datetime  = rec['createtime'].Value
-            # browser_record.owneruser = rec['date'].Value
-            browser_record.source    = self.cur_db_source
-            browser_record.deleted   = 1 if rec.IsDeleted else 0         
+            browser_record.id          = rec['_id'].Value
+            browser_record.name        = rec['title'].Value
+            browser_record.url         = rec['url'].Value
+            browser_record.datetime    = rec['createtime'].Value
+            browser_record.visit_count = rec['visits'].Value if rec['visits'].Value > 0 else 1
+            # browser_record.owneruser   = rec['date'].Value
+            browser_record.source      = self.cur_db_source
+            browser_record.deleted     = 1 if rec.IsDeleted else 0
             try:
                 self.mb.db_insert_table_browserecords(browser_record)
             except:

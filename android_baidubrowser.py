@@ -1,4 +1,4 @@
-# coding=utf-8
+﻿# coding=utf-8
 __author__ = 'YangLiyuan'
 
 import re
@@ -35,7 +35,7 @@ def exc(e=''):
     except:
         pass   
 
-def test_p(*e):
+def tp(*e):
     ''' Highlight print in test environments vs console '''
     if DEBUG:
         TraceService.Trace(TraceLevel.Warning, "{}".format(e))
@@ -85,7 +85,7 @@ class BaiduBrowserParser(object):
             databases/dbbrowser.db
             app_webview_baidu/Cookies
         '''
-        test_p(self.root.AbsolutePath)
+        tp(self.root.AbsolutePath)
         if DEBUG or self.mb.need_parse(self.cache_db, VERSION_APP_VALUE):
             if not self._read_db('databases/dbbrowser.db'):
                 return []
@@ -107,7 +107,7 @@ class BaiduBrowserParser(object):
         save_cache_path(bcp_browser.NETWORK_APP_BAIDU, self.cache_db, tmp_dir)
 
         models = Generate(self.cache_db).get_models()
-        test_p('匹配 百度浏览器, return models')
+        tp('匹配 百度浏览器, return models')
 
         return models
 
@@ -180,12 +180,13 @@ class BaiduBrowserParser(object):
             if self._is_duplicate(rec, 'create_time'):
                 continue                
             browser_record = Browserecord()
-            browser_record.id       = rec['_id'].Value
-            browser_record.name     = rec['title'].Value
-            browser_record.url      = rec['url'].Value
-            browser_record.datetime = rec['date'].Value
-            browser_record.source   = self.cur_db_source
-            browser_record.deleted  = 1 if rec.IsDeleted else 0            
+            browser_record.id          = rec['_id'].Value
+            browser_record.name        = rec['title'].Value
+            browser_record.url         = rec['url'].Value
+            browser_record.datetime    = rec['date'].Value
+            browser_record.visit_count = rec['visits'].Value if rec['visits'].Value > 0 else 1
+            browser_record.source      = self.cur_db_source
+            browser_record.deleted     = 1 if rec.IsDeleted else 0
             try:
                 self.mb.db_insert_table_browserecords(browser_record)
             except:
@@ -266,7 +267,7 @@ class BaiduBrowserParser(object):
             16	type	            TEXT
             17	url	                TEXT
         """        
-        # test_p 'table_name:', self.root.AbsolutePath
+        # tp 'table_name:', self.root.AbsolutePath
         if not self._read_db(db_path):
             return 
         for rec in self._read_table(table_name):
@@ -274,7 +275,7 @@ class BaiduBrowserParser(object):
                 continue     
             if self._is_duplicate(rec, 'createdtime'):
                 continue
-            test_p('filename', rec['filename'].Value)
+            tp('filename', rec['filename'].Value)
             downloads = DownloadFile()
             downloads.url            = rec['url'].Value
             downloads.filename       = rec['filename'].Value
@@ -368,7 +369,7 @@ class BaiduBrowserParser(object):
                 return _path
             return _path if _path else file_name
         except:
-            test_p('android_baidubrowser.py _conver_2_nodeapth error, file_name:', file_name)
+            tp('android_baidubrowser.py _conver_2_nodeapth error, file_name:', file_name)
             exc()
             return file_name
 

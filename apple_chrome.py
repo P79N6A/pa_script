@@ -243,14 +243,14 @@ class ChromeParser(object):
                         not self._is_url(rec, 'url')):
                     continue
                 browser_record = model_browser.Browserecord()
-                browser_record.id        = rec['id'].Value
-                browser_record.name      = rec['title'].Value
-                browser_record.url       = rec['url'].Value
-                browser_record.datetime  = self._convert_webkit_ts(rec['last_visit_time'].Value)
-                browser_record.visits    = rec['visit_count'].Value
-                browser_record.owneruser = self.cur_account_name
-                browser_record.source    = self.cur_db_source
-                browser_record.deleted   = 1 if rec.IsDeleted else rec['hidden'].Value
+                browser_record.id          = rec['id'].Value
+                browser_record.name        = rec['title'].Value
+                browser_record.url         = rec['url'].Value
+                browser_record.datetime    = self._convert_webkit_ts(rec['last_visit_time'].Value)
+                browser_record.visit_count = rec['visit_count'].Value if rec['visit_count'].Value > 0 else 1
+                browser_record.owneruser   = self.cur_account_name
+                browser_record.source      = self.cur_db_source
+                browser_record.deleted     = 1 if rec.IsDeleted else rec['hidden'].Value
                 self.mb.db_insert_table_browserecords(browser_record)
 
                 if URLID_KEYWORD.has_key(rec['id'].Value):
