@@ -2264,7 +2264,29 @@
         </dict>
       </array>
     </dict>
-
+    <dict>
+      <key>Module</key>
+      <string>android_icq</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>parse_icq</string>
+          <key>RunnerType</key>
+          <integer>2</integer>
+          <key>Patterns</key>
+          <array>
+            <string>/com.icq.mobile.client/shared_prefs/com.icq.mobile.client_preferences.xml$</string>
+          </array>
+          <key>Category</key>
+          <string>ICQ</string>
+          <key>Name</key>
+          <string>ICQ(安卓)</string>
+          <key>Filter</key>
+          <string>应用>即时通讯</string>
+        </dict>
+      </array>
+    </dict>
     <dict>
       <key>Module</key>
       <string>andriod_qq</string>
