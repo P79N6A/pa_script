@@ -1425,6 +1425,30 @@
       </array>
     </dict>
 
+	<dict>
+      <key>Module</key>
+      <string>apple_bulletmessage</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_bulletMessage</string>
+          <key>RunnerType</key>
+          <integer>0</integer>
+          <key>Patterns</key>
+          <array>
+            <string>/Library/Preferences/com\.bullet\.message\.plist$</string>
+          </array>
+          <key>Category</key>
+          <string>BulletMessage</string>
+          <key>Name</key>
+          <string>子弹短信(苹果)</string>
+          <key>Filter</key>
+          <string>应用>即时通讯</string>
+        </dict>
+      </array>
+    </dict>
+	
     <dict>
       <key>Module</key>
       <string>apple_recents</string>
