@@ -85,7 +85,7 @@ class BaiduBrowserParser(object):
             databases/dbbrowser.db
             app_webview_baidu/Cookies
         '''
-        tp(self.root.AbsolutePath)
+        # tp(self.root.AbsolutePath)
         if DEBUG or self.mb.need_parse(self.cache_db, VERSION_APP_VALUE):
             if not self._read_db('databases/dbbrowser.db'):
                 return []
@@ -107,8 +107,6 @@ class BaiduBrowserParser(object):
         save_cache_path(bcp_browser.NETWORK_APP_BAIDU, self.cache_db, tmp_dir)
 
         models = Generate(self.cache_db).get_models()
-        tp('匹配 百度浏览器, return models')
-
         return models
 
     def parse_Bookmark(self, db_path, table_name):
@@ -275,7 +273,6 @@ class BaiduBrowserParser(object):
                 continue     
             if self._is_duplicate(rec, 'createdtime'):
                 continue
-            tp('filename', rec['filename'].Value)
             downloads = DownloadFile()
             downloads.url            = rec['url'].Value
             downloads.filename       = rec['filename'].Value

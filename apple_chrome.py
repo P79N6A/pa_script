@@ -22,7 +22,7 @@ DEBUG = True
 DEBUG = False
 
 # app数据库版本
-VERSION_APP_VALUE = 1
+VERSION_APP_VALUE = 2
 
 CASE_NAME = ds.ProjectState.ProjectDir.Name
 
@@ -63,33 +63,30 @@ def print_run_time(func):
 def analyze_chrome(node, extract_deleted, extract_source):
     ''' Patterns:string>/Library/Application Support/Google/Chrome/Default/History$  '''
     tp('apple_chrome.py is running ...')
-    tp(node.AbsolutePath)
     res = []
-
     pr = ParserResults()
     try:
-        res = ChromeParser(node, extract_deleted, extract_source).parse()
+        res = AppleChromeParser(node, extract_deleted, extract_source).parse()
     except:
         TraceService.Trace(TraceLevel.Debug,
                            'analyze_chrome 解析新案例 <{}> 出错: {}'.format(CASE_NAME, traceback.format_exc()))
     if res:
         pr.Models.AddRange(res)
         pr.Build('Chrome浏览器')
-    tp('apple_chrome.py is finished !')
+        tp('apple_chrome.py is finished !')
     return pr
 
 
-class ChromeParser(object):
+class BaseChromeParser(object):
+
     def __init__(self, node, extract_deleted, extract_source):
-        ''' Patterns:string>/Library/Application Support/Google/Chrome/Default/History$ '''
-        self.root = node.Parent.Parent.Parent
+        self.root = node.Parent.Parent
         self.extract_deleted = extract_deleted
         self.extract_source = extract_source
 
         self.mb = model_browser.MB()
         self.cachepath = ds.OpenCachePath('Chrome')
-        hash_str = hashlib.md5(node.AbsolutePath).hexdigest()[8:-8]
-        self.cache_db = self.cachepath + '\\i_chrome_{}.db'.format(hash_str)
+        self.cache_db = None
 
         self.download_path = None
 
@@ -111,21 +108,20 @@ class ChromeParser(object):
         return models
 
     def parse_main(self):
-        ''' self.root: Library/Application Support/Google '''
-        accounts = self.parse_Account('Chrome/Default/Preferences')
+        accounts = self.parse_Account('Default/Preferences')
         self.cur_account_name = accounts[0].get('email', 'default_account')
 
-        self.parse_Bookmark('Chrome/Default/Bookmarks')
-        self.parse_Cookie('Chrome/Default/Cookies', 'cookies')
-        if self._read_db('Chrome/Default/History'):
+        self.parse_Bookmark('Default/Bookmarks')
+        self.parse_Cookie('Default/Cookies', 'cookies')
+        if self._read_db('Default/History'):
             URLS = self._parse_DownloadFile_urls('downloads_url_chains')
             URLID_KEYWORD = self._parse_SearchHistory_keyword('keyword_search_terms')
             self.parse_DownloadFile(URLS, 'downloads')
             self.parse_Browserecord_SearchHistory(URLID_KEYWORD, 'urls')
 
     def parse_Account(self, json_path):
-        ''' Chrome/Default/Preferences 
-        
+        ''' Default/Preferences 
+
             "account_info": [
                 {
                     "account_id": "114861829127406446564",
@@ -141,14 +137,14 @@ class ChromeParser(object):
                 }
             ],        
         '''
-        # parse preferencesz
+        # parse preference
         pfs = self._read_json(json_path)
         if not pfs:
             return []
 
         default_user = [{
             "account_id": "default_user",
-            "full_name": "default_user",
+            "email": "default_user",
         }]
         accounts = pfs.get('account_info', default_user)
         self.download_path = set([
@@ -170,7 +166,7 @@ class ChromeParser(object):
         return accounts
 
     def parse_Bookmark(self, json_path):
-        ''' Chrome/Default/Bookmarks
+        ''' Default/Bookmarks
 
             {
                 "checksum": "388084ac9ab95b458ccc296b77032310",
@@ -182,10 +178,8 @@ class ChromeParser(object):
                         "id": "1",
                         "name": "书签栏",
                         "type": "folder"
-                    },
-                ...
-                }
-            ...
+                    },...
+                }...
             }
         '''
         bookmark_dict = self._read_json(json_path)
@@ -196,10 +190,11 @@ class ChromeParser(object):
             _folder = roots.get(bookmark_folder, {})
             if not isinstance(_folder, dict):
                 continue
-            self._bookmark_from_json(_folder.get('children', []))
+            is_synced = True if bookmark_folder == 'synced' else False  
+            self._bookmark_from_json(_folder.get('children', []), is_synced)
         self.mb.db_commit()
 
-    def _bookmark_from_json(self, json_list):
+    def _bookmark_from_json(self, json_list, is_synced=False):
         ''' chrome _bookmark_from_json recursively
 
         Args:
@@ -210,22 +205,23 @@ class ChromeParser(object):
         for bookmark_dict in json_list:
             bookmark_type = bookmark_dict.get('type', None)
             if  bookmark_type == 'folder' and bookmark_dict.get('children', []):
-                self._bookmark_from_json(bookmark_dict.get('children', []))
+                self._bookmark_from_json(bookmark_dict.get('children', []), is_synced)
             elif bookmark_type == 'url':
                 bm = model_browser.Bookmark()
                 bm.id        = bookmark_dict.get('id', None)
-                # bm.owneruser = self.cur_account_name
+                 # bm.owneruser = self.cur_account_name
                 bm.time      = self._convert_webkit_ts(bookmark_dict.get('date_added', None))
                 bm.title     = bookmark_dict.get('name', None)
-                bm.url       = bookmark_dict.get('url', None) 
-                bm.owneruser = self.cur_account_name             
-                bm.source    = self.cur_json_source             
+                bm.url       = bookmark_dict.get('url', None)
+                bm.owneruser = self.cur_account_name
+                bm.is_synced = is_synced
+                bm.source    = self.cur_json_source
                 self.mb.db_insert_table_bookmarks(bm)
             else:
                 tp('>>> chrome new bookmark type:', bookmark_type)
 
     def parse_Browserecord_SearchHistory(self, URLID_KEYWORD, table_name):
-        ''' Chrome/Default/History - urls
+        ''' Default/History - urls
 
             FieldName	    SQLType     	        	
             id	            INTEGER
@@ -240,7 +236,7 @@ class ChromeParser(object):
             try:
                 if (self._is_empty(rec, 'url', 'last_visit_time') or
                     self._is_duplicate(rec, 'id') or
-                        not self._is_url(rec, 'url')):
+                    not self._is_url(rec, 'url')):
                     continue
                 browser_record = model_browser.Browserecord()
                 browser_record.id          = rec['id'].Value
@@ -268,7 +264,7 @@ class ChromeParser(object):
         self.mb.db_commit()
 
     def _parse_SearchHistory_keyword(self, table_name):
-        ''' Chrome/Default/History - keyword_search_terms
+        ''' Default/History - keyword_search_terms
 
             FieldName	    SQLType    	
             keyword_id	        INTEGER
@@ -290,7 +286,7 @@ class ChromeParser(object):
         return URLID_KEYWORD
 
     def parse_Cookie(self, db_path, table_name):
-        ''' Chrome/Default/Cookies - keyword_search_terms
+        ''' Default/Cookies - keyword_search_terms
 
             FieldName	        SQLType 	     	
             creation_utc	    INTEGER
@@ -313,10 +309,6 @@ class ChromeParser(object):
             return
         for rec in self._read_table(table_name):
             try:
-                e = rec.GetEnumerator()
-                tp(dir(e))
-                tp(e.next)
-
                 if (self._is_empty(rec, 'creation_utc') or
                     self._is_duplicate(rec, 'creation_utc')):
                     continue
@@ -339,7 +331,7 @@ class ChromeParser(object):
 
     @print_run_time
     def parse_DownloadFile(self, URLS, table_name):
-        ''' Chrome/Default/History - downloads
+        ''' Default/History - downloads
 
             FieldName	SQLType	Size	Precision	PKDisplay               	
             id	                        INTEGER
@@ -393,7 +385,7 @@ class ChromeParser(object):
         self.mb.db_commit()
 
     def _parse_DownloadFile_urls(self, table_name):
-        ''' Chrome/Default/History - downloads
+        ''' Default/History - downloads
 
         FieldName	    SQLType	     	
         id	            INTEGER
@@ -420,25 +412,7 @@ class ChromeParser(object):
         return URLS
 
     def _2_nodepath(self, raw_path):
-        ''' huawei: /data/user/0/com.baidu.searchbox/files/template/profile.zip
-        '''
-        try:
-            if not raw_path:
-                return
-            fs = self.root.FileSystem
-            file_node = fs.GetByPath(prefix + raw_path)
-            if file_node and file_node.Type == NodeType.File:
-                return file_node.AbsolutePath
-
-            invalid_path = re.search(r'[\\:*?"<>|\r\n]+', raw_path)
-            if invalid_path:
-                return 
-            nodes = list(fs.Search(raw_path))
-            if nodes and nodes[0].Type == NodeType.File:
-                return nodes[0].AbsolutePath
-        except:
-            tp('apple_chrome.py _conver_2_nodeapth error, raw_path:', raw_path)
-            exc()
+        pass
 
     def _read_json(self, json_path):
         ''' read_json set self.cur_json_source
@@ -467,7 +441,6 @@ class ChromeParser(object):
             bool: is valid db
         '''
         try:
-            tp('db_path', db_path)
             node = self.root.GetByPath(db_path)
             self.cur_db = SQLiteParser.Database.FromNode(node, canceller)
             if self.cur_db is None:
@@ -578,3 +551,33 @@ class ChromeParser(object):
                 exc()
                 return False
         return True
+
+
+class AppleChromeParser(BaseChromeParser):
+    def __init__(self, node, extract_deleted, extract_source):
+        ''' Patterns:string>/Library/Application Support/Google/Chrome/Default/History$ '''
+
+        super(AppleChromeParser, self).__init__(node, extract_deleted, extract_source)
+        hash_str = hashlib.md5(node.AbsolutePath).hexdigest()[8:-8]
+        self.cache_db = self.cachepath + '\\a_chrome_{}.db'.format(hash_str)
+
+    def _2_nodepath(self, raw_path):
+        ''' huawei: /data/user/0/com.baidu.searchbox/files/template/profile.zip
+        '''
+        try:
+            if not raw_path:
+                return
+            fs = self.root.FileSystem
+            file_node = fs.GetByPath(prefix + raw_path)
+            if file_node and file_node.Type == NodeType.File:
+                return file_node.AbsolutePath
+
+            invalid_path = re.search(r'[\\:*?"<>|\r\n]+', raw_path)
+            if invalid_path:
+                return 
+            nodes = list(fs.Search(raw_path))
+            if nodes and nodes[0].Type == NodeType.File:
+                return nodes[0].AbsolutePath
+        except:
+            tp('apple_chrome.py _conver_2_nodeapth error, raw_path:', raw_path)
+            exc()

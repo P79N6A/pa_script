@@ -102,7 +102,6 @@ class BaiduMobileParser(object):
             app_webview_baidu/Cookies
             app_webview/Cookies
         '''
-        tp(os.path)
         if DEBUG or self.mb.need_parse(self.cache_db, VERSION_APP_VALUE):
             if not self._read_db('databases/SearchBox.db'):
                 return []             
