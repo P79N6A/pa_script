@@ -2023,6 +2023,52 @@
         </dict>
       </array>
     </dict>
+    <dict>
+      <key>Module</key>
+      <string>apple_kakaotalk</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_apple_kakaotalk</string>
+          <key>RunnerType</key>
+          <integer>0</integer>
+          <key>Patterns</key>
+          <array>
+            <string>/PrivateDocuments/Talk.sqlite$</string>
+          </array>
+          <key>Category</key>
+          <string>BeeTalk</string>
+          <key>Name</key>
+          <string>KakaoTalk(苹果)</string>
+          <key>Filter</key>
+          <string>应用>社交</string>
+        </dict>
+      </array>
+    </dict>
+    <dict>
+      <key>Module</key>
+      <string>apple_shunfeng</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_apple_shunfeng</string>
+          <key>RunnerType</key>
+          <integer>0</integer>
+          <key>Patterns</key>
+          <array>
+            <string>/SuYunTong_Store_Pro/SuYunTong_Store_Pro.sql$</string>
+          </array>
+          <key>Category</key>
+          <string>BeeTalk</string>
+          <key>Name</key>
+          <string>Shunfeng(苹果)</string>
+          <key>Filter</key>
+          <string>应用>社交</string>
+        </dict>
+      </array>
+    </dict>
     <!--安卓运行插件从这里开始-->
 
     <dict>
