@@ -395,7 +395,7 @@
         </dict>
       </array>
     </dict>
-	<dict>
+    <dict>
       <key>Module</key>
       <string>data_files</string>
       <key>Runners</key>
@@ -1330,27 +1330,27 @@
     </dict>
 
     <dict>
-        <key>Module</key>
-        <string>apple_chrome</string>
-        <key>Runners</key>
-        <array>
-            <dict>
-                <key>EntryPoint</key>
-                <string>analyze_chrome</string>
-                <key>RunnerType</key>
-                <integer>0</integer>
-                <key>Patterns</key>
-                <array>
-                    <string>/Library/Application Support/Google/Chrome/Default/History$</string>
-                </array>
-                <key>Category</key>
-                <string>ChromeBrowser</string>
-                <key>Name</key>
-                <string>Chrome浏览器(苹果)</string>
-                <key>Filter</key>
-                <string>应用>浏览器</string>
-            </dict>
-        </array>
+      <key>Module</key>
+      <string>apple_chrome</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_chrome</string>
+          <key>RunnerType</key>
+          <integer>0</integer>
+          <key>Patterns</key>
+          <array>
+            <string>/Library/Application Support/Google/Chrome/Default/History$</string>
+          </array>
+          <key>Category</key>
+          <string>ChromeBrowser</string>
+          <key>Name</key>
+          <string>Chrome浏览器(苹果)</string>
+          <key>Filter</key>
+          <string>应用>浏览器</string>
+        </dict>
+      </array>
     </dict>
 
     <dict>
@@ -2359,6 +2359,29 @@
     </dict>
     <dict>
       <key>Module</key>
+      <string>android_soul</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_Soul</string>
+          <key>RunnerType</key>
+          <integer>2</integer>
+          <key>Patterns</key>
+          <array>
+            <string>/cn.soulapp.android/shared_prefs/cn.soulapp.android_preferences.xml$</string>
+          </array>
+          <key>Category</key>
+          <string>Soul</string>
+          <key>Name</key>
+          <string>Soul(安卓)</string>
+          <key>Filter</key>
+          <string>应用>即时通讯</string>
+        </dict>
+      </array>
+    </dict>
+    <dict>
+      <key>Module</key>
       <string>andriod_qq</string>
       <key>Runners</key>
       <array>
@@ -2510,8 +2533,8 @@
         </dict>
       </array>
     </dict>
-	
-	<dict>
+
+    <dict>
       <key>Module</key>
       <string>android_qunar</string>
       <key>Runners</key>
@@ -2927,27 +2950,27 @@
     </dict>
 
     <dict>
-        <key>Module</key>
-        <string>android_chrome</string>
-        <key>Runners</key>
-        <array>
-            <dict>
-                <key>EntryPoint</key>
-                <string>analyze_chrome</string>
-                <key>RunnerType</key>
-                <integer>2</integer>
-                <key>Patterns</key>
-                <array>
-                    <string>/com\.android\.chrome/app_chrome/Default/History$</string>
-                </array>
-                <key>Category</key>
-                <string>ChromeBrowser</string>
-                <key>Name</key>
-                <string>Chrome浏览器(安卓)</string>
-                <key>Filter</key>
-                <string>应用>浏览器</string>
-            </dict>
-        </array>
+      <key>Module</key>
+      <string>android_chrome</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_chrome</string>
+          <key>RunnerType</key>
+          <integer>2</integer>
+          <key>Patterns</key>
+          <array>
+            <string>/com\.android\.chrome/app_chrome/Default/History$</string>
+          </array>
+          <key>Category</key>
+          <string>ChromeBrowser</string>
+          <key>Name</key>
+          <string>Chrome浏览器(安卓)</string>
+          <key>Filter</key>
+          <string>应用>浏览器</string>
+        </dict>
+      </array>
     </dict>
 
     <dict>

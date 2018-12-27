@@ -31,7 +31,7 @@ import model_nd
 
 __author__ = "TaoJianping"
 __all__ = ['ModelCol', 'RecoverTableHelper', 'Logger', 'ParserBase', 'TaoUtils', "TimeHelper", "FieldType",
-           "FieldConstraints"]
+           "FieldConstraints", "BaseModel"]
 
 
 class ModelCol(object):
@@ -128,7 +128,7 @@ class RecoverTableHelper(object):
         self.db = SQLiteParser.Database.FromNode(node, canceller)
         self.db_path = node.PathWithMountPoint
 
-    def fetch_table(self, table_name, table_config):
+    def get_table(self, table_name, table_config):
         """
         None = 0,
         NotNull = 8,
@@ -162,6 +162,12 @@ class RecoverTableHelper(object):
 
     def read_deleted_records(self, table, deep_carve=False):
         return self.db.ReadTableDeletedRecords(table, deep_carve)
+
+
+# 为了不破坏兼容性，只是继承RecoverTableHelper,但功能都是一样的
+# ModelCol和BaseModel的区别就是前者能写sql语句,而这个不能
+class BaseModel(RecoverTableHelper):
+    pass
 
 
 class TaoUtils(object):

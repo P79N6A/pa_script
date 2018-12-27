@@ -262,7 +262,7 @@ class SoulParser(ParserBase):
         recover_col = self.friend_recover_col
         if not recover_col.is_valid():
             return
-        ts = recover_col.fetch_table("userInfo", {
+        ts = recover_col.get_table("userInfo", {
             "converstionID": [FieldType.Text, FieldConstraints.NotNull],
             "signatrue": [FieldType.Text, FieldConstraints.NotNull],
             "comeFromStr": [FieldType.Text, FieldConstraints.NotNull],
@@ -325,12 +325,9 @@ class SoulParser(ParserBase):
                     message.status = model_im.MESSAGE_STATUS_READ if db_col.get_int64(4) == 1 \
                         else model_im.MESSAGE_STATUS_UNREAD
                     message.talker_type = model_im.CHAT_TYPE_FRIEND
-                    message.sender_id = db_col.get_string(3)
-                    message.talker_id = message.sender_id
-                    message.sender_name = self._query_sender_name(message.account_id, message.sender_id)
-                    message.talker_name = message.sender_name
+                    message.talker_id = db_col.get_string(3)
                     self._parse_message_body(message, db_col.get_string(9))
-
+                    message.sender_name = message.talker_name = self._query_sender_name(message.account_id, message.sender_id)
                     if message.type == model_im.MESSAGE_CONTENT_TYPE_IMAGE:
                         image_urls = message.media_path[:]
                         for image_url in image_urls:
@@ -347,7 +344,7 @@ class SoulParser(ParserBase):
         recover_col = self.message_recover_col
         if not recover_col.is_valid():
             return
-        ts = recover_col.fetch_table("message", {
+        ts = recover_col.get_table("message", {
             "msgid": [FieldType.Text, FieldConstraints.NotNull],
             "msgtime": [FieldType.Int, FieldConstraints.NotNull],
             "conversation": [FieldType.Text, FieldConstraints.NotNull],
@@ -369,11 +366,10 @@ class SoulParser(ParserBase):
                 message.status = model_im.MESSAGE_STATUS_READ if rec['isread'].Value == 1 \
                     else model_im.MESSAGE_STATUS_UNREAD
                 message.talker_type = model_im.CHAT_TYPE_FRIEND
-                message.sender_id = rec['conversation'].Value
-                message.talker_id = message.sender_id
+                message.talker_id = rec['conversation'].Value
+                self._parse_message_body(message, rec['msgbody'].Value)
                 message.sender_name = self._query_sender_name(message.account_id, message.sender_id)
                 message.talker_name = message.sender_name
-                self._parse_message_body(message, rec['msgbody'].Value)
 
                 if message.type == model_im.MESSAGE_CONTENT_TYPE_IMAGE:
                     image_urls = message.media_path[:]
