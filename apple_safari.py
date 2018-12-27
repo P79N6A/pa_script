@@ -1,12 +1,9 @@
 ﻿#coding=utf-8
 __author__ = 'YangLiyuan'
 
-import os
 import PA_runtime
-import traceback
 import hashlib
-import time
-import re
+import time as py_time
 
 import clr
 try:
@@ -15,7 +12,7 @@ try:
 except:
     pass
 
-from model_browser import *
+import model_browser
 import bcp_browser
 
 from PA_runtime import *
@@ -24,19 +21,24 @@ DEBUG = True
 DEBUG = False
 
 class SafariParser(object):
+    ''' node: /Library/Safari$ '''
     def __init__(self, node, extractDeleted, extractSource):
         self.extractDeleted = extractDeleted
         self.extractSource = extractSource
         self.source = 'Safari'
-        self.directory = node        
-
+        self.directory = node     
+        self.SEARCHED_ITEMS_TS = []
+ 
     def parse(self):
         results = []
         results.extend(self.analyze_bookmarks())
+        results.extend(self.searchedItems())
         results.extend(self.read_history_db())
+
         tempResults = self.read_history_plist()
         results.extend(self.history_readState(tempResults))
-        results.extend(self.searchedItems())
+        
+
         return results		
 
     def analyze_bookmarks(self):
@@ -153,6 +155,7 @@ class SafariParser(object):
         return results.values()
 
     def history_readState_helper(self, results, bp, SafariState):
+        # bp: SuspendState.plist
         if bp is None or bp[SafariState] is None:
             return
 
@@ -204,6 +207,7 @@ class SafariParser(object):
                             results[subRes.Url.Value] = subRes
 
     def createIdToUrlDict(self,histDb):
+        ''' 关联 '''
         IdToUrlDict = {}
         ts = SQLiteParser.TableSignature('history_items')
         if self.extractDeleted:
@@ -218,9 +222,13 @@ class SafariParser(object):
             IdToUrlDict[id] = rec['url'], rec.Deleted
         return IdToUrlDict
 
-    def createVisitedPagesAndSearchedItems(self,histDb,IdToUrlDict):
-        visitsAndSearched = []
+    def read_history_db(self):
+        histDb = SQLiteParser.Tools.GetDatabaseByPath(self.directory, 'History.db')
+        if histDb is None:
+            return []
+        IdToUrlDict = self.createIdToUrlDict(histDb)   
 
+        visitsAndSearched = []
         ts = SQLiteParser.TableSignature('history_visits')
         if self.extractDeleted:
             SQLiteParser.Tools.AddSignatureToTable(ts, 'visit_time', SQLiteParser.Tools.SignatureType.Float)
@@ -231,7 +239,6 @@ class SafariParser(object):
         for rec in histDb.ReadTableRecords(ts, self.extractDeleted, True):
             if IsDBNull(rec['history_item'].Value):
                 continue
-
             histItemId = rec['history_item'].Value
 
             vp = VisitedPage()
@@ -245,7 +252,6 @@ class SafariParser(object):
                 SQLiteParser.Tools.ReadColumnToField(rec, 'title', vp.Title, self.extractSource)         
             
             vp.VisitCount.Value = 1
-
             ts = None
             if not rec['visit_time'].IsDBNull:
                 try:
@@ -266,9 +272,14 @@ class SafariParser(object):
 
                 for s in searchedItems:
                     LinkModels(s,vp)
-                    visitsAndSearched.append(s)                
+                    visitsAndSearched.append(s) 
+                # 提取非 Safari  搜索框输入的 搜索关键字(SearchedItem) 
+                _SearchedItem = self._convert_2_SearchedItem(vp)
+                if _SearchedItem:
+                    visitsAndSearched.append(_SearchedItem)
 
                 visitsAndSearched.append(vp)
+        # 删除数据
         for url, deleted in [IdToUrlDict[id] for id in IdToUrlDict if id not in used_ids]:
             vp = VisitedPage()
             vp.Deleted = deleted
@@ -278,15 +289,18 @@ class SafariParser(object):
                 vp.Url.Init(url.Value, MemoryRange(url.Source) if self.extractSource else None)
             visitsAndSearched.append(vp)
         return visitsAndSearched
-     
-    def read_history_db(self):
-        histDb = SQLiteParser.Tools.GetDatabaseByPath(self.directory, 'History.db')
-        if histDb is None:
-            return []
-        IdToUrlDict = self.createIdToUrlDict(histDb)   
-        return self.createVisitedPagesAndSearchedItems(histDb,IdToUrlDict)                
 
+
+    def _convert_2_SearchedItem(self, vp):
+        ''' 提取非 Safari  搜索框输入的 搜索关键字(SearchedItem) '''
+        if vp.LastVisited.Value and vp.LastVisited.Value not in self.SEARCHED_ITEMS_TS:
+            _SearchedItem = model_browser.convert_2_SearchedItem(vp)
+            if _SearchedItem:
+                self.SEARCHED_ITEMS_TS.append(_SearchedItem.TimeStamp.Value)
+            return _SearchedItem
+                      
     def getHistoryItems(self, histDb, visits):
+        
         histItems = []
 
         ts = SQLiteParser.TableSignature('history_items')
@@ -337,7 +351,6 @@ class SafariParser(object):
             # 访问记录
             if histItemId not in visits or ('visit_time' in rec and rec['visit_time'].Value > visits[histItemId]['visit_time'].Value):
                 visits[histItemId] = rec
-
         return visits
 
     def searchedItems(self):
@@ -348,6 +361,7 @@ class SafariParser(object):
         bp = BPReader.GetTree(node)
         if bp is None:
             return searchedItems
+
         if not bp.ContainsKey('RecentWebSearches'):
             return searchedItems
         for b in bp['RecentWebSearches'].Value.GetEnumerator():
@@ -357,7 +371,10 @@ class SafariParser(object):
                 s.Deleted = b['SearchString'].Deleted
                 s.Value.Init(b['SearchString'].Value,MemoryRange(b['SearchString'].Source) if self.extractSource else None)
                 if b.ContainsKey('Date'):
-                    s.TimeStamp.Init(TimeStamp(b['Date'].Value,True),MemoryRange(b['Date'].Source) if self.extractSource else None)
+                    s.TimeStamp.Init(TimeStamp(b['Date'].Value,True), MemoryRange(b['Date'].Source) if self.extractSource else None)
+                    # SEARCHED_ITEMS_TS 用来去重
+                    if s.TimeStamp.Value:
+                        self.SEARCHED_ITEMS_TS.append(s.TimeStamp.Value)
                 searchedItems.append(s)
         return searchedItems
 
@@ -392,7 +409,7 @@ def analyze_safari(node, extractDeleted, extractSource):
     """
 	合并Safari解析
     解析 History.db 文件 (iOS8+)
-    旧版本 history.plist通过read_history来解析.
+    旧版本 history.plist通过 read_history_plist 来解析.
     """
     pr = ParserResults()
     res = SafariParser(node, extractDeleted, extractSource).parse()
@@ -420,7 +437,7 @@ def exc():
 
 class Export2db(object):
     def __init__(self, node, results_model):
-        self.mb = MB()
+        self.mb = model_browser.MB()
         self.results_model = results_model
         self.cachepath = ds.OpenCachePath("Safari")
         hash_str = hashlib.md5(node.AbsolutePath).hexdigest()
@@ -434,8 +451,8 @@ class Export2db(object):
                 self.mb.db_create(self.cache_db) 
                 self.parse_model()
                 if not canceller.IsCancellationRequested:
-                    self.mb.db_insert_table_version(VERSION_KEY_DB, VERSION_VALUE_DB)
-                    self.mb.db_insert_table_version(VERSION_KEY_APP, VERSION_APP_VALUE)
+                    self.mb.db_insert_table_version(model_browser.VERSION_KEY_DB, model_browser.VERSION_VALUE_DB)
+                    self.mb.db_insert_table_version(model_browser.VERSION_KEY_APP, VERSION_APP_VALUE)
                 self.mb.db_commit()
                 self.mb.db_close()
             tmp_dir = ds.OpenCachePath('tmp')
@@ -474,7 +491,7 @@ class Export2db(object):
         '''
         for item in self.results_model:
             if item.I18N == "书签":      # WebBookmark
-                bookmark = Bookmark()
+                bookmark = model_browser.Bookmark()
                 bookmark.id         = self.bookmark_id
                 self.bookmark_id += 1
                 # bookmark.owneruser  = 
@@ -486,7 +503,7 @@ class Export2db(object):
                 self.mb.db_insert_table_bookmarks(bookmark)
 
             elif item.I18N == "浏览记录":    # VisitedPage
-                browser_record = Browserecord()
+                browser_record = model_browser.Browserecord()
                 # browser_record.id       = 
                 browser_record.name     = item.Title.Value
                 browser_record.url      = item.Url.Value
@@ -497,7 +514,7 @@ class Export2db(object):
                 self.mb.db_insert_table_browserecords(browser_record)
 
             elif item.I18N == "搜索项":     # SearchedItem
-                search_history = SearchHistory()
+                search_history = model_browser.SearchHistory()
                 # search_history.id       = 
                 search_history.name     = item.Value
                 # search_history.url      = 
@@ -509,16 +526,23 @@ class Export2db(object):
 
     @staticmethod
     def _convert_2_timestamp(_timestamp):
-        ''' _timestamp.Value.Value.LocalDateTime
-            2018/8/15 15:27:20 => 10位 时间戳 1534318040.0
+        ''' "2018/8/15 15:27:20" -> 10位 时间戳 1534318040.0
+            
+        Args:
+            _timestamp (str): email.TimeStamp.Value.Value.LocalDateTime
+        Returns:
+            (int/float): timastamp e.g. 1534318040.0
         '''
         try:
             if _timestamp.Value:
                 format_time = _timestamp.Value.Value.LocalDateTime
-                ts = time.strptime(str(format_time), "%Y/%m/%d %H:%M:%S")
-                return time.mktime(ts)
-            return 
+                div_str = str(format_time)[4]
+                if re.match(r'\d', div_str):
+                    div_str = ''
+                time_pattren = "%Y{div}%m{div}%d %H:%M:%S".format(div=div_str)
+                ts = py_time.strptime(str(format_time), time_pattren)
+                return py_time.mktime(ts)
+            return 0
         except:
-            traceback.print_exc()
-            return 
-
+            exc()
+            return 0   
