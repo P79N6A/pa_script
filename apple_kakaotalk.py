@@ -53,6 +53,7 @@ class KakaoTalkParser(model_im.IM):
         self.publicchat = []
         self.friendchat = []
         self.secretchat = []
+        self.id2name = {}
 
     def db_insert_table(self, sql, values):
         if self.db_cmd is not None:
@@ -336,6 +337,7 @@ class KakaoTalkParser(model_im.IM):
             friend.telephone = data[6]
             friend.deleted = data[7]
             friend.type = model_im.FRIEND_TYPE_FRIEND
+            self.id2name[data[1]] = friend.fullname
             self.db_insert_table_friend(friend)
         except:
             pass
@@ -352,6 +354,7 @@ class KakaoTalkParser(model_im.IM):
             chatroomMember.display_name = data[4] if data[4] is not '' else data[5]
             chatroomMember.telephone = data[6]
             chatroomMember.deleted = data[7]
+            self.id2name[data[1]] = chatroomMember.display_name
             self.db_insert_table_chatroom_member(chatroomMember)
         except:
             pass
@@ -434,6 +437,7 @@ class KakaoTalkParser(model_im.IM):
                     message.talker_id = self._db_record_get_int_value(rec, 'chatId')
                     sender_id = self._db_record_get_string_value(rec, 'userId')
                     message.sender_id = sender_id
+                    message.sender_name = self.id2name[sender_id] if sender_id in self.id2name else None
                     message.msg_id = self._db_record_get_int_value(rec, 'id')
                     type = self._db_record_get_int_value(rec, 'type')
                     if type == 51:
@@ -668,7 +672,7 @@ class KakaoTalkParser(model_im.IM):
 
     @staticmethod
     def _db_record_get_int_value(record, column, default_value=0):
-        if not record[column].IsDBNull:
+        if not IsDBNull(record[column].Value):
             try:
                 return int(record[column].Value)
             except Exception as e:
