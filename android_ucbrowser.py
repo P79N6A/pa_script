@@ -165,7 +165,6 @@ class UCParser(object):
                 try:
                     account = model_browser.Account()
                     account.id = account_id
-                    # account.photo = photo_path
                     # account.name
                     # account.logindate
                     # account.source
@@ -254,14 +253,14 @@ class UCParser(object):
                         not self._is_url(rec, 'url')):
                     continue
                 browser_record = model_browser.Browserecord()
-                browser_record.id        = rec['id'].Value
-                browser_record.name      = rec['name'].Value
-                browser_record.url       = rec['url'].Value
-                browser_record.datetime  = rec['visited_time'].Value
-                browser_record.visits    = rec['visited_count'].Value
-                browser_record.owneruser = self.cur_account_id
-                browser_record.source    = self.cur_db_source
-                browser_record.deleted   = 1 if rec.IsDeleted else 0
+                browser_record.id          = rec['id'].Value
+                browser_record.name        = rec['name'].Value
+                browser_record.url         = rec['url'].Value
+                browser_record.datetime    = rec['visited_time'].Value
+                browser_record.visit_count = rec['visited_count'].Value if rec['visited_count'].Value > 0 else 1
+                browser_record.owneruser   = self.cur_account_id
+                browser_record.source      = self.cur_db_source
+                browser_record.deleted     = 1 if rec.IsDeleted else 0
                 self.mb.db_insert_table_browserecords(browser_record)
 
                 if browser_record.name.startswith('网页搜索_'):

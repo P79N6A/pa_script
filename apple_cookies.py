@@ -10,7 +10,8 @@ def analyze_cookies(node, extractDeleted, extractSource):
     app = ds.GetApplication(node.AbsolutePath)
     pr = ParserResults()
     pr.Models.AddRange(CookieParser(node, extractDeleted, extractSource).Parse())
-    pr.Build(app.Name.Value)
+    if app is not None:
+        pr.Build(app.Name.Value)
     return pr
 
 class CookieParser(object):
@@ -157,7 +158,10 @@ class CookieParser(object):
         #         return app_name
         #     curr = curr.Parent
         # return None
-        return self.app
+        app_name = ''
+        if self.app is not None:
+            app_name = self.app.Name.Value
+        return app_name
 
     def to_app_name(self, s):
         for ia in ds.Models[InstalledApplication]:

@@ -840,7 +840,29 @@
         </dict>
       </array>
     </dict>
-
+    <dict>
+      <key>Module</key>
+      <string>apple_soul</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_Soul</string>
+          <key>RunnerType</key>
+          <integer>0</integer>
+          <key>Patterns</key>
+          <array>
+            <string>/Library/Preferences/com.soulapp.cn.plist$</string>
+          </array>
+          <key>Category</key>
+          <string>Soul</string>
+          <key>Name</key>
+          <string>Soul(苹果)</string>
+          <key>Filter</key>
+          <string>应用>即时通讯</string>
+        </dict>
+      </array>
+    </dict>
     <dict>
       <key>Module</key>
       <string>apple_icq</string>
@@ -1305,27 +1327,27 @@
     </dict>
 
     <dict>
-        <key>Module</key>
-        <string>apple_chrome</string>
-        <key>Runners</key>
-        <array>
-            <dict>
-                <key>EntryPoint</key>
-                <string>analyze_chrome</string>
-                <key>RunnerType</key>
-                <integer>0</integer>
-                <key>Patterns</key>
-                <array>
-                    <string>/Library/Application Support/Google/Chrome/Default/History$</string>
-                </array>
-                <key>Category</key>
-                <string>ChromeBrowser</string>
-                <key>Name</key>
-                <string>Chrome浏览器(苹果)</string>
-                <key>Filter</key>
-                <string>应用>浏览器</string>
-            </dict>
-        </array>
+      <key>Module</key>
+      <string>apple_chrome</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_chrome</string>
+          <key>RunnerType</key>
+          <integer>0</integer>
+          <key>Patterns</key>
+          <array>
+            <string>/Library/Application Support/Google/Chrome/Default/History$</string>
+          </array>
+          <key>Category</key>
+          <string>ChromeBrowser</string>
+          <key>Name</key>
+          <string>Chrome浏览器(苹果)</string>
+          <key>Filter</key>
+          <string>应用>浏览器</string>
+        </dict>
+      </array>
     </dict>
 
     <dict>
@@ -1400,6 +1422,30 @@
       </array>
     </dict>
 
+	<dict>
+      <key>Module</key>
+      <string>apple_bulletmessage</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_bulletMessage</string>
+          <key>RunnerType</key>
+          <integer>0</integer>
+          <key>Patterns</key>
+          <array>
+            <string>/Library/Preferences/com\.bullet\.message\.plist$</string>
+          </array>
+          <key>Category</key>
+          <string>BulletMessage</string>
+          <key>Name</key>
+          <string>子弹短信(苹果)</string>
+          <key>Filter</key>
+          <string>应用>即时通讯</string>
+        </dict>
+      </array>
+    </dict>
+	
     <dict>
       <key>Module</key>
       <string>apple_recents</string>
@@ -1520,27 +1566,27 @@
       </array>
     </dict>
     <dict>
-    <key>Module</key>
-    <string>apple_potato</string>
-    <key>Runners</key>
-    <array>
-      <dict>
-        <key>EntryPoint</key>
-        <string>parse_potato</string>
-        <key>RunnerType</key>
-        <integer>0</integer>
-        <key>Patterns</key>
-        <array>
-          <string>Library/Preferences/group.org.potatochat.PotatoEnterprise.plist$</string>  
-        </array>
-        <key>Category</key>
-        <string>Potato</string>
-        <key>Name</key>
-        <string>Potato(IOS)</string>
-        <key>Filter</key>
-        <string>应用>即时通讯</string>
-      </dict>
-    </array>
+      <key>Module</key>
+      <string>apple_potato</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>parse_potato</string>
+          <key>RunnerType</key>
+          <integer>0</integer>
+          <key>Patterns</key>
+          <array>
+            <string>Library/Preferences/group.org.potatochat.PotatoEnterprise.plist$</string>
+          </array>
+          <key>Category</key>
+          <string>Potato</string>
+          <key>Name</key>
+          <string>Potato(IOS)</string>
+          <key>Filter</key>
+          <string>应用>即时通讯</string>
+        </dict>
+      </array>
     </dict>
     <dict>
       <key>Module</key>
@@ -2020,6 +2066,52 @@
         </dict>
       </array>
     </dict>
+    <dict>
+      <key>Module</key>
+      <string>apple_kakaotalk</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_apple_kakaotalk</string>
+          <key>RunnerType</key>
+          <integer>0</integer>
+          <key>Patterns</key>
+          <array>
+            <string>/PrivateDocuments/Talk.sqlite$</string>
+          </array>
+          <key>Category</key>
+          <string>BeeTalk</string>
+          <key>Name</key>
+          <string>KakaoTalk(苹果)</string>
+          <key>Filter</key>
+          <string>应用>社交</string>
+        </dict>
+      </array>
+    </dict>
+    <dict>
+      <key>Module</key>
+      <string>apple_shunfeng</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_apple_shunfeng</string>
+          <key>RunnerType</key>
+          <integer>0</integer>
+          <key>Patterns</key>
+          <array>
+            <string>/SuYunTong_Store_Pro/SuYunTong_Store_Pro.sql$</string>
+          </array>
+          <key>Category</key>
+          <string>BeeTalk</string>
+          <key>Name</key>
+          <string>Shunfeng(苹果)</string>
+          <key>Filter</key>
+          <string>应用>社交</string>
+        </dict>
+      </array>
+    </dict>
     <!--安卓运行插件从这里开始-->
 
     <dict>
@@ -2242,6 +2334,52 @@
 
     <dict>
       <key>Module</key>
+      <string>android_icq</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>parse_icq</string>
+          <key>RunnerType</key>
+          <integer>2</integer>
+          <key>Patterns</key>
+          <array>
+            <string>/com.icq.mobile.client/shared_prefs/com.icq.mobile.client_preferences.xml$</string>
+          </array>
+          <key>Category</key>
+          <string>ICQ</string>
+          <key>Name</key>
+          <string>ICQ(安卓)</string>
+          <key>Filter</key>
+          <string>应用>即时通讯</string>
+        </dict>
+      </array>
+    </dict>
+    <dict>
+      <key>Module</key>
+      <string>android_soul</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_Soul</string>
+          <key>RunnerType</key>
+          <integer>2</integer>
+          <key>Patterns</key>
+          <array>
+            <string>/cn.soulapp.android/shared_prefs/cn.soulapp.android_preferences.xml$</string>
+          </array>
+          <key>Category</key>
+          <string>Soul</string>
+          <key>Name</key>
+          <string>Soul(安卓)</string>
+          <key>Filter</key>
+          <string>应用>即时通讯</string>
+        </dict>
+      </array>
+    </dict>
+    <dict>
+      <key>Module</key>
       <string>andriod_qq</string>
       <key>Runners</key>
       <array>
@@ -2264,7 +2402,7 @@
       </array>
     </dict>
 
-	<dict>
+    <dict>
       <key>Module</key>
       <string>android_icon</string>
       <key>Runners</key>
@@ -2292,8 +2430,8 @@
         </dict>
       </array>
     </dict>
-	
-	
+
+
     <dict>
       <key>Module</key>
       <string>android_momo</string>
@@ -2396,6 +2534,30 @@
 
     <dict>
       <key>Module</key>
+      <string>android_qunar</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_qunar</string>
+          <key>RunnerType</key>
+          <integer>2</integer>
+          <key>Patterns</key>
+          <array>
+            <string>/com\.Qunar/databases$</string>
+          </array>
+          <key>Category</key>
+          <string>Qunar</string>
+          <key>Name</key>
+          <string>去哪儿(安卓)</string>
+          <key>Filter</key>
+          <string>应用>商旅</string>
+        </dict>
+      </array>
+    </dict>
+
+    <dict>
+      <key>Module</key>
       <string>android_radio_log</string>
       <key>Runners</key>
       <array>
@@ -2443,7 +2605,7 @@
       </array>
     </dict>
 
-	<dict>
+    <dict>
       <key>Module</key>
       <string>android_wifi_pwd</string>
       <key>Runners</key>
@@ -2759,54 +2921,54 @@
           <string>应用>浏览器</string>
         </dict>
       </array>
-    </dict>    
-
-    <dict>
-        <key>Module</key>
-        <string>android_ucbrowser</string>
-        <key>Runners</key>
-        <array>
-            <dict>
-                <key>EntryPoint</key>
-                <string>analyze_ucbrowser</string>
-                <key>RunnerType</key>
-                <integer>2</integer>
-                <key>Patterns</key>
-                <array>
-                    <string>/com\.UCMobile/databases$</string>
-                </array>
-                <key>Category</key>
-                <string>UCBrowser</string>
-                <key>Name</key>
-                <string>UC浏览器(安卓)</string>
-                <key>Filter</key>
-                <string>应用>浏览器</string>
-            </dict>
-        </array>
     </dict>
 
     <dict>
-        <key>Module</key>
-        <string>android_chrome</string>
-        <key>Runners</key>
-        <array>
-            <dict>
-                <key>EntryPoint</key>
-                <string>analyze_chrome</string>
-                <key>RunnerType</key>
-                <integer>2</integer>
-                <key>Patterns</key>
-                <array>
-                    <string>/com\.android\.chrome/app_chrome/Default/History$</string>
-                </array>
-                <key>Category</key>
-                <string>ChromeBrowser</string>
-                <key>Name</key>
-                <string>Chrome浏览器(安卓)</string>
-                <key>Filter</key>
-                <string>应用>浏览器</string>
-            </dict>
-        </array>
+      <key>Module</key>
+      <string>android_ucbrowser</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_ucbrowser</string>
+          <key>RunnerType</key>
+          <integer>2</integer>
+          <key>Patterns</key>
+          <array>
+            <string>/com\.UCMobile/databases$</string>
+          </array>
+          <key>Category</key>
+          <string>UCBrowser</string>
+          <key>Name</key>
+          <string>UC浏览器(安卓)</string>
+          <key>Filter</key>
+          <string>应用>浏览器</string>
+        </dict>
+      </array>
+    </dict>
+
+    <dict>
+      <key>Module</key>
+      <string>android_chrome</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_chrome</string>
+          <key>RunnerType</key>
+          <integer>2</integer>
+          <key>Patterns</key>
+          <array>
+            <string>/com\.android\.chrome/app_chrome/Default/History$</string>
+          </array>
+          <key>Category</key>
+          <string>ChromeBrowser</string>
+          <key>Name</key>
+          <string>Chrome浏览器(安卓)</string>
+          <key>Filter</key>
+          <string>应用>浏览器</string>
+        </dict>
+      </array>
     </dict>
 
     <dict>
