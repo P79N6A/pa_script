@@ -457,7 +457,7 @@ class bulletMessage(object):
 
                                 # system messages
                                 elif m_rec["msg_type"].Value == 10:
-                                    message.talker_type = CHAT_TYPE_SYSTEM
+                                    message.type = CHAT_TYPE_SYSTEM
                                     message.content = m_rec["msg_text"].Value
                                 
                                 # card
