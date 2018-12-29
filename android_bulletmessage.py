@@ -12,6 +12,7 @@ try:
     clr.AddReference('model_im')
     clr.AddReference("bcp_im")
     clr.AddReference("model_map")
+    clr.AddReference("safe_read_sqlite")
 except:
     pass
 del clr
