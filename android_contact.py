@@ -9,14 +9,14 @@ import clr
 try:
     clr.AddReference('model_contact')
     clr.AddReference('System.Data.SQLite')
-    clr.AddReference('bcp_basic')
+    #clr.AddReference('bcp_basic')
 except:
     pass
 del clr
 import hashlib
 from model_contact import MC, Contact, Generate
 import model_contact
-import bcp_basic
+#import bcp_basic
 import System.Data.SQLite as SQLite
 import sys
 import re
@@ -42,7 +42,7 @@ SQL_CREATE_TABLE_DATA = '''CREATE TABLE IF NOT EXISTS data(
     )'''
 
 SQL_INSERT_TABLE_DATA = '''
-    INSERT OR IGNORE INTO data(raw_contact_id, mimetype_id, data1, data2, data3, data4, data15, deleted)
+    INSERT INTO data(raw_contact_id, mimetype_id, data1, data2, data3, data4, data15, deleted)
     VALUES(?, ?, ?, ?, ?, ?, ?, ?)'''
 
 SQL_CREATE_TABLE_RAW_CONTACTS = '''CREATE TABLE IF NOT EXISTS raw_contacts(
@@ -51,7 +51,7 @@ SQL_CREATE_TABLE_RAW_CONTACTS = '''CREATE TABLE IF NOT EXISTS raw_contacts(
     )'''
 
 SQL_INSERT_TABLE_RAW_CONTACTS = '''
-    INSERT OR IGNORE INTO raw_contacts(_id, contact_id)
+    INSERT INTO raw_contacts(_id, contact_id)
     VALUES(?, ?)'''
 
 SQL_CREATE_TABLE_CONTACTS = '''CREATE TABLE IF NOT EXISTS contacts(
@@ -62,7 +62,7 @@ SQL_CREATE_TABLE_CONTACTS = '''CREATE TABLE IF NOT EXISTS contacts(
     )'''
 
 SQL_INSERT_TABLE_CONTACTS = '''
-    INSERT OR IGNORE INTO contacts(_id, last_time_contacted, contact_last_updated_timestamp, times_contacted)
+    INSERT INTO contacts(_id, last_time_contacted, contact_last_updated_timestamp, times_contacted)
     VALUES(?, ?, ?, ?)'''
 
 SQL_CREATE_TABLE_MIMETYPES = '''CREATE TABLE IF NOT EXISTS mimetypes(
@@ -71,7 +71,7 @@ SQL_CREATE_TABLE_MIMETYPES = '''CREATE TABLE IF NOT EXISTS mimetypes(
     )'''
 
 SQL_INSERT_TABLE_MIMETYPES = '''
-    INSERT OR IGNORE INTO mimetypes(_id, mimetype)
+    INSERT INTO mimetypes(_id, mimetype)
     VALUES(?, ?)'''
 
 VERSION_APP_VALUE = 1
@@ -80,7 +80,7 @@ VERSION_APP_VALUE = 1
 class CallsParse(object):
     def __init__(self, node, extractDeleted, extractSource):
         self.node = node
-        self.extractDeleted = False
+        self.extractDeleted = extractDeleted
         self.extractSource = extractSource
         self.db = None
         self.db_cmd = None
@@ -159,44 +159,17 @@ class CallsParse(object):
             self.db.Close()
             return
         ts = SQLiteParser.TableSignature('data')
+        self.db_trans = self.db.BeginTransaction()
         for rec in db.ReadTableRecords(ts, self.extractDeleted, True):
             try:
-                if rec['raw_contact_id'].Value is not None and 'raw_contact_id' in rec:
-                    raw_contact_id = rec['raw_contact_id'].Value
-                if rec['mimetype_id'].Value is not None and 'mimetype_id' in rec:
-                    mimetype_id = rec['mimetype_id'].Value
-                if rec['data1'].Value is not None and 'data1' in rec:
-                    data1 = rec['data1'].Value
-                if rec['data2'].Value is not None and 'data2' in rec:
-                    data2 = rec['data2'].Value
-                if rec['data3'].Value is not None and 'data3' in rec:
-                    data3 = rec['data3'].Value
-                if rec['data4'].Value is not None and 'data4' in rec:
-                    data4 = rec['data4'].Value
-                if rec['data5'].Value is not None and 'data5' in rec:
-                    data15 = rec['data5'].Value
-                deleted = 0
-                params = (raw_contact_id, mimetype_id, data1, data2, data3, data4, data15, deleted)
-                self.db_insert_table(SQL_INSERT_TABLE_DATA, params)
-            except:
-                traceback.print_exc()
-        for rec in db.ReadTableDeletedRecords(ts, False):
-            try:
-                if rec['raw_contact_id'].Value is not None and 'raw_contact_id' in rec:
-                    raw_contact_id = rec['raw_contact_id'].Value
-                if rec['mimetype_id'].Value is not None and 'mimetype_id' in rec:
-                    mimetype_id = rec['mimetype_id'].Value
-                if rec['data1'].Value is not None and 'data1' in rec:
-                    data1 = rec['data1'].Value
-                if rec['data2'].Value is not None and 'data2' in rec:
-                    data2 = rec['data2'].Value
-                if rec['data3'].Value is not None and 'data3' in rec:
-                    data3 = rec['data3'].Value
-                if rec['data4'].Value is not None and 'data4' in rec:
-                    data4 = rec['data4'].Value
-                if rec['data5'].Value is not None and 'data5' in rec:
-                    data15 = rec['data5'].Value
-                deleted = 1
+                raw_contact_id = self._db_record_get_int_value(rec, 'raw_contact_id')
+                mimetype_id = self._db_record_get_int_value(rec, 'mimetype_id')
+                data1 = self._db_record_get_string_value(rec, 'data1')
+                data2 = self._db_record_get_string_value(rec, 'data2')
+                data3 = self._db_record_get_string_value(rec, 'data3')
+                data4 = self._db_record_get_string_value(rec, 'data4')
+                data15 = self._db_record_get_string_value(rec, 'data5')
+                deleted = rec.IsDeleted
                 params = (raw_contact_id, mimetype_id, data1, data2, data3, data4, data15, deleted)
                 self.db_insert_table(SQL_INSERT_TABLE_DATA, params)
             except:
@@ -204,16 +177,8 @@ class CallsParse(object):
         ts2 = SQLiteParser.TableSignature('raw_contacts')
         for rec in db.ReadTableRecords(ts2, self.extractDeleted, True):
             try:
-                if rec['_id'].Value is not None and '_id' in rec:
-                    _id = rec['_id'].Value
-                if rec['contact_id'].Value is not None and 'contact_id' in rec:
-                    contact_id = rec['contact_id'].Value
-                params = (_id, contact_id)
-                self.db_insert_table(SQL_INSERT_TABLE_RAW_CONTACTS, params)
-            except:
-                traceback.print_exc()
-        for rec in db.ReadTableDeletedRecords(ts2, False):
-            try:
+                if rec['_id'].Value == 0:
+                    continue
                 if rec['_id'].Value is not None and '_id' in rec:
                     _id = rec['_id'].Value
                 if rec['contact_id'].Value is not None and 'contact_id' in rec:
@@ -225,20 +190,8 @@ class CallsParse(object):
         ts3 = SQLiteParser.TableSignature('contacts')
         for rec in db.ReadTableRecords(ts3, self.extractDeleted, True):
             try:
-                if rec['_id'].Value is not None and '_id' in rec:
-                    _id = rec['_id'].Value
-                if rec['last_time_contacted'].Value is not None and 'last_time_contacted' in rec:
-                    last_time_contacted = rec['last_time_contacted'].Value
-                if rec['contact_last_updated_timestamp'].Value is not None and 'contact_last_updated_timestamp' in rec:
-                    contact_last_updated_timestamp = rec['contact_last_updated_timestamp'].Value
-                if rec['times_contacted'].Value is not None and 'times_contacted' in rec:
-                    times_contacted = rec['times_contacted'].Value
-                params = (_id, last_time_contacted, contact_last_updated_timestamp, times_contacted)
-                self.db_insert_table(SQL_INSERT_TABLE_CONTACTS, params)
-            except:
-                traceback.print_exc()
-        for rec in db.ReadTableDeletedRecords(ts3, False):
-            try:
+                if rec['_id'].Value == 0:
+                    continue
                 if rec['_id'].Value is not None and '_id' in rec:
                     _id = rec['_id'].Value
                 if rec['last_time_contacted'].Value is not None and 'last_time_contacted' in rec:
@@ -254,6 +207,8 @@ class CallsParse(object):
         ts4 = SQLiteParser.TableSignature('mimetypes')
         for rec in db.ReadTableRecords(ts4, self.extractDeleted, True):
             try:
+                if rec.IsDeleted == 1:
+                    continue
                 if rec['_id'].Value is not None and '_id' in rec:
                     _id = rec['_id'].Value
                 if rec['mimetype'].Value is not None and 'mimetype' in rec:
@@ -262,14 +217,7 @@ class CallsParse(object):
                 self.db_insert_table(SQL_INSERT_TABLE_MIMETYPES, params)
             except:
                 traceback.print_exc()
-        for rec in db.ReadTableDeletedRecords(ts4, False):
-            try:
-                if rec['_id'].Value is not None and '_id' in rec:
-                    _id = rec['_id'].Value
-                if rec['mimetype'].Value is not None and 'mimetype' in rec:
-                    mimetype = rec['mimetype'].Value
-            except:
-                traceback.print_exc()
+        self.db_trans.Commit()
         self.db_cmd.Dispose()
         self.db.Close()
 
@@ -421,6 +369,8 @@ class CallsParse(object):
                 db.Close()
                 self.analyze_logic_contacts()
                 return
+            db_trans = db_ext.BeginTransaction()
+            i = 0
             while(sr.Read()):
                 if canceller.IsCancellationRequested:
                     break
@@ -444,13 +394,14 @@ class CallsParse(object):
                 if not IsDBNull(sr[12]):    
                     notes = sr[2] if self._regularMatch(sr[12]) == 6 else sr[3] if (self._regularMatch(sr[12]) == 8 or self._regularMatch(sr[12]) == 10) else None
                 if not IsDBNull(sr[12]):
-                    telegram = sr[3] if self._regularMatch(sr[12]) == 9 else None
-                if not IsDBNull(sr[12]):
                     head_pic = sr[6] if self._regularMatch(sr[12]) == 7 else None
                 source = self.node.AbsolutePath
                 deleted = sr[7]
-                param = (raw_contact_id, mimetype_id, mail, company, title, last_time_contact, last_time_modify, times_contacted, phone_number, name, address, notes, telegram, head_pic, source, deleted, 0)
+                param = (raw_contact_id, mimetype_id, mail, company, title, last_time_contact, last_time_modify, times_contacted, phone_number, name, address, notes, head_pic, source, deleted, 0)
                 self.db_insert_table(model_contact.SQL_INSERT_TABLE_CONTACTS, param)
+                i += 1
+                print(i)
+            db_trans.Commit()
             sr.Close()
             db_cmd.Dispose()
             db.Close()
@@ -495,15 +446,6 @@ class CallsParse(object):
         if re.match(r'.+/photo$', str) is not None:
             flag = 7
             return flag
-        if re.match(r'.+/vnd.com.whatsapp.profile$', str) is not None:
-            flag = 8
-            return flag
-        if re.match(r'.+/vnd.org.telegram.messenger.android.profile$', str) is not None:
-            flag = 9
-            return flag
-        if re.match(r'.+com.facebook.messenger.chat$', str) is not None:
-            flag = 10
-            return flag
         return flag
 
     def parse(self):
@@ -519,12 +461,9 @@ class CallsParse(object):
             self.mc.db_insert_table_version(model_contact.VERSION_KEY_APP, VERSION_APP_VALUE)
             self.mc.db_commit()
             self.mc.db_close()
-            SQLite.SQLiteConnection.ClearAllPools()
-            if os.path.exists(self.sourceDB):
-                shutil.rmtree(self.sourceDB)
         #bcp entry
-        temp_dir = ds.OpenCachePath('tmp')
-        PA_runtime.save_cache_path(bcp_basic.BASIC_CONTACT_INFORMATION, self.cachedb, temp_dir)
+        #temp_dir = ds.OpenCachePath('tmp')
+        #PA_runtime.save_cache_path(bcp_basic.BASIC_CONTACT_INFORMATION, self.cachedb, temp_dir)
         generate = Generate(self.cachedb)
         models = generate.get_models()
         return models
@@ -557,6 +496,43 @@ class CallsParse(object):
             f.close()
         except:
             pass
+
+    @staticmethod
+    def _db_record_get_value(record, column, default_value=None):
+        if not record[column].IsDBNull:
+            return record[column].Value
+        return default_value
+
+    @staticmethod
+    def _db_record_get_string_value(record, column, default_value=''):
+        if not record[column].IsDBNull:
+            try:
+                value = str(record[column].Value)
+                #if record.Deleted != DeletedState.Intact:
+                #    value = filter(lambda x: x in string.printable, value)
+                return value
+            except Exception as e:
+                return default_value
+        return default_value
+
+    @staticmethod
+    def _db_record_get_int_value(record, column, default_value=0):
+        if not IsDBNull(record[column].Value):
+            try:
+                return int(record[column].Value)
+            except Exception as e:
+                return default_value
+        return default_value
+
+    @staticmethod
+    def _db_record_get_blob_value(record, column, default_value=None):
+        if not record[column].IsDBNull:
+            try:
+                value = record[column].Value
+                return bytes(value)
+            except Exception as e:
+                return default_value
+        return default_value
 
 def analyze_android_calls(node, extractDeleted, extractSource):
     pr = ParserResults()
