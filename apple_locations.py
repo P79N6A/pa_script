@@ -1481,7 +1481,7 @@ def read_old_locationd(bp, cat, extractSource,srcfile):
             result.Category.Value = cat
             result.Description.Value = desc
             result.Source.Value = '系统'
-            result.SourceApp.Value ='系统'
+            result.SourceApp ='系统'
             result.SourceFile = srcfile
             result.TimeStamp.Value = TimeStamp(epoch.AddSeconds(fix['Timestamp'].Value), True)
             if extractSource:
