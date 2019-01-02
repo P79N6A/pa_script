@@ -1,4 +1,7 @@
 #coding=utf-8
+
+__author__ = "Xu Tao"
+
 from PA_runtime import *
 import PA_runtime
 import clr
@@ -112,9 +115,10 @@ class bulletMessage(object):
             return
         for m_node in message_node_lists:
             node = m_node.GetByPath("/message.db")
+            self.get_groups_name(node)
             self.get_friends_message(node, m_node.Name)
-            self.get_groups_message(node, m_node.Name)
             self.get_chatroom(m_node.Name)
+            self.get_groups_message(node, m_node.Name)
 
 
     def get_account(self, node):
@@ -194,11 +198,14 @@ class bulletMessage(object):
                 if "session_type" in rec and rec["session_type"].Value == 0:
                     table_name = None
                     talker_id = None
+                    talk_name = None
 
                     if "session_id" in rec and (not rec["session_id"].IsDBNull):
                         talker_id = rec["session_id"].Value
                     if "name" in rec and (not rec["name"].IsDBNull):
-                        table_name = rec["name"].Value  
+                        table_name = rec["name"].Value
+                    if rec["session_id"].Value in self.contact_list:
+                        talk_name = self.contact_list[rec["session_id"].Value]  
 
                     m_tbs = SQLiteParser.TableSignature(table_name)
                     for m_rec in db.ReadTableRecords(m_tbs, True, False):                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          
@@ -211,6 +218,7 @@ class bulletMessage(object):
                                 message.deleted = 1
                             message.source = node.AbsolutePath
                             message.talker_id = talker_id
+                            message.talker_name = talk_name
                             # 默认都是好友聊天
                             message.talker_type = CHAT_TYPE_FRIEND  # 好友聊天
                             # send_id
@@ -333,7 +341,7 @@ class bulletMessage(object):
         if 'session_table' not in db.Tables:
             return
         tbs = SQLiteParser.TableSignature("session_table")
-        for rec in db.ReadTableRecords(tbs, True, False):                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          
+        for rec in db.ReadTableRecords(tbs, True, False):                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        
             if canceller.IsCancellationRequested:
                 return
             try:
@@ -341,14 +349,17 @@ class bulletMessage(object):
                 if "session_type" in rec and rec["session_type"].Value == 1:
                     table_name = None
                     talker_id = None
+                    talk_name = None
 
                     if "session_id" in rec and (not rec["session_id"].IsDBNull):
                         talker_id = rec["session_id"].Value
+                        if rec["session_id"].Value in self.group_info.keys():
+                            talk_name = self.group_info[rec["session_id"].Value]
                     if "name" in rec and (not rec["name"].IsDBNull):
                         table_name = rec["name"].Value
 
                     m_tbs = SQLiteParser.TableSignature(table_name)
-                    for m_rec in db.ReadTableRecords(m_tbs, True, False):                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          
+                    for m_rec in db.ReadTableRecords(m_tbs, True, False):                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     
                         try:
                             if canceller.IsCancellationRequested:
                                 return
@@ -358,6 +369,7 @@ class bulletMessage(object):
                                 message.deleted = 1
                             message.source = node.AbsolutePath
                             message.talker_id = talker_id
+                            message.talker_name = talk_name
                             # 默认都是好友聊天
                             message.talker_type = CHAT_TYPE_GROUP  # 群聊天
                             # send_id
@@ -367,6 +379,7 @@ class bulletMessage(object):
                                     message.sender_name = self.contact_list[m_rec["msg_from_id"].Value]
                                 if m_rec["msg_from_id"].Value == account_id:
                                     message.is_sender = 1
+                                    
                             
                             if "msg_id" in m_rec and (not m_rec["msg_id"].IsDBNull):
                                 message.msg_id = m_rec["msg_id"].Value
@@ -444,7 +457,7 @@ class bulletMessage(object):
                                             message.type = MESSAGE_CONTENT_TYPE_SYSTEM
                                             if "data" in data:
                                                 sysyem_data = data["data"]
-                                                self.get_chatroom_info(m_rec["msg_content"].Value)
+                                                # self.get_chatroom_info(m_rec["msg_content"].Value)
                                                 if "uinfos" in sysyem_data:
                                                     if len(sysyem_data["uinfos"]) == 1:
                                                         if "3" in sysyem_data["uinfos"][0]:
@@ -485,6 +498,47 @@ class bulletMessage(object):
         self.bulletMessage.db_commit()
 
     
+    def get_groups_name(self,node):
+        db = SQLiteParser.Database.FromNode(node, canceller)
+        if db is None:
+            return
+        if 'session_table' not in db.Tables:
+            return
+        tbs = SQLiteParser.TableSignature("session_table")
+        for rec in db.ReadTableRecords(tbs, True, False):                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        
+            if canceller.IsCancellationRequested:
+                return
+            try:
+                # 群聊天
+                if "session_type" in rec and rec["session_type"].Value == 1:
+                    table_name = None
+                 
+                    if "name" in rec and (not rec["name"].IsDBNull):
+                        table_name = rec["name"].Value
+
+                    m_tbs = SQLiteParser.TableSignature(table_name)
+                    for m_rec in db.ReadTableRecords(m_tbs, True, False):                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          
+                        try:
+                            # 判断消息类型
+                            if "msg_type" in m_rec and (not m_rec["msg_type"].IsDBNull):
+                                # call 或者系统消息
+                                if m_rec["msg_type"].Value == 5:
+                                    try:
+                                        data = json.loads(m_rec["msg_content"].Value)
+                                        if "duration" in data:
+                                            pass
+                                        else:
+                                            if "data" in data:
+                                                sysyem_data = data["data"]
+                                                self.get_chatroom_info(m_rec["msg_content"].Value)
+                                    except Exception as e:
+                                        pass
+                        except Exception as e:
+                            TraceService.Trace(TraceLevel.Info, e)
+            except Exception as e:
+                TraceService.Trace(TraceLevel.Info, e)
+
+
     def get_chatroom(self, account_id):
         try:
             for g_id, g_name in self.group_info.items():
