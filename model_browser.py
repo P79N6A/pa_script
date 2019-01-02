@@ -5,7 +5,8 @@ import clr
 clr.AddReference('System.Data.SQLite')
 del clr
 
-import os
+import json
+import hashlib
 import datetime
 import System
 import System.Data.SQLite as SQLite
@@ -20,18 +21,6 @@ VERSION_KEY_APP = 'app'
 DEBUG = True
 DEBUG = False
 
-CASE_NAME = ds.ProjectState.ProjectDir.Name
-def exc(e=''):
-    ''' Exception output '''
-    try:
-        if DEBUG:
-            py_name = os.path.basename(__file__)
-            msg = 'DEBUG {} case:<{}> :'.format(py_name, CASE_NAME)
-            TraceService.Trace(TraceLevel.Warning,
-                               (msg+'{}{}').format(traceback.format_exc(), e))
-    except:
-        pass
-
 
 SQL_CREATE_TABLE_BOOKMARK = '''
     CREATE TABLE IF NOT EXISTS bookmark(
@@ -40,13 +29,18 @@ SQL_CREATE_TABLE_BOOKMARK = '''
         title TEXT,
         url TEXT,
         owneruser TEXT,
+        is_synced BOOL,
         source TEXT,
         deleted INTEGER,
         repeated INTEGER
     )'''
 
 SQL_INSERT_TABLE_BOOKMARK = '''
-    INSERT INTO bookmark(id, time, title, url, owneruser, source, deleted, repeated) values(? ,? ,? ,? ,? ,? ,?, ?)
+    INSERT INTO 
+    bookmark
+        (id, time, title, url, owneruser, is_synced, source, deleted, repeated) 
+    values
+        (? ,? ,? ,? ,? ,? ,?, ?, ?)
     '''
 
 SQL_CREATE_TABLE_SAVEPAGE = '''
@@ -381,9 +375,10 @@ class Bookmark(Column):
         self.title = None
         self.url = None
         self.owneruser = 'default_user'
+        self.is_synced = False  # 是否为同步的书签
 
     def get_values(self):
-        return (self.id, self.time, self.title, self.url, self.owneruser) + super(Bookmark, self).get_values()
+        return (self.id, self.time, self.title, self.url, self.owneruser, self.is_synced) + super(Bookmark, self).get_values()
 
 
 class Browserecord(Column):
@@ -555,6 +550,17 @@ class Generate(object):
         return model
 
     def _get_bookmark_models(self):
+        '''
+        0    id INTEGER,
+        1    time INTEGER,
+        2    title TEXT,
+        3    url TEXT,
+        4    owneruser TEXT,
+        5    is_synced BOOL,
+        6    source TEXT,
+        7    deleted INTEGER,
+        8    repeated INTEGER
+        '''
         model = []
         sql = '''select distinct * from bookmark'''
         try:
@@ -569,10 +575,13 @@ class Generate(object):
                     bookmark.Title.Value = row[2]
                 if not IsDBNull(row[3]):
                     bookmark.Url.Value = row[3]
-                if not IsDBNull(row[5]) and row[5] not in [None, '']:
-                    bookmark.SourceFile.Value = row[5]
-                if not IsDBNull(row[6]):
-                    bookmark.Deleted = self._convert_deleted_status(row[6])
+                # TODO
+                # if not IsDBNull(row[5]):
+                #     bookmark.IsSynced.Value = row[5]
+                if not IsDBNull(row[6]) and row[6] not in [None, '']:
+                    bookmark.SourceFile.Value = row[6]
+                if not IsDBNull(row[7]):
+                    bookmark.Deleted = self._convert_deleted_status(row[7])
                 model.append(bookmark)
             row.Close()
         except Exception as e:
@@ -797,7 +806,7 @@ class Generate(object):
         zero_ts = TimeStamp.FromUnixTime(0, False)
         try:
             if len(str(timestamp)) >= 10:
-                timestamp = int(str(timestamp)[:10]) + 28800
+                timestamp = int(str(timestamp)[:10])
                 ts = TimeStamp.FromUnixTime(timestamp, False)
                 if ts.IsValidForSmartphone():
                     return ts
@@ -825,6 +834,11 @@ class Generate(object):
         except:
             pass
 
+
+##############################################
+##             Android Browser              ##
+##############################################
+CASE_NAME = ds.ProjectState.ProjectDir.Name
 
 def convert_2_SearchedItem(_VisitedPage):
     ''' 有些搜索记录没有存储, 需要将浏览记录转化为搜索记录(SearchedItem), "网页搜索_"为神马搜索
@@ -854,3 +868,271 @@ def convert_2_SearchedItem(_VisitedPage):
     except:
         exc()
         return 
+
+def exc(e=''):
+    ''' Exception output '''
+    try:
+        if DEBUG:
+            py_name = os.path.basename(__file__)
+            msg = 'DEBUG {} case:<{}> :'.format(py_name, CASE_NAME)
+            TraceService.Trace(TraceLevel.Warning,
+                               (msg+'{}{}').format(traceback.format_exc(), e))
+    except:
+        pass
+
+def tp(*e):
+    ''' Highlight print in vs '''
+    if DEBUG:
+        TraceService.Trace(TraceLevel.Warning, '{}'.format(e))
+    else:
+        pass
+
+def print_run_time(func):
+    def wrapper(*args, **kw):
+        local_time = time.time()
+        res = func(*args, **kw)
+        if DEBUG:
+            msg = 'Current Function <{}> run time is {:.2} s'.format(
+                func.__name__, time.time() - local_time)
+            TraceService.Trace(TraceLevel.Warning, '{}'.format(msg))
+        if res:
+            return res
+    return wrapper
+
+def exc(e=''):
+    ''' Exception output '''
+    try:
+        if DEBUG:
+            py_name = os.path.basename(__file__)
+            msg = 'DEBUG {} Case:<{}> :'.format(py_name, CASE_NAME)
+            TraceService.Trace(TraceLevel.Warning,
+                               (msg+'{}{}').format(traceback.format_exc(), e))
+    except:
+        pass
+
+class BaseBrowserParser(object):
+    ''' common func:
+            parse_Cookie
+        
+        need to be implemented func: 
+            parse_main
+            _convert_nodepath
+    '''
+    def __init__(self, node, extract_deleted, extract_source, app_name):
+        self.root = None
+        self.extract_deleted = extract_deleted
+        self.extract_source = extract_source
+        self.mb = MB()
+        self.cachepath = ds.OpenCachePath(app_name)
+        hash_str = hashlib.md5(node.AbsolutePath).hexdigest()[8:-8]
+        self.cache_db = self.cachepath + '\\' + app_name + '_{}.db'.format(hash_str)
+        # self.download_path = None
+
+    def parse(self, DEBUG, BCP_TYPE, VERSION_APP_VALUE):
+        if DEBUG or self.mb.need_parse(self.cache_db, VERSION_APP_VALUE):
+            self.mb.db_create(self.cache_db)
+            self.parse_main()
+            if not canceller.IsCancellationRequested:
+                self.mb.db_insert_table_version(VERSION_KEY_DB, VERSION_VALUE_DB)
+                self.mb.db_insert_table_version(VERSION_KEY_APP, VERSION_APP_VALUE)
+                self.mb.db_commit()
+            self.mb.db_close()
+            tmp_dir = ds.OpenCachePath('tmp')
+            save_cache_path(BCP_TYPE, self.cache_db, tmp_dir)   
+        models = Generate(self.cache_db).get_models()
+        return models
+    
+    def parse_main(self):
+        pass
+
+    def parse_Cookie(self, db_paths, table_name):
+        ''' Android: app_webview/Cookies 
+        
+        Args:
+            db_paths (list<str>): list of db_path
+            table_name (str):
+
+        Table Columns:
+            FieldName	        SQL Type 	     	
+            creation_utc	    INTEGER
+            host_key	        TEXT
+            name	            TEXT
+            value	            TEXT
+            path	            TEXT
+            expires_utc	        INTEGER
+            is_secure	        INTEGER     # or secure
+            is_httponly	        INTEGER     # or httponly
+            last_access_utc	    INTEGER
+            has_expires	        INTEGER
+            is_persistent	    INTEGER     # or persistent
+            priority	        INTEGER
+            encrypted_value	    BLOB
+            firstpartyonly	    INTEGER
+        '''
+        for db_path in db_paths:
+            if not self._read_db(db_path):
+                continue
+            for rec in self._read_table(table_name):
+                try:
+                    if (self._is_empty(rec, 'creation_utc') or
+                        self._is_duplicate(rec, 'creation_utc')):
+                        continue
+                    cookie = Cookie()
+                    cookie.id             = rec['creation_utc'].Value
+                    cookie.host_key       = rec['host_key'].Value
+                    cookie.name           = rec['name'].Value
+                    cookie.value          = rec['value'].Value
+                    cookie.createdate     = rec['creation_utc'].Value
+                    cookie.expiredate     = rec['expires_utc'].Value
+                    cookie.lastaccessdate = rec['last_access_utc'].Value
+                    cookie.hasexipred     = rec['has_expires'].Value
+                    # cookie.owneruser      = self.cur_account_name
+                    cookie.source         = self.cur_db_source
+                    cookie.deleted        = 1 if rec.IsDeleted else 0
+                    self.mb.db_insert_table_cookies(cookie)
+                except:
+                    exc()
+            self.mb.db_commit()
+
+    def _convert_nodepath(self, raw_path):
+        pass
+
+    @staticmethod
+    def _convert_webkit_ts(webkit_timestamp):
+        ''' convert 17 digits webkit timestamp to 10 digits timestamp 
+
+        Args:
+            webkit_timestamp(int, str, float): 17 digits
+        Returns:
+            ts(int): 13 digits, 28800 == 8 hour, assume webkit_timestamp is UTC-8
+        '''
+        try:
+            epoch_start = datetime.datetime(1601,1,1)
+            delta = datetime.timedelta(microseconds=int(webkit_timestamp))
+            ts = time.mktime((epoch_start + delta).timetuple())
+            return int(ts) + 28800
+        except:
+            return None            
+
+    def _read_json(self, json_path):
+        ''' read_json set self.cur_json_source
+
+        Args: 
+            json_path (str)
+        Returns:
+            (bool)
+        '''
+        try:
+            json_node = self.root.GetByPath(json_path)
+            file = json_node.Data.read().decode('utf-8')
+            json_data = json.loads(file)
+            self.cur_json_source = json_node.AbsolutePath
+            return json_data
+        except:
+            exc()
+            return False
+
+    def _read_db(self, db_path, node=None):
+        ''' and set self.cur_db, self.cur_db_source
+        
+        Args:
+            db_path (str): 
+        Returns:
+            bool: is valid db
+        '''
+        try:
+            if node is None:
+                node = self.root.GetByPath(db_path)
+            self.cur_db = SQLiteParser.Database.FromNode(node, canceller)
+            if self.cur_db is None:
+                return False
+            self.cur_db_source = node.AbsolutePath
+            return True
+        except:
+            tp('db error', db_path)
+            return False
+
+    def _read_table(self, table_name, read_delete=None):
+        ''' read_table
+        
+        Args:
+            table_name (str): 
+        Returns:
+            (iterable): self.cur_db.ReadTableDeletedRecords(tb, ...)
+        '''
+        # 每次读表清空并初始化 self._PK_LIST
+        self._PK_LIST = []
+        if read_delete is None:
+            read_delete = self.extract_deleted
+        try:
+            tb = SQLiteParser.TableSignature(table_name)
+            return self.cur_db.ReadTableRecords(tb, read_delete, True)
+        except:
+            exc()
+            return []
+
+    def _is_duplicate(self, rec, pk_name):
+        ''' filter duplicate record
+
+        Args:
+            rec (record): 
+            pk_name (str): 
+        Returns:
+            bool: rec[pk_name].Value in self._PK_LIST
+        '''
+        try:
+            pk_value = rec[pk_name].Value
+            if IsDBNull(pk_value) or pk_value in self._PK_LIST:
+                return True
+            self._PK_LIST.append(pk_value)
+            return False
+        except:
+            exc()
+            return True
+
+    @staticmethod
+    def _is_empty(rec, *args):
+        ''' 过滤 DBNull 空数据, 有一空值就跳过
+        
+        Args:
+            rec (rec): 
+            args (str): fields
+        Returns:
+            book:
+        '''
+        try:
+            for i in args:
+                value = rec[i].Value
+                if IsDBNull(value) or value in ('', ' ', None, [], {}):
+                    return True
+                if isinstance(value, str) and re.search(r'[\x00-\x08\x0b-\x0c\x0e-\x1f]', str(value)):
+                    return True
+            return False
+        except:
+            exc()
+            tp(*args)
+            return True
+
+    @staticmethod
+    def _is_url(rec, *args):
+        ''' 匹配 URL IP
+        
+        Args:
+            rec (rec): 
+            *args (tuple<str>):
+        Returns:
+            bool: 
+        '''
+        URL_PATTERN = r'((http|ftp|https)://)(([a-zA-Z0-9\._-]+\.[a-zA-Z]{2,6})|([0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}))(:[0-9]{1,4})*(/[a-zA-Z0-9\&%_\./-~-]*)?'
+        IP_PATTERN = r'^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$'
+
+        for i in args:
+            try:
+                match_url = re.match(URL_PATTERN, rec[i].Value)
+                match_ip = re.match(IP_PATTERN, rec[i].Value)
+                if not match_url and not match_ip:
+                    return False
+            except:
+                exc()
+                return False
+        return True
