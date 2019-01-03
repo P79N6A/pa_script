@@ -980,6 +980,29 @@
         </dict>
       </array>
     </dict>
+	<dict>
+      <key>Module</key>
+      <string>apple_blued</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_blued</string>
+          <key>RunnerType</key>
+          <integer>0</integer>
+          <key>Patterns</key>
+          <array>
+            <string>/Library/Preferences/group.blued.share.plist$</string>
+          </array>
+          <key>Category</key>
+          <string>Blued</string>
+          <key>Name</key>
+          <string>Blued(苹果)</string>
+          <key>Filter</key>
+          <string>应用>即时通讯</string>
+        </dict>
+      </array>
+    </dict>
     <dict>
       <key>Module</key>
       <string>apple_locations</string>
