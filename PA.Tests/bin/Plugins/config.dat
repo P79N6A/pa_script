@@ -2127,9 +2127,32 @@
             <string>/SuYunTong_Store_Pro/SuYunTong_Store_Pro.sql$</string>
           </array>
           <key>Category</key>
-          <string>BeeTalk</string>
+          <string>Shunfeng</string>
           <key>Name</key>
-          <string>Shunfeng(苹果)</string>
+          <string>顺丰(苹果)</string>
+          <key>Filter</key>
+          <string>应用>社交</string>
+        </dict>
+      </array>
+    </dict>
+    <dict>
+      <key>Module</key>
+      <string>apple_redbook</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_apple_redbook</string>
+          <key>RunnerType</key>
+          <integer>0</integer>
+          <key>Patterns</key>
+          <array>
+            <string>/Documents/ExploreFeed.db$</string>
+          </array>
+          <key>Category</key>
+          <string>RedBook</string>
+          <key>Name</key>
+          <string>小红书(苹果)</string>
           <key>Filter</key>
           <string>应用>社交</string>
         </dict>
