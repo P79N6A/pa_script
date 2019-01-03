@@ -14,7 +14,7 @@ from PA.InfraLib.Utils import ConvertHelper
 import sqlite3
 
 VERSION_KEY_DB  = 'db'
-VERSION_VALUE_DB = 5
+VERSION_VALUE_DB = 6
 
 VERSION_KEY_APP = 'app'
 
