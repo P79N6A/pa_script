@@ -2884,6 +2884,30 @@
 
     <dict>
       <key>Module</key>
+      <string>android_browser</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_xiaomi_browser</string>
+          <key>RunnerType</key>
+          <integer>2</integer>
+          <key>Patterns</key>
+          <array>
+            <string>/com\.android\.browser/app_miui_webview/Cookies$</string>
+          </array>
+          <key>Category</key>
+          <string>XiaomiBrowser</string>
+          <key>Name</key>
+          <string>小米浏览器(安卓)</string>
+          <key>Filter</key>
+          <string>应用>浏览器</string>
+        </dict>
+      </array>
+    </dict>     
+
+    <dict>
+      <key>Module</key>
       <string>android_baidubrowser</string>
       <key>Runners</key>
       <array>

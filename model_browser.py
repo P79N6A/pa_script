@@ -841,6 +841,7 @@ class Generate(object):
 
 CASE_NAME = ds.ProjectState.ProjectDir.Name
 
+
 def convert_2_SearchedItem(_VisitedPage):
     ''' 有些搜索记录没有存储, 需要将浏览记录转化为搜索记录(SearchedItem), "网页搜索_"为神马搜索
     
@@ -870,6 +871,7 @@ def convert_2_SearchedItem(_VisitedPage):
         exc()
         return 
 
+
 def exc(e=''):
     ''' Exception output '''
     try:
@@ -888,6 +890,7 @@ def tp(*e):
     else:
         pass
 
+
 def print_run_time(func):
     def wrapper(*args, **kw):
         local_time = time.time()
@@ -900,16 +903,6 @@ def print_run_time(func):
             return res
     return wrapper
 
-def exc(e=''):
-    ''' Exception output '''
-    try:
-        if DEBUG:
-            py_name = os.path.basename(__file__)
-            msg = 'DEBUG {} Case:<{}> :'.format(py_name, CASE_NAME)
-            TraceService.Trace(TraceLevel.Warning,
-                               (msg+'{}{}').format(traceback.format_exc(), e))
-    except:
-        pass
 
 class BaseBrowserParser(object):
     ''' common func:
