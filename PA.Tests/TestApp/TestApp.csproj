@@ -106,6 +106,9 @@
     <Reference Include="PNFA.Formats.Physical">
       <HintPath>..\Lib\PNFA.Formats.Physical.dll</HintPath>
     </Reference>
+    <Reference Include="PNFA.Helper">
+      <HintPath>..\Lib\PNFA.Helper.dll</HintPath>
+    </Reference>
     <Reference Include="PNFA.InfraLib">
       <HintPath>..\Lib\PNFA.InfraLib.dll</HintPath>
     </Reference>
