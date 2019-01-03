@@ -99,9 +99,6 @@ class AndroidBrowserParser(model_browser.BaseBrowserParser):
             self.parse_DownloadFile('downloads')
         self.parse_Cookie(['app_webview/Cookies', 'app_miui_webview/Cookies'], 'cookies')
 
-    def parse_Account(self, node_path):
-        pass
-
     def parse_Bookmark(self, table_name):
         ''' 'databases/browser2.db - bookmarks
 
