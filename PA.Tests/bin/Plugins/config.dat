@@ -796,6 +796,30 @@
 
     <dict>
       <key>Module</key>
+      <string>export_user_dict</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_UserDict_for_ios</string>
+          <key>RunnerType</key>
+          <integer>0</integer>
+          <key>Patterns</key>
+          <array>
+            <string>/Library/KeyboardServices/TextReplacements.db$</string>
+          </array>
+          <key>Category</key>
+          <string>UserDictionary</string>
+          <key>Name</key>
+          <string>用户词典(苹果)</string>
+          <key>Filter</key>
+          <string>基础数据</string>
+        </dict>
+      </array>
+    </dict>
+
+    <dict>
+      <key>Module</key>
       <string>apple_application_log</string>
       <key>Runners</key>
       <array>
@@ -2669,6 +2693,30 @@
           <string>Calenders</string>
           <key>Name</key>
           <string>日历(安卓)</string>
+          <key>Filter</key>
+          <string>基础数据</string>
+        </dict>
+      </array>
+    </dict>
+
+    <dict>
+      <key>Module</key>
+      <string>export_user_dict</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_UserDict_for_android</string>
+          <key>RunnerType</key>
+          <integer>2</integer>
+          <key>Patterns</key>
+          <array>
+            <string>/com.android.providers.userdictionary/databases/user_dict.db$</string>
+          </array>
+          <key>Category</key>
+          <string>UserDictionary</string>
+          <key>Name</key>
+          <string>用户词典(安卓)</string>
           <key>Filter</key>
           <string>基础数据</string>
         </dict>

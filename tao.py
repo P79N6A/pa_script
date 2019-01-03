@@ -8,6 +8,8 @@ import shutil
 
 import clr
 
+import model_eb
+
 clr.AddReference('System.Core')
 clr.AddReference('System.Xml.Linq')
 clr.AddReference('System.Data.SQLite')
@@ -15,6 +17,7 @@ clr.AddReference('System.Data.SQLite')
 try:
     clr.AddReference('model_im')
     clr.AddReference('model_nd')
+    clr.AddReference('model_eb')
 except Exception:
     pass
 
@@ -28,10 +31,11 @@ from System.Xml.XPath import Extensions as XPathExtensions
 from PA.InfraLib.Extensions import PlistHelper
 import model_im
 import model_nd
+import model_eb
 
 __author__ = "TaoJianping"
 __all__ = ['ModelCol', 'RecoverTableHelper', 'Logger', 'ParserBase', 'TaoUtils', "TimeHelper", "FieldType",
-           "FieldConstraints", "BaseModel"]
+           "FieldConstraints", "BaseModel", "DataModel", 'Fields']
 
 
 class ModelCol(object):
@@ -338,6 +342,17 @@ class TimeHelper(object):
         s_ret = date if v > 5 else date_2
         return int(s_ret)
 
+    @staticmethod
+    def convert_timestamp_for_c_sharp(timestamp):
+        """转换成C# 那边的时间戳格式"""
+        try:
+            ts = TimeStamp.FromUnixTime(timestamp, False)
+            if not ts.IsValidForSmartphone():
+                ts = None
+            return ts
+        except Exception as e:
+            return None
+
 
 class Logger(object):
     def __init__(self, debug):
@@ -487,9 +502,23 @@ class ParserBase(object):
         model_im_col = model_im.IM()
         return model_im_col
 
+    @staticmethod
+    def load_eb_models(cache_db, app_version, app_name):
+        eb = model_eb.EB(cache_db, app_version, app_name)
+        im = eb.im
+        return eb, im
+
     def _update_model_version(self, model, app_version):
         model.db_insert_im_version(app_version)
         return True
+
+    @staticmethod
+    def _update_eb_script_version(model_eb_col, eb_app_version):
+        """当更新数据完成之后，更新version表的内容，方便日后检查"""
+        model_eb_col.db_insert_table_version(model_eb.EB_VERSION_KEY, model_eb.EB_VERSION_VALUE)
+        model_eb_col.db_insert_table_version(model_eb.EB_APP_VERSION_KEY, eb_app_version)
+        model_eb_col.db_commit()
+        model_eb_col.sync_im_version()
 
     def create_sub_node(self, rpath, vname):
         mem = MemoryRange.CreateFromFile(rpath)
@@ -514,3 +543,106 @@ class ParserBase(object):
                         self._search_nodes.insert(0, result.Parent)
                     return result
         return None
+
+
+class BaseField(object):
+    def __init__(self, column_name, null=True):
+        self.name = column_name
+        self.constraint = FieldConstraints.NotNull if null is True else FieldConstraints.None
+
+
+class CharField(BaseField):
+    def __init__(self, column_name, null=True):
+        super(CharField, self).__init__(column_name, null)
+        self.type = FieldType.Text
+
+
+class IntegerField(BaseField):
+    def __init__(self, column_name, null=True):
+        super(IntegerField, self).__init__(column_name, null)
+        self.type = FieldType.Int
+
+
+class FloatField(BaseField):
+    def __init__(self, column_name, null=True):
+        super(FloatField, self).__init__(column_name, null)
+        self.type = FieldType.Float
+
+
+class BlobField(BaseField):
+    def __init__(self, column_name, null=True):
+        super(BlobField, self).__init__(column_name, null)
+        self.type = FieldType.Blob
+
+
+class DataModelMeta(type):
+    instances = {}
+
+    def __new__(mcs, name, bases, attrs):
+
+        if not attrs.get('__table__', None):
+            return super(DataModelMeta, mcs).__new__(mcs, name, bases, attrs)
+
+        table_name = attrs['__table__']
+        instance = mcs.instances.get(name, None)
+        if instance is None:
+            config = mcs.get_table_config(table_name, attrs)
+            instance = super(DataModelMeta, mcs).__new__(mcs, name, bases, attrs)
+            instance.__config__ = config
+            instance.__attr_map__ = {k: v for k, v in attrs.items() if isinstance(v, BaseField)}
+            mcs.instances[name] = instance
+            return instance
+        return instance
+
+    @staticmethod
+    def get_table_config(table_name, table_config):
+        ts = SQLiteParser.TableSignature(table_name)
+        for field in table_config.values():
+            if isinstance(field, BaseField):
+                SQLiteParser.Tools.AddSignatureToTable(ts, field.name, field.type, field.constraint)
+        return ts
+
+
+class QueryObjects(object):
+    def __init__(self, node, cls):
+        self.db = SQLiteParser.Database.FromNode(node)
+        self.source_path = node.PathWithMountPoint
+        self._class = cls
+
+    @property
+    def all(self):
+        for record in self.db.ReadTableRecords(self._class.__config__, True, False):
+            ins = self._class()
+            for attr, field in self._class.__attr_map__.items():
+                val = record[field.name].Value
+                if isinstance(val, DBNull):
+                    val = None
+                setattr(ins, attr, val)
+            ins.deleted = record.IsDeleted
+            ins.source_path = self.source_path
+            yield ins
+
+    def execute_sql(self, sql):
+        with ModelCol(self.source_path) as connection:
+            return connection.fetch_reader(sql)
+
+
+class DataModel(object):
+    __metaclass__ = DataModelMeta
+    __attr_map__ = None
+    __config__ = None
+    objects = None
+
+    @classmethod
+    def connect(cls, node):
+        if not node:
+            raise Exception("数据库没有正确链接")
+        cls.objects = QueryObjects(node, cls)
+
+
+# 因为只有单文件，没办法，只能放这里面了，不优雅，以后看看
+class Fields(object):
+    CharField = CharField
+    IntegerField = IntegerField
+    FloatField = FloatField
+    BlobField = BlobField
