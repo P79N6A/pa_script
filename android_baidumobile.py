@@ -1,11 +1,7 @@
 # coding=utf-8
 __author__ = 'YangLiyuan'
 
-import os
-import traceback
-import re
 import hashlib
-
 
 import PA_runtime
 from PA_runtime import *
@@ -16,7 +12,8 @@ try:
 except:
     pass
 del clr
-from model_browser import *
+import model_browser
+from model_browser import tp, exc, print_run_time, CASE_NAME
 import bcp_browser
 
 # app数据库版本
@@ -26,24 +23,6 @@ VERSION_APP_VALUE = 2
 DEBUG = True
 DEBUG = False
 
-CASE_NAME = ds.ProjectState.ProjectDir.Name
-
-def exc(e=''):
-    ''' Exception output '''
-    try:
-        if DEBUG:
-            py_name = os.path.basename(__file__)
-            msg = 'DEBUG {} case:<{}> :'.format(py_name, CASE_NAME)
-            TraceService.Trace(TraceLevel.Warning, (msg+'{}{}').format(traceback.format_exc(), e))
-    except:
-        pass   
-
-def tp(*e):
-    ''' Highlight print in test environments vs console '''
-    if DEBUG:
-        TraceService.Trace(TraceLevel.Warning, "{}".format(e))
-    else:
-        pass
 
 def analyze_baidumobile(node, extract_deleted, extract_source):
     """
@@ -51,9 +30,11 @@ def analyze_baidumobile(node, extract_deleted, extract_source):
     """
     res = []
     pr = ParserResults()
-    cache_db_name = "BaiduMobile"
+    app_name = "BaiduMobile"
     try:
-        res = BaiduMobileParser(node, extract_deleted, extract_source, cache_db_name).parse()
+        res = BaiduMobileParser(node, extract_deleted, extract_source, app_name).parse(DEBUG, 
+                                                                                       BCP_TYPE=bcp_browser.NETWORK_APP_BAIDU,
+                                                                                       VERSION_APP_VALUE=VERSION_APP_VALUE)            
     except:
         TraceService.Trace(TraceLevel.Debug, 
                            'analyze_baidumobile 解析新案例 "{}" 出错: {}'.format(CASE_NAME, traceback.format_exc()))
@@ -67,9 +48,11 @@ def analyze_baidumobile_lite(node, extract_deleted, extract_source):
         android 华为 (data/data/com.baidu.searchbox.lite/)
     """
     pr = ParserResults()
-    cache_db_name = "BaiduMobileLite"
+    app_name = "BaiduMobileLite"
     try:
-        res = BaiduMobileParser(node, extract_deleted, extract_source, cache_db_name).parse()
+        res = BaiduMobileParser(node, extract_deleted, extract_source, app_name).parse(DEBUG, 
+                                                                                       BCP_TYPE=bcp_browser.NETWORK_APP_BAIDU,
+                                                                                       VERSION_APP_VALUE=VERSION_APP_VALUE)        
     except:
         TraceService.Trace(TraceLevel.Debug, 
                            'analyze_baidumobile_lite 解析新案例 "{}" 出错: {}'.format(CASE_NAME, traceback.format_exc()))
@@ -78,23 +61,15 @@ def analyze_baidumobile_lite(node, extract_deleted, extract_source):
         pr.Build('手机百度极速版')
     return pr
 
-class BaiduMobileParser(object):
+class BaiduMobileParser(model_browser.BaseBrowserParser):
 
-    def __init__(self, node, extract_deleted, extract_source, cache_db_name):
-
+    def __init__(self, node, extract_deleted, extract_source, app_name):
+        super(BaiduMobileParser, self).__init__(node, extract_deleted, extract_source, 
+                                                app_name=app_name)
         self.root = node.Parent.Parent  # data/data/com.baidu.searchbox/
-        self.extract_deleted = extract_deleted
-        self.extract_source = extract_source
-
-        self.mb = MB()
-        self.cachepath = ds.OpenCachePath(cache_db_name)
-
-        hash_str = hashlib.md5(node.AbsolutePath).hexdigest()[8:-8]
-        self.cache_db = self.cachepath + '\\a_{}_{}.db'.format(cache_db_name, hash_str)
-
         self.uid_list = ['anony']
 
-    def parse(self):
+    def parse_main(self):
         ''' databases/SearchBox.db
             databases/\d_searchbox.db 
             databases/box_visit_history.db
@@ -102,30 +77,17 @@ class BaiduMobileParser(object):
             app_webview_baidu/Cookies
             app_webview/Cookies
         '''
-        if DEBUG or self.mb.need_parse(self.cache_db, VERSION_APP_VALUE):
-            if not self._read_db('databases/SearchBox.db'):
-                return []             
-            self.mb.db_create(self.cache_db)
-            self.parse_Account("databases/SearchBox.db", 'account_userinfo')
-            if self.uid_list:
-                for uid in self.uid_list:
-                    self.parse_Bookmark('databases/' + uid + '_searchbox.db', 'favor')
-            self.parse_Bookmark('databases/anony_searchbox.db', 'favor')
-            self.parse_Browserecord("databases/box_visit_history.db", 'visit_search_history')
-            self.parse_Cookies(('app_webview_baidu/Cookies','app_webview/Cookies'), 'cookies')
-            self.parse_DownloadFile('databases/downloads.db', 'downloads')
-            self.parse_SearchHistory("databases/SearchBox.db", 'clicklog')
-
-            if not canceller.IsCancellationRequested:
-                self.mb.db_insert_table_version(VERSION_KEY_DB, VERSION_VALUE_DB)
-                self.mb.db_insert_table_version(VERSION_KEY_APP, VERSION_APP_VALUE)
-                self.mb.db_commit()
-            self.mb.db_close()
-        tmp_dir = ds.OpenCachePath('tmp')
-        save_cache_path(bcp_browser.NETWORK_APP_BAIDUMOBILE, self.cache_db, tmp_dir)
-
-        models = Generate(self.cache_db).get_models()
-        return models
+        self.parse_Account("databases/SearchBox.db", 'account_userinfo')
+        if self.uid_list:
+            for uid in self.uid_list:
+                self.parse_Bookmark('databases/' + uid + '_searchbox.db', 'favor')
+        self.parse_Bookmark('databases/anony_searchbox.db', 'favor')
+        self.parse_Browserecord("databases/box_visit_history.db", 'visit_search_history')
+        cookie_db_paths = ('app_webview_baidu/Cookies','app_webview/Cookies')
+        cookie_db_path = cookie_db_paths[0] if self.root.GetByPath(cookie_db_paths[0]) else cookie_db_paths[1]
+        self.parse_Cookie([cookie_db_path], 'cookies')
+        self.parse_DownloadFile('databases/downloads.db', 'downloads')
+        self.parse_SearchHistory("databases/SearchBox.db", 'clicklog')
 
     def parse_Account(self, db_path, table_name):
         ''' SearchBox - account_userinfo
@@ -152,7 +114,7 @@ class BaiduMobileParser(object):
                 return
             if self._is_empty(rec, 'uid') or rec['uid'].Value in self.uid_list:
                 continue
-            account = Account()
+            account = model_browser.Account()
             try:
                 account.id = int(rec['uid'].Value)  # TEXT
                 self.uid_list.append(rec['uid'].Value)
@@ -208,7 +170,7 @@ class BaiduMobileParser(object):
                 continue # datatype==2 是文件夹
             if self._is_duplicate(rec, '_id'):
                 continue
-            bookmark = Bookmark()
+            bookmark = model_browser.Bookmark()
             bookmark.id         = rec['_id'].Value
             # bookmark.account_id = rec['account_uid'].Value
             bookmark.time       = rec['createtime'].Value
@@ -271,7 +233,7 @@ class BaiduMobileParser(object):
                 continue
             if self._is_duplicate(rec, '_id'):
                 continue                    
-            browser_record = Browserecord()
+            browser_record = model_browser.Browserecord()
             browser_record.id          = rec['_id'].Value
             browser_record.name        = rec['title'].Value
             browser_record.url         = rec['url'].Value
@@ -344,7 +306,7 @@ class BaiduMobileParser(object):
                 continue
             if self._is_duplicate(rec, '_id'):
                 continue                    
-            downloads = DownloadFile()
+            downloads = model_browser.DownloadFile()
             downloads.id             = rec['_id'].Value
             downloads.url            = rec['uri'].Value
             downloads.filename       = rec['title'].Value
@@ -358,53 +320,6 @@ class BaiduMobileParser(object):
             downloads.source = self.cur_db_source
             try:
                 self.mb.db_insert_table_downloadfiles(downloads)
-            except:
-                exc()
-        try:
-            self.mb.db_commit()
-        except:
-            exc()
-
-    def parse_Cookies(self, db_paths, table_name):
-        """ Cookies.db - cookies
-            RecNo	FieldName
-            1   	creation_utc	            INTEGER
-            2   	host_key	            TEXT
-            3   	name	            TEXT
-            4   	value	            TEXT
-            5   	path	            TEXT
-            6   	expires_utc	            INTEGER
-            7   	secure	            INTEGER
-            8   	httponly	            INTEGER
-            9   	last_access_utc	            INTEGER
-            10  	has_expires	            INTEGER
-            11  	persistent	            INTEGER
-            12  	priority	            INTEGER
-            13  	encrypted_value	BLOB
-            14  	firstpartyonly	            INTEGER
-        """     
-        db_path = db_paths[0] if self.root.GetByPath(db_paths[0]) else db_paths[1]
-        if not self._read_db(db_path):
-            return 
-        for rec in self._read_table(table_name):
-            if canceller.IsCancellationRequested:
-                return
-            if self._is_empty(rec, 'creation_utc') or self._is_duplicate(rec, 'creation_utc'):
-                continue                    
-            cookies = Cookie()
-            # cookies.id
-            cookies.host_key       = rec['host_key'].Value
-            cookies.name           = rec['name'].Value
-            cookies.value          = rec['value'].Value
-            cookies.createdate     = rec['path'].Value
-            cookies.expiredate     = rec['creation_utc'].Value
-            cookies.lastaccessdate = rec['last_access_utc'].Value
-            cookies.hasexipred     = rec['has_expires'].Value
-            # cookies.owneruser      = rec['owneruser'].Value
-            cookies.source         = self.cur_db_source
-            cookies.deleted        = 1 if rec.IsDeleted else 0            
-            try:
-                self.mb.db_insert_table_cookies(cookies)
             except:
                 exc()
         try:
@@ -428,7 +343,7 @@ class BaiduMobileParser(object):
                 return
             if self._is_empty(rec, 'intent_key', 'query') or self._is_duplicate(rec, '_id'):
                 continue
-            search_history = SearchHistory()
+            search_history = model_browser.SearchHistory()
             search_history.id       = rec['_id'].Value
             search_history.name     = rec['query'].Value
             # search_history.url      = rec['query'].Value
@@ -443,55 +358,6 @@ class BaiduMobileParser(object):
             self.mb.db_commit()
         except:
             exc()
-
-    def _read_db(self, db_path):
-        """ 
-            读取手机数据库
-        :type table_name: str
-        :rtype: bool                              
-        """
-        try:
-            node = self.root.GetByPath(db_path)
-            self.cur_db = SQLiteParser.Database.FromNode(node, canceller)
-            if self.cur_db is None:
-                return False
-            self.cur_db_source = node.AbsolutePath
-            return True
-        except:
-            return False
-
-    def _read_table(self, table_name):
-        ''' 读取手机数据库 - 表
-
-        :type table_name: str
-        :rtype: db.ReadTableRecords()                                       
-        '''
-        self._PK_LIST = []
-        try:
-            tb = SQLiteParser.TableSignature(table_name)  
-            return self.cur_db.ReadTableRecords(tb, self.extract_deleted, True)
-        except:
-            exc()
-            return []
-
-    def _is_duplicate(self, rec, pk_name):
-        ''' filter duplicate record
-        
-        Args:
-            rec (record): 
-            pk_name (str): 
-        Returns:
-            bool: rec[pk_name].Value in self._PK_LIST
-        '''
-        try:
-            pk_value = rec[pk_name].Value
-            if IsDBNull(pk_value) or pk_value in self._PK_LIST:
-                return True
-            self._PK_LIST.append(pk_value)
-            return False
-        except:
-            exc()
-            return True
 
     def _convert_2_nodepath(self, raw_path, file_name):
         # raw_path = '/data/user/0/com.baidu.searchbox/files/template/profile.zip'
@@ -521,46 +387,3 @@ class BaiduMobileParser(object):
             print 'raw_path:', raw_path, 'file_name:', file_name
             return file_name
 
-    @staticmethod
-    def _is_empty(rec, *args):
-        ''' 过滤 DBNull 空数据, 有一空值就跳过
-        
-        :type rec:   rec
-        :type *args: str
-        :rtype: bool
-        '''
-        try:
-            for i in args:
-                value = rec[i].Value
-                if IsDBNull(value) or value in ('', ' ', None, [], {}):
-                    return True
-                if isinstance(value, str) and re.search(r'[\x00-\x08\x0b-\x0c\x0e-\x1f]', str(value)):
-                    return True
-            return False
-        except:
-            exc()
-            return True   
-
-    @staticmethod
-    def _is_url(rec, *args):
-        ''' 匹配 URL IP
-
-        严格匹配
-        :type rec:   rec
-        :type *args: str
-        :rtype: bool
-        '''
-        URL_PATTERN = r'((http|ftp|https)://)(([a-zA-Z0-9\._-]+\.[a-zA-Z]{2,6})|([0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}))(:[0-9]{1,4})*(/[a-zA-Z0-9\&%_\./-~-]*)?'
-        IP_PATTERN = r'^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$'
-
-        for i in args:
-            try:
-                match_url = re.match(URL_PATTERN, rec[i].Value)
-                match_ip  = re.match(IP_PATTERN, rec[i].Value)
-                
-                if not match_url and not match_ip:
-                    return False
-            except:
-                exc()
-                return False  
-        return True

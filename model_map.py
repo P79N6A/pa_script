@@ -447,7 +447,7 @@ class Genetate(object):
                 return
             user = Common.User()
             user.Source.Value = row[18]
-            user.SourceApp.Value = row[19]
+            user.SourceApp = row[19]
             if row[20]:
                 user.SourceFile.Value =self._get_source_file(row[20])
             user.ID.Value = row[0]
@@ -541,7 +541,7 @@ class Genetate(object):
                 return
             journey = Journey()
             journey.Source.Value = row[12]
-            journey.SourceApp.Value = row[13]
+            journey.SourceApp = row[13]
             journey.SourceFile.Value = self._get_source_file(row[14])
             if row[11]:
                 starttime = self._get_timestamp(row[11])
@@ -651,7 +651,7 @@ class Genetate(object):
                 return
             searchitem = SearchedItem()
             searchitem.Source.Value = row[10]
-            searchitem.SourceApp.Value = row[11]
+            searchitem.SourceApp = row[11]
             searchitem.SourceFile.Value = self._get_source_file(row[12])
             if row[2]:
                 searchitem.TimeStamp.Value = self._get_timestamp(row[2])
@@ -786,12 +786,12 @@ class Genetate(object):
                 fromcoord.Source.Value = row[26]
                 tocoord.Source.Value = row[26]
             if row[27]:
-                trip.SourceApp.Value = row[27]
-                journey.SourceApp.Value = row[27]
-                frompoint.SourceApp.Value = row[27]
-                topoint.SourceApp.Value = row[27]
-                fromcoord.SourceApp.Value = row[27]
-                tocoord.SourceApp.Value = row[27]
+                trip.SourceApp = row[27]
+                journey.SourceApp = row[27]
+                frompoint.SourceApp = row[27]
+                topoint.SourceApp = row[27]
+                fromcoord.SourceApp = row[27]
+                tocoord.SourceApp = row[27]
             if row[28]:
                 trip.SourceFile.Value = row[28]
                 journey.SourceFile.Value = row[28]
@@ -837,7 +837,7 @@ class Genetate(object):
                 return
             passenger = Common.PassengerInfo()
             passenger.Source.Value = row[8]
-            passenger.SourceApp.Value = row[9]
+            passenger.SourceApp = row[9]
             passenger.SourceFile.Value = self._get_source_file(row[10])
 
             if row[0]:

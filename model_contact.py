@@ -44,13 +44,13 @@ SQL_CREATE_TABLE_CONTACTS = '''
     )'''
 
 SQL_INSERT_TABLE_CONTACTS = '''
-    INSERT INTO contacts(raw_contact_id, mimetype_id, mail, company, title, last_time_contact, last_time_modify, times_contacted, phone_number, name, address, notes, telegram, head_pic, source, deleted, repeated)
-        values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO contacts(raw_contact_id, mimetype_id, mail, company, title, last_time_contact, last_time_modify, times_contacted, phone_number, name, address, notes, head_pic, source, deleted, repeated)
+        values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     '''
 
 SQL_FIND_TABLE_CONTACTS_INTACT = '''
     SELECT DISTINCT raw_contact_id, group_concat(mail), group_concat(company), group_concat(title), last_time_contact, last_time_modify,
-    times_contacted, group_concat(phone_number), group_concat(name), group_concat(address), group_concat(notes), telegram, 
+    times_contacted, group_concat(phone_number), name, group_concat(address), group_concat(notes), telegram, 
     group_concat(head_pic), source, deleted, repeated FROM contacts where deleted = 0 GROUP BY raw_contact_id
     '''
 
@@ -251,9 +251,9 @@ class Generate(object):
                         entry = Contacts.ContactEntry()
                         entry.Value.Value = phone[e]
                         contact.Entries.Add(entry)
-                if not IsDBNull(sr[14]):
+                if not IsDBNull(sr[13]):
                     contact.SourceFile.Value = self._get_source_file(str(sr[14]))
-                if not IsDBNull(sr[15]):
+                if not IsDBNull(sr[14]):
                     contact.Deleted = self._convert_deleted_status(sr[15])
                 model.append(contact)
             sr.Close()

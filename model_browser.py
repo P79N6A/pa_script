@@ -14,7 +14,7 @@ from PA.InfraLib.Utils import ConvertHelper
 import sqlite3
 
 VERSION_KEY_DB  = 'db'
-VERSION_VALUE_DB = 5
+VERSION_VALUE_DB = 6
 
 VERSION_KEY_APP = 'app'
 
@@ -835,10 +835,12 @@ class Generate(object):
             pass
 
 
-##############################################
-##             Android Browser              ##
-##############################################
+##################################################################################
+##                              Base Browser Parser                             ##
+##################################################################################
+
 CASE_NAME = ds.ProjectState.ProjectDir.Name
+
 
 def convert_2_SearchedItem(_VisitedPage):
     ''' 有些搜索记录没有存储, 需要将浏览记录转化为搜索记录(SearchedItem), "网页搜索_"为神马搜索
@@ -869,6 +871,7 @@ def convert_2_SearchedItem(_VisitedPage):
         exc()
         return 
 
+
 def exc(e=''):
     ''' Exception output '''
     try:
@@ -887,6 +890,7 @@ def tp(*e):
     else:
         pass
 
+
 def print_run_time(func):
     def wrapper(*args, **kw):
         local_time = time.time()
@@ -899,16 +903,6 @@ def print_run_time(func):
             return res
     return wrapper
 
-def exc(e=''):
-    ''' Exception output '''
-    try:
-        if DEBUG:
-            py_name = os.path.basename(__file__)
-            msg = 'DEBUG {} Case:<{}> :'.format(py_name, CASE_NAME)
-            TraceService.Trace(TraceLevel.Warning,
-                               (msg+'{}{}').format(traceback.format_exc(), e))
-    except:
-        pass
 
 class BaseBrowserParser(object):
     ''' common func:
@@ -953,21 +947,21 @@ class BaseBrowserParser(object):
             table_name (str):
 
         Table Columns:
-            FieldName	        SQL Type 	     	
-            creation_utc	    INTEGER
-            host_key	        TEXT
-            name	            TEXT
-            value	            TEXT
-            path	            TEXT
-            expires_utc	        INTEGER
-            is_secure	        INTEGER     # or secure
-            is_httponly	        INTEGER     # or httponly
-            last_access_utc	    INTEGER
-            has_expires	        INTEGER
-            is_persistent	    INTEGER     # or persistent
-            priority	        INTEGER
-            encrypted_value	    BLOB
-            firstpartyonly	    INTEGER
+             FieldName	        SQL Type 	     	
+        1    creation_utc	    INTEGER
+        2    host_key	        TEXT
+        3    name	            TEXT
+        4    value	            TEXT
+        5    path	            TEXT
+        6    expires_utc	    INTEGER
+        7    is_secure	        INTEGER     # or secure
+        8    is_httponly	    INTEGER     # or httponly
+        9    last_access_utc	INTEGER
+        10   has_expires	    INTEGER
+        11   is_persistent	    INTEGER     # or persistent
+        12   priority	        INTEGER
+        13   encrypted_value	BLOB
+        14   firstpartyonly	    INTEGER
         '''
         for db_path in db_paths:
             if not self._read_db(db_path):
@@ -1024,6 +1018,8 @@ class BaseBrowserParser(object):
         '''
         try:
             json_node = self.root.GetByPath(json_path)
+            if not json_node:
+                return False
             file = json_node.Data.read().decode('utf-8')
             json_data = json.loads(file)
             self.cur_json_source = json_node.AbsolutePath
