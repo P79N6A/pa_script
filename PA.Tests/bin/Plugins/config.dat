@@ -1747,7 +1747,7 @@
           <key>Category</key>
           <string>NeteaseMail</string>
           <key>Name</key>
-          <string>网易邮箱(苹果)</string>
+          <string>网易邮箱大师(苹果)</string>
           <key>Filter</key>
           <string>应用>邮箱</string>
         </dict>
@@ -2888,7 +2888,7 @@
           <key>Category</key>
           <string>NeteaseMail</string>
           <key>Name</key>
-          <string>网易邮箱(安卓)</string>
+          <string>网易邮箱大师(安卓)</string>
           <key>Filter</key>
           <string>应用>邮箱</string>
         </dict>
