@@ -1,20 +1,20 @@
 ﻿# coding=utf-8
 __author__ = 'YangLiyuan'
 
-import re
-import time
 import hashlib
 
 import clr
 try:
     clr.AddReference('model_browser')
     clr.AddReference('bcp_browser')
+    clr.AddReference('android_chrome')
 except:
     pass
 del clr
 
 from PA_runtime import *
 import model_browser
+import android_chrome 
 from model_browser import tp, exc, print_run_time, CASE_NAME
 import bcp_browser
 
@@ -26,61 +26,109 @@ DEBUG = False
 VERSION_APP_VALUE = 1
 
 # 国产安卓手机预装浏览器类型
-XIAOMI = bcp_browser.NETWORK_APP_XIAOMI
-HUAWEI = bcp_browser.NETWORK_APP_HUAWEI
-VIVO   = bcp_browser.NETWORK_APP_VIVO
-OPPO   = bcp_browser.NETWORK_APP_OPPO
-LENOVO = bcp_browser.NETWORK_APP_LENOVO
+XIAOMI  = bcp_browser.NETWORK_APP_XIAOMI
+HUAWEI  = bcp_browser.NETWORK_APP_HUAWEI
+VIVO    = bcp_browser.NETWORK_APP_VIVO
+OPPO    = bcp_browser.NETWORK_APP_OPPO
+LENOVO  = bcp_browser.NETWORK_APP_LENOVO
 
+""" 安卓原生类 com.android.browser/databases/browser2.db
+        # xiaomi, huawei, oppo
+        # com.vivo.browser/databases/browser2.db
+            bookmarks
+            history
+        # SearchHistory
+        mostvisited                 # xiaomi 
+        oppo_quicksearch_history    # oppo
+        searchs                     # vivo_huawei
+    # Download
+        oppo
+            downloads.db                
+        xiaomi:
+            com.android.providers.downloads/databases/downloads.db
+    # Cookie
+        [
+            'app_webview/Cookies', 
+            'app_miui_webview/Cookies',
+            'app_core_ucmobile/Cookies',    # huawei
+        ]
 
-def analyze_xiaomi_browser(node, extract_deleted, extract_source):
-    ''' \com.android.browser\databases$ '''
+    Chrome 类:
+        samsung - com.sec.android.app.sbrowser/databases/SBrowser.db
+        # oppo 两种都有, 怀疑 chrome 的是旧版本
+        oppo - com.android.browser/app_chromeshell/Default/History
 
-    tp('android_browser.py is running ...')
-    tp(node.AbsolutePath)
+    Lenovo
+        lenovo - com.zui.browser/databases/lebrowser.db
+
+        ''' databases/browser2.db - history 浏览记录
+
+            'created' is 'create_time' in lebrowser.db:
+"""
+def analyze_decorator(func):
+    def wrapper(*args, **kw):
+        tp('android_browser.py {} is running ...'.format(func.__name__,))
+        res = func(*args, **kw)
+        tp('android_browser.py {} is finished !'.format(func.__name__,))
+        return res
+    return wrapper    
+
+def base_analyze(node, extract_deleted, extract_source, BCP_TYPE, bulid_name, db_name):
+    '''
+    Args:
+        node (node): 
+        BCP_TYPE:
+        bulid_name (str): pr.build
+        db_name (str): 中间数据库名称
+    Returns:
+        pr
+    '''
     if 'media' in node.AbsolutePath:
         return 
     res = []
     pr = ParserResults()
     try:
-        res = AndroidBrowserParser(node, extract_deleted, extract_source).parse(DEBUG, 
-                                                                                BCP_TYPE=XIAOMI,
-                                                                                VERSION_APP_VALUE=VERSION_APP_VALUE)
+        parser = AndroidBrowserParser(node, extract_deleted, extract_source, db_name)
+        res = parser.parse(DEBUG, BCP_TYPE=BCP_TYPE, VERSION_APP_VALUE=VERSION_APP_VALUE)
     except:
-        TraceService.Trace(TraceLevel.Debug,
-                           'analyze_browser 解析新案例 <{}> 出错: {}'.format(CASE_NAME, traceback.format_exc()))
+        msg = 'analyze_browser.py-{} 解析新案例 <{}> 出错: {}'.format(db_name, CASE_NAME, traceback.format_exc())
+        TraceService.Trace(TraceLevel.Debug, msg)
     if res:
         pr.Models.AddRange(res)
-        pr.Build('小米浏览器')
-    tp('android_browser.py is finished !')
+        pr.Build(bulid_name)
     return pr
 
-def analyze_originbrowser(node, extract_deleted, extract_source):
-    ''' \com.android.browser\databases$ '''
-    tp('android_browser.py is running ...')
-    res = []
+@analyze_decorator
+def analyze_xiaomi_browser(node, extract_deleted, extract_source):
+    return base_analyze(node, extract_deleted, extract_source, BCP_TYPE=XIAOMI, bulid_name='小米浏览器', db_name='Xiaomi')
 
-    pr = ParserResults()
-    try:
+@analyze_decorator
+def analyze_huawei_browser(node, extract_deleted, extract_source):
+    return base_analyze(node, extract_deleted, extract_source, BCP_TYPE=HUAWEI, bulid_name='华为浏览器', db_name='Huawei')
 
-        res = AndroidBrowserParser(node, extract_deleted, extract_source).parse()
-    except:
-        TraceService.Trace(TraceLevel.Debug,
-                           'analyze_browser 解析新案例 <{}> 出错: {}'.format(CASE_NAME, traceback.format_exc()))
-    if res:
-        pr.Models.AddRange(res)
-        pr.Build('安卓浏览器')
-    tp('android_browser.py is finished !')
-    return pr
+@analyze_decorator
+def analyze_oppo_browser(node, extract_deleted, extract_source):
+    if node.Name == 'downloads.db': # com.android.browser
+        return base_analyze(node, extract_deleted, extract_source, BCP_TYPE=OPPO, bulid_name='OPPO浏览器', db_name='OPPO')
+    elif node.Name == 'History':    # chrome
+        return analyze_oppo_browser_chrome(node, extract_deleted, extract_source)
+
+@analyze_decorator
+def analyze_vivo_browser(node, extract_deleted, extract_source):
+    return base_analyze(node, extract_deleted, extract_source, BCP_TYPE=VIVO, bulid_name='VIVO浏览器', db_name='VIVO')
+    
+@analyze_decorator
+def analyze_lenovo_browser(node, extract_deleted, extract_source):
+    return base_analyze(node, extract_deleted, extract_source, BCP_TYPE=LENOVO, bulid_name='联想浏览器', db_name='Lenovo')
 
 
 class AndroidBrowserParser(model_browser.BaseBrowserParser):
     ''' self.root: com.android.browser/
     '''
-    def __init__(self, node, extract_deleted, extract_source):
-        super(AndroidBrowserParser, self).__init__(node, extract_deleted, extract_source, 
-                                                   app_name='AndroidBrowser')
+    def __init__(self, node, extract_deleted, extract_source, db_name):
+        super(AndroidBrowserParser, self).__init__(node, extract_deleted, extract_source, db_name)
         self.root = node.Parent.Parent
+        self.model_db_name = db_name
         if self.root.FileSystem.Name == 'data.tar':
             self.rename_file_path = ['/storage/emulated', '/data/media'] 
         else:
@@ -90,14 +138,19 @@ class AndroidBrowserParser(model_browser.BaseBrowserParser):
         ''' self.root: /com.android.browser/ '''
         # account_dict = self.parse_Account('databases')
         self.cur_account_name = 'default_user'
-        if self._read_db('databases/browser2.db'):
+
+        if self.model_db_name == 'Lenovo' and self._read_db('databases/lebrowser.db'):
+            self.parse_Bookmark('bookmark')
+            self.parse_Browserecord('history')
+            self._parse_SearchHistory_lenovo('search_record')                
+        elif self._read_db('databases/browser2.db'):
             self.parse_Bookmark('bookmarks')
             self.parse_Browserecord('history')
-            self.parse_SearchHistory('mostvisited')
-        download_db_node = self.root.Parent.GetByPath('com.android.providers.downloads/databases/downloads.db')
-        if self._read_db(db_path='', node=download_db_node):
-            self.parse_DownloadFile('downloads')
-        self.parse_Cookie(['app_webview/Cookies', 'app_miui_webview/Cookies'], 'cookies')
+            self.parse_SearchHistory()
+
+        self.parse_DownloadFile()
+
+        self.parse_Cookie(['app_webview/Cookies', 'app_miui_webview/Cookies', 'app_core_ucmobile/Cookies'], 'cookies')
 
     def parse_Bookmark(self, table_name):
         ''' 'databases/browser2.db - bookmarks
@@ -106,7 +159,7 @@ class AndroidBrowserParser(model_browser.BaseBrowserParser):
             _id	                INTEGER
             title	            TEXT
             url	                TEXT
-            folder	            INTEGER
+            folder	            INTEGER    # lenovo is type
             parent	            INTEGER 
             position	        INTEGER
             insert_after	    INTEGER
@@ -115,26 +168,25 @@ class AndroidBrowserParser(model_browser.BaseBrowserParser):
             account_type	    TEXT
             sourceid	        TEXT
             version	            INTEGER
-            created	            INTEGER
+            created	            INTEGER   # lenovo is type
             modified	        INTEGER
             dirty	            INTEGER
-            sync1	            TEXT
-            sync2	            TEXT
-            sync3	            TEXT
-            sync4	            TEXT
-            sync5	            TEXT
         '''
         for rec in self._read_table(table_name):
             try:
                 if (self._is_empty(rec, 'url', 'title') or 
                     not self._is_url(rec, 'url') or
-                    rec['folder'].Value == 1 or
                     self._is_duplicate(rec, '_id')):
+                    continue
+                if 'folder' in rec.Keys and rec['folder'].Value == 1:
                     continue
                 bookmark = model_browser.Bookmark()
                 bookmark.id        = rec['_id'].Value
                 bookmark.owneruser = self.cur_account_name
-                bookmark.time      = rec['created'].Value
+                if 'created' in rec.Keys:
+                    bookmark.time  = rec['created'].Value
+                elif 'create_time' in rec.Keys:
+                    bookmark.time  = rec['create_time'].Value
                 bookmark.title     = rec['title'].Value
                 bookmark.url       = rec['url'].Value
                 bookmark.source    = self.cur_db_source
@@ -151,7 +203,7 @@ class AndroidBrowserParser(model_browser.BaseBrowserParser):
             _id	            INTEGER
             title	        TEXT
             url	            TEXT
-            created	        INTEGER
+            created	        INTEGER   # lenovo: create_time
             date	        INTEGER
             visits	        INTEGER
             user_entered	INTEGER
@@ -163,33 +215,102 @@ class AndroidBrowserParser(model_browser.BaseBrowserParser):
                     not self._is_url(rec, 'url')):
                     continue
                 browser_record = model_browser.Browserecord()
-                browser_record.id          = rec['_id'].Value
-                browser_record.name        = rec['title'].Value
-                browser_record.url         = rec['url'].Value
-                browser_record.datetime    = rec['created'].Value
-                browser_record.visit_count = rec['visits'].Value if rec['visits'].Value > 0 else 1
-                browser_record.owneruser   = self.cur_account_name
-                browser_record.source      = self.cur_db_source
-                browser_record.deleted     = 1 if rec.IsDeleted else 0
+                browser_record.id           = rec['_id'].Value
+                browser_record.name         = rec['title'].Value
+                browser_record.url          = rec['url'].Value
+                for data_field in ['created', 'create_time', 'date']:
+                    if data_field in rec.Keys and rec[data_field].Value > 0:
+                        browser_record.datetime = rec[data_field].Value
+                        break
+                browser_record.visit_count  = rec['visits'].Value if rec['visits'].Value > 0 else 1
+                browser_record.owneruser    = self.cur_account_name
+                browser_record.source       = self.cur_db_source
+                browser_record.deleted      = 1 if rec.IsDeleted else 0
                 self.mb.db_insert_table_browserecords(browser_record)
             except:
                 exc()
         self.mb.db_commit()
 
-    def parse_SearchHistory(self, table_name):
-        ''' databases/history - mostvisited
+    def parse_SearchHistory(self):
+        if self.model_db_name in ['VIVO', 'Huawei']:
+            self._parse_SearchHistory_vivo_huawei('searches')        
+        elif self.model_db_name == 'Xiaomi':
+            self._parse_SearchHistory_xiaomi('mostvisited')
+        elif self.model_db_name == 'OPPO':
+            self._parse_SearchHistory_oppo('oppo_quicksearch_history')
 
-        Table Columns
-            FieldName	    SQLType       	
-            _id	            INTEGER
-            title	        TEXT
-            sub_title	    TEXT
-            type	        TEXT
-            doc_type	    TEXT
-            ads_info	    TEXT
-            url	            TEXT
-            web_url	        TEXT
-            date	        LONG
+    
+    def _parse_SearchHistory_vivo_huawei(self, table_name):
+        ''' databases/browser2.db - searches 无 URL
+
+            FieldName	SQLType   	
+            _id	        INTEGER
+            search	    TEXT
+            date	    LONG
+            type	    INTEGER
+            extra	    TEXT
+        '''
+        for rec in self._read_table(table_name):
+            try:
+                if (self._is_empty(rec, '_id', 'search') or
+                    self._is_duplicate(rec, '_id')):
+                    continue
+                search_history           = model_browser.SearchHistory()
+                search_history.id        = rec['_id'].Value
+                search_history.name      = rec['search'].Value
+                search_history.datetime  = rec['date'].Value
+                search_history.owneruser = self.cur_account_name
+                search_history.source    = self.cur_db_source
+                search_history.deleted   = 1 if rec.IsDeleted else 0
+                self.mb.db_insert_table_searchhistory(search_history)
+            except:
+                exc()
+        self.mb.db_commit()
+
+    def _parse_SearchHistory_oppo(self, table_name):
+        ''' databases/browser2.db - oppo_quicksearch_history
+                FieldName	                SQLType		
+                _id	                        INTEGER			
+                keyword	                    TEXT			
+                keyword_normalized	        TEXT			
+                keyword_pinyin_normalized	TEXT			
+                keyword_type	INTEGER	    False	
+                time	                    INTEGER			
+                url	                        TEXT			
+        '''
+        for rec in self._read_table(table_name):
+            try:
+                if (self._is_empty(rec, '_id', 'keyword') or
+                    self._is_duplicate(rec, '_id') or
+                    not self._is_url(rec, 'url')):
+                    continue
+                search_history           = model_browser.SearchHistory()
+                search_history.id        = rec['_id'].Value
+                search_history.name      = rec['keyword'].Value
+                search_history.url       = rec['url'].Value if self._is_url(rec, 'url') else None
+                search_history.datetime  = rec['time'].Value
+                search_history.owneruser = self.cur_account_name
+                search_history.source    = self.cur_db_source
+                search_history.deleted   = 1 if rec.IsDeleted else 0
+                self.mb.db_insert_table_searchhistory(search_history)
+            except:
+                exc()
+        self.mb.db_commit()
+
+    def _parse_SearchHistory_xiaomi(self, table_name):
+        ''' databases/browser2.db - mostvisited
+
+            Table Columns
+                FieldName	    SQLType       	
+                _id	            INTEGER
+                title	        TEXT
+                sub_title	    TEXT
+                type	        TEXT
+                doc_type	    TEXT
+                ads_info	    TEXT
+                url	            TEXT
+                web_url	        TEXT
+                date	        LONG
         '''
         for rec in self._read_table(table_name):
             try:
@@ -210,41 +331,82 @@ class AndroidBrowserParser(model_browser.BaseBrowserParser):
                 exc()
         self.mb.db_commit()
 
-    @print_run_time
-    def parse_DownloadFile(self, table_name):
-        ''' com.android.providers.downloads/databases/downloads.db - downloadmanagement
+    def _parse_SearchHistory_lenovo(self, table_name):
+        ''' databases/lebrowser.db - search_record
 
+            Table Columns
+                FieldName	SQLType     	
+                _id	        INTEGER
+                search	    TEXT
+                date	    INTEGER
+                url	        TEXT
+                visits	    INTEGER
+                created	    INTEGER
+        '''
+        for rec in self._read_table(table_name):
+            try:
+                if (self._is_empty(rec, '_id', 'search') or
+                    self._is_duplicate(rec, '_id')):
+                    continue
+                search_history           = model_browser.SearchHistory()
+                search_history.id        = rec['_id'].Value
+                search_history.name      = rec['search'].Value
+                search_history.url       = rec['url'].Value if self._is_url(rec, 'url') else None
+                search_history.datetime  = rec['date'].Value
+                search_history.owneruser = self.cur_account_name
+                search_history.source    = self.cur_db_source
+                search_history.deleted   = 1 if rec.IsDeleted else 0
+                self.mb.db_insert_table_searchhistory(search_history)
+            except:
+                exc()
+        self.mb.db_commit()
+
+    @print_run_time
+    def parse_DownloadFile(self):
+        if self.model_db_name in ['OPPO', 'Lenovo', 'VIVO'] and self._read_db('databases/downloads.db'):
+            self._parse_DownloadFile('downloads')
+        else:
+            tp(self.model_db_name)
+            tp(self.root.Parent.Children)                # com.android.providers.downloads
+            download_db_node = self.root.Parent.GetByPath('com.android.providers.downloads/databases/downloads.db')
+            if self._read_db(db_path='', node=download_db_node):
+                self._parse_DownloadFile('downloads')            
+
+    def _parse_DownloadFile(self, table_name):
+        ''' com.android.providers.downloads/databases/downloads.db - downloadmanagement
+            VIVO: no notificationpackage, deleted
+            
             FieldName	            SQLType         	
             _id	                    INTEGER
             uri	                    TEXT
             method	                INTEGER
             entity	                TEXT
-            no_integrity	                BOOLEAN
+            no_integrity	        BOOLEAN
             hint	                TEXT
-            otaupdate	                BOOLEAN
+            otaupdate	            BOOLEAN
             _data	                TEXT
-            mimetype	                TEXT
-            destination	                INTEGER
-            no_system	                BOOLEAN
-            visibility	                INTEGER
+            mimetype	            TEXT
+            destination	            INTEGER
+            no_system	            BOOLEAN
+            visibility	            INTEGER
             control	                INTEGER
             status	                INTEGER
-            numfailed	                INTEGER
-            lastmod	                    BIGINT
-            notificationpackage	        TEXT
-            notificationclass	        TEXT
-            notificationextras	        TEXT
-            cookiedata	                TEXT
-            useragent	                TEXT
-            referer	                    TEXT
-            total_bytes	                INTEGER
-            current_bytes	                INTEGER
-            etag	                    TEXT
-            uid	                        INTEGER
-            otheruid	                INTEGER
-            title	                    TEXT
-            description	                TEXT
-            scanned	                    BOOLEAN
+            numfailed	            INTEGER
+            lastmod	                BIGINT
+            notificationpackage	    TEXT
+            notificationclass	    TEXT
+            notificationextras	    TEXT
+            cookiedata	            TEXT
+            useragent	            TEXT
+            referer	                TEXT
+            total_bytes	            INTEGER
+            current_bytes	        INTEGER
+            etag	                TEXT
+            uid	                    INTEGER
+            otheruid	            INTEGER
+            title	                TEXT
+            description	            TEXT
+            scanned	                BOOLEAN
             is_public_api	                INTEGER
             allow_roaming	                INTEGER
             allowed_network_types	        INTEGER
@@ -253,34 +415,11 @@ class AndroidBrowserParser(model_browser.BaseBrowserParser):
             mediaprovider_uri	            TEXT
             deleted	                        BOOLEAN
             errorMsg	                    TEXT
-            if_range_id	                    TEXT
-            allow_metered	                INTEGER
-            allow_write	                    BOOLEAN
-            file_create_time	            INTEGER
-            downloading_current_speed	    INTEGER
-            download_surplus_time	        INTEGER
-            xl_accelerate_speed	            INTEGER
-            downloaded_time	                INTEGER
-            xl_vip_status	                INTEGER
-            xl_vip_cdn_url	                TEXT
-            xl_task_open_mark	            INTEGER
-            download_task_thumbnail	        TEXT
-            apk_package_name	            TEXT
-            torrent_file_infos_hash	        TEXT
-            torrent_file_count	            INTEGER
-            download_type	                INTEGER             			
-            download_file_hash	            TEXT
-            download_extra	                TEXT
-            download_apk_install_way	    INTEGER             			
-            download_speedup_time	        TEXT
-            download_speedup_status	        INTEGER             			
-            download_speedup_mode	        INTEGER             			
-            flags	                        INTEGER
-            download_extra2	                TEXT
         '''
         for rec in self._read_table(table_name):
             try:
-                if rec['notificationpackage'].Value != 'com.android.browser':
+                if ('notificationpackage' in rec.Keys and 
+                    rec['notificationpackage'].Value != 'com.android.browser'):
                     continue
                 if (self._is_empty(rec, '_id', 'title') or
                     self._is_duplicate(rec, '_id')):
@@ -298,12 +437,14 @@ class AndroidBrowserParser(model_browser.BaseBrowserParser):
                 # downloads.costtime       = costtime if costtime > 0 else None  
                 downloads.owneruser      = self.cur_account_name
                 downloads.source         = self.cur_db_source
-                downloads.deleted        = 1 if rec.IsDeleted else rec['deleted'].Value
+                if rec.IsDeleted:
+                    downloads.deleted    = 1 
+                else:
+                    downloads.deleted    = rec['deleted'].Value if 'deleted' in rec.Keys else 0
                 self.mb.db_insert_table_downloadfiles(downloads)
             except:
                 exc()
         self.mb.db_commit()
-
 
     def _convert_nodepath(self, raw_path):
         ''' huawei: /data/user/0/com.baidu.searchbox/files/template/profile.zip
@@ -328,5 +469,3 @@ class AndroidBrowserParser(model_browser.BaseBrowserParser):
         except:
             tp('android_browser.py _conver_2_nodeapth error, raw_path:', raw_path)
             exc()
-
- 

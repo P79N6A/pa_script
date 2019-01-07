@@ -1,4 +1,4 @@
-# coding=utf-8
+﻿# coding=utf-8
 __author__ = 'YangLiyuan'
 
 import hashlib
@@ -30,11 +30,9 @@ def analyze_baidumobile(node, extract_deleted, extract_source):
     """
     res = []
     pr = ParserResults()
-    app_name = "BaiduMobile"
     try:
-        res = BaiduMobileParser(node, extract_deleted, extract_source, app_name).parse(DEBUG, 
-                                                                                       BCP_TYPE=bcp_browser.NETWORK_APP_BAIDU,
-                                                                                       VERSION_APP_VALUE=VERSION_APP_VALUE)            
+        parser = BaiduMobileParser(node, extract_deleted, extract_source, db_name="BaiduMobile")
+        res = parser.parse(DEBUG, bcp_browser.NETWORK_APP_BAIDU, VERSION_APP_VALUE)            
     except:
         TraceService.Trace(TraceLevel.Debug, 
                            'analyze_baidumobile 解析新案例 "{}" 出错: {}'.format(CASE_NAME, traceback.format_exc()))
@@ -48,11 +46,9 @@ def analyze_baidumobile_lite(node, extract_deleted, extract_source):
         android 华为 (data/data/com.baidu.searchbox.lite/)
     """
     pr = ParserResults()
-    app_name = "BaiduMobileLite"
     try:
-        res = BaiduMobileParser(node, extract_deleted, extract_source, app_name).parse(DEBUG, 
-                                                                                       BCP_TYPE=bcp_browser.NETWORK_APP_BAIDU,
-                                                                                       VERSION_APP_VALUE=VERSION_APP_VALUE)        
+        parser = BaiduMobileParser(node, extract_deleted, extract_source, db_name="BaiduMobileLite")
+        res = parser.parse(DEBUG, bcp_browser.NETWORK_APP_BAIDU, VERSION_APP_VALUE)        
     except:
         TraceService.Trace(TraceLevel.Debug, 
                            'analyze_baidumobile_lite 解析新案例 "{}" 出错: {}'.format(CASE_NAME, traceback.format_exc()))
@@ -63,9 +59,8 @@ def analyze_baidumobile_lite(node, extract_deleted, extract_source):
 
 class BaiduMobileParser(model_browser.BaseBrowserParser):
 
-    def __init__(self, node, extract_deleted, extract_source, app_name):
-        super(BaiduMobileParser, self).__init__(node, extract_deleted, extract_source, 
-                                                app_name=app_name)
+    def __init__(self, node, extract_deleted, extract_source, db_name):
+        super(BaiduMobileParser, self).__init__(node, extract_deleted, extract_source, db_name)
         self.root = node.Parent.Parent  # data/data/com.baidu.searchbox/
         self.uid_list = ['anony']
 
@@ -83,9 +78,7 @@ class BaiduMobileParser(model_browser.BaseBrowserParser):
                 self.parse_Bookmark('databases/' + uid + '_searchbox.db', 'favor')
         self.parse_Bookmark('databases/anony_searchbox.db', 'favor')
         self.parse_Browserecord("databases/box_visit_history.db", 'visit_search_history')
-        cookie_db_paths = ('app_webview_baidu/Cookies','app_webview/Cookies')
-        cookie_db_path = cookie_db_paths[0] if self.root.GetByPath(cookie_db_paths[0]) else cookie_db_paths[1]
-        self.parse_Cookie([cookie_db_path], 'cookies')
+        self.parse_Cookie(['app_webview_baidu/Cookies','app_webview/Cookies'], 'cookies')
         self.parse_DownloadFile('databases/downloads.db', 'downloads')
         self.parse_SearchHistory("databases/SearchBox.db", 'clicklog')
 

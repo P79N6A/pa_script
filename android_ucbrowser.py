@@ -15,6 +15,7 @@ del clr
 
 from PA_runtime import *
 import model_browser
+from model_browser import tp, exc, print_run_time, CASE_NAME
 import bcp_browser
 
 
@@ -24,42 +25,9 @@ DEBUG = False
 # app数据库版本
 VERSION_APP_VALUE = 1
 
-CASE_NAME = ds.ProjectState.ProjectDir.Name
+'''
 
-
-def exc(e=''):
-    ''' Exception output '''
-    try:
-        if DEBUG:
-            py_name = os.path.basename(__file__)
-            msg = 'DEBUG {} case:<{}> :'.format(py_name, CASE_NAME)
-            TraceService.Trace(TraceLevel.Warning,
-                               (msg+'{}{}').format(traceback.format_exc(), e))
-    except:
-        pass
-
-
-def tp(*e):
-    ''' Highlight print in vs '''
-    if DEBUG:
-        TraceService.Trace(TraceLevel.Warning, '{}'.format(e))
-    else:
-        pass
-
-
-def print_run_time(func):
-    ''' decorator '''
-    def wrapper(*args, **kw):
-        local_time = time.time()
-        res = func(*args, **kw)
-        if DEBUG:
-            msg = 'Current Function <{}> run time is {:.2} s'.format(
-                func.__name__, time.time() - local_time)
-            TraceService.Trace(TraceLevel.Warning, '{}'.format(msg))
-        if res:
-            return res
-    return wrapper
-
+'''
 
 def analyze_ucbrowser(node, extract_deleted, extract_source):
     ''' com.UCMobile/databases/WXStorage$ '''
@@ -68,7 +36,8 @@ def analyze_ucbrowser(node, extract_deleted, extract_source):
 
     pr = ParserResults()
     try:
-        res = UCParser(node, extract_deleted, extract_source).parse()
+        parser = UCParser(node, extract_deleted, extract_source, db_name='UC_A')
+        res = parser.parse(DEBUG, bcp_browser.NETWORK_APP_UC, VERSION_APP_VALUE)        
     except:
         TraceService.Trace(TraceLevel.Debug,
                            'analyze_ucbrowser 解析新案例 <{}> 出错: {}'.format(CASE_NAME, traceback.format_exc()))
@@ -79,47 +48,14 @@ def analyze_ucbrowser(node, extract_deleted, extract_source):
     return pr
 
 
-class UCParser(object):
-    def __init__(self, node, extract_deleted, extract_source):
-
-        # PA.InfraLib.Files.NodeType.File
-        # PA.InfraLib.Files.NodeType.Directory
+class UCParser(model_browser.BaseBrowserParser):
+    def __init__(self, node, extract_deleted, extract_source, db_name):
+        super(UCParser, self).__init__(node, extract_deleted, extract_source, db_name)        
         self.root = node.Parent
-        self.extract_deleted = extract_deleted
-        self.extract_source = extract_source
-
-        self.mb = model_browser.MB()
-        self.cachepath = ds.OpenCachePath('UCBrowser')
-        hash_str = hashlib.md5(node.AbsolutePath).hexdigest()[8:-8]
-        self.cache_db = self.cachepath + '\\a_uc_{}.db'.format(hash_str)
-        
         if self.root.FileSystem.Name == 'data.tar':
             self.rename_file_path = ['/storage/emulated', '/data/media'] 
         else:
             self.rename_file_path = None
-
-    def parse(self):
-        if DEBUG or self.mb.need_parse(self.cache_db, VERSION_APP_VALUE):
-
-            if not self.root.GetByPath('databases').Children:
-                return []
-
-            self.mb.db_create(self.cache_db)
-
-            self.parse_main()
-
-            if not canceller.IsCancellationRequested:
-                self.mb.db_insert_table_version(
-                    model_browser.VERSION_KEY_DB, model_browser.VERSION_VALUE_DB)
-                self.mb.db_insert_table_version(
-                    model_browser.VERSION_KEY_APP, VERSION_APP_VALUE)
-                self.mb.db_commit()
-
-            self.mb.db_close()
-        tmp_dir = ds.OpenCachePath('tmp')
-        save_cache_path(bcp_browser.NETWORK_APP_UC, self.cache_db, tmp_dir)
-        models = model_browser.Generate(self.cache_db).get_models()
-        return models
 
     def parse_main(self):
         ''' self.root: /com.UCMobile/ '''
@@ -129,11 +65,11 @@ class UCParser(object):
                 'default_user': ''
             }
         for account_id in account_dict:
-            self.cur_account_id = account_id
+            self.cur_account_name = account_id
             self.parse_Bookmark('databases/' + account_id + '.db', 'bookmark')
             self.parse_Browserecord_SearchHistory('databases/history', 'history')
-            self.parse_Cookie(['app_webview/Cookies', 'app_core_ucmobile/Cookies'], 'cookies')
             self.parse_DownloadFile('databases/RecentFile.db', 'recent_file')
+        self.parse_Cookie(['app_webview/Cookies', 'app_core_ucmobile/Cookies'], 'cookies')
 
     def parse_Account(self, node_path):
         ''' node_path: /databases
@@ -157,7 +93,7 @@ class UCParser(object):
                 photo_node = self.root.GetByPath('UCMobile/userdata/account/'+account_id)
                 if photo_node:
                     photo_path = photo_node.AbsolutePath
-                    tp('photo_path', photo_path)
+                    #tp('photo_path', photo_path)
                 account_dict[account_id] = photo_path if photo_path else None
         
         if account_dict:
@@ -173,7 +109,6 @@ class UCParser(object):
                 except:
                     exc()
             self.mb.db_commit()
-
         return account_dict
 
     def parse_Bookmark(self, db_path, table_name):
@@ -209,7 +144,7 @@ class UCParser(object):
                     continue
                 bookmark = model_browser.Bookmark()
                 bookmark.id        = rec['luid'].Value
-                bookmark.owneruser = self.cur_account_id
+                bookmark.owneruser = self.cur_account_name
                 bookmark.time      = rec['create_time'].Value
                 bookmark.title     = rec['title'].Value
                 bookmark.url       = rec['url'].Value
@@ -258,7 +193,7 @@ class UCParser(object):
                 browser_record.url         = rec['url'].Value
                 browser_record.datetime    = rec['visited_time'].Value
                 browser_record.visit_count = rec['visited_count'].Value if rec['visited_count'].Value > 0 else 1
-                browser_record.owneruser   = self.cur_account_id
+                browser_record.owneruser   = self.cur_account_name
                 browser_record.source      = self.cur_db_source
                 browser_record.deleted     = 1 if rec.IsDeleted else 0
                 self.mb.db_insert_table_browserecords(browser_record)
@@ -269,56 +204,12 @@ class UCParser(object):
                     search_history.name      = rec['name'].Value.replace('网页搜索_', '')
                     search_history.url       = rec['url'].Value
                     search_history.datetime  = rec['visited_time'].Value
-                    search_history.owneruser = self.cur_account_id
+                    search_history.owneruser = self.cur_account_name
                     search_history.source    = self.cur_db_source
                     search_history.deleted   = 1 if rec.IsDeleted else 0
                     self.mb.db_insert_table_searchhistory(search_history)
             except:
                 exc()
-        self.mb.db_commit()
-
-    def parse_Cookie(self, db_paths, table_name):
-        ''' app_webview/Cookies - cookies
-
-            FieldName	       SQLType   	
-            creation_utc	    INTEGER
-            host_key	        TEXT
-            name	            TEXT
-            value	            TEXT
-            path	            TEXT
-            expires_utc	        INTEGER
-            secure	            INTEGER
-            httponly	        INTEGER
-            last_access_utc	    INTEGER
-            has_expires	        INTEGER
-            persistent	        INTEGER
-            priority	        INTEGER
-            encrypted_value	    BLOB
-            firstpartyonly	    INTEGER
-        '''
-        for db_path in db_paths:
-            if not self._read_db(db_path):
-                return
-            for rec in self._read_table(table_name):
-                try:
-                    if (self._is_empty(rec, 'creation_utc') or
-                            self._is_duplicate(rec, 'creation_utc')):
-                        continue
-                    cookies = model_browser.Cookie()
-                    cookies.id             = rec['creation_utc'].Value
-                    cookies.host_key       = rec['host_key'].Value
-                    cookies.name           = rec['name'].Value
-                    cookies.value          = rec['value'].Value
-                    cookies.createdate     = rec['creation_utc'].Value
-                    cookies.expiredate     = rec['expires_utc'].Value
-                    cookies.lastaccessdate = rec['last_access_utc'].Value
-                    cookies.hasexipred     = rec['has_expires'].Value
-                    cookies.owneruser      = self.cur_account_id
-                    cookies.source         = self.cur_db_source
-                    cookies.deleted        = 1 if rec.IsDeleted else 0
-                    self.mb.db_insert_table_cookies(cookies)
-                except:
-                    exc()
         self.mb.db_commit()
 
     @print_run_time
@@ -350,13 +241,13 @@ class UCParser(object):
                 downloads.id             = rec['id'].Value
                 # downloads.url            = rec['url'].Value
                 downloads.filename       = rec['display_name'].Value
-                downloads.filefolderpath = self._2_nodepath(rec['full_path'].Value)
+                downloads.filefolderpath = self._convert_nodepath(rec['full_path'].Value)
                 downloads.totalsize      = rec['size'].Value
                 # downloads.createdate     = rec['modify_time'].Value
                 downloads.donedate       = rec['modify_time'].Value
                 # costtime                 = downloads.donedate - downloads.createdate
                 # downloads.costtime       = costtime if costtime > 0 else None  
-                downloads.owneruser      = self.cur_account_id
+                downloads.owneruser      = self.cur_account_name
                 downloads.source         = self.cur_db_source
                 downloads.deleted        = 1 if rec.IsDeleted else 0
                 self.mb.db_insert_table_downloadfiles(downloads)
@@ -364,7 +255,7 @@ class UCParser(object):
                 exc()
         self.mb.db_commit()
 
-    def _2_nodepath(self, raw_path):
+    def _convert_nodepath(self, raw_path):
         ''' huawei: /data/user/0/com.baidu.searchbox/files/template/profile.zip
         '''
         try:
@@ -389,99 +280,3 @@ class UCParser(object):
         except:
             tp('android_ucbrowser.py _conver_2_nodeapth error, raw_path:', raw_path)
             exc()
-
-    @staticmethod
-    def _is_empty(rec, *args):
-        ''' 过滤 DBNull 空数据, 有一空值就跳过
-
-        :type rec:   rec
-        :type *args: str
-        :rtype: bool
-        '''
-        try:
-            for i in args:
-                value = rec[i].Value
-                if IsDBNull(value) or value in ('', ' ', None, [], {}):
-                    return True
-                if isinstance(value, str) and re.search(r'[\x00-\x08\x0b-\x0c\x0e-\x1f]', str(value)):
-                    return True
-            return False
-        except:
-            exc()
-            return True
-
-    @staticmethod
-    def _is_url(rec, *args):
-        ''' 匹配 URL IP
-
-        严格匹配
-        :type rec:   rec
-        :type *args: str
-        :rtype: bool
-        '''
-        URL_PATTERN = r'((http|ftp|https)://)(([a-zA-Z0-9\._-]+\.[a-zA-Z]{2,6})|([0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}))(:[0-9]{1,4})*(/[a-zA-Z0-9\&%_\./-~-]*)?'
-        IP_PATTERN = r'^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$'
-
-        for i in args:
-            try:
-                match_url = re.match(URL_PATTERN, rec[i].Value)
-                match_ip = re.match(IP_PATTERN, rec[i].Value)
-                if not match_url and not match_ip:
-                    return False
-            except:
-                exc()
-                return False
-        return True
-
-    def _read_db(self, db_path):
-        ''' read_db
-
-        :type table_name: str
-        :rtype: bool                              
-        '''
-        try:
-            node = self.root.GetByPath(db_path)
-            self.cur_db = SQLiteParser.Database.FromNode(node, canceller)
-            if self.cur_db is None:
-                return False
-            self.cur_db_source = node.AbsolutePath
-            return True
-        except:
-            return False
-
-    def _read_table(self, table_name, read_delete=None):
-        ''' read_table
-
-        :type table_name: str
-        :type read_delete: bool
-        :rtype: db.ReadTableRecords()                                       
-        '''
-        # 每次读表清空并初始化 self._PK_LIST
-        self._PK_LIST = []
-        if read_delete is None:
-            read_delete = self.extract_deleted
-        try:
-            tb = SQLiteParser.TableSignature(table_name)
-            return self.cur_db.ReadTableRecords(tb, read_delete, True)
-        except:
-            exc()
-            return []
-
-    def _is_duplicate(self, rec, pk_name):
-        ''' filter duplicate record
-
-        Args:
-            rec (record): 
-            pk_name (str): 
-        Returns:
-            bool: rec[pk_name].Value in self._PK_LIST
-        '''
-        try:
-            pk_value = rec[pk_name].Value
-            if IsDBNull(pk_value) or pk_value in self._PK_LIST:
-                return True
-            self._PK_LIST.append(pk_value)
-            return False
-        except:
-            exc()
-            return True

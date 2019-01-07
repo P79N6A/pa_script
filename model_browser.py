@@ -873,7 +873,7 @@ def convert_2_SearchedItem(_VisitedPage):
 
 
 def exc(e=''):
-    ''' Exception output '''
+    ''' Exception log output '''
     try:
         if DEBUG:
             py_name = os.path.basename(__file__)
@@ -884,7 +884,7 @@ def exc(e=''):
         pass
 
 def tp(*e):
-    ''' Highlight print in vs '''
+    ''' Highlight log output in vs '''
     if DEBUG:
         TraceService.Trace(TraceLevel.Warning, '{}'.format(e))
     else:
@@ -895,7 +895,7 @@ def print_run_time(func):
     def wrapper(*args, **kw):
         local_time = time.time()
         res = func(*args, **kw)
-        if DEBUG:
+        if DEBUG_RUN_TIME:
             msg = 'Current Function <{}> run time is {:.2} s'.format(
                 func.__name__, time.time() - local_time)
             TraceService.Trace(TraceLevel.Warning, '{}'.format(msg))
@@ -912,14 +912,14 @@ class BaseBrowserParser(object):
             parse_main
             _convert_nodepath
     '''
-    def __init__(self, node, extract_deleted, extract_source, app_name):
+    def __init__(self, node, extract_deleted, extract_source, db_name=''):
         self.root = None
         self.extract_deleted = extract_deleted
         self.extract_source = extract_source
         self.mb = MB()
-        self.cachepath = ds.OpenCachePath(app_name)
+        self.cachepath = ds.OpenCachePath('Browser'+db_name)
         hash_str = hashlib.md5(node.AbsolutePath).hexdigest()[8:-8]
-        self.cache_db = self.cachepath + '\\' + app_name + '_{}.db'.format(hash_str)
+        self.cache_db = self.cachepath + '\\' + db_name + '_{}.db'.format(hash_str)
         # self.download_path = None
 
     def parse(self, DEBUG, BCP_TYPE, VERSION_APP_VALUE):
@@ -1045,7 +1045,7 @@ class BaseBrowserParser(object):
             self.cur_db_source = node.AbsolutePath
             return True
         except:
-            tp('db error', db_path)
+            exc()
             return False
 
     def _read_table(self, table_name, read_delete=None):

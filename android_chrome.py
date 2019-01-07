@@ -16,8 +16,9 @@ del clr
 
 from PA_runtime import *
 import model_browser
+from model_browser import tp, exc, print_run_time, CASE_NAME
+from apple_chrome import BaseChromeParser
 import bcp_browser
-from apple_chrome import exc, tp, print_run_time, BaseChromeParser
 
 
 DEBUG = True
@@ -26,43 +27,81 @@ DEBUG = False
 # app数据库版本
 VERSION_APP_VALUE = 2
 
-CASE_NAME = ds.ProjectState.ProjectDir.Name
 
+def analyze_decorator(func):
+    def wrapper(*args, **kw):
+        tp('android_chrome.py {} is running ...'.format(func.__name__,))
+        res = func(*args, **kw)
+        tp('android_chrome.py {} is finished !'.format(func.__name__,))
+        return res
+    return wrapper 
 
+@analyze_decorator
 def analyze_chrome(node, extract_deleted, extract_source):
     ''' android: com.android.chrome/databases/WXStorage$ 
         apple:   /Library/Application Support/Google/Chrome/Default/History$
+        Patterns:string>/Library/Application Support/Google/Chrome/Default/History$ 
     '''
-    tp('android_chrome.py is running ...')
-    ''' Patterns:string>/Library/Application Support/Google/Chrome/Default/History$  '''
     res = []
     pr = ParserResults()
     try:
-        res = AndroidChromeParser(node, extract_deleted, extract_source).parse()
+        parser = AndroidChromeParser(node, extract_deleted, extract_source, db_name='Chrome_A')
+        res = parser.parse(DEBUG, BCP_TYPE=bcp_browser.NETWORK_APP_CHROME, VERSION_APP_VALUE=VERSION_APP_VALUE)           
     except:
         TraceService.Trace(TraceLevel.Debug,
                            'analyze_chrome 解析新案例 <{}> 出错: {}'.format(CASE_NAME, traceback.format_exc()))
     if res:
         pr.Models.AddRange(res)
         pr.Build('Chrome浏览器')
-        tp('android_chrome.py is finished !')
     return pr
 
+@analyze_decorator
+def analyze_samsung_browser(node, extract_deleted, extract_source):
+    if 'media' in node.AbsolutePath:
+        return 
+    res = []
+    pr = ParserResults()
+    try:
+        parser = SamsungBrowserParser(node, extract_deleted, extract_source, db_name='Samsung')
+        res = parser.parse(DEBUG, BCP_TYPE=bcp_browser.NETWORK_APP_OTHER, VERSION_APP_VALUE=VERSION_APP_VALUE)
+    except:
+        msg = 'analyze_chrome - analyze_samsung_browser 解析新案例 <{}> 出错: {}'.format(CASE_NAME, traceback.format_exc())
+        TraceService.Trace(TraceLevel.Debug, msg)
+    if res:
+        pr.Models.AddRange(res)
+        pr.Build('三星浏览器')
+    return pr
+
+@analyze_decorator
+def analyze_oppo_browser_chrome(node, extract_deleted, extract_source):
+    if 'media' in node.AbsolutePath:
+        return 
+    res = []
+    pr = ParserResults()
+    try:
+        parser = OPPOBrowserParser(node, extract_deleted, extract_source, db_name='OPPO')
+        res = parser.parse(DEBUG, BCP_TYPE=bcp_browser.NETWORK_APP_OPPO, VERSION_APP_VALUE=VERSION_APP_VALUE)
+    except:
+        msg = 'analyze_chrome - analyze_oppo_browser_chrome 解析新案例 <{}> 出错: {}'.format(CASE_NAME, traceback.format_exc())
+        TraceService.Trace(TraceLevel.Debug, msg)
+    if res:
+        pr.Models.AddRange(res)
+        pr.Build('OPPO浏览器')
+    return pr
+
+
 class AndroidChromeParser(BaseChromeParser):
-    def __init__(self, node, extract_deleted, extract_source):
+    def __init__(self, node, extract_deleted, extract_source, db_name):
         ''' Patterns: /com\.android\.chrome/app_chrome/Default/History$ 
             self.root: /com.android.chrome/app_chrome 
         '''
-        super(AndroidChromeParser, self).__init__(node, extract_deleted, extract_source)
-        hash_str = hashlib.md5(node.AbsolutePath).hexdigest()[8:-8]
-        self.cache_db = self.cachepath + '\\a_chrome_{}.db'.format(hash_str)
-
+        super(AndroidChromeParser, self).__init__(node, extract_deleted, extract_source, db_name)
         if self.root.FileSystem.Name == 'data.tar':
             self.rename_file_path = ['/storage/emulated', '/data/media'] 
         else:
             self.rename_file_path = None
     
-    def _2_nodepath(self, raw_path):
+    def _convert_nodepath(self, raw_path):
         ''' huawei: /data/user/0/com.baidu.searchbox/files/template/profile.zip
         '''
         try:
@@ -86,4 +125,158 @@ class AndroidChromeParser(BaseChromeParser):
         except:
             tp('android_chrome.py _conver_2_nodeapth error, raw_path:', raw_path)
             exc()    
+
+
+class SamsungBrowserParser(BaseChromeParser):
+    def __init__(self, node, extract_deleted, extract_source, db_name):
+        ''' Patterns: com\.sec\.android\.app\.sbrowser/app_sbrowser/Default/History '''
+        super(SamsungBrowserParser, self).__init__(node, extract_deleted, extract_source, db_name)
+        # self.root: com.sec.android.app.sbrowser/
+        self.root = node.Parent.Parent.Parent
+
+        if self.root.FileSystem.Name == 'data.tar':
+            self.rename_file_path = ['/storage/emulated', '/data/media'] 
+        else:
+            self.rename_file_path = None
+
+    def parse_main(self):
+        accounts = self.parse_Account('app_sbrowser/Default/Preferences')
+        self.cur_account_name = accounts[0].get('email', 'default_account')
+
+        self.parse_Bookmark('databases/SBrowser.db', 'BOOKMARKS')
+        self.parse_Cookie(['app_sbrowser/Default/Cookies'], 'cookies')
+
+        if self._read_db('app_sbrowser/Default/History'):
+            URLS = self._parse_DownloadFile_urls('downloads_url_chains')
+            URLID_KEYWORD = self._parse_SearchHistory_keyword('keyword_search_terms')
+            self.parse_DownloadFile(URLS, 'downloads')
+            self.parse_Browserecord_SearchHistory(URLID_KEYWORD, 'urls')    
+    
+    def parse_Bookmark(self, db_path, table_name):
+        ''' databases/SBrowser.db - BOOKMARKS
+
+            FieldName	        SQLType          	
+            _ID	                INTEGER
+            BOOKMARK_ID	                INTEGER
+            URL	                TEXT
+            SURL	                TEXT
+            TITLE	                TEXT
+            FAVICON	                BLOB
+            FOLDER	                INTEGER
+            PARENT	                INTEGER
+            INSERT_AFTER	                INTEGER
+            POSITION	                INTEGER
+            CHILDREN_COUNT	                INTEGER
+            TAGS	                TEXT
+            SOURCEID	                TEXT
+            DELETED	                INTEGER
+            CREATED	                INTEGER
+            MODIFIED	                INTEGER
+            DIRTY	                INTEGER
+            ACCOUNT_NAME	                TEXT
+            ACCOUNT_TYPE	                TEXT
+            DEVICE_ID	                TEXT
+            DEVICE_NAME	                TEXT
+            SYNC1	                TEXT
+            SYNC2	                TEXT
+            SYNC3	                TEXT
+            SYNC4	                TEXT
+            SYNC5	                TEXT
+            IS_COMMITED	                INTEGER
+            bookmark	                INTEGER
+            bookmark_type	                INTEGER
+            EDITABLE	                INTEGER
+            type	                INTEGER
+            keyword	                TEXT
+            description	                TEXT
+            guid	                TEXT
+            TOUCH_ICON	                BLOB
+            DOMINANT_COLOR	        INTEGER
+        '''
+        if not self._read_db(db_path):
+            return         
+        for rec in self._read_table(table_name):
+            try:
+                if (self._is_empty(rec, 'URL', 'TITLE') or 
+                    not self._is_url(rec, 'URL') or
+                    self._is_duplicate(rec, '_ID')):
+                    continue
+                bookmark = model_browser.Bookmark()
+                bookmark.id        = rec['_ID'].Value
+                bookmark.owneruser = self.cur_account_name
+                bookmark.time      = rec['CREATED'].Value
+                bookmark.title     = rec['TITLE'].Value
+                bookmark.url       = rec['URL'].Value
+                bookmark.source    = self.cur_db_source
+                bookmark.deleted   = 1 if rec.IsDeleted else 0
+                self.mb.db_insert_table_bookmarks(bookmark)
+            except:
+                exc()
+        self.mb.db_commit()    
+
+    def _convert_nodepath(self, raw_path):
+        ''' huawei: /data/user/0/com.baidu.searchbox/files/template/profile.zip
+        '''
+        try:
+            if not raw_path:
+                return
+            if self.rename_file_path: 
+                # replace: '/storage/emulated', '/data/media'
+                raw_path = raw_path.replace(self.rename_file_path[0], self.rename_file_path[1])
+
+            fs = self.root.FileSystem
+            for prefix in ['', '/data', ]:
+                file_node = fs.GetByPath(prefix + raw_path)
+                if file_node and file_node.Type == NodeType.File:
+                    return file_node.AbsolutePath
+                invalid_path = re.search(r'[\\:*?"<>|\r\n]+', raw_path)
+                if invalid_path:
+                    return 
+                nodes = list(fs.Search(raw_path))
+                if nodes and nodes[0].Type == NodeType.File:
+                    return nodes[0].AbsolutePath
+        except:
+            tp('android_chrome.py _conver_2_nodeapth error, raw_path:', raw_path)
+            exc()    
+
+
+class OPPOBrowserParser(BaseChromeParser):
+    ''' parse OPPO Chrome shell db
+        no bookmark
+    '''
+    def __init__(self, node, extract_deleted, extract_source, db_name):
+        ''' Patterns: /com.android.browser/app_chromeshell/Default/History$ '''
+        super(OPPOBrowserParser, self).__init__(node, extract_deleted, extract_source, db_name)
+        # self.root: com.android.browser/app_chromeshell
+        self.root = node.Parent.Parent
+
+        if self.root.FileSystem.Name == 'data.tar':
+            self.rename_file_path = ['/storage/emulated', '/data/media'] 
+        else:
+            self.rename_file_path = None
+
+    def _convert_nodepath(self, raw_path):
+        try:
+            if not raw_path:
+                return
+            if self.rename_file_path: 
+                # replace: '/storage/emulated', '/data/media'
+                raw_path = raw_path.replace(self.rename_file_path[0], self.rename_file_path[1])
+
+            fs = self.root.FileSystem
+            for prefix in ['', '/data', ]:
+                file_node = fs.GetByPath(prefix + raw_path)
+                if file_node and file_node.Type == NodeType.File:
+                    return file_node.AbsolutePath
+                invalid_path = re.search(r'[\\:*?"<>|\r\n]+', raw_path)
+                if invalid_path:
+                    return 
+                nodes = list(fs.Search(raw_path))
+                if nodes and nodes[0].Type == NodeType.File:
+                    return nodes[0].AbsolutePath
+        except:
+            tp('android_chrome.py _conver_2_nodeapth error, raw_path:', raw_path)
+            exc()    
+
+
 

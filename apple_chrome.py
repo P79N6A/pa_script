@@ -32,9 +32,8 @@ def analyze_chrome(node, extract_deleted, extract_source):
     res = []
     pr = ParserResults()
     try:
-        res = AppleChromeParser(node, extract_deleted, extract_source).parse(DEBUG, 
-                                                                             BCP_TYPE=bcp_browser.NETWORK_APP_CHROME,
-                                                                             VERSION_APP_VALUE=VERSION_APP_VALUE)        
+        parser = AppleChromeParser(node, extract_deleted, extract_source, db_name='Chrome_i')
+        res = parser.parse(DEBUG, BCP_TYPE=bcp_browser.NETWORK_APP_CHROME, VERSION_APP_VALUE=VERSION_APP_VALUE)        
     except:
         TraceService.Trace(TraceLevel.Debug,
                            'analyze_chrome 解析新案例 <{}> 出错: {}'.format(CASE_NAME, traceback.format_exc()))
@@ -47,9 +46,8 @@ def analyze_chrome(node, extract_deleted, extract_source):
 
 class BaseChromeParser(model_browser.BaseBrowserParser):
 
-    def __init__(self, node, extract_deleted, extract_source):
-        super(BaseChromeParser, self).__init__(node, extract_deleted, extract_source, 
-                                                   app_name='Chrome')        
+    def __init__(self, node, extract_deleted, extract_source, db_name):
+        super(BaseChromeParser, self).__init__(node, extract_deleted, extract_source, db_name)        
         self.root = node.Parent.Parent
         self.download_path = None
 
@@ -58,7 +56,7 @@ class BaseChromeParser(model_browser.BaseBrowserParser):
         self.cur_account_name = accounts[0].get('email', 'default_account')
 
         self.parse_Bookmark('Default/Bookmarks')
-        # self.parse_Cookie(['Default/Cookies'], 'cookies') # cookies 由 apple_cookies.py 统一处理
+        self.parse_Cookie(['Default/Cookies'], 'cookies') # cookies 由 apple_cookies.py 统一处理
         if self._read_db('Default/History'):
             URLS = self._parse_DownloadFile_urls('downloads_url_chains')
             URLID_KEYWORD = self._parse_SearchHistory_keyword('keyword_search_terms')
@@ -235,7 +233,7 @@ class BaseChromeParser(model_browser.BaseBrowserParser):
     def parse_DownloadFile(self, URLS, table_name):
         ''' Default/History - downloads
 
-            FieldName	SQLType	Size	Precision	PKDisplay               	
+            FieldName	            SQLType
             id	                        INTEGER
             guid	                    VARCHAR
             current_path	            LONGVARCHAR
@@ -287,7 +285,7 @@ class BaseChromeParser(model_browser.BaseBrowserParser):
         self.mb.db_commit()
 
     def _parse_DownloadFile_urls(self, table_name):
-        ''' Default/History - downloads
+        ''' Default/History - downloads_url_chains
 
         FieldName	    SQLType	     	
         id	            INTEGER
@@ -318,9 +316,9 @@ class BaseChromeParser(model_browser.BaseBrowserParser):
 
 
 class AppleChromeParser(BaseChromeParser):
-    def __init__(self, node, extract_deleted, extract_source):
+    def __init__(self, node, extract_deleted, extract_source, db_name):
         ''' Patterns:string>/Library/Application Support/Google/Chrome/Default/History$ '''
-        super(AppleChromeParser, self).__init__(node, extract_deleted, extract_source)
+        super(AppleChromeParser, self).__init__(node, extract_deleted, extract_source, db_name)
 
     def _convert_nodepath(self, raw_path):
         ''' huawei: /data/user/0/com.baidu.searchbox/files/template/profile.zip

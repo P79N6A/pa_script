@@ -31,9 +31,8 @@ def analyze_baidubrowser(node, extract_deleted, extract_source):
     res = []
     pr = ParserResults()
     try:
-        res = BaiduBrowserParser(node, extract_deleted, extract_source).parse(DEBUG, 
-                                                                              BCP_TYPE=bcp_browser.NETWORK_APP_BAIDU,
-                                                                              VERSION_APP_VALUE=VERSION_APP_VALUE)        
+        parser = BaiduBrowserParser(node, extract_deleted, extract_source, db_name='BaiduBrowser')
+        res = parser.parse(DEBUG, bcp_browser.NETWORK_APP_BAIDU, VERSION_APP_VALUE)        
     except:
         TraceService.Trace(TraceLevel.Debug, 
                            'analyze_baidubrowser 解析新案例 "{}" 出错: {}'.format(CASE_NAME, traceback.format_exc()))
@@ -44,16 +43,15 @@ def analyze_baidubrowser(node, extract_deleted, extract_source):
 
 
 class BaiduBrowserParser(model_browser.BaseBrowserParser):
-    def __init__(self, node, extract_deleted, extract_source):
-        super(BaiduBrowserParser, self).__init__(node, extract_deleted, extract_source, 
-                                                 app_name='BaiduBrowser')
+    def __init__(self, node, extract_deleted, extract_source, db_name):
+        super(BaiduBrowserParser, self).__init__(node, extract_deleted, extract_source, db_name)
         self.root = node.Parent.Parent  # data/data/com.baidu.browser.apps/
 
     def parse_main(self):
         # self.parse_Account('app_webview_baidu/Cookies', 'account_userinfo')
         self.parse_Bookmark('databases/dbbrowser.db', 'bookmark')
         self.parse_Browserecord('databases/dbbrowser.db', 'history')
-        self.parse_Cookie(['app_webview_baidu/Cookies'], 'cookies')
+        self.parse_Cookie(['app_webview_baidu/Cookies', 'app_webview/Cookies'], 'cookies')
         self.parse_DownloadFile('databases/flyflowdownload.db', 'bddownloadtable')
         self.parse_SearchHistory('databases/dbbrowser.db', 'url_input_record')        
 
