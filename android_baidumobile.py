@@ -17,11 +17,7 @@ from model_browser import tp, exc, print_run_time, CASE_NAME
 import bcp_browser
 
 # app数据库版本
-VERSION_APP_VALUE = 2
-
-
-DEBUG = True
-DEBUG = False
+VERSION_APP_VALUE = 3
 
 
 def analyze_baidumobile(node, extract_deleted, extract_source):
@@ -32,7 +28,7 @@ def analyze_baidumobile(node, extract_deleted, extract_source):
     pr = ParserResults()
     try:
         parser = BaiduMobileParser(node, extract_deleted, extract_source, db_name="BaiduMobile")
-        res = parser.parse(DEBUG, bcp_browser.NETWORK_APP_BAIDU, VERSION_APP_VALUE)            
+        res = parser.parse(bcp_browser.NETWORK_APP_BAIDU, VERSION_APP_VALUE)            
     except:
         TraceService.Trace(TraceLevel.Debug, 
                            'analyze_baidumobile 解析新案例 "{}" 出错: {}'.format(CASE_NAME, traceback.format_exc()))
@@ -48,7 +44,7 @@ def analyze_baidumobile_lite(node, extract_deleted, extract_source):
     pr = ParserResults()
     try:
         parser = BaiduMobileParser(node, extract_deleted, extract_source, db_name="BaiduMobileLite")
-        res = parser.parse(DEBUG, bcp_browser.NETWORK_APP_BAIDU, VERSION_APP_VALUE)        
+        res = parser.parse(bcp_browser.NETWORK_APP_BAIDU, VERSION_APP_VALUE)        
     except:
         TraceService.Trace(TraceLevel.Debug, 
                            'analyze_baidumobile_lite 解析新案例 "{}" 出错: {}'.format(CASE_NAME, traceback.format_exc()))
@@ -58,7 +54,6 @@ def analyze_baidumobile_lite(node, extract_deleted, extract_source):
     return pr
 
 class BaiduMobileParser(model_browser.BaseBrowserParser):
-
     def __init__(self, node, extract_deleted, extract_source, db_name):
         super(BaiduMobileParser, self).__init__(node, extract_deleted, extract_source, db_name)
         self.root = node.Parent.Parent  # data/data/com.baidu.searchbox/
@@ -119,11 +114,11 @@ class BaiduMobileParser(model_browser.BaseBrowserParser):
             account.deleted = 1 if rec.IsDeleted else 0
 
             try:
-                self.mb.db_insert_table_accounts(account)
+                self.csm.db_insert_table_accounts(account)
             except:
                 exc()
         try:
-            self.mb.db_commit()
+            self.csm.db_commit()
         except:
             exc()
 
@@ -172,11 +167,11 @@ class BaiduMobileParser(model_browser.BaseBrowserParser):
             bookmark.source     = self.cur_db_source
             bookmark.deleted    = 1 if rec.IsDeleted else 0           
             try:
-                self.mb.db_insert_table_bookmarks(bookmark)
+                self.csm.db_insert_table_bookmarks(bookmark)
             except:
                 exc()
         try:
-            self.mb.db_commit()
+            self.csm.db_commit()
         except:
             exc()
 
@@ -236,11 +231,11 @@ class BaiduMobileParser(model_browser.BaseBrowserParser):
             browser_record.source      = self.cur_db_source
             browser_record.deleted     = 1 if rec.IsDeleted else 0
             try:
-                self.mb.db_insert_table_browserecords(browser_record)
+                self.csm.db_insert_table_browserecords(browser_record)
             except:
                 exc()
         try:
-            self.mb.db_commit()
+            self.csm.db_commit()
         except:
             exc()
 
@@ -312,11 +307,11 @@ class BaiduMobileParser(model_browser.BaseBrowserParser):
             downloads.deleted = 1 if rec.IsDeleted else rec['deleted'].Value       
             downloads.source = self.cur_db_source
             try:
-                self.mb.db_insert_table_downloadfiles(downloads)
+                self.csm.db_insert_table_downloadfiles(downloads)
             except:
                 exc()
         try:
-            self.mb.db_commit()
+            self.csm.db_commit()
         except:
             exc()
 
@@ -344,11 +339,11 @@ class BaiduMobileParser(model_browser.BaseBrowserParser):
             search_history.source   = self.cur_db_source
             search_history.deleted = 1 if rec.IsDeleted else 0       
             try:
-                self.mb.db_insert_table_searchhistory(search_history)
+                self.csm.db_insert_table_searchhistory(search_history)
             except:
                 exc()
         try:
-            self.mb.db_commit()
+            self.csm.db_commit()
         except:
             exc()
 

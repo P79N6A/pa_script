@@ -10,6 +10,7 @@ try:
     clr.AddReference('model_browser')
     clr.AddReference('bcp_browser')
     clr.AddReference('apple_chrome')
+    clr.AddReference('yangliyuan')
 except:
     pass
 del clr
@@ -17,18 +18,16 @@ del clr
 from PA_runtime import *
 import model_browser
 from model_browser import tp, exc, print_run_time, CASE_NAME
+from yangliyuan import BaseAndroidParser
 from apple_chrome import BaseChromeParser
 import bcp_browser
 
 
-DEBUG = True
-DEBUG = False
-
 # app数据库版本
-VERSION_APP_VALUE = 2
+VERSION_APP_VALUE = 3
 
 
-def analyze_decorator(func):
+def parse_decorator(func):
     def wrapper(*args, **kw):
         tp('android_chrome.py {} is running ...'.format(func.__name__,))
         res = func(*args, **kw)
@@ -36,7 +35,7 @@ def analyze_decorator(func):
         return res
     return wrapper 
 
-@analyze_decorator
+@parse_decorator
 def analyze_chrome(node, extract_deleted, extract_source):
     ''' android: com.android.chrome/databases/WXStorage$ 
         apple:   /Library/Application Support/Google/Chrome/Default/History$
@@ -46,7 +45,7 @@ def analyze_chrome(node, extract_deleted, extract_source):
     pr = ParserResults()
     try:
         parser = AndroidChromeParser(node, extract_deleted, extract_source, db_name='Chrome_A')
-        res = parser.parse(DEBUG, BCP_TYPE=bcp_browser.NETWORK_APP_CHROME, VERSION_APP_VALUE=VERSION_APP_VALUE)           
+        res = parser.parse(BCP_TYPE=bcp_browser.NETWORK_APP_CHROME, VERSION_APP_VALUE=VERSION_APP_VALUE)           
     except:
         TraceService.Trace(TraceLevel.Debug,
                            'analyze_chrome 解析新案例 <{}> 出错: {}'.format(CASE_NAME, traceback.format_exc()))
@@ -55,7 +54,7 @@ def analyze_chrome(node, extract_deleted, extract_source):
         pr.Build('Chrome浏览器')
     return pr
 
-@analyze_decorator
+@parse_decorator
 def analyze_samsung_browser(node, extract_deleted, extract_source):
     if 'media' in node.AbsolutePath:
         return 
@@ -63,7 +62,7 @@ def analyze_samsung_browser(node, extract_deleted, extract_source):
     pr = ParserResults()
     try:
         parser = SamsungBrowserParser(node, extract_deleted, extract_source, db_name='Samsung')
-        res = parser.parse(DEBUG, BCP_TYPE=bcp_browser.NETWORK_APP_OTHER, VERSION_APP_VALUE=VERSION_APP_VALUE)
+        res = parser.parse(BCP_TYPE=bcp_browser.NETWORK_APP_OTHER, VERSION_APP_VALUE=VERSION_APP_VALUE)
     except:
         msg = 'analyze_chrome - analyze_samsung_browser 解析新案例 <{}> 出错: {}'.format(CASE_NAME, traceback.format_exc())
         TraceService.Trace(TraceLevel.Debug, msg)
@@ -72,7 +71,7 @@ def analyze_samsung_browser(node, extract_deleted, extract_source):
         pr.Build('三星浏览器')
     return pr
 
-@analyze_decorator
+@parse_decorator
 def analyze_oppo_browser_chrome(node, extract_deleted, extract_source):
     if 'media' in node.AbsolutePath:
         return 
@@ -80,7 +79,7 @@ def analyze_oppo_browser_chrome(node, extract_deleted, extract_source):
     pr = ParserResults()
     try:
         parser = OPPOBrowserParser(node, extract_deleted, extract_source, db_name='OPPO')
-        res = parser.parse(DEBUG, BCP_TYPE=bcp_browser.NETWORK_APP_OPPO, VERSION_APP_VALUE=VERSION_APP_VALUE)
+        res = parser.parse(BCP_TYPE=bcp_browser.NETWORK_APP_OPPO, VERSION_APP_VALUE=VERSION_APP_VALUE)
     except:
         msg = 'analyze_chrome - analyze_oppo_browser_chrome 解析新案例 <{}> 出错: {}'.format(CASE_NAME, traceback.format_exc())
         TraceService.Trace(TraceLevel.Debug, msg)
@@ -90,7 +89,7 @@ def analyze_oppo_browser_chrome(node, extract_deleted, extract_source):
     return pr
 
 
-class AndroidChromeParser(BaseChromeParser):
+class AndroidChromeParser(BaseChromeParser, BaseAndroidParser):
     def __init__(self, node, extract_deleted, extract_source, db_name):
         ''' Patterns: /com\.android\.chrome/app_chrome/Default/History$ 
             self.root: /com.android.chrome/app_chrome 
@@ -127,7 +126,7 @@ class AndroidChromeParser(BaseChromeParser):
             exc()    
 
 
-class SamsungBrowserParser(BaseChromeParser):
+class SamsungBrowserParser(BaseChromeParser, BaseAndroidParser):
     def __init__(self, node, extract_deleted, extract_source, db_name):
         ''' Patterns: com\.sec\.android\.app\.sbrowser/app_sbrowser/Default/History '''
         super(SamsungBrowserParser, self).__init__(node, extract_deleted, extract_source, db_name)
@@ -209,10 +208,10 @@ class SamsungBrowserParser(BaseChromeParser):
                 bookmark.url       = rec['URL'].Value
                 bookmark.source    = self.cur_db_source
                 bookmark.deleted   = 1 if rec.IsDeleted else 0
-                self.mb.db_insert_table_bookmarks(bookmark)
+                self.csm.db_insert_table_bookmarks(bookmark)
             except:
                 exc()
-        self.mb.db_commit()    
+        self.csm.db_commit()    
 
     def _convert_nodepath(self, raw_path):
         ''' huawei: /data/user/0/com.baidu.searchbox/files/template/profile.zip
@@ -240,7 +239,7 @@ class SamsungBrowserParser(BaseChromeParser):
             exc()    
 
 
-class OPPOBrowserParser(BaseChromeParser):
+class OPPOBrowserParser(BaseChromeParser, BaseAndroidParser):
     ''' parse OPPO Chrome shell db
         no bookmark
     '''
@@ -249,11 +248,6 @@ class OPPOBrowserParser(BaseChromeParser):
         super(OPPOBrowserParser, self).__init__(node, extract_deleted, extract_source, db_name)
         # self.root: com.android.browser/app_chromeshell
         self.root = node.Parent.Parent
-
-        if self.root.FileSystem.Name == 'data.tar':
-            self.rename_file_path = ['/storage/emulated', '/data/media'] 
-        else:
-            self.rename_file_path = None
 
     def _convert_nodepath(self, raw_path):
         try:

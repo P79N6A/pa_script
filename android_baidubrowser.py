@@ -17,11 +17,8 @@ from model_browser import tp, exc, print_run_time, CASE_NAME
 import bcp_browser
 
 
-DEBUG = True
-DEBUG = False
-
 # app数据库版本
-VERSION_APP_VALUE = 2
+VERSION_APP_VALUE = 3
 
 
 def analyze_baidubrowser(node, extract_deleted, extract_source):
@@ -32,7 +29,7 @@ def analyze_baidubrowser(node, extract_deleted, extract_source):
     pr = ParserResults()
     try:
         parser = BaiduBrowserParser(node, extract_deleted, extract_source, db_name='BaiduBrowser')
-        res = parser.parse(DEBUG, bcp_browser.NETWORK_APP_BAIDU, VERSION_APP_VALUE)        
+        res = parser.parse(bcp_browser.NETWORK_APP_BAIDU, VERSION_APP_VALUE)        
     except:
         TraceService.Trace(TraceLevel.Debug, 
                            'analyze_baidubrowser 解析新案例 "{}" 出错: {}'.format(CASE_NAME, traceback.format_exc()))
@@ -93,11 +90,11 @@ class BaiduBrowserParser(model_browser.BaseBrowserParser):
             bookmark.source     = self.cur_db_source
             bookmark.deleted    = 1 if rec.IsDeleted else 0                  
             try:
-                self.mb.db_insert_table_bookmarks(bookmark)
+                self.csm.db_insert_table_bookmarks(bookmark)
             except:
                 exc()
         try:
-            self.mb.db_commit()
+            self.csm.db_commit()
         except:
             exc()
 
@@ -132,11 +129,11 @@ class BaiduBrowserParser(model_browser.BaseBrowserParser):
             browser_record.source      = self.cur_db_source
             browser_record.deleted     = 1 if rec.IsDeleted else 0
             try:
-                self.mb.db_insert_table_browserecords(browser_record)
+                self.csm.db_insert_table_browserecords(browser_record)
             except:
                 exc()
         try:
-            self.mb.db_commit()
+            self.csm.db_commit()
         except:
             exc()
 
@@ -186,11 +183,11 @@ class BaiduBrowserParser(model_browser.BaseBrowserParser):
             downloads.source         = self.cur_db_source
             downloads.deleted        = 1 if rec.IsDeleted else 0
             try:
-                self.mb.db_insert_table_downloadfiles(downloads)
+                self.csm.db_insert_table_downloadfiles(downloads)
             except:
                 exc()
         try:
-            self.mb.db_commit()
+            self.csm.db_commit()
         except:
             exc()
 
@@ -221,11 +218,11 @@ class BaiduBrowserParser(model_browser.BaseBrowserParser):
             search_history.source   = self.cur_db_source
             search_history.deleted  = 1 if rec.IsDeleted else 0                
             try:
-                self.mb.db_insert_table_searchhistory(search_history)
+                self.csm.db_insert_table_searchhistory(search_history)
             except:
                 exc()
         try:
-            self.mb.db_commit()
+            self.csm.db_commit()
         except:
             exc()
 

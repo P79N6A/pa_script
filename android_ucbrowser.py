@@ -9,6 +9,7 @@ import clr
 try:
     clr.AddReference('model_browser')
     clr.AddReference('bcp_browser')
+    clr.AddReference('yangliyuan')
 except:
     pass
 del clr
@@ -16,18 +17,13 @@ del clr
 from PA_runtime import *
 import model_browser
 from model_browser import tp, exc, print_run_time, CASE_NAME
+from yangliyuan import BaseAndroidParser
 import bcp_browser
 
 
-DEBUG = True
-DEBUG = False
-
 # app数据库版本
-VERSION_APP_VALUE = 1
+VERSION_APP_VALUE = 2
 
-'''
-
-'''
 
 def analyze_ucbrowser(node, extract_deleted, extract_source):
     ''' com.UCMobile/databases/WXStorage$ '''
@@ -37,7 +33,7 @@ def analyze_ucbrowser(node, extract_deleted, extract_source):
     pr = ParserResults()
     try:
         parser = UCParser(node, extract_deleted, extract_source, db_name='UC_A')
-        res = parser.parse(DEBUG, bcp_browser.NETWORK_APP_UC, VERSION_APP_VALUE)        
+        res = parser.parse(bcp_browser.NETWORK_APP_UC, VERSION_APP_VALUE)        
     except:
         TraceService.Trace(TraceLevel.Debug,
                            'analyze_ucbrowser 解析新案例 <{}> 出错: {}'.format(CASE_NAME, traceback.format_exc()))
@@ -48,14 +44,10 @@ def analyze_ucbrowser(node, extract_deleted, extract_source):
     return pr
 
 
-class UCParser(model_browser.BaseBrowserParser):
+class UCParser(model_browser.BaseBrowserParser, BaseAndroidParser):
     def __init__(self, node, extract_deleted, extract_source, db_name):
         super(UCParser, self).__init__(node, extract_deleted, extract_source, db_name)        
         self.root = node.Parent
-        if self.root.FileSystem.Name == 'data.tar':
-            self.rename_file_path = ['/storage/emulated', '/data/media'] 
-        else:
-            self.rename_file_path = None
 
     def parse_main(self):
         ''' self.root: /com.UCMobile/ '''
@@ -105,10 +97,10 @@ class UCParser(model_browser.BaseBrowserParser):
                     # account.logindate
                     # account.source
                     # account.deleted
-                    self.mb.db_insert_table_accounts(account)
+                    self.csm.db_insert_table_accounts(account)
                 except:
                     exc()
-            self.mb.db_commit()
+            self.csm.db_commit()
         return account_dict
 
     def parse_Bookmark(self, db_path, table_name):
@@ -150,10 +142,10 @@ class UCParser(model_browser.BaseBrowserParser):
                 bookmark.url       = rec['url'].Value
                 bookmark.source    = self.cur_db_source
                 bookmark.deleted   = 1 if rec.IsDeleted else 0
-                self.mb.db_insert_table_bookmarks(bookmark)
+                self.csm.db_insert_table_bookmarks(bookmark)
             except:
                 exc()
-        self.mb.db_commit()
+        self.csm.db_commit()
 
     def parse_Browserecord_SearchHistory(self, db_path, table_name):
         ''' databases/history - history 浏览记录
@@ -196,7 +188,7 @@ class UCParser(model_browser.BaseBrowserParser):
                 browser_record.owneruser   = self.cur_account_name
                 browser_record.source      = self.cur_db_source
                 browser_record.deleted     = 1 if rec.IsDeleted else 0
-                self.mb.db_insert_table_browserecords(browser_record)
+                self.csm.db_insert_table_browserecords(browser_record)
 
                 if browser_record.name.startswith('网页搜索_'):
                     search_history           = model_browser.SearchHistory()
@@ -207,10 +199,10 @@ class UCParser(model_browser.BaseBrowserParser):
                     search_history.owneruser = self.cur_account_name
                     search_history.source    = self.cur_db_source
                     search_history.deleted   = 1 if rec.IsDeleted else 0
-                    self.mb.db_insert_table_searchhistory(search_history)
+                    self.csm.db_insert_table_searchhistory(search_history)
             except:
                 exc()
-        self.mb.db_commit()
+        self.csm.db_commit()
 
     @print_run_time
     def parse_DownloadFile(self, db_path, table_name):
@@ -250,10 +242,10 @@ class UCParser(model_browser.BaseBrowserParser):
                 downloads.owneruser      = self.cur_account_name
                 downloads.source         = self.cur_db_source
                 downloads.deleted        = 1 if rec.IsDeleted else 0
-                self.mb.db_insert_table_downloadfiles(downloads)
+                self.csm.db_insert_table_downloadfiles(downloads)
             except:
                 exc()
-        self.mb.db_commit()
+        self.csm.db_commit()
 
     def _convert_nodepath(self, raw_path):
         ''' huawei: /data/user/0/com.baidu.searchbox/files/template/profile.zip

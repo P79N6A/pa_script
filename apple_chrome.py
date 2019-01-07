@@ -19,11 +19,8 @@ from model_browser import tp, exc, print_run_time, CASE_NAME
 import bcp_browser
 
 
-DEBUG = True
-DEBUG = False
-
 # app数据库版本
-VERSION_APP_VALUE = 2
+VERSION_APP_VALUE = 3
 
 
 def analyze_chrome(node, extract_deleted, extract_source):
@@ -33,7 +30,7 @@ def analyze_chrome(node, extract_deleted, extract_source):
     pr = ParserResults()
     try:
         parser = AppleChromeParser(node, extract_deleted, extract_source, db_name='Chrome_i')
-        res = parser.parse(DEBUG, BCP_TYPE=bcp_browser.NETWORK_APP_CHROME, VERSION_APP_VALUE=VERSION_APP_VALUE)        
+        res = parser.parse(bcp_browser.NETWORK_APP_CHROME, VERSION_APP_VALUE)        
     except:
         TraceService.Trace(TraceLevel.Debug,
                            'analyze_chrome 解析新案例 <{}> 出错: {}'.format(CASE_NAME, traceback.format_exc()))
@@ -103,10 +100,10 @@ class BaseChromeParser(model_browser.BaseBrowserParser):
                 account.id     = int(account_id[:len(account_id)/3])
                 account.name   = account_dict.get('email', None)
                 account.source = self.cur_json_source
-                self.mb.db_insert_table_accounts(account)
+                self.csm.db_insert_table_accounts(account)
             except:
                 pass
-        self.mb.db_commit()
+        self.csm.db_commit()
         return accounts
 
     def parse_Bookmark(self, json_path):
@@ -136,7 +133,7 @@ class BaseChromeParser(model_browser.BaseBrowserParser):
                 continue
             is_synced = True if bookmark_folder == 'synced' else False  
             self._bookmark_from_json(_folder.get('children', []), is_synced)
-        self.mb.db_commit()
+        self.csm.db_commit()
 
     def _bookmark_from_json(self, json_list, is_synced=False):
         ''' chrome _bookmark_from_json recursively
@@ -160,7 +157,7 @@ class BaseChromeParser(model_browser.BaseBrowserParser):
                 bm.owneruser = self.cur_account_name
                 bm.is_synced = is_synced
                 bm.source    = self.cur_json_source
-                self.mb.db_insert_table_bookmarks(bm)
+                self.csm.db_insert_table_bookmarks(bm)
             else:
                 tp('>>> chrome new bookmark type:', bookmark_type)
 
@@ -191,7 +188,7 @@ class BaseChromeParser(model_browser.BaseBrowserParser):
                 browser_record.owneruser   = self.cur_account_name
                 browser_record.source      = self.cur_db_source
                 browser_record.deleted     = 1 if rec.IsDeleted else rec['hidden'].Value
-                self.mb.db_insert_table_browserecords(browser_record)
+                self.csm.db_insert_table_browserecords(browser_record)
 
                 if URLID_KEYWORD.has_key(rec['id'].Value):
                     search_history = model_browser.SearchHistory()
@@ -202,10 +199,10 @@ class BaseChromeParser(model_browser.BaseBrowserParser):
                     search_history.owneruser = self.cur_account_name
                     search_history.source    = self.cur_db_source
                     search_history.deleted   = browser_record.deleted              
-                    self.mb.db_insert_table_searchhistory(search_history)
+                    self.csm.db_insert_table_searchhistory(search_history)
             except:
                 exc()
-        self.mb.db_commit()
+        self.csm.db_commit()
 
     def _parse_SearchHistory_keyword(self, table_name):
         ''' Default/History - keyword_search_terms
@@ -279,10 +276,10 @@ class BaseChromeParser(model_browser.BaseBrowserParser):
                 downloads.owneruser      = self.cur_account_name
                 downloads.source         = self.cur_db_source
                 downloads.deleted        = 1 if rec.IsDeleted else 0
-                self.mb.db_insert_table_downloadfiles(downloads)
+                self.csm.db_insert_table_downloadfiles(downloads)
             except:
                 exc()
-        self.mb.db_commit()
+        self.csm.db_commit()
 
     def _parse_DownloadFile_urls(self, table_name):
         ''' Default/History - downloads_url_chains

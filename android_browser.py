@@ -8,22 +8,21 @@ try:
     clr.AddReference('model_browser')
     clr.AddReference('bcp_browser')
     clr.AddReference('android_chrome')
+    clr.AddReference('yangliyuan')
 except:
     pass
 del clr
 
 from PA_runtime import *
 import model_browser
-import android_chrome 
 from model_browser import tp, exc, print_run_time, CASE_NAME
+from yangliyuan import parse_decorator, BaseAndroidParser, base_analyze
+from android_chrome import analyze_oppo_browser_chrome
 import bcp_browser
 
 
-DEBUG = True
-DEBUG = False
-
 # app数据库版本
-VERSION_APP_VALUE = 1
+VERSION_APP_VALUE = 2
 
 # 国产安卓手机预装浏览器类型
 XIAOMI  = bcp_browser.NETWORK_APP_XIAOMI
@@ -65,74 +64,38 @@ LENOVO  = bcp_browser.NETWORK_APP_LENOVO
 
             'created' is 'create_time' in lebrowser.db:
 """
-def analyze_decorator(func):
-    def wrapper(*args, **kw):
-        tp('android_browser.py {} is running ...'.format(func.__name__,))
-        res = func(*args, **kw)
-        tp('android_browser.py {} is finished !'.format(func.__name__,))
-        return res
-    return wrapper    
 
-def base_analyze(node, extract_deleted, extract_source, BCP_TYPE, bulid_name, db_name):
-    '''
-    Args:
-        node (node): 
-        BCP_TYPE:
-        bulid_name (str): pr.build
-        db_name (str): 中间数据库名称
-    Returns:
-        pr
-    '''
-    if 'media' in node.AbsolutePath:
-        return 
-    res = []
-    pr = ParserResults()
-    try:
-        parser = AndroidBrowserParser(node, extract_deleted, extract_source, db_name)
-        res = parser.parse(DEBUG, BCP_TYPE=BCP_TYPE, VERSION_APP_VALUE=VERSION_APP_VALUE)
-    except:
-        msg = 'analyze_browser.py-{} 解析新案例 <{}> 出错: {}'.format(db_name, CASE_NAME, traceback.format_exc())
-        TraceService.Trace(TraceLevel.Debug, msg)
-    if res:
-        pr.Models.AddRange(res)
-        pr.Build(bulid_name)
-    return pr
-
-@analyze_decorator
+@parse_decorator
 def analyze_xiaomi_browser(node, extract_deleted, extract_source):
-    return base_analyze(node, extract_deleted, extract_source, BCP_TYPE=XIAOMI, bulid_name='小米浏览器', db_name='Xiaomi')
+    return base_analyze(AndroidBrowserParser, node, extract_deleted, extract_source, XIAOMI, VERSION_APP_VALUE, '小米浏览器', 'Xiaomi')
 
-@analyze_decorator
+@parse_decorator
 def analyze_huawei_browser(node, extract_deleted, extract_source):
-    return base_analyze(node, extract_deleted, extract_source, BCP_TYPE=HUAWEI, bulid_name='华为浏览器', db_name='Huawei')
+    return base_analyze(AndroidBrowserParser, node, extract_deleted, extract_source, HUAWEI, VERSION_APP_VALUE, '华为浏览器', 'Huawei')
 
-@analyze_decorator
+@parse_decorator
 def analyze_oppo_browser(node, extract_deleted, extract_source):
     if node.Name == 'downloads.db': # com.android.browser
-        return base_analyze(node, extract_deleted, extract_source, BCP_TYPE=OPPO, bulid_name='OPPO浏览器', db_name='OPPO')
+        return base_analyze(AndroidBrowserParser, node, extract_deleted, extract_source, OPPO, VERSION_APP_VALUE, 'OPPO浏览器', 'OPPO')
     elif node.Name == 'History':    # chrome
         return analyze_oppo_browser_chrome(node, extract_deleted, extract_source)
 
-@analyze_decorator
+@parse_decorator
 def analyze_vivo_browser(node, extract_deleted, extract_source):
-    return base_analyze(node, extract_deleted, extract_source, BCP_TYPE=VIVO, bulid_name='VIVO浏览器', db_name='VIVO')
+    return base_analyze(AndroidBrowserParser, node, extract_deleted, extract_source, VIVO, VERSION_APP_VALUE, 'VIVO浏览器', 'VIVO')
     
-@analyze_decorator
+@parse_decorator
 def analyze_lenovo_browser(node, extract_deleted, extract_source):
-    return base_analyze(node, extract_deleted, extract_source, BCP_TYPE=LENOVO, bulid_name='联想浏览器', db_name='Lenovo')
+    return base_analyze(AndroidBrowserParser, node, extract_deleted, extract_source, LENOVO, VERSION_APP_VALUE, '联想浏览器', 'Lenovo')
 
 
-class AndroidBrowserParser(model_browser.BaseBrowserParser):
+class AndroidBrowserParser(model_browser.BaseBrowserParser, BaseAndroidParser):
     ''' self.root: com.android.browser/
     '''
     def __init__(self, node, extract_deleted, extract_source, db_name):
         super(AndroidBrowserParser, self).__init__(node, extract_deleted, extract_source, db_name)
         self.root = node.Parent.Parent
         self.model_db_name = db_name
-        if self.root.FileSystem.Name == 'data.tar':
-            self.rename_file_path = ['/storage/emulated', '/data/media'] 
-        else:
-            self.rename_file_path = None
 
     def parse_main(self):
         ''' self.root: /com.android.browser/ '''
@@ -191,10 +154,10 @@ class AndroidBrowserParser(model_browser.BaseBrowserParser):
                 bookmark.url       = rec['url'].Value
                 bookmark.source    = self.cur_db_source
                 bookmark.deleted   = 1 if rec.IsDeleted else 0
-                self.mb.db_insert_table_bookmarks(bookmark)
+                self.csm.db_insert_table_bookmarks(bookmark)
             except:
                 exc()
-        self.mb.db_commit()
+        self.csm.db_commit()
 
     def parse_Browserecord(self, table_name):
         ''' databases/browser2.db - history 浏览记录
@@ -226,10 +189,10 @@ class AndroidBrowserParser(model_browser.BaseBrowserParser):
                 browser_record.owneruser    = self.cur_account_name
                 browser_record.source       = self.cur_db_source
                 browser_record.deleted      = 1 if rec.IsDeleted else 0
-                self.mb.db_insert_table_browserecords(browser_record)
+                self.csm.db_insert_table_browserecords(browser_record)
             except:
                 exc()
-        self.mb.db_commit()
+        self.csm.db_commit()
 
     def parse_SearchHistory(self):
         if self.model_db_name in ['VIVO', 'Huawei']:
@@ -262,10 +225,10 @@ class AndroidBrowserParser(model_browser.BaseBrowserParser):
                 search_history.owneruser = self.cur_account_name
                 search_history.source    = self.cur_db_source
                 search_history.deleted   = 1 if rec.IsDeleted else 0
-                self.mb.db_insert_table_searchhistory(search_history)
+                self.csm.db_insert_table_searchhistory(search_history)
             except:
                 exc()
-        self.mb.db_commit()
+        self.csm.db_commit()
 
     def _parse_SearchHistory_oppo(self, table_name):
         ''' databases/browser2.db - oppo_quicksearch_history
@@ -292,10 +255,10 @@ class AndroidBrowserParser(model_browser.BaseBrowserParser):
                 search_history.owneruser = self.cur_account_name
                 search_history.source    = self.cur_db_source
                 search_history.deleted   = 1 if rec.IsDeleted else 0
-                self.mb.db_insert_table_searchhistory(search_history)
+                self.csm.db_insert_table_searchhistory(search_history)
             except:
                 exc()
-        self.mb.db_commit()
+        self.csm.db_commit()
 
     def _parse_SearchHistory_xiaomi(self, table_name):
         ''' databases/browser2.db - mostvisited
@@ -326,10 +289,10 @@ class AndroidBrowserParser(model_browser.BaseBrowserParser):
                 search_history.owneruser = self.cur_account_name
                 search_history.source    = self.cur_db_source
                 search_history.deleted   = 1 if rec.IsDeleted else 0
-                self.mb.db_insert_table_searchhistory(search_history)
+                self.csm.db_insert_table_searchhistory(search_history)
             except:
                 exc()
-        self.mb.db_commit()
+        self.csm.db_commit()
 
     def _parse_SearchHistory_lenovo(self, table_name):
         ''' databases/lebrowser.db - search_record
@@ -356,18 +319,16 @@ class AndroidBrowserParser(model_browser.BaseBrowserParser):
                 search_history.owneruser = self.cur_account_name
                 search_history.source    = self.cur_db_source
                 search_history.deleted   = 1 if rec.IsDeleted else 0
-                self.mb.db_insert_table_searchhistory(search_history)
+                self.csm.db_insert_table_searchhistory(search_history)
             except:
                 exc()
-        self.mb.db_commit()
+        self.csm.db_commit()
 
     @print_run_time
     def parse_DownloadFile(self):
         if self.model_db_name in ['OPPO', 'Lenovo', 'VIVO'] and self._read_db('databases/downloads.db'):
             self._parse_DownloadFile('downloads')
         else:
-            tp(self.model_db_name)
-            tp(self.root.Parent.Children)                # com.android.providers.downloads
             download_db_node = self.root.Parent.GetByPath('com.android.providers.downloads/databases/downloads.db')
             if self._read_db(db_path='', node=download_db_node):
                 self._parse_DownloadFile('downloads')            
@@ -441,10 +402,10 @@ class AndroidBrowserParser(model_browser.BaseBrowserParser):
                     downloads.deleted    = 1 
                 else:
                     downloads.deleted    = rec['deleted'].Value if 'deleted' in rec.Keys else 0
-                self.mb.db_insert_table_downloadfiles(downloads)
+                self.csm.db_insert_table_downloadfiles(downloads)
             except:
                 exc()
-        self.mb.db_commit()
+        self.csm.db_commit()
 
     def _convert_nodepath(self, raw_path):
         ''' huawei: /data/user/0/com.baidu.searchbox/files/template/profile.zip
