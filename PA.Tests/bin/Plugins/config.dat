@@ -2995,6 +2995,111 @@
           <key>Filter</key>
           <string>应用>浏览器</string>
         </dict>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_huawei_browser</string>
+          <key>RunnerType</key>
+          <integer>2</integer>
+          <key>Patterns</key>
+          <array>
+            <string>/com\.android\.browser/app_core_ucmobile/Cookies$</string>
+          </array>
+          <key>Category</key>
+          <string>HuaweiBrowser</string>
+          <key>Name</key>
+          <string>华为浏览器(安卓)</string>
+          <key>Filter</key>
+          <string>应用>浏览器</string>
+        </dict>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_oppo_browser</string>
+          <key>RunnerType</key>
+          <integer>2</integer>
+          <key>Patterns</key>
+          <array>
+            <string>/com\.android\.browser/databases/downloads\.db$</string>
+            <string>/com\.android\.browser/app_chromeshell/Default/History$</string>
+          </array>
+          <key>Category</key>
+          <string>OPPOBrowser</string>
+          <key>Name</key>
+          <string>OPPO浏览器(安卓)</string>
+          <key>Filter</key>
+          <string>应用>浏览器</string>
+        </dict>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_vivo_browser</string>
+          <key>RunnerType</key>
+          <integer>2</integer>
+          <key>Patterns</key>
+          <array>
+            <string>/com\.vivo\.browser/databases/browser2\.db$</string>
+          </array>
+          <key>Category</key>
+          <string>VIVOBrowser</string>
+          <key>Name</key>
+          <string>VIVO浏览器(安卓)</string>
+          <key>Filter</key>
+          <string>应用>浏览器</string>
+        </dict>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_lenovo_browser</string>
+          <key>RunnerType</key>
+          <integer>2</integer>
+          <key>Patterns</key>
+          <array>
+            <string>/com\.zui\.browser/databases/lebrowser\.db$</string>
+          </array>
+          <key>Category</key>
+          <string>LenovoBrowser</string>
+          <key>Name</key>
+          <string>联想浏览器(安卓)</string>
+          <key>Filter</key>
+          <string>应用>浏览器</string>
+        </dict>
+      </array>
+    </dict>     
+
+    <dict>
+      <key>Module</key>
+      <string>android_chrome</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_chrome</string>
+          <key>RunnerType</key>
+          <integer>2</integer>
+          <key>Patterns</key>
+          <array>
+            <string>/com\.android\.chrome/app_chrome/Default/History$</string>
+          </array>
+          <key>Category</key>
+          <string>ChromeBrowser</string>
+          <key>Name</key>
+          <string>Chrome浏览器(安卓)</string>
+          <key>Filter</key>
+          <string>应用>浏览器</string>
+        </dict>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_samsung_browser</string>
+          <key>RunnerType</key>
+          <integer>2</integer>
+          <key>Patterns</key>
+          <array>
+            <string>/com\.sec\.android\.app\.sbrowser/app_sbrowser/Default/History$</string>
+          </array>
+          <key>Category</key>
+          <string>SamsungBrowser</string>
+          <key>Name</key>
+          <string>三星浏览器(安卓)</string>
+          <key>Filter</key>
+          <string>应用>浏览器</string>
+        </dict>
       </array>
     </dict>
 
@@ -3081,30 +3186,6 @@
           <string>UCBrowser</string>
           <key>Name</key>
           <string>UC浏览器(安卓)</string>
-          <key>Filter</key>
-          <string>应用>浏览器</string>
-        </dict>
-      </array>
-    </dict>
-
-    <dict>
-      <key>Module</key>
-      <string>android_chrome</string>
-      <key>Runners</key>
-      <array>
-        <dict>
-          <key>EntryPoint</key>
-          <string>analyze_chrome</string>
-          <key>RunnerType</key>
-          <integer>2</integer>
-          <key>Patterns</key>
-          <array>
-            <string>/com\.android\.chrome/app_chrome/Default/History$</string>
-          </array>
-          <key>Category</key>
-          <string>ChromeBrowser</string>
-          <key>Name</key>
-          <string>Chrome浏览器(安卓)</string>
           <key>Filter</key>
           <string>应用>浏览器</string>
         </dict>
