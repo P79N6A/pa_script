@@ -2127,7 +2127,7 @@
             <string>/PrivateDocuments/Talk.sqlite$</string>
           </array>
           <key>Category</key>
-          <string>BeeTalk</string>
+          <string>KakaoTalk</string>
           <key>Name</key>
           <string>KakaoTalk(苹果)</string>
           <key>Filter</key>
