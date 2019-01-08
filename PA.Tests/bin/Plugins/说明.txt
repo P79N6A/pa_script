@@ -1,0 +1,22 @@
+说明:
+<dict>
+<key>Module</key>
+<string>apple_qq</string> 脚本名称
+<key>Runners</key>
+<array>
+<dict>
+    <key>EntryPoint</key>
+    <string>analyze_qq</string> //脚本内入口函数
+    <key>RunnerType</key>
+    <integer>1</integer> 匹配类型 0 苹果正则 1 苹果bungule id 2 安卓正则
+    <key>Patterns</key>
+    <array>
+    <string>com.tencent.mqq</string> //匹配规则的具体内容
+    <string>com.tencent.mqqi</string>
+    <string>com.tencent.mqqjp</string>
+    </array>
+    <key>Category</key>
+    <string>QQ</string>
+</dict>
+</array>
+</dict>
