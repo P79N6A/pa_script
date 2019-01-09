@@ -239,13 +239,13 @@ class CallsParse(object):
                 jobEmail = ''
                 customEmail = ''
                 otherEmail = ''
-                if rec['homeEmails'].Value is not None:
+                if not IsDBNull(rec['homeEmails'].Value):
                     homeEmail = rec['homeEmails'].Value
-                if rec['jobEmails'].Value is not None:
+                if not IsDBNull(rec['jobEmails'].Value):
                     jobEmail = rec['jobEmails'].Value
-                if rec['customEmails'].Value is not None:
+                if not IsDBNull(rec['customEmails'].Value):
                     customEmail = rec['customEmails'].Value
-                if rec['otherEmails'].Value is not None:
+                if not IsDBNull(rec['otherEmails'].Value):
                     otherEmail = rec['otherEmails'].Value
                 emails = homeEmail + jobEmail + customEmail + otherEmail
                 contacts.mail = emails.replace('][', ',').replace('[', '').replace(']', '').replace('\n', '').replace('\"', '').replace(' ', '')
@@ -255,18 +255,19 @@ class CallsParse(object):
                 jobnumber = ''
                 othernumber = ''
                 customnumber = ''
-                if rec['phoneNumbers'].Value is not None:
+                if not IsDBNull(rec['phoneNumbers'].Value):
                     phonenumber = rec['phoneNumbers'].Value
-                if rec['homeNumbers'].Value is not None:
+                if not IsDBNull(rec['homeNumbers'].Value):
                     homenumber = rec['homeNumbers'].Value
-                if rec['jobNumbers'].Value is not None:
+                if not IsDBNull(rec['jobNumbers'].Value):
                     jobnumber = rec['jobNumbers'].Value
-                if rec['otherNumbers'].Value is not None:
+                if not IsDBNull(rec['otherNumbers'].Value):
                     othernumber = rec['otherNumbers'].Value
-                if rec['customNumbers'].Value is not None:
+                if not IsDBNull(rec['customNumbers'].Value):
                     customnumber = rec['customNumbers'].Value
                 numbers = phonenumber + homenumber + jobnumber + othernumber + customnumber
-                contacts.phone_number = numbers.replace('][', ',').replace('[', '').replace(']', '').replace('\n', '').replace('\"', '').replace(' ', '')
+                if numbers is not '':
+                    contacts.phone_number = numbers.replace('][', ',').replace('[', '').replace(']', '').replace('\n', '').replace('\"', '').replace(' ', '')
                 contacts.name = rec['name'].Value
                 contacts.address = rec['homeStreets'].Value
                 contacts.notes = rec['remark'].Value
@@ -284,34 +285,36 @@ class CallsParse(object):
                 jobEmail = ''
                 customEmail = ''
                 otherEmail = ''
-                if rec['homeEmails'].Value is not None:
+                if not IsDBNull(rec['homeEmails'].Value):
                     homeEmail = rec['homeEmails'].Value
-                if rec['jobEmails'].Value is not None:
+                if not IsDBNull(rec['jobEmails'].Value):
                     jobEmail = rec['jobEmails'].Value
-                if rec['customEmails'].Value is not None:
+                if not IsDBNull(rec['customEmails'].Value):
                     customEmail = rec['customEmails'].Value
-                if rec['otherEmails'].Value is not None:
+                if not IsDBNull(rec['otherEmails'].Value):
                     otherEmail = rec['otherEmails'].Value
                 emails = homeEmail + jobEmail + customEmail + otherEmail
-                contacts.mail = emails.replace('][', ',').replace('[', '').replace(']', '').replace('\n', '').replace('\"', '').replace(' ', '')
+                if emails is not '':
+                    contacts.mail = emails.replace('][', ',').replace('[', '').replace(']', '').replace('\n', '').replace('\"', '').replace(' ', '')
                 contacts.company = rec['organization'].Value
                 phonenumber = ''
                 homenumber = ''
                 jobnumber = ''
                 othernumber = ''
                 customnumber = ''
-                if rec['phoneNumbers'].Value is not None:
+                if not IsDBNull(rec['phoneNumbers'].Value):
                     phonenumber = rec['phoneNumbers'].Value
-                if rec['homeNumbers'].Value is not None:
+                if not IsDBNull(rec['homeNumbers'].Value):
                     homenumber = rec['homeNumbers'].Value
-                if rec['jobNumbers'].Value is not None:
+                if not IsDBNull(rec['jobNumbers'].Value):
                     jobnumber = rec['jobNumbers'].Value
-                if rec['otherNumbers'].Value is not None:
+                if not IsDBNull(rec['otherNumbers'].Value):
                     othernumber = rec['otherNumbers'].Value
-                if rec['customNumbers'].Value is not None:
+                if not IsDBNull(rec['customNumbers'].Value):
                     customnumber = rec['customNumbers'].Value
                 numbers = phonenumber + homenumber + jobnumber + othernumber + customnumber
-                contacts.phone_number = numbers.replace('][', ',').replace('[', '').replace(']', '').replace('\n', '').replace('\"', '').replace(' ', '')
+                if numbers is not '':
+                    contacts.phone_number = numbers.replace('][', ',').replace('[', '').replace(']', '').replace('\n', '').replace('\"', '').replace(' ', '')
                 contacts.name = rec['name'].Value
                 contacts.address = rec['homeStreets'].Value
                 contacts.notes = rec['remark'].Value
