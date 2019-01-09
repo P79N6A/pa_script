@@ -4,7 +4,7 @@ from PA_runtime import *
 import clr
 clr.AddReference('System.Data.SQLite')
 try:
-    clr.AddReference('yangliyuan')
+    clr.AddReference('ScriptUtils')
 except:
     pass
 del clr
@@ -16,7 +16,7 @@ import System
 import System.Data.SQLite as SQLite
 from PA.InfraLib.Utils import ConvertHelper
 import sqlite3
-from yangliyuan import CASE_NAME, exc, tp, print_run_time, BaseParser
+from ScriptUtils import CASE_NAME, exc, tp, print_run_time, BaseParser
 
 VERSION_KEY_DB  = 'db'
 VERSION_VALUE_DB = 6
