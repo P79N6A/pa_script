@@ -2181,6 +2181,29 @@
         </dict>
       </array>
     </dict>
+	<dict>
+      <key>Module</key>
+      <string>apple_signal</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_apple_signal</string>
+          <key>RunnerType</key>
+          <integer>0</integer>
+          <key>Patterns</key>
+          <array>
+            <string>#</string>
+          </array>
+          <key>Category</key>
+          <string>Signal</string>
+		  <key>Name</key>
+          <string>Signal</string>
+          <key>Filter</key>
+          <string>应用>社交</string>       
+		</dict>
+      </array>
+	</dict>
     <!--安卓运行插件从这里开始-->
 
     <dict>
