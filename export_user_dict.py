@@ -8,17 +8,14 @@ clr.AddReference('System.Xml.Linq')
 clr.AddReference('System.Data.SQLite')
 
 try:
-    clr.AddReference('model_im')
-    clr.AddReference('bcp_im')
-    clr.AddReference('tao')
+    clr.AddReference('ScriptUtils')
 except Exception:
     pass
 
 del clr
 
-import model_im
 import PA_runtime
-from tao import ParserBase, DataModel, Fields, TimeHelper
+from ScriptUtils import ParserBase, DataModel, Fields, TimeHelper
 import System
 from PA_runtime import *
 from System.Data.SQLite import *
@@ -27,7 +24,7 @@ from PA.InfraLib.ModelsV2.Base import UserDictionary
 
 # CONST
 UserDict_VERSION = 1
-DEBUG = True
+DEBUG = False
 
 
 class IOSWords(DataModel):
