@@ -9,8 +9,6 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Plugins", "Plugins", "{4EBE
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "apple_dev", "Plugins\apple_dev\apple_dev.csproj", "{373F93B8-8FD3-4A33-A72C-F909F380F2E8}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SqliteExp", "SqliteExp\SqliteExp.csproj", "{ED06EBC7-01E0-4718-8D7A-24A706562E85}"
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -25,10 +23,6 @@ Global
 		{373F93B8-8FD3-4A33-A72C-F909F380F2E8}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{373F93B8-8FD3-4A33-A72C-F909F380F2E8}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{373F93B8-8FD3-4A33-A72C-F909F380F2E8}.Release|Any CPU.Build.0 = Release|Any CPU
-		{ED06EBC7-01E0-4718-8D7A-24A706562E85}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{ED06EBC7-01E0-4718-8D7A-24A706562E85}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{ED06EBC7-01E0-4718-8D7A-24A706562E85}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{ED06EBC7-01E0-4718-8D7A-24A706562E85}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

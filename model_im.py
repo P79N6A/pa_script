@@ -20,7 +20,6 @@ import os
 import sqlite3
 import json
 import uuid
-import time
 
 VERSION_VALUE_DB = 16
 
@@ -1168,7 +1167,6 @@ class GenerateModel(object):
 
     def set_progress(self, value):
         progress.Value = self.progress_value + int(value * (100 - self.progress_value) / 100)
-        print('set_progress() %d' % progress.Value)
 
     def get_models(self):
         models = []
@@ -1176,31 +1174,22 @@ class GenerateModel(object):
         self.db = SQLite.SQLiteConnection('Data Source = {}'.format(self.cache_db))
         self.db.Open()
 
-        print('%s model_im() generate model account' % time.asctime(time.localtime(time.time())))
         models.extend(self._get_account_models())
         self.set_progress(5)
-        print('%s model_im() generate model friend' % time.asctime(time.localtime(time.time())))
         models.extend(self._get_friend_models())
         self.set_progress(15)
-        print('%s model_im() generate model group' % time.asctime(time.localtime(time.time())))
         models.extend(self._get_group_models())
         self.set_progress(25)
-        print('%s model_im() generate model chat' % time.asctime(time.localtime(time.time())))
         models.extend(self._get_chat_models())
         self.set_progress(65)
-        print('%s model_im() generate model feed' % time.asctime(time.localtime(time.time())))
         models.extend(self._get_feed_models())
         self.set_progress(85)
-        print('%s model_im() generate model search' % time.asctime(time.localtime(time.time())))
         models.extend(self._get_search_models())
         self.set_progress(90)
-        print('%s model_im() generate model favorite' % time.asctime(time.localtime(time.time())))
         models.extend(self._get_favorite_models())
         self.set_progress(95)
-        print('%s model_im() generate model browse his' % time.asctime(time.localtime(time.time())))
         models.extend(self._get_browse_history_models())
         self.set_progress(100)
-        print('%s model_im() generate model end' % time.asctime(time.localtime(time.time())))
 
         self.db.Close()
         return models

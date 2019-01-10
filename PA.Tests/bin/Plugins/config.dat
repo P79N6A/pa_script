@@ -1921,7 +1921,31 @@
         </dict>
       </array>
     </dict>
-
+	
+	<dict>
+      <key>Module</key>
+      <string>apple_health</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_health</string>
+          <key>RunnerType</key>
+          <integer>0</integer>
+          <key>Patterns</key>
+          <array>
+            <string>/Library/Health/healthdb_secure.sqlite$</string>
+          </array>
+          <key>Category</key>
+          <string>AppleHealth</string>
+          <key>Name</key>
+          <string>苹果健康(苹果)</string>
+          <key>Filter</key>
+          <string>基础数据</string>
+        </dict>
+      </array>
+    </dict>
+	
     <dict>
       <key>Module</key>
       <string>apple_bdy</string>
@@ -2127,7 +2151,7 @@
             <string>/PrivateDocuments/Talk.sqlite$</string>
           </array>
           <key>Category</key>
-          <string>BeeTalk</string>
+          <string>KakaoTalk</string>
           <key>Name</key>
           <string>KakaoTalk(苹果)</string>
           <key>Filter</key>
@@ -2176,6 +2200,52 @@
           <string>RedBook</string>
           <key>Name</key>
           <string>小红书(苹果)</string>
+          <key>Filter</key>
+          <string>应用>社交</string>
+        </dict>
+      </array>
+    </dict>
+	<dict>
+      <key>Module</key>
+      <string>apple_signal</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_apple_signal</string>
+          <key>RunnerType</key>
+          <integer>0</integer>
+          <key>Patterns</key>
+          <array>
+            <string>#</string>
+          </array>
+          <key>Category</key>
+          <string>Signal</string>
+		  <key>Name</key>
+          <string>Signal</string>
+          <key>Filter</key>
+          <string>应用>社交</string>       
+		</dict>
+      </array>
+	</dict>
+  <dict>
+      <key>Module</key>
+      <string>apple_tantan</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_apple_tantan</string>
+          <key>RunnerType</key>
+          <integer>0</integer>
+          <key>Patterns</key>
+          <array>
+            <string>/Library/exid.dat$</string>
+          </array>
+          <key>Category</key>
+          <string>Tantan</string>
+          <key>Name</key>
+          <string>探探(苹果)</string>
           <key>Filter</key>
           <string>应用>社交</string>
         </dict>

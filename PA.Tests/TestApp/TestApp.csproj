@@ -232,11 +232,5 @@
       <Version>1.0.109.1</Version>
     </PackageReference>
   </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\SqliteExp\SqliteExp.csproj">
-      <Project>{ed06ebc7-01e0-4718-8d7a-24a706562e85}</Project>
-      <Name>SqliteExp</Name>
-    </ProjectReference>
-  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
