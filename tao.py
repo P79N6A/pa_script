@@ -8,8 +8,6 @@ import shutil
 
 import clr
 
-import model_eb
-
 clr.AddReference('System.Core')
 clr.AddReference('System.Xml.Linq')
 clr.AddReference('System.Data.SQLite')
