@@ -1747,7 +1747,7 @@
           <key>Category</key>
           <string>NeteaseMail</string>
           <key>Name</key>
-          <string>网易邮箱大师(苹果)</string>
+          <string>网易邮箱(苹果)</string>
           <key>Filter</key>
           <string>应用>邮箱</string>
         </dict>
@@ -1921,7 +1921,7 @@
         </dict>
       </array>
     </dict>
-	
+
 	<dict>
       <key>Module</key>
       <string>apple_health</string>
@@ -1945,7 +1945,6 @@
         </dict>
       </array>
     </dict>
-	
     <dict>
       <key>Module</key>
       <string>apple_bdy</string>
@@ -2958,7 +2957,7 @@
           <key>Category</key>
           <string>NeteaseMail</string>
           <key>Name</key>
-          <string>网易邮箱大师(安卓)</string>
+          <string>网易邮箱(安卓)</string>
           <key>Filter</key>
           <string>应用>邮箱</string>
         </dict>
@@ -3256,6 +3255,30 @@
           <string>UCBrowser</string>
           <key>Name</key>
           <string>UC浏览器(安卓)</string>
+          <key>Filter</key>
+          <string>应用>浏览器</string>
+        </dict>
+      </array>
+    </dict>
+
+    <dict>
+      <key>Module</key>
+      <string>android_chrome</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_chrome</string>
+          <key>RunnerType</key>
+          <integer>2</integer>
+          <key>Patterns</key>
+          <array>
+            <string>/com\.android\.chrome/app_chrome/Default/History$</string>
+          </array>
+          <key>Category</key>
+          <string>ChromeBrowser</string>
+          <key>Name</key>
+          <string>Chrome浏览器(安卓)</string>
           <key>Filter</key>
           <string>应用>浏览器</string>
         </dict>
