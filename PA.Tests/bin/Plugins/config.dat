@@ -1921,7 +1921,31 @@
         </dict>
       </array>
     </dict>
-
+	
+	<dict>
+      <key>Module</key>
+      <string>apple_health</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_health</string>
+          <key>RunnerType</key>
+          <integer>0</integer>
+          <key>Patterns</key>
+          <array>
+            <string>/Library/Health/healthdb_secure.sqlite$</string>
+          </array>
+          <key>Category</key>
+          <string>AppleHealth</string>
+          <key>Name</key>
+          <string>苹果健康(苹果)</string>
+          <key>Filter</key>
+          <string>基础数据</string>
+        </dict>
+      </array>
+    </dict>
+	
     <dict>
       <key>Module</key>
       <string>apple_bdy</string>
