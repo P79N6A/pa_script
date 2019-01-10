@@ -9,7 +9,7 @@ import clr
 try:
     clr.AddReference('model_browser')
     clr.AddReference('bcp_browser')
-    clr.AddReference('yangliyuan')
+    clr.AddReference('ScriptUtils')
 except:
     pass
 del clr
@@ -17,7 +17,7 @@ del clr
 from PA_runtime import *
 import model_browser
 from model_browser import tp, exc, print_run_time, CASE_NAME
-from yangliyuan import BaseAndroidParser
+from ScriptUtils import BaseAndroidParser
 import bcp_browser
 
 
