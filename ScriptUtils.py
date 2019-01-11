@@ -1418,7 +1418,7 @@ class BaseParser(object):
                 return False    
 
     @staticmethod
-    def _is_email_format(rec=None, key=None, email_str=None):
+    def _is_email_format(rec=None, key=None, email_str=''):
         """ 匹配邮箱地址 
 
         Args:
@@ -1429,7 +1429,7 @@ class BaseParser(object):
             bool: is valid email address      
         """
         try:
-            if email_str is None:
+            if email_str is '' and rec is not None:
                 if IsDBNull(rec[key].Value) or len(rec[key].Value.strip()) < 5:
                     return False
                 email_str = rec[key].Value
@@ -1454,3 +1454,95 @@ class BaseAndroidParser(object):
 class BaseAppleParser(object):
     def __init__(self, node, extract_deleted, extract_source, db_name=''):
         super(BaseAppleParser, self).__init__(node, extract_deleted, extract_source, db_name)
+
+
+class ProtobufDecoder(object):
+    def __init__(self, blob):
+        ''' blob (Array[Byte] | zlib.decompress(Array[Byte]))'''
+        if isinstance(blob, Array[Byte]):
+            blob = str(bytearray(blob))
+        self.raw_data = blob
+        self.idx = 0
+        self.max_size = len(blob)
+        self.is_valid = self.max_size != 0
+
+    @property
+    def data(self):
+        ''' return the rest of data '''
+        return self.raw_data[self.idx:]
+
+    def read(self, length=1):
+        if not self.is_out_of_range(length):
+            res = self.raw_data[self.idx: self.idx+length]
+            return res
+        return ''
+
+    def read_move(self, length=1):
+        res = self.read(length)
+        self.idx += length
+        return res
+
+    def is_out_of_range(self, length):
+        if self.idx + length > self.max_size:
+            return True
+        return False
+
+    def get_parscal(self):
+        ''' x.decode('utf8') '''
+        string_length = self.read_move()
+        if string_length:
+            try:
+                res = self.read_move(ord(string_length)).decode('utf8', 'ignore')
+            except:
+                res = self.read_move(ord(string_length))
+            return res
+        return None
+
+    def unpack(self, fmt, length):
+        ''' struct.unpack
+        
+        Args:
+            fmt (str): 
+            length (int): 
+        
+        Returns:
+            pattern (str): hex string
+        '''
+        return struct.unpack(fmt, self.read_move(length))[0].encode('hex')
+    
+    def find(self, sub_str):
+        ''' Returnthe lowest index in  remaining data  where substring sub is found, like str.find
+
+        Args:
+            sub_str (str): '08001a'
+
+        Returns:
+            lowest index: (int)
+        '''
+        sub_str = sub_str.replace(' ', '')
+        return self.idx + self.data.find(sub_str.decode('hex'))
+
+    def find_p_after(self, identify):
+        '''return parscal string after identify 
+        
+        Args:
+            identify (str): 
+        
+        Returns:
+            (str):
+        '''
+        self.idx = self.find(identify) + len(identify.replace(' ', ''))/2
+        return self.get_parscal()
+
+    def read_before(self, identify):
+        '''return raw str before identify 
+        
+        Args:
+            identify (str): 
+        
+        Returns:
+            (str):
+        '''
+        end = self.find(identify)
+        return self.read_move(end - self.idx)
+                        
