@@ -3529,6 +3529,30 @@
         </dict>
       </array>
     </dict>
+    <dict>
+      <key>Module</key>
+      <string>android_tantan</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_android_tantan</string>
+          <key>RunnerType</key>
+          <integer>2</integer>
+          <key>Patterns</key>
+          <array>
+            <string>/data/com.p1.mobile.putong/databases$</string>
+            <string>/Apps/com.p1.mobile.putong/databases$</string>
+          </array>
+          <key>Category</key>
+          <string>Tantan</string>
+          <key>Name</key>
+          <string>探探(安卓)</string>
+          <key>Filter</key>
+          <string>应用>社交</string>
+        </dict>
+      </array>
+    </dict>
 
   </array>
 </plist>
