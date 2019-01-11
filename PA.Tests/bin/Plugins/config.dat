@@ -2655,20 +2655,44 @@
           <integer>2</integer>
           <key>Patterns</key>
           <array>
-            <string>/data/com.tencent.androidqqmail/databases/QMMailDB$</string>
-            <string>/Apps/com.tencent.androidqqmail/databases/QMMailDB$</string>
+            <string>/data/com.twitter.android$</string>
           </array>
           <key>Category</key>
-          <string>QQMail</string>
+          <string>Twitter</string>
           <key>Name</key>
-          <string>QQ邮箱(安卓)</string>
+          <string>Twitter(安卓)</string>
           <key>Filter</key>
-          <string>应用>邮箱</string>
+          <string>应用>社交</string>
         </dict>
       </array>
     </dict>
 
-    <dict>
+      <dict>
+        <key>Module</key>
+        <string>android_twr</string>
+        <key>Runners</key>
+        <array>
+          <dict>
+            <key>EntryPoint</key>
+            <string>parse_android_twr</string>
+            <key>RunnerType</key>
+            <integer>2</integer>
+            <key>Patterns</key>
+            <array>
+              <string>/data/com.tencent.androidqqmail/databases/QMMailDB$</string>
+              <string>/Apps/com.tencent.androidqqmail/databases/QMMailDB$</string>
+            </array>
+            <key>Category</key>
+            <string>QQMail</string>
+            <key>Name</key>
+            <string>QQ邮箱(安卓)</string>
+            <key>Filter</key>
+            <string>应用>邮箱</string>
+          </dict>
+        </array>
+      </dict>
+      <dict>
+
       <key>Module</key>
       <string>android_qqbrowser</string>
       <key>Runners</key>
