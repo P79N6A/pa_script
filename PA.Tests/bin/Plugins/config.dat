@@ -2764,6 +2764,30 @@
         </dict>
       </array>
     </dict>
+	
+	<dict>
+      <key>Module</key>
+      <string>android_blued</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_blued</string>
+          <key>RunnerType</key>
+          <integer>2</integer>
+          <key>Patterns</key>
+          <array>
+            <string>#</string>
+          </array>
+          <key>Category</key>
+          <string>Blued</string>
+          <key>Name</key>
+          <string>Blued(安卓)</string>
+          <key>Filter</key>
+          <string>应用>聊天</string>
+        </dict>
+      </array>
+    </dict>
 
     <dict>
       <key>Module</key>
