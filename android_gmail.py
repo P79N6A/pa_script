@@ -216,7 +216,7 @@ class GmailParser(BaseParser, BaseAndroidParser):
                 mail.owner_account_id = self.cur_account_id
                 mail.mail_sent_date   = MAIL_TS.get(rec['items_row_id'].Value, None)
                 mail.mail_subject     = MAIL_ITEMS.get(rec['items_row_id'].Value, {}).get('mail_subject')
-                mail.mail_labels      = MAIL_ITEMS.get(rec['items_row_id'].Value, {}).get('mail_group')
+                mail.mail_group       = MAIL_ITEMS.get(rec['items_row_id'].Value, {}).get('mail_group')
                 mail.source           = self.cur_db_source
                 mail.deleted          = 1 if rec.IsDeleted else 0
                 # mail.mail_abstract  = rec['snippet'].Value
