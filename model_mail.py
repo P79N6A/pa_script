@@ -150,12 +150,13 @@ SQL_INSERT_TABLE_CONTACT = '''
 12    mail_save_dir         邮件保存路径
 13    mail_send_status      邮件发送状态（1：已发送 0：未发送）
 14    mail_recall_status    邮件撤回状态（1：撤回 0：非撤回）
-15    mail_size             邮件大小
-16    mail_ip               ip地址
-17    source                提取源
-18    deleted               是否删除
-19    repeated              是否重复
-'''
+15    mail_ip               ip地址
+16    mail_size             邮件大小
+17    mail_labels           邮件标签
+18    source                提取源
+19    deleted               是否删除
+20    repeated              是否重复
+'''   
 SQL_CREATE_TABLE_MAIL = '''
     CREATE TABLE IF NOT EXISTS mail(
         mail_id INTEGER,
@@ -175,6 +176,7 @@ SQL_CREATE_TABLE_MAIL = '''
         mail_recall_status INTEGER,
         mail_ip TEXT,
         mail_size INTEGER,
+        mail_labels TEXT,
         source TEXT,
         deleted INTEGER,
         repeated INTEGER
@@ -183,7 +185,7 @@ SQL_CREATE_TABLE_MAIL = '''
 SQL_INSERT_TABLE_MAIL = '''
     INSERT INTO mail(mail_id, owner_account_id, mail_from, mail_to, mail_cc, mail_bcc,
         mail_sent_date, mail_subject, mail_abstract, mail_content, mail_read_status, mail_group, mail_save_dir,
-        mail_send_status, mail_recall_status, mail_ip, mail_size, source, deleted, repeated) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
+        mail_send_status, mail_recall_status, mail_ip, mail_size, mail_labels, source, deleted, repeated) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
 
 '''
 字段说明（附件）
@@ -480,11 +482,12 @@ class Mail(Column):
         self.mail_recall_status = None
         self.mail_ip = None
         self.mail_size = None
+        self.mail_labels = None
 
     def get_values(self):
         return(self.mail_id, self.owner_account_id, self.mail_from, self.mail_to, self.mail_cc, self.mail_bcc, self.mail_sent_date,
         self.mail_subject, self.mail_abstract, self.mail_content, self.mail_read_status, self.mail_group, self.mail_save_dir,
-        self.mail_send_status, self.mail_recall_status, self.mail_ip, self.mail_size, self.source, self.deleted, self.repeated)
+        self.mail_send_status, self.mail_recall_status, self.mail_ip, self.mail_size, self.mail_labels, self.source, self.deleted, self.repeated)
 
 
 class Attachment(Column):
@@ -778,11 +781,10 @@ class Generate(object):
                     attachment.Size.Value = sr[3]  #附件大小
                 if not IsDBNull(sr[4]):
                     mail_id = sr[4]  #邮件ID
-
-                if mail_id not in ATTACHMENTS:
-                    ATTACHMENTS[mail_id] = [attachment]
-                else:
-                    ATTACHMENTS[mail_id].append(attachment)
+                    if mail_id not in ATTACHMENTS:
+                        ATTACHMENTS[mail_id] = [attachment]
+                    else:
+                        ATTACHMENTS[mail_id].append(attachment)
             sr.Close()
             return ATTACHMENTS
         except Exception as e:

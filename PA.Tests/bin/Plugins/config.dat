@@ -2990,30 +2990,6 @@
 
     <dict>
       <key>Module</key>
-      <string>android_neteasemail</string>
-      <key>Runners</key>
-      <array>
-        <dict>
-          <key>EntryPoint</key>
-          <string>analyze_neteasemail</string>
-          <key>RunnerType</key>
-          <integer>2</integer>
-          <key>Patterns</key>
-          <array>
-            <string>com\.netease\.mail/databases/mmail$</string>
-          </array>
-          <key>Category</key>
-          <string>NeteaseMail</string>
-          <key>Name</key>
-          <string>网易邮箱(安卓)</string>
-          <key>Filter</key>
-          <string>应用>邮箱</string>
-        </dict>
-      </array>
-    </dict>
-
-    <dict>
-      <key>Module</key>
       <string>android_email</string>
       <key>Runners</key>
       <array>
@@ -3035,6 +3011,54 @@
         </dict>
       </array>
     </dict>
+
+    <dict>
+      <key>Module</key>
+      <string>android_neteasemail</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_neteasemail</string>
+          <key>RunnerType</key>
+          <integer>2</integer>
+          <key>Patterns</key>
+          <array>
+            <string>com\.netease\.mail/databases/mmail$</string>
+          </array>
+          <key>Category</key>
+          <string>NeteaseMail</string>
+          <key>Name</key>
+          <string>网易邮箱(安卓)</string>
+          <key>Filter</key>
+          <string>应用>邮箱</string>
+        </dict>
+      </array>
+    </dict>    
+
+    <dict>
+      <key>Module</key>
+      <string>android_gmail</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_gmail</string>
+          <key>RunnerType</key>
+          <integer>2</integer>
+          <key>Patterns</key>
+          <array>
+            <string>com\.google\.android\.gm/databases/EmailProvider\.db$</string>
+          </array>
+          <key>Category</key>
+          <string>Gmail</string>
+          <key>Name</key>
+          <string>谷歌邮箱(安卓)</string>
+          <key>Filter</key>
+          <string>应用>邮箱</string>
+        </dict>
+      </array>
+    </dict>    
 
     <dict>
       <key>Module</key>
