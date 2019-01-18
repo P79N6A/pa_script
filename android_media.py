@@ -145,12 +145,15 @@ class MediaParse(object):
                 if 'GPSInfo' in ret.keys():
                     latitude = 0.0
                     longitude = 0.0
-                    GPSInfo = ret['GPSInfo']
-                    latitudeFlag = GPSInfo[1]
-                    latitude = float(GPSInfo[2][0][0])/float(GPSInfo[2][0][1]) + float(GPSInfo[2][1][0])/float(GPSInfo[2][1][1])/float(60) + float(GPSInfo[2][2][0])/float(GPSInfo[2][2][1])/float(3600)
-                    longitudeFlag = GPSInfo[3]
-                    longitude = float(GPSInfo[4][0][0])/float(GPSInfo[4][0][1]) + float(GPSInfo[4][1][0])/float(GPSInfo[4][1][1])/float(60) + float(GPSInfo[4][2][0])/float(GPSInfo[4][2][1])/float(3600)
-                result[0] = longitude
+					try:
+						GPSInfo = ret['GPSInfo']
+						latitudeFlag = GPSInfo[1]
+						latitude = float(GPSInfo[2][0][0])/float(GPSInfo[2][0][1]) + float(GPSInfo[2][1][0])/float(GPSInfo[2][1][1])/float(60) + float(GPSInfo[2][2][0])/float(GPSInfo[2][2][1])/float(3600)
+						longitudeFlag = GPSInfo[3]
+						longitude = float(GPSInfo[4][0][0])/float(GPSInfo[4][0][1]) + float(GPSInfo[4][1][0])/float(GPSInfo[4][1][1])/float(60) + float(GPSInfo[4][2][0])/float(GPSInfo[4][2][1])/float(3600)
+					except:
+						pass
+				result[0] = longitude
                 result[1] = latitude
             except:
                 traceback.print_exc()
