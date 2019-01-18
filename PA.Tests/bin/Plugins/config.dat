@@ -1922,7 +1922,7 @@
       </array>
     </dict>
 
-	<dict>
+    <dict>
       <key>Module</key>
       <string>apple_health</string>
       <key>Runners</key>
@@ -1987,6 +1987,30 @@
           <string>Taobao</string>
           <key>Name</key>
           <string>淘宝(苹果)</string>
+          <key>Filter</key>
+          <string>应用>电子商务</string>
+        </dict>
+      </array>
+    </dict>
+
+    <dict>
+      <key>Module</key>
+      <string>apple_umetrip</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_Umetrip</string>
+          <key>RunnerType</key>
+          <integer>0</integer>
+          <key>Patterns</key>
+          <array>
+            <string>Documents/MyJourneyDB.sqlite$</string>
+          </array>
+          <key>Category</key>
+          <string>Umetrip</string>
+          <key>Name</key>
+          <string>航旅纵横(苹果)</string>
           <key>Filter</key>
           <string>应用>电子商务</string>
         </dict>
@@ -2204,7 +2228,7 @@
         </dict>
       </array>
     </dict>
-	<dict>
+    <dict>
       <key>Module</key>
       <string>apple_signal</string>
       <key>Runners</key>
@@ -2220,14 +2244,14 @@
           </array>
           <key>Category</key>
           <string>Signal</string>
-		  <key>Name</key>
+          <key>Name</key>
           <string>Signal</string>
           <key>Filter</key>
-          <string>应用>社交</string>       
-		</dict>
+          <string>应用>社交</string>
+        </dict>
       </array>
-	</dict>
-  <dict>
+    </dict>
+    <dict>
       <key>Module</key>
       <string>apple_tantan</string>
       <key>Runners</key>
@@ -2667,31 +2691,31 @@
       </array>
     </dict>
 
-      <dict>
-        <key>Module</key>
-        <string>android_twr</string>
-        <key>Runners</key>
-        <array>
-          <dict>
-            <key>EntryPoint</key>
-            <string>parse_android_twr</string>
-            <key>RunnerType</key>
-            <integer>2</integer>
-            <key>Patterns</key>
-            <array>
-              <string>/data/com.tencent.androidqqmail/databases/QMMailDB$</string>
-              <string>/Apps/com.tencent.androidqqmail/databases/QMMailDB$</string>
-            </array>
-            <key>Category</key>
-            <string>QQMail</string>
-            <key>Name</key>
-            <string>QQ邮箱(安卓)</string>
-            <key>Filter</key>
-            <string>应用>邮箱</string>
-          </dict>
-        </array>
-      </dict>
-      <dict>
+    <dict>
+      <key>Module</key>
+      <string>android_twr</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>parse_android_twr</string>
+          <key>RunnerType</key>
+          <integer>2</integer>
+          <key>Patterns</key>
+          <array>
+            <string>/data/com.tencent.androidqqmail/databases/QMMailDB$</string>
+            <string>/Apps/com.tencent.androidqqmail/databases/QMMailDB$</string>
+          </array>
+          <key>Category</key>
+          <string>QQMail</string>
+          <key>Name</key>
+          <string>QQ邮箱(安卓)</string>
+          <key>Filter</key>
+          <string>应用>邮箱</string>
+        </dict>
+      </array>
+    </dict>
+    <dict>
 
       <key>Module</key>
       <string>android_qqbrowser</string>
@@ -2764,8 +2788,8 @@
         </dict>
       </array>
     </dict>
-	
-	<dict>
+
+    <dict>
       <key>Module</key>
       <string>android_blued</string>
       <key>Runners</key>
@@ -3034,7 +3058,7 @@
           <string>应用>邮箱</string>
         </dict>
       </array>
-    </dict>    
+    </dict>
 
     <dict>
       <key>Module</key>
@@ -3058,7 +3082,7 @@
           <string>应用>邮箱</string>
         </dict>
       </array>
-    </dict>    
+    </dict>
 
     <dict>
       <key>Module</key>
@@ -3202,7 +3226,7 @@
           <string>应用>浏览器</string>
         </dict>
       </array>
-    </dict>     
+    </dict>
 
     <dict>
       <key>Module</key>
