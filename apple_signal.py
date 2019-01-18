@@ -169,7 +169,7 @@ class signal(object):
         if(os.path.exists(self.designaldb)):
             os.remove(self.designaldb )
         shutil.copyfile(self.root.PathWithMountPoint, self.signaldb )   
-        self.ininsuccess = NativeMethod.ExportSqlCipherDatabase(self.signaldb,self.designaldb,self.sqlitekey.Bytes ,32)
+        self.initsuccess = NativeMethod.ExportSqlCipherDatabase(self.signaldb,self.designaldb,self.sqlitekey.Bytes ,32)
     def parse(self):
         if self.initsuccess == 0 :
             return []
