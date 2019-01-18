@@ -158,7 +158,7 @@ class Generate(object):
             canceller.ThrowIfCancellationRequested()
             r = Generic.Recording()
             if row[1] is not None:
-                r.URL.Value = row[1]
+                r.FileUri.Value = row[1]
             if row[2] is not None:
                 r.Title.Value = row[2]
             #if row[3] is not None:
