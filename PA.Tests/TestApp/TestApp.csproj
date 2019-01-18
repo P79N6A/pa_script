@@ -76,11 +76,11 @@
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\bin\Mono.HttpUtility.dll</HintPath>
     </Reference>
-    <Reference Include="PA.iTunes">
-      <HintPath>C:\Users\xutao\Desktop\pa-scripts\PA.Tests\Lib\PA.iTunes.dll</HintPath>
-    </Reference>
     <Reference Include="PNFA.AndroidApps">
       <HintPath>..\Lib\PNFA.AndroidApps.dll</HintPath>
+    </Reference>
+    <Reference Include="PNFA.AppData">
+      <HintPath>..\Lib\PNFA.AppData.dll</HintPath>
     </Reference>
     <Reference Include="PNFA.Common">
       <HintPath>..\Lib\PNFA.Common.dll</HintPath>
@@ -121,8 +121,15 @@
     <Reference Include="PNFA.iPhoneApps">
       <HintPath>..\Lib\PNFA.iPhoneApps.dll</HintPath>
     </Reference>
+    <Reference Include="PNFA.iTunes, Version=1.0.6.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\Lib\PNFA.iTunes.dll</HintPath>
+    </Reference>
     <Reference Include="PNFA.Logic">
       <HintPath>..\Lib\PNFA.Logic.dll</HintPath>
+    </Reference>
+    <Reference Include="PNFA.ServiceInterface">
+      <HintPath>..\Lib\PNFA.ServiceInterface.dll</HintPath>
     </Reference>
     <Reference Include="PNFA.SQLite">
       <HintPath>..\Lib\PNFA.SQLite.dll</HintPath>
