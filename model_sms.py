@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 __author__ = 'YangLiyuan'
 
 from PA_runtime import *
@@ -7,6 +7,10 @@ clr.AddReference('System.Data.SQLite')
 del clr
 
 import System.Data.SQLite as SQLite
+import PA.InfraLib.ModelsV2.CommonEnum.SMSStatus as SMSStatus
+import PA.InfraLib.ModelsV2.Base.Content.TextContent as TextContent
+import PA.InfraLib.ModelsV2.Base.Contact as Contact
+
 
 import sqlite3
 
@@ -44,16 +48,16 @@ SMS_TYPE_FAILED = 5
 SMS_TYPE_QUEUED = 6
 
 SMS_TYPE_TO_FOLDER = (
-    '',
-    '收件箱',
-    '正在发送',
-    '草稿箱',
-    '发件箱',
-    '发送失败',
-    '',
+    None,                      # '',
+    Generic.Folders.Inbox,     # '收件箱',
+    None,                      # '正在发送',
+    Generic.Folders.Sent,      # '草稿箱',
+    Generic.Folders.Sent,      # '发件箱',
+    Generic.Folders.Sent,      # '发送失败',
+    None,                      # '',
 )
 
-VERSION_VALUE_DB = 1
+VERSION_VALUE_DB = 2
 VERSION_KEY_DB  = 'db'
 VERSION_KEY_APP = 'app'
         
@@ -389,48 +393,44 @@ class GenerateModel(object):
         while row is not None:
             if canceller.IsCancellationRequested:
                 return            
-            sms = Generic.SMS()
+            sms = ModelsV2.Base.SMS()
+
             if row[7] is not None:
-                sms.Body.Value = row[7]
+                sms.Content = TextContent(sms)
+                sms.Content.Value = row[7]
+
             if row[5] in range(7):
-                sms.Folder.Value = SMS_TYPE_TO_FOLDER[row[5]]
-            if row[9] is not None:
-                sms.Delivered.Value = self._get_timestamp(row[9])
+                if SMS_TYPE_TO_FOLDER[row[5]] is not None:
+                    sms.Folder = SMS_TYPE_TO_FOLDER[row[5]]
+                
             if row[8] is not None:
-                sms.TimeStamp.Value = self._get_timestamp(row[8])
+                sms.Time = self._get_timestamp(row[8])
+            if row[9] is not None:
+                sms.DeliveredTime = self._get_timestamp(row[9])
 
             # 注意优先级  row[4] read_status, row[5]: type
-            sms.Status.Value = MessageStatus.Read if row[4] == 1 else MessageStatus.Unread
+            sms.Status = SMSStatus.Read if row[4] == 1 else SMSStatus.Unread
             if row[5] in [2, 3, 4]:
-                sms.Status.Value = self._convert_sms_type(row[5]) 
-
+                sms.Status = self._convert_sms_type(row[5]) 
+                
             # 发件人
-            party = Generic.Party()
-            # party.Role.Value = PartyRole.From if row[10] != 1 else PartyRole.To
-            party.Role.Value = PartyRole.From
+            _from = Contact()
             if row[2] is not None:
-                party.Identifier.Value = row[2] # sender_phonenumber
+                _from.PhoneNumbers.Add(row[2])  # sender_phonenumber
             if row[3] is not None:
-                party.Name.Value = row[3]       # sender_name
-            sms.Parties.Add(party)     
+                _from.RemarkName = row[3]       # sender_name
+            sms.FromSet.Add(_from)
+
             # 收件人
-            party = Generic.Party()
-            # party.Role.Value = PartyRole.To if row[10] != 1 else PartyRole.From
-            party.Role.Value = PartyRole.To
+            _to = Contact()
             if row[14] is not None:
-                party.Identifier.Value = row[14]   # recv_phonenumber
+                _to.PhoneNumbers.Add(row[14])   # recv_phonenumber
             if row[15] is not None:                                     
-                party.Name.Value = row[15]        # recv_name     
-            sms.Parties.Add(party)               
+                _to.RemarkName = row[15]        # recv_name     
+            sms.ToSet.Add(_to)               
 
-            if row[16] is not None:                                     
-                sms.SMSC.Value = row[16]  
-
-            if row[11] is not None:
-                sms.SourceFile.Value = self._get_source_file(row[11])
             if row[12] is not None:
                 sms.Deleted = self._convert_deleted_status(row[12])
-
             models.append(sms)
             row = self.cursor.fetchone()
         return models        
@@ -472,9 +472,7 @@ class GenerateModel(object):
         SMS_TYPE_QUEUED = 6 
         '''
         if sms_type in [2,4]:  # 发件箱
-            return MessageStatus.Sent
+            return SMSStatus.Sent
         elif sms_type == 3:    # 草稿箱
-            return MessageStatus.Unsent
+            return SMSStatus.Unsent
         # elif sms_type == 1:    # 未读
-        #     return MessageStatus.Unread
-        # return MessageStatus.Default
