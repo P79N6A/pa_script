@@ -238,7 +238,8 @@ class AndroidGmailParser(BaseParser, BaseAndroidParser):
                 mail.mail_labels      = MAIL_ITEMS.get(rec['items_row_id'].Value, {}).get('mail_labels')
                 mail.mail_group       = MAIL_ITEMS.get(rec['items_row_id'].Value, {}).get('mail_group')
                 if mail.mail_group in [MAIL_INBOX]:
-                    mail.mail_read_status = MAIL_INFO.get(rec['items_row_id'].Value, {}).get('mail_read_status')
+                    _status = MAIL_INFO.get(rec['items_row_id'].Value, {}).get('mail_read_status')
+                    mail.mail_read_status = _status if _status else MESSAGE_STATUS_UNREAD
                 elif mail.mail_group in [MAIL_OUTBOX, MAIL_DRAFT]:
                     mail.mail_send_status = MAIL_INFO.get(rec['items_row_id'].Value, {}).get('mail_send_status')
 
