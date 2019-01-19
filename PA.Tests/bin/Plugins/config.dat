@@ -134,7 +134,7 @@
           <key>Filter</key>
           <string>应用>即时通讯</string>
         </dict>
-        <dict>
+        <!-- <dict>
           <key>EntryPoint</key>
           <string>PA.iPhoneApps.Parsers.GmailParser</string>
           <key>RunnerType</key>
@@ -151,7 +151,7 @@
           <string>Gmail(苹果)</string>
           <key>Filter</key>
           <string>应用>邮箱</string>
-        </dict>
+        </dict> -->
         <dict>
           <key>EntryPoint</key>
           <string>PA.iPhoneApps.Parsers.QQBrowserParser</string>
@@ -1729,6 +1729,30 @@
         </dict>
       </array>
     </dict>
+
+    <dict>
+      <key>Module</key>
+      <string>apple_gmail</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_gmail</string>
+          <key>RunnerType</key>
+          <integer>0</integer>
+          <key>Patterns</key>
+          <array>
+            <string>/Library/Preferences/com\.google\.Gmail\.plist$</string>
+          </array>
+          <key>Category</key>
+          <string>Gmail</string>
+          <key>Name</key>
+          <string>谷歌邮箱(苹果)</string>
+          <key>Filter</key>
+          <string>应用>邮箱</string>
+        </dict>
+      </array>
+    </dict>    
 
     <dict>
       <key>Module</key>

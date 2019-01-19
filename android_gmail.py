@@ -25,33 +25,58 @@ from ScriptUtils import CASE_NAME, exc, tp, DEBUG, base_analyze, parse_decorator
 
 VERSION_APP_VALUE = 1
 
-MESSAGE_STATUS_DEFAULT = 0
-MESSAGE_STATUS_UNSENT  = 1
-MESSAGE_STATUS_SENT    = 2
-MESSAGE_STATUS_UNREAD  = 3
-MESSAGE_STATUS_READ    = 4
+MESSAGE_STATUS_DEFAULT = -1
+MESSAGE_STATUS_UNSENT  = 0
+MESSAGE_STATUS_SENT    = 1
+MESSAGE_STATUS_UNREAD  = 0
+MESSAGE_STATUS_READ    = 1
+MESSAGE_STATUS_INBOX   = 3   # 属于收件但状态未知
 
+MAIL_ADDRESS_FLAG = '08 01 12'
+
+MAIL_INBOX    = '收件箱'
+MAIL_OUTBOX   = '已发送'
+MAIL_DRAFT    = '草稿箱'
+MAIL_DELTED   = '已删除'
 
 GMAIL_LABEL_TYPE = {
-    '^all'              : '所有邮件',
-    '^r'                : '草稿',
-    '^f'                : '已发邮件',
-    '^k'                : '已删除邮件',
-    '^t'                : '已加星标',
-    '^s'                : '垃圾邮件',
-    '^io_im'            : '重要邮件',
-    '^sq_ig_i_personal' : '主要',
-    '^sq_ig_i_social'   : '社交',
-    '^smartlabel_social': '社交',
-    '^sq_ig_i_promo'    : '推广',
+    '^all'                : '所有邮件',
+    # '^a'                  : '^a',
+    '^r'                  : MAIL_DRAFT,
+    '^i'                  : MAIL_INBOX,
+    '^iim'                : MAIL_INBOX,
+    '^u'                  : MAIL_INBOX,  # 未读
+    # '^o'                  : '^o',
+    '^f'                  : MAIL_OUTBOX,
+    '^k'                  : MAIL_DELTED,
+    '^t'                  : '已加星标',
+    '^s'                  : '垃圾邮件',
+    '^io_im'              : '重要邮件',
+    # '^io_unim'            : '不重要邮件',
+    '^sq_ig_i_personal'   : '主要',
+    '^smartlabel_personal': '主要',
+    '^sq_ig_i_social'     : '社交',
+    '^smartlabel_social'  : '社交',
+    '^sq_ig_i_promo'      : '推广',
 }
 
+'''
+# item_visibility: 
+    view_type 
+        2   收件
+        4   草稿
+        9   发件
+        12  删除
+    messages_in_view_bitmap
+        0   已读
+        2   未读
+'''
 
 @parse_decorator
 def analyze_gmail(node, extract_deleted, extract_source):
     if 'es_recycle_content' in node.AbsolutePath:
         return ParserResults()
-    return base_analyze(GmailParser, 
+    return base_analyze(AndroidGmailParser, 
                         node, 
                         extract_deleted, 
                         extract_source, 
@@ -60,12 +85,11 @@ def analyze_gmail(node, extract_deleted, extract_source):
                         'Gmail',
                         'Gmail_A')
 
-
-class GmailParser(BaseParser, BaseAndroidParser):
+class AndroidGmailParser(BaseParser, BaseAndroidParser):
     ''' \com.google.android.gm\databases '''
 
     def __init__(self, node, extract_deleted, extract_source, db_name):
-        super(GmailParser, self).__init__(node, extract_deleted, extract_source, db_name)
+        super(AndroidGmailParser, self).__init__(node, extract_deleted, extract_source, db_name)
         self.VERSION_KEY_DB = model_mail.VERSION_KEY_DB
         self.VERSION_VALUE_DB = model_mail.VERSION_VALUE_DB
         self.VERSION_KEY_APP = model_mail.VERSION_KEY_APP
@@ -73,7 +97,6 @@ class GmailParser(BaseParser, BaseAndroidParser):
         self.Generate = model_mail.Generate
         self.csm = model_mail.MM()
         self.accounts    = {}
-        self.mail_folder = {}
 
     def parse_main(self):
         """ com.google.android.gm/databases
@@ -89,13 +112,12 @@ class GmailParser(BaseParser, BaseAndroidParser):
             self.cur_account_id = account.account_id
             self.cur_account_email = account.account_email
 
-            # if self._read_db('databases/bigTopDataDB.'+str(account.account_id)):
-            if self._read_db('databases/bigTopDataDB.1446591167'):
+            if self._read_db('databases/bigTopDataDB.'+str(account.account_id)):
                 tp('databases/bigTopDataDB.'+str(account.account_id))
                 self.pre_parse_custom_mail_box('clusters')
                 MAIL_ITEMS = self._parse_mail_items('items')
-                MAIL_TS = self._parse_mail_ts('item_visibility')
-                self._parse_mail_content('item_messages', MAIL_ITEMS, MAIL_TS)
+                MAIL_INFO = self._parse_mail_item_visibility('item_visibility')
+                self._parse_mail_content('item_messages', MAIL_ITEMS, MAIL_INFO)
                 self.parse_attachment('item_message_attachments') 
                 # self.parse_contact('Contact.db', 'contact_table')
 
@@ -123,7 +145,7 @@ class GmailParser(BaseParser, BaseAndroidParser):
         GMAIL_LABEL_TYPE.update(CUSTOM_MAIL_BOX)
 
     def _parse_mail_items(self, table_name):
-        ''' 解析 发件人姓名, 邮箱地址, 主题, 分类
+        ''' items 解析 发件人姓名, 邮箱地址, 主题, 分类
             
             FieldName	                    SQLType	                         	
             row_id	                            INTEGER
@@ -139,20 +161,15 @@ class GmailParser(BaseParser, BaseAndroidParser):
         ''' 
         MAIL_ITEMS = {}
         ITEMS_SUBJECT = '12'
-        # MAIL_ADDRESS_FLAG = ['08 01 12', '8a 01 02'] 
-        MAIL_ADDRESS_FLAG = '08 01 12'
         for rec in self._read_table(table_name):
             # 428 cookie, 464 图片, 466 三个附件
             if (self._is_empty(rec, 'item_summary_proto') or 
                 self._is_duplicate(rec, 'row_id')):
                 continue 
-
             item = ProtobufDecoder(rec['item_summary_proto'].Value)
 
             # mail_id     
             mail_id = rec['row_id'].Value
-            #if mail_id not in [443, 442]:
-            #    continue
 
             # mail_subject
             item.idx = item.find('0a') + 1
@@ -167,26 +184,30 @@ class GmailParser(BaseParser, BaseAndroidParser):
                 if ord(item.read()) == 0x1a:
                     mail_from += ' ' + item.find_p_after('1a')
 
-            # mail_group
+            # mail_label
             item.idx = item.find('22')
             _next = item.read()
-            mail_groups = ''
+            mail_labels = mail_group = ''
             while _next=='22'.decode('hex'):
                 label = item.find_p_after('22')
-                mail_group = GMAIL_LABEL_TYPE.get(label, '')
-                if mail_group:
-                    mail_groups = mail_groups + ',' + mail_group
+                mail_label = GMAIL_LABEL_TYPE.get(label, '')
+                if mail_label:
+                    if mail_label in [MAIL_INBOX, MAIL_OUTBOX, MAIL_DRAFT, MAIL_DELTED]:
+                        mail_group = mail_label
+                    elif mail_label not in mail_labels:
+                        mail_labels = mail_labels + ',' + mail_label
                 _next = item.read()
-            # _labels = re.sub(r'\x22.', ',', raw_labels)
+
             #tp(res_labels)
             MAIL_ITEMS[mail_id] = {
                 'mail_subject': mail_subject,
                 'mail_from': mail_from,
-                'mail_group': mail_groups[1:],
+                'mail_labels': mail_labels[1:],
+                'mail_group': mail_group,
             }
         return MAIL_ITEMS
 
-    def _parse_mail_content(self, table_name, MAIL_ITEMS, MAIL_TS):
+    def _parse_mail_content(self, table_name, MAIL_ITEMS, MAIL_INFO):
         """ 'bigTopDataDB.' + ACCOUNT_ID - item_messages
         
             FieldName	                        SQLType            	
@@ -202,25 +223,36 @@ class GmailParser(BaseParser, BaseAndroidParser):
             legacy_storage_id	                    INTEGER
         """
         MAIL_ADDRESS_FLAG = '08 01 12'
-
         for rec in self._read_table(table_name):
-            # 428 cookie, 464 图片, 466 三个附件
-            #if rec['row_id'].Value not in [466]:
-            #    continue
             try:
-                if (self._is_empty(rec, 'zipped_message_proto') or 
+                if (self._is_empty(rec, 'zipped_message_proto', 'items_row_id') or 
                     self._is_duplicate(rec, 'row_id')):
                     continue 
+                
                 mail = model_mail.Mail()              
-                mail.mail_id          = rec['legacy_storage_id'].Value
+                mail.mail_id          = rec['row_id'].Value
+                #if mail.mail_id not in [76]:
+                #   continue
                 mail.owner_account_id = self.cur_account_id
-                mail.mail_sent_date   = MAIL_TS.get(rec['items_row_id'].Value, None)
-                mail.mail_subject     = MAIL_ITEMS.get(rec['items_row_id'].Value, {}).get('mail_subject')
+                mail.mail_sent_date   = MAIL_INFO.get(rec['items_row_id'].Value, {}).get('mail_sent_date')
+                mail.mail_labels      = MAIL_ITEMS.get(rec['items_row_id'].Value, {}).get('mail_labels')
                 mail.mail_group       = MAIL_ITEMS.get(rec['items_row_id'].Value, {}).get('mail_group')
-                mail.source           = self.cur_db_source
-                mail.deleted          = 1 if rec.IsDeleted else 0
-                # mail.mail_abstract  = rec['snippet'].Value
-                # mail.mail_bcc       = rec['bccList'].Value
+                if mail.mail_group in [MAIL_INBOX]:
+                    mail.mail_read_status = MAIL_INFO.get(rec['items_row_id'].Value, {}).get('mail_read_status')
+                elif mail.mail_group in [MAIL_OUTBOX, MAIL_DRAFT]:
+                    mail.mail_send_status = MAIL_INFO.get(rec['items_row_id'].Value, {}).get('mail_send_status')
+
+                # 补充, 有些邮件没有收件箱标签
+                _read_status = MAIL_INFO.get(rec['items_row_id'].Value, {}).get('mail_read_status')
+                if _read_status in [MESSAGE_STATUS_INBOX, MESSAGE_STATUS_READ, MESSAGE_STATUS_UNREAD]:
+                    mail.mail_group = MAIL_INBOX
+
+                mail.mail_subject = MAIL_ITEMS.get(rec['items_row_id'].Value, {}).get('mail_subject')
+                if not mail.mail_subject:
+                    continue
+                mail.source = self.cur_db_source
+                mail.deleted = 1 if rec.IsDeleted else 0
+                # mail.mail_bcc = rec['bccList'].Value
 
                 blob = rec['zipped_message_proto'].Value
                 try:
@@ -228,33 +260,29 @@ class GmailParser(BaseParser, BaseAndroidParser):
                 except:
                     continue
                 hex_str = ProtobufDecoder(bytes_data)
+                
                 # mail_to
                 mail_to_all = hex_str.find_p_after('0a')
                 if MAIL_ADDRESS_FLAG in self._2_hexstr(mail_to_all):
-                    mail.mail_to = mail_to_all
+                    mail.mail_to = self._get_mail_address_name(mail_to_all)
                     # mail_cc
                     if ord(hex_str.read()) == 0x12:
                         mail.mail_cc = hex_str.find_p_after(MAIL_ADDRESS_FLAG)
-
                 # mail_from
-                #if not mail.mail_from and ord(hex_str.read()) == 0x22:
+                mail_from1 = MAIL_ITEMS.get(rec['items_row_id'].Value, {}).get('mail_from')
                 if ord(hex_str.read()) == 0x22:
-                    mail_from = hex_str.find_p_after('22')
-                    mail_from = mail_from[1:].replace('011218'.decode('hex'), '')
-                    mail_from = mail_from.split('1a'.decode('hex'))
-                    if len(mail_from[1]) > 0:
-                        mail_from = mail_from[0] + ' ' + mail_from[1][1:]
-                    mail.mail_from = mail_from
+                    mail_from_all = hex_str.find_p_after('22')
+                    mail.mail_from = self._get_mail_address_name(mail_from_all)
                 else:
-                    mail.mail_from = MAIL_ITEMS.get(rec['items_row_id'].Value, {}).get('mail_from')
-                
-                if not mail.mail_from:
+                    mail.mail_from = mail_from1
+                if not mail.mail_to and not mail.mail_from:
                     continue
 
+                # status 补充
                 # mail_send_status
                 if mail.mail_from and self.cur_account_email in mail.mail_from:
                     mail.mail_send_status = 1
-                
+
                 # mail_subject
                 if hex_str.read() and ord(hex_str.read()) == 0x2a:
                     hex_str.idx += 1
@@ -272,17 +300,44 @@ class GmailParser(BaseParser, BaseAndroidParser):
                         mail_content = hex_str.read_before(CONTENT_ENDS).decode('utf8', 'ignore')
                         end_idx = mail_content.rfind('0a'.decode('hex'))
                         mail.mail_content = mail_content[: end_idx]
-                # tp(hex_str.read_move(idx))
-                # tp(hex_str.read_move(3))
-                # tp(hex_str.read_move(idx))
-                # tp(self._2_hexstr(bytes_data[:4]))
                 self.csm.db_insert_table_mail(mail)
             except:
                 exc()
         self.csm.db_commit()
 
-    def _parse_mail_ts(self, table_name):
+
+    def _get_mail_address_name(self, mail_address_name_str):
+        '''parse email address and name
+        
+        Args:
+            mail_address_name_str (str): "\b\u0001\u0012\u0012pangux01@gmail.com\u001a\t张一一"
+        
+        Returns:
+            str: pangux01@gmail.com 张一一
+        '''
+        _address, _name = '', ''
+        try:
+            _mail_from_all = ProtobufDecoder(mail_address_name_str.encode('utf8', 'ignore'))
+            _address = _mail_from_all.find_p_after(MAIL_ADDRESS_FLAG)
+            if not self._is_email_format(email_str=_address):
+                return ''
+            _name = ''
+            if _mail_from_all.read() and ord(_mail_from_all.read()) == 0x1a:
+                _name = _mail_from_all.find_p_after('1a')
+                return _address + ' ' + _name    
+            return _address
+        except:
+            exc()
+            return ''
+
+    def _parse_mail_item_visibility(self, table_name):
         """ 'bigTopDataDB.' + ACCOUNT_ID  - item_visibility
+
+            MAIL_INFO[rec['items_row_id'].Value] = {
+                'mail_sent_date'  : mail_sent_date,
+                'mail_read_status': mail_read_status,
+                'mail_send_status': mail_send_status,
+            }        
             
             FieldName	                    SQLType              	
             row_id	                            INTEGER
@@ -298,19 +353,44 @@ class GmailParser(BaseParser, BaseAndroidParser):
             display_timestamp_ms	            INTEGER
             messages_in_view_bitmap	            INTEGER
         """
-        MAIL_TS = {}
+        MAIL_INFO = {}
         for rec in self._read_table(table_name):
             try:
-                if (self._is_duplicate(rec, 'items_row_id') or
-                    self._is_empty(rec, 'row_id', 'items_row_id', 'display_timestamp_ms') or
+                if (self._is_empty(rec, 'row_id', 'items_row_id', 'display_timestamp_ms') or
                     len(str(rec['display_timestamp_ms'].Value)) not in [13, 16]):
                     continue                     
-                mail_id = rec['items_row_id'].Value
                 mail_sent_date = rec['display_timestamp_ms'].Value
-                MAIL_TS[mail_id] = mail_sent_date
+                #if rec['items_row_id'].Value != 20:
+                #    continue
+                if MAIL_INFO.has_key(rec['items_row_id'].Value):
+                    item_info = MAIL_INFO[rec['items_row_id'].Value]
+                    if rec['view_type'].Value == 2:  # 收件
+                        item_info['mail_send_status'] = None
+                        item_info['mail_read_status'] = MESSAGE_STATUS_INBOX
+                        continue
+                    elif item_info.get('mail_send_status', None) is not None:
+                        continue
+                # messages_in_view_bitmap 固定 0 或 2
+                # view_type 不确定
+                # 未读
+                _item_info = {}
+                if rec['messages_in_view_bitmap'].Value == 2:
+                    _item_info['mail_read_status'] = MESSAGE_STATUS_UNREAD
+                # 已读 或 已发送/未发送
+                elif rec['messages_in_view_bitmap'].Value == 0:    
+                    if rec['view_type'].Value == 9:
+                        _item_info['mail_send_status'] = MESSAGE_STATUS_SENT
+                    elif rec['view_type'].Value == 4:
+                        _item_info['mail_send_status'] = MESSAGE_STATUS_UNSENT
+                    else:
+                        _item_info['mail_read_status'] = MESSAGE_STATUS_READ
+                        
+                _item_info['mail_sent_date'] = mail_sent_date
+
+                MAIL_INFO[rec['items_row_id'].Value] = _item_info
             except:
                 exc()    
-        return MAIL_TS
+        return MAIL_INFO
 
     def parse_account(self, xml_path):
         ''' associate email and id 
@@ -323,11 +403,6 @@ class GmailParser(BaseParser, BaseAndroidParser):
         ''' com.google.android.gm/shared_prefs/pangux01@gmail.com.xml
                                               /Account-pangux01@gmail.com.xml
             <set name="notificationShownIds_gig:816998789:^sq_ig_i_personal" />
-            
-            u'\n\x1b\x08\x01\x12\x17taojianping01@gmail.com
-            *0\xe6\x88\x91\xe4\xbb\xac\xe6\xb3\xa8\xe6\x84\x8f\xe5\x88\xb0\xe6\x82\xa8\xe7\x9a\x84 Dropbox \xe6\x9c\x89\xe6\x96\xb0\xe7\x9a\x84\xe7\x99\xbb\xe5\xbd\x95\xe3\x80\x822\xbc1\x12\xda0\x08\x00\x1a\xd00\x12\xcd0<u></u>\n\n\n\n\n <div style="padding:0;width:100%!important;margin:0" marginheight="0" marginwidth="0"><center><table cellpadding="8" cellspacing="0" style="padding:0;width:100%!important;background:#ffffff;margin:0;background-color:#ffffff" border="0"><tr><td valign="top">\n<table cellpadding="0" cellspacing="0" style="border-radius:4px;border:1px #dceaf5 solid" border="0" align="center">\n<tr><td colspan="3" height="6"></td></tr>\n<tr style="line-height:0px"><td width="100%" style="font-size:0px" align="center" height="1"><img src="https://ci6.googleusercontent.com/proxy/z0bWF43BJl3HebfvfCsWXqgFHPK3KUsIvSpS6DlrrQ0P_-CGsFTiJkEHtPlwXI73p2bZK9hm6uVCY7HJVg9mMLgvvZZOk8O4pgpwtmN1fJzGzBj4UhBwWqmDfu2KMaI=s0-d-e1-ft#https://cfl.dropboxstatic.com/static/images/emails/logo_glyph_34_m1%402x.png" style="max-height:73px;width:40px" alt="" width="40px"></td></tr> <tr><td><table cellpadding="0" cellspacing="0" style="line-height:25px" border="0" align="center">\n<tr><td colspan="3" height="30"></td></tr>\n<tr>\n<td width="36"></td>\n<td width="454" align="left" style="color:#444444;border-collapse:collapse;font-size:11pt;font-family:proxima_nova,&#39;Open Sans&#39;,&#39;Lucida Grande&#39;,&#39;Segoe UI&#39;,Arial,Verdana,&#39;Lucida Sans Unicode&#39;,Tahoma,&#39;Sans Serif&#39;;max-width:454px" valign="top">
-            
-            \xe5\xb0\x8a\xe6\x95\xac\xe7\x9a\x84Tao Jianping\xef\xbc\x9a\xe6\x82\xa8\xe5\xa5\xbd\xef\xbc\x81<br><br>\xe4\xb8\x80\xe5\x8f\xb0\xe6\x96\xb0Android \xe8\xae\xbe\xe5\xa4\x87\xe5\x88\x9a\xe5\x88\x9a\xe7\x99\xbb\xe5\xbd\x95\xe4\xba\x86\xe6\x82\xa8\xe7\x9a\x84 Dropbox \xe5\xb8\x90\xe6\x88\xb7\xe3\x80\x82\xe4\xb8\xba\xe7\xa1\xae\xe4\xbf\x9d\xe6\x82\xa8\xe7\x9a\x84\xe5\xb8\x90\xe6\x88\xb7\xe5\xae\x89\xe5\x85\xa8\xef\xbc\x8c\xe8\xaf\xb7\xe5\x91\x8a\xe8\xaf\x89\xe6\x88\x91\xe4\xbb\xac\xe8\xbf\x99\xe6\x98\xaf\xe4\xb8\x8d\xe6\x98\xaf\xe6\x82\xa8\xe6\x9c\xac\xe4\xba\xba\xe7\x9a\x84\xe6\x93\x8d\xe4\xbd\x9c\xe3\x80\x82<br><br><table style="border-radius:4px;width:100%!important;background:#e8f2fa">\n<tr>\n<td height="16px"></td>\n<td height="16px"></td>\n<td height="16px"></td>\n</tr>\n<tr>\n<td width="20px"></td>\n<td>\n<span style="color:#444;text-align:center"> <b> \xe7\xa1\xae\xe5\xae\x9e\xe6\x98\xaf\xe6\x82\xa8\xe5\x9c\xa8\xe7\x99\xbb\xe5\xbd\x95\xe5\x90\x97\xef\xbc\x9f</b> </span><table cellpadding="0" border="0" style="color:#444;font-size:14px" cellspacing="0" align="center">\n<tr>\n<td height="10px"></td>\n<td height="10px"></td>\n</tr>\n<tr valign="top">\n<td width="90px">\xe5\x9c\xb0\xe7\x82\xb9\xef\xbc\x9a</td>\n<td><b>London, England, United Kingdom\xe9\x99\x84\xe8\xbf\x91</b></td>\n</tr>\n<tr valign="top">\n<td width="90px">\xe6\x97\xb6\xe9\x97\xb4\xef\xbc\x9a</td>\n<td><b>Dec 10, 2018 at 8:07 am (GMT)</b></td>\n</tr>\n<tr valign="top">\n<td width="90px">\xe4\xba\x8b\xe4\xbb\xb6\xef\xbc\x9a</td>\n<td><b>Dropbox for Android</b></td>\n</tr>\n<tr>\n<td height="16px"></td>\n<td height="16px"></td>\n</tr>\n</table>\n<table cellpadding="0" border="0" align="center" cellspacing="0" style="text-align:center"><tr>\n<td width="124px"><a style="border-radius:3px;font-size:14px;border-right:1px #b1b1b1 solid;border-bottom:1px #aaaaaa solid;padding:7px 7px 7px 7px;border-top:1px #bfbfbf solid;max-width:97px;font-family:proxima_nova,&#39;Open Sans&#39;,&#39;lucida grande&#39;,&#39;Segoe UI&#39;,arial,verdana,&#39;lucida sans unicode&#39;,tahoma,sans-serif;color:#777777;text-align:center;background-image:-webkit-gradient(linear,0% 0%,0% 100%,from(rgb(251,251,251)),to(rgb(228,228,228)));text-decoration:none;width:97px;border-left:1px #b1b1b1 solid;margin:0;display:block;background-color:#f3f3f3" href="https://www.dropbox.com/l/AADKNulSDijVrqvUUsXA_7k3C1ELwQOJmWc" target="_blank" rel="noreferrer" data-saferedirecturl="https://www.google.com/url?q=https://www.dropbox.com/l/AADKNulSDijVrqvUUsXA_7k3C1ELwQOJmWc&amp;source=gmail&amp;ust=1544515666849000&amp;usg=AFQjCNGAXftVP6ykyxZiwQT99iGKmkg0UQ">\xe6\x98\xaf</a></td>\n<td></td>\n<td width="124px" height="0px"><a style="border-radius:3px;font-size:14px;border-right:1px #b1b1b1 solid;border-bottom:1px #aaaaaa solid;padding:7px 7px 7px 7px;border-top:1px #bfbfbf solid;max-width:97px;font-family:proxima_nova,&#39;Open Sans&#39;,&#39;lucida grande&#39;,&#39;Segoe UI&#39;,arial,verdana,&#39;lucida sans unicode&#39;,tahoma,sans-serif;color:#777777;text-align:center;background-image:-webkit-gradient(linear,0% 0%,0% 100%,from(rgb(251,251,251)),to(rgb(228,228,228)));text-decoration:none;width:97px;border-left:1px #b1b1b1 solid;margin:0;display:block;background-color:#f3f3f3" href="https://www.dropbox.com/l/AAC42--mb2U2aBS6rOz-K3UEkcRjd9b5miU" target="_blank" rel="noreferrer" data-saferedirecturl="https://www.google.com/url?q=https://www.dropbox.com/l/AAC42--mb2U2aBS6rOz-K3UEkcRjd9b5miU&amp;source=gmail&amp;ust=1544515666849000&amp;usg=AFQjCNF6zLQ6YkOhxM7WmuOiKDqhkTceAg">\xe5\x90\xa6</a></td>\n</tr></table>\n<table cellpadding="0" border="0" align="left" cellspacing="0" style="text-align:left"><tr align="left">\n<td width="97px" height="0px"><br></td>\n<td width="0px" height="0px"><br></td>\n</tr></table>\n<br><a href="https://www.dropbox.com/l/AAA1lamTFkr3rJdaJtbe16snNm4WttJh3jY" target="_blank" rel="noreferrer" data-saferedirecturl="https://www.google.com/url?q=https://www.dropbox.com/l/AAA1lamTFkr3rJdaJtbe16snNm4WttJh3jY&amp;source=gmail&amp;ust=1544515666849000&amp;usg=AFQjCNEkZvxqmlrlmpXMfbWx16WQ2zdx1w">\xe6\x88\x91\xe4\xb8\x8d\xe7\xa1\xae\xe5\xae\x9a</a><br>\n</td>\n<td width="20px"></td>\n</tr>\n<tr>\n<td height="20px"></td>\n<td height="20px"></td>\n<td height="20px"></td>\n</tr>\n</table>\n<br>\xe8\xaf\xa6\xe7\xbb\x86\xe4\xba\x86\xe8\xa7\xa3\xe5\xa6\x82\xe4\xbd\x95<a href="https://www.dropbox.com/l/AAB_dnXlF9BC3SgYky68umRVBHhLY8QQepc/help/1973" target="_blank" rel="noreferrer" data-saferedirecturl="https://www.google.com/url?q=https://www.dropbox.com/l/AAB_dnXlF9BC3SgYky68umRVBHhLY8QQepc/help/1973&amp;source=gmail&amp;ust=1544515666849000&amp;usg=AFQjCNEt_1YJJ144oTiMljpk0zfTacZXtg">\xe4\xbf\x9d\xe6\x8a\xa4\xe6\x82\xa8\xe7\x9a\x84\xe5\xb8\x90\xe6\x88\xb7</a>\xe3\x80\x82<br><br>\xe6\xad\xa4\xe8\x87\xb4<br>- Dropbox \xe5\x9b\xa2\xe9\x98\x9f<br>\n</td>\n<td width="36"></td>\n</tr>\n<tr><td colspan="3" height="36"></td></tr>\n</table></td></tr>\n</table>\n<table cellpadding="0" cellspacing="0" align="center" border="0">\n<tr><td height="10"></td></tr>\n<tr><td style="padding:0;border-collapse:collapse"><table cellpadding="0" cellspacing="0" align="center" border="0"><tr style="color:#a8b9c6;font-size:11px;font-family:proxima_nova,&#39;Open Sans&#39;,&#39;Lucida Grande&#39;,&#39;Segoe UI&#39;,Arial,Verdana,&#39;Lucida Sans Unicode&#39;,Tahoma,&#39;Sans Serif&#39;">\n<td width="400" align="left"></td>\n<td width="128" align="right">\xc2\xa9 2018 Dropbox</td>\n</tr></table></td></tr>\n</table>\n</td></tr></table></center></div>\n<img width="1" src="https://ci3.googleusercontent.com/proxy/BlzMkzt-UYW-nk-Boj0thJ_MqErv1rVLY8tCxvYlaurzyB1a-i_xxGUJogAypdUzCG3aHAUSXTzLTJGW8KuYPRkQ7IFSSFDOTf1nKgfZeyI=s0-d-e1-ft#https://www.dropbox.com/l/AAClJiduLqk9J2PBYHC0HT6wQPIHHZO95ig" height="1"> \xf7\xc2\xe6\x1b\x18\x00*?:=.msg3523256427469773141 a{color:#007ee6;text-decoration:none}2\x16msg35232564274697731418\x01@\x00:\xa2\x02\xe5\xb0\x8a\xe6\x95\xac\xe7\x9a\x84Tao Jianping\xef\xbc\x9a\xe6\x82\xa8\xe5\xa5\xbd\xef\xbc\x81 \xe4\xb8\x80\xe5\x8f\xb0\xe6\x96\xb0Android \xe8\xae\xbe\xe5\xa4\x87\xe5\x88\x9a\xe5\x88\x9a\xe7\x99\xbb\xe5\xbd\x95\xe4\xba\x86\xe6\x82\xa8\xe7\x9a\x84 Dropbox \xe5\xb8\x90\xe6\x88\xb7\xe3\x80\x82\xe4\xb8\xba\xe7\xa1\xae\xe4\xbf\x9d\xe6\x82\xa8\xe7\x9a\x84\xe5\xb8\x90\xe6\x88\xb7\xe5\xae\x89\xe5\x85\xa8\xef\xbc\x8c\xe8\xaf\xb7\xe5\x91\x8a\xe8\xaf\x89\xe6\x88\x91\xe4\xbb\xac\xe8\xbf\x99\xe6\x98\xaf\xe4\xb8\x8d\xe6\x98\xaf\xe6\x82\xa8\xe6\x9c\xac\xe4\xba\xba\xe7\x9a\x84\xe6\x93\x8d\xe4\xbd\x9c\xe3\x80\x82 \xe7\xa1\xae\xe5\xae\x9e\xe6\x98\xaf\xe6\x82\xa8\xe5\x9c\xa8\xe7\x99\xbb\xe5\xbd\x95\xe5\x90\x97\xef\xbc\x9f \xe5\x9c\xb0\xe7\x82\xb9\xef\xbc\x9a London, England, United Kingdom\xe9\x99\x84\xe8\xbf\x91 \xe6\x97\xb6\xe9\x97\xb4\xef\xbc\x9a Dec 10, 2018 at 8:07 am (GMT)BV<0101016797282cc3-5c1d11fc-f367-4c48-b53b-9267eb0419cd-000000@us-west-2.amazonses.com>ZM\x10\x01 \xff\xff\xff\xff\xff\xff\xff\xff\xff\x01B\x11email.dropbox.comJ\x0bdropbox.com\x08\x00\x1a\x00X\x00\x8a\x01\x14no-reply@dropbox.com\x90\x01\x01b\x1b\x08\x01\x12\x17taojianping01@gmail.com\x88\x01\xea\xdd\xa0\xb9\xf9,\xa2\x01\x02(\x02\xe8\x01\x86\x9f\x8b\xf5\xae\xd0\xdc\xbc\x16'
         '''        
         self.cur_xml_source = None
         accounts = []
@@ -386,13 +461,13 @@ class GmailParser(BaseParser, BaseAndroidParser):
             attachment = model_mail.Attachment()
             attachment.attachment_id    = rec['row_id'].Value
             attachment.owner_account_id = self.cur_account_id
-            attachment.mail_id          = self._parse_attach_msg_id(rec['attachment_cache_key'].Value)
+            attachment.mail_id          = rec['item_messages_row_id'].Value
             attachment.attachment_name  = rec['attachment_file_name'].Value
+            attachment.source           = self.cur_db_source
+            attachment.deleted          = 1 if rec.IsDeleted else 0
             # attachment.attachment_save_dir
             # attachment.attachment_size       
             # attachment.attachment_download_date
-            attachment.source           = self.cur_db_source
-            attachment.deleted          = 1 if rec.IsDeleted else 0
             try:
                 self.csm.db_insert_table_attachment(attachment)
             except:
@@ -402,21 +477,6 @@ class GmailParser(BaseParser, BaseAndroidParser):
         except:
             exc()
 
-    def _parse_attach_msg_id(self, attachment_cache_key):
-        ''' return msg id
-        
-        Args:
-            attachment_cache_key (str): 
-                th=1656520340d2459e&attid=0.1&permmsgid=msg-f:1609564090757432734&realattid=f_jl638h4z0
-        '''
-        try:
-            msg_id = re.search(r'msg-f:(\d+)', attachment_cache_key)
-            if msg_id:
-                return int(msg_id.group(1))
-        except:
-            exc()
-            return None
-        
     def _2_hexstr(self, s):
         ''' convert hex list to string
 
@@ -426,6 +486,7 @@ class GmailParser(BaseParser, BaseAndroidParser):
             res (str): '0a 16 08 01'
         '''
         try:
+            res = ''
             if s:
                 hex_str = [ord(x) for x in s]
                 res = ' '.join(map(lambda x: hex(x).replace('0x', '') if x>15 else hex(x).replace('0x', '0'), hex_str))
@@ -453,4 +514,3 @@ class GmailParser(BaseParser, BaseAndroidParser):
         except:
             exc()
             return False
-
