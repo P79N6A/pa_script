@@ -2693,12 +2693,12 @@
 
     <dict>
       <key>Module</key>
-      <string>android_qqmail</string>
+      <string>android_twr</string>
       <key>Runners</key>
       <array>
         <dict>
           <key>EntryPoint</key>
-          <string>analyze_android_qqmail</string>
+          <string>parse_android_twr</string>
           <key>RunnerType</key>
           <integer>2</integer>
           <key>Patterns</key>
@@ -2717,12 +2717,12 @@
 
     <dict>
       <key>Module</key>
-      <string>android_twr</string>
+      <string>android_qqmail</string>
       <key>Runners</key>
       <array>
         <dict>
           <key>EntryPoint</key>
-          <string>parse_android_twr</string>
+          <string>analyze_android_qqmail</string>
           <key>RunnerType</key>
           <integer>2</integer>
           <key>Patterns</key>
@@ -2739,8 +2739,8 @@
         </dict>
       </array>
     </dict>
+    
     <dict>
-
       <key>Module</key>
       <string>android_qqbrowser</string>
       <key>Runners</key>
