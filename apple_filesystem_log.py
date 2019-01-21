@@ -288,6 +288,8 @@ class Parser():
             flags = struct.unpack('>I', buf[offset:offset+4])[0]
             offset += 4
             
+            if event_id == 3669549:
+                pass
             if magic == '2SLD':
                 node_id = struct.unpack('<Q', buf[offset:offset+8])[0]
                 offset += 8

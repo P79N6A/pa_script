@@ -10,6 +10,9 @@ except:
     pass
 del clr
 import System.Data.SQLite as SQLite
+import PA.InfraLib.ModelsV2.CommonEnum.CallType as CallType
+import PA.InfraLib.ModelsV2.Base.Contact as Contact
+import PA.InfraLib.ModelsV2.Base.Call as Call
 import hashlib
 import bcp_basic
 
@@ -75,57 +78,67 @@ def analyze_call_history(node, extractDeleted, extractSource):
             c.Deleted = rec.Deleted
             # 8 - FaceTime video call, 16 - FaceTime audio call, 1 - 电话音频
             if 'ZCALLTYPE' in rec and (not rec['ZCALLTYPE'].IsDBNull) and  (rec['ZCALLTYPE'].Value == 8 or rec['ZCALLTYPE'].Value == 16):
-                c.Source.Value = 'FaceTime'
-            SQLiteParser.Tools.ReadColumnToField[bool](rec, 'ZCALLTYPE', c.VideoCall, extractSource, lambda x: True if x == 8 else False)
+                c.Source = 'FaceTime'
+            field = Field[bool](c.IsVideoCall,None)
+            SQLiteParser.Tools.ReadColumnToField[bool](rec, 'ZCALLTYPE', field, extractSource, lambda x: True if x == 8 else False)
+            c.IsVideoCall = field.Value
             if 'ZORIGINATED' in rec and not IsDBNull(rec['ZORIGINATED'].Value) and rec['ZORIGINATED'].Value == 1:
-                c.Type.Init(CallType.Outgoing, MemoryRange(rec['ZORIGINATED'].Source) if extractSource else None)
+                c.Type = CallType.Outgoing
                 datas.append(2)
-            if c.Type.Value != CallType.Outgoing and 'ZANSWERED' in rec and not IsDBNull(rec['ZANSWERED'].Value):
+            if c.Type != CallType.Outgoing and 'ZANSWERED' in rec and not IsDBNull(rec['ZANSWERED'].Value):
                 if rec['ZANSWERED'].Value == 1:
-                    c.Type.Init(CallType.Incoming, MemoryRange(list(rec['ZORIGINATED'].Source) + list(rec['ZANSWERED'].Source)) if extractSource else None)
+                    c.Type = CallType.Incoming
                     datas.append(1)
                 else:
-                    c.Type.Init(CallType.Missed, MemoryRange(list(rec['ZORIGINATED'].Source) + list(rec['ZANSWERED'].Source)) if extractSource else None)
+                    c.Type = CallType.Missed
                     datas.append(3)
             if len(datas) is 0:
                 datas.append(None)
             if 'ZSERVICE_PROVIDER' in rec and (not rec['ZSERVICE_PROVIDER'].IsDBNull):
                 if 'net.whatsapp.WhatsApp' in rec['ZSERVICE_PROVIDER'].Value:
-                    c.Source.Value = "WhatsApp Audio"
+                    c.Source = "WhatsApp Audio"
                 if 'com.viber' in rec['ZSERVICE_PROVIDER'].Value:
-                    c.Source.Value = "Viber Audio"
-
-            SQLiteParser.Tools.ReadColumnToField[TimeSpan](rec, 'ZDURATION', c.Duration, extractSource, lambda x: TimeSpan.FromSeconds(x))
+                    c.Source = "Viber Audio"
+            
+            field = Field[Nullable[TimeSpan]](c.Duration,None)
+            SQLiteParser.Tools.ReadColumnToField[Nullable[TimeSpan]](rec, 'ZDURATION', field, extractSource, lambda x: TimeSpan.FromSeconds(x))
+            c.Duration = field.Value
             datas.append(rec['ZDURATION'].Value)
-            SQLiteParser.Tools.ReadColumnToField(rec, 'ZISO_COUNTRY_CODE', c.CountryCode, extractSource)
+            field = Field[String](c.CountryCode,None)
+            SQLiteParser.Tools.ReadColumnToField(rec, 'ZISO_COUNTRY_CODE', field, extractSource)
+            c.CountryCode = field.Value
             datas.append(rec['ZISO_COUNTRY_CODE'].Value)
             try:
-                SQLiteParser.Tools.ReadColumnToField[TimeStamp](rec, 'ZDATE', c.TimeStamp, extractSource, lambda x: TimeStamp(TimeStampFormats.GetTimeStampEpoch1Jan2001(x), True))
-                if not c.TimeStamp.Value.IsValidForSmartphone():
-                    c.TimeStamp.Init(None, None)
+                field = Field[TimeStamp](c.StartTime)
+                SQLiteParser.Tools.ReadColumnToField[TimeStamp](rec, 'ZDATE', field, extractSource, lambda x: TimeStamp(TimeStampFormats.GetTimeStampEpoch1Jan2001(x), True))
+                c.StartTime = field.Value
+                if not c.StartTime.IsValidForSmartphone():
+                    c.StartTime = None
             except:
                 pass
             datas.append(rec['ZDATE'].Value)
-            party = Party()
+            party = Contact()
             addr = rec['ZADDRESS'].Value
             if isinstance(addr, Array[Byte]):
                 identifier = MemoryRange(rec['ZADDRESS'].Source).read()
                 datas.append(identifier)
                 try:
-                    party.Identifier.Value = identifier.decode('utf8')
+                    party.PhoneNumbers.Add(identifier.decode('utf8'))
                 except:
-                    party.Identifier.Value = identifier
-                party.Identifier.Source = MemoryRange(rec['ZADDRESS'].Source) if extractSource else None
+                    party.PhoneNumbers.Add(identifier)
             else:
-                SQLiteParser.Tools.ReadColumnToField(rec, 'ZADDRESS', party.Identifier, extractSource)
+                field = Field[String](None,None)
+                SQLiteParser.Tools.ReadColumnToField(rec, 'ZADDRESS', field, extractSource)
+                party.PhoneNumbers.Add(field.Value)
                 datas.append(rec['ZADDRESS'])
-            SQLiteParser.Tools.ReadColumnToField(rec, 'ZNAME', party.Name, extractSource)
+            field = Field[String](None,None)
+            SQLiteParser.Tools.ReadColumnToField(rec, 'ZNAME', field, extractSource)
+            party.FullName = field.Value
             datas.append(rec['ZNAME'].Value)
-            if c.Type.Value == CallType.Missed or c.Type.Value == CallType.Incoming:
-                party.Role.Value = PartyRole.From
-            elif c.Type.Value == CallType.Outgoing:
-                party.Role.Value = PartyRole.To
-            c.Parties.Add(party)
+            if c.Type == CallType.Missed or c.Type == CallType.Incoming:
+                c.FromSet.Add(party)
+            elif c.Type == CallType.Outgoing:
+                c.ToSet.Add(party)
             pr.Models.Add(c)
             param = (datas[0],datas[5],datas[4],datas[2],datas[1],datas[6],rec['ZLOCATION'].Value, None, None, None,datas[3],node.AbsolutePath,rec.Deleted,0)
             db_insert_table(db_cache, SQL_INSERT_TABLE_RECORDS, param)
