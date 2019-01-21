@@ -124,7 +124,10 @@ class YouXinParser():
                     account.photo = obj['picture']
                     account.signature = obj['signature']
                 account.gender = model_im.GENDER_MALE if obj['sex'] == '男' else model_im.GENDER_FEMALE
-                account.birthday = obj['birthday']
+                try:
+                    account.birthday = int(time.mktime(time.strptime(obj['birthday'], '%Y-%m-%d %H:%M:%S')))
+                except:
+                    pass
                 break
 
         self.im.db_insert_table_account(account)
@@ -155,7 +158,10 @@ class YouXinParser():
                 friend.photo = rec['[small_head_image_url]'].Value
                 friend.signature = rec['[signature]'].Value
                 friend.gender = model_im.GENDER_MALE if rec['[sex]'].Value == '男' else model_im.GENDER_FEMALE
-                friend.birthday = rec['[birthday]'].Value
+                try:
+                    friend.birthday = int(time.mktime(time.strptime(rec['[birthday]'].Value, '%Y-%m-%d %H:%M:%S')))
+                except:
+                    pass
                 self.contacts[friend.friend_id] = friend
                 self.im.db_insert_table_friend(friend)
 
@@ -184,7 +190,10 @@ class YouXinParser():
                     friend.photo = obj['picture']
                     friend.signature = obj['signature']
                 friend.gender = model_im.GENDER_MALE if obj['sex'] == '男' else model_im.GENDER_FEMALE
-                friend.birthday = obj['birthday']
+                try:
+                    friend.birthday = int(time.mktime(time.strptime(obj['birthday'], '%Y-%m-%d %H:%M:%S')))
+                except:
+                    pass
                 friend.type = model_im.FRIEND_TYPE_STRANGER
                 self.contacts[friend.friend_id] = friend
                 self.im.db_insert_table_friend(friend)
@@ -222,7 +231,10 @@ class YouXinParser():
                     message.sender_name = contact.nickname if message.sender_id == contact_id else self.username
                     message.type = self.parse_message_type(rec['[msgcontype]'].Value)
                     message.content = self.decode_url_message(rec['[msgcontent]'].Value)
-                    message.send_time = int(time.mktime(time.strptime(rec['[msgtime]'].Value, '%Y-%m-%d %H:%M:%S')))
+                    try:
+                        message.send_time = int(time.mktime(time.strptime(rec['[msgtime]'].Value, '%Y-%m-%d %H:%M:%S')))
+                    except:
+                        pass
                     message.media_path = self.get_media_path(message.type, message.content, contact_id)
                     if message.type == model_im.MESSAGE_CONTENT_TYPE_LOCATION:
                         message.location_obj = message.create_location()

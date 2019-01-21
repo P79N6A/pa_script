@@ -1430,7 +1430,7 @@ class GenerateModel(object):
                     key = self._db_reader_get_string_value(r, 1)
                     timestamp = self._db_reader_get_int_value(r, 2, None)
 
-                    model = Base.SearchRecord()
+                    model = SearchRecord()
                     model.SourceFile = source
                     model.Deleted = self._convert_deleted_status(deleted)
                     model.AppUserAccount = self.account_models.get(account_id)
