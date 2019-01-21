@@ -27,6 +27,8 @@ class AppleHealth(object):
         results.extend(self.get_heart_rate())
         results.extend(self.get_weight())
         results.extend(self.get_fitness_record())
+        results.extend(self.get_spcific_step())
+        results.extend(self.get_spcific_distance())
 
         return results
 
@@ -99,6 +101,78 @@ class AppleHealth(object):
                         weight.Weight = weights
 
                         models.append(weight)
+                    except Exception as e:
+                        print(e)
+        except Exception as e:
+            pass
+        return models
+
+
+    def get_spcific_step(self):
+        models = []
+        if self.root is None:
+            return
+        try:
+            conn = SqliteByCSharp(self.root, self.cache)
+            with conn as cmd:
+                
+                cmd.CommandText = """
+                    select (samples.start_date+978336000) as "Start Date",(samples.end_date+978336000) as "End Date", samples.data_id,data_type,
+                        quantity,original_quantity,unit_strings.unit_string,data_provenances.origin_product_type,data_provenances.origin_build,data_provenances.local_product_type,data_provenances.local_build 
+                        from samples 
+                            left outer join quantity_samples on samples.data_id = quantity_samples.data_id 
+                            left outer join unit_strings on quantity_samples.original_unit = unit_strings.RowID 
+                            left outer join objects on samples.data_id = objects.data_id 
+                            left outer join data_provenances on objects.provenance = data_provenances.RowID 
+                            where data_type = 7
+                """
+                reader = cmd.ExecuteReader()
+                while reader.Read():
+                    try:
+                        cache_time = SqliteByCSharp.GetFloat(reader, 1)
+                        step = SqliteByCSharp.GetFloat(reader, 4)
+
+                        spcific_step = Health.System.StepRecord()
+                        spcific_step.Time = TimeStamp.FromUnixTime(cache_time, False)
+                        spcific_step.Number = step
+
+                        models.append(spcific_step)
+                    except Exception as e:
+                        print(e)
+        except Exception as e:
+            pass
+        return models
+
+
+    def get_spcific_distance(self):
+        models = []
+        if self.root is None:
+            return
+        try:
+            conn = SqliteByCSharp(self.root, self.cache)
+            with conn as cmd:
+                
+                cmd.CommandText = """
+                    select (samples.start_date+978336000) as "Start Date",(samples.end_date+978336000) as "End Date", samples.data_id,data_type,
+                        quantity,original_quantity,unit_strings.unit_string,data_provenances.origin_product_type,data_provenances.origin_build,data_provenances.local_product_type,data_provenances.local_build 
+                        from samples 
+                            left outer join quantity_samples on samples.data_id = quantity_samples.data_id 
+                            left outer join unit_strings on quantity_samples.original_unit = unit_strings.RowID 
+                            left outer join objects on samples.data_id = objects.data_id 
+                            left outer join data_provenances on objects.provenance = data_provenances.RowID 
+                            where data_type = 8
+                """
+                reader = cmd.ExecuteReader()
+                while reader.Read():
+                    try:
+                        cache_time = SqliteByCSharp.GetFloat(reader, 1)
+                        distance = SqliteByCSharp.GetFloat(reader, 4)
+                        
+                        spcific_distance = Health.System.DistanceRecord()
+                        spcific_distance.Time = TimeStamp.FromUnixTime(cache_time, False)
+                        spcific_distance.Distance = float(distance)
+
+                        models.append(spcific_distance)
                     except Exception as e:
                         print(e)
         except Exception as e:

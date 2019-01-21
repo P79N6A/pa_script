@@ -445,6 +445,7 @@ class bulletMessage(object):
                     print(e)  
         except Exception as e:
             print(e)
+        self.bulletMessage.db_commit()
     
     def get_chatroom_info(self, data):
         try:

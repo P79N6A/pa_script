@@ -134,7 +134,7 @@
           <key>Filter</key>
           <string>应用>即时通讯</string>
         </dict>
-        <dict>
+        <!-- <dict>
           <key>EntryPoint</key>
           <string>PA.iPhoneApps.Parsers.GmailParser</string>
           <key>RunnerType</key>
@@ -151,7 +151,7 @@
           <string>Gmail(苹果)</string>
           <key>Filter</key>
           <string>应用>邮箱</string>
-        </dict>
+        </dict> -->
         <dict>
           <key>EntryPoint</key>
           <string>PA.iPhoneApps.Parsers.QQBrowserParser</string>
@@ -1732,6 +1732,30 @@
 
     <dict>
       <key>Module</key>
+      <string>apple_gmail</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_gmail</string>
+          <key>RunnerType</key>
+          <integer>0</integer>
+          <key>Patterns</key>
+          <array>
+            <string>/Library/Preferences/com\.google\.Gmail\.plist$</string>
+          </array>
+          <key>Category</key>
+          <string>Gmail</string>
+          <key>Name</key>
+          <string>谷歌邮箱(苹果)</string>
+          <key>Filter</key>
+          <string>应用>邮箱</string>
+        </dict>
+      </array>
+    </dict>    
+
+    <dict>
+      <key>Module</key>
       <string>apple_neteasemail</string>
       <key>Runners</key>
       <array>
@@ -1922,7 +1946,7 @@
       </array>
     </dict>
 
-	<dict>
+    <dict>
       <key>Module</key>
       <string>apple_health</string>
       <key>Runners</key>
@@ -1987,6 +2011,30 @@
           <string>Taobao</string>
           <key>Name</key>
           <string>淘宝(苹果)</string>
+          <key>Filter</key>
+          <string>应用>电子商务</string>
+        </dict>
+      </array>
+    </dict>
+
+    <dict>
+      <key>Module</key>
+      <string>apple_umetrip</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_Umetrip</string>
+          <key>RunnerType</key>
+          <integer>0</integer>
+          <key>Patterns</key>
+          <array>
+            <string>Documents/MyJourneyDB.sqlite$</string>
+          </array>
+          <key>Category</key>
+          <string>Umetrip</string>
+          <key>Name</key>
+          <string>航旅纵横(苹果)</string>
           <key>Filter</key>
           <string>应用>电子商务</string>
         </dict>
@@ -2204,7 +2252,7 @@
         </dict>
       </array>
     </dict>
-	<dict>
+    <dict>
       <key>Module</key>
       <string>apple_signal</string>
       <key>Runners</key>
@@ -2220,14 +2268,14 @@
           </array>
           <key>Category</key>
           <string>Signal</string>
-		  <key>Name</key>
+          <key>Name</key>
           <string>Signal</string>
           <key>Filter</key>
-          <string>应用>社交</string>       
-		</dict>
+          <string>应用>社交</string>
+        </dict>
       </array>
-	</dict>
-  <dict>
+    </dict>
+    <dict>
       <key>Module</key>
       <string>apple_tantan</string>
       <key>Runners</key>
@@ -2667,31 +2715,31 @@
       </array>
     </dict>
 
-      <dict>
-        <key>Module</key>
-        <string>android_twr</string>
-        <key>Runners</key>
-        <array>
-          <dict>
-            <key>EntryPoint</key>
-            <string>parse_android_twr</string>
-            <key>RunnerType</key>
-            <integer>2</integer>
-            <key>Patterns</key>
-            <array>
-              <string>/data/com.tencent.androidqqmail/databases/QMMailDB$</string>
-              <string>/Apps/com.tencent.androidqqmail/databases/QMMailDB$</string>
-            </array>
-            <key>Category</key>
-            <string>QQMail</string>
-            <key>Name</key>
-            <string>QQ邮箱(安卓)</string>
-            <key>Filter</key>
-            <string>应用>邮箱</string>
-          </dict>
-        </array>
-      </dict>
-      <dict>
+    <dict>
+      <key>Module</key>
+      <string>android_twr</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>parse_android_twr</string>
+          <key>RunnerType</key>
+          <integer>2</integer>
+          <key>Patterns</key>
+          <array>
+            <string>/data/com.tencent.androidqqmail/databases/QMMailDB$</string>
+            <string>/Apps/com.tencent.androidqqmail/databases/QMMailDB$</string>
+          </array>
+          <key>Category</key>
+          <string>QQMail</string>
+          <key>Name</key>
+          <string>QQ邮箱(安卓)</string>
+          <key>Filter</key>
+          <string>应用>邮箱</string>
+        </dict>
+      </array>
+    </dict>
+    <dict>
 
       <key>Module</key>
       <string>android_qqbrowser</string>
@@ -2761,6 +2809,30 @@
           <string>Radio(安卓)</string>
           <key>Filter</key>
           <string>基础数据</string>
+        </dict>
+      </array>
+    </dict>
+
+    <dict>
+      <key>Module</key>
+      <string>android_blued</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_blued</string>
+          <key>RunnerType</key>
+          <integer>2</integer>
+          <key>Patterns</key>
+          <array>
+            <string>#</string>
+          </array>
+          <key>Category</key>
+          <string>Blued</string>
+          <key>Name</key>
+          <string>Blued(安卓)</string>
+          <key>Filter</key>
+          <string>应用>聊天</string>
         </dict>
       </array>
     </dict>
@@ -2966,6 +3038,30 @@
 
     <dict>
       <key>Module</key>
+      <string>android_email</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_email</string>
+          <key>RunnerType</key>
+          <integer>2</integer>
+          <key>Patterns</key>
+          <array>
+            <string>data/com\.android\.email/databases$</string>
+          </array>
+          <key>Category</key>
+          <string>Mails</string>
+          <key>Name</key>
+          <string>系统邮箱(安卓)</string>
+          <key>Filter</key>
+          <string>基础数据</string>
+        </dict>
+      </array>
+    </dict>
+
+    <dict>
+      <key>Module</key>
       <string>android_neteasemail</string>
       <key>Runners</key>
       <array>
@@ -2990,24 +3086,24 @@
 
     <dict>
       <key>Module</key>
-      <string>android_email</string>
+      <string>android_gmail</string>
       <key>Runners</key>
       <array>
         <dict>
           <key>EntryPoint</key>
-          <string>analyze_email</string>
+          <string>analyze_gmail</string>
           <key>RunnerType</key>
           <integer>2</integer>
           <key>Patterns</key>
           <array>
-            <string>data/com\.android\.email/databases$</string>
+            <string>com\.google\.android\.gm/databases/EmailProvider\.db$</string>
           </array>
           <key>Category</key>
-          <string>Mails</string>
+          <string>Gmail</string>
           <key>Name</key>
-          <string>系统邮箱(安卓)</string>
+          <string>谷歌邮箱(安卓)</string>
           <key>Filter</key>
-          <string>基础数据</string>
+          <string>应用>邮箱</string>
         </dict>
       </array>
     </dict>
@@ -3154,7 +3250,7 @@
           <string>应用>浏览器</string>
         </dict>
       </array>
-    </dict>     
+    </dict>
 
     <dict>
       <key>Module</key>
@@ -3595,6 +3691,30 @@
           <string>iAround</string>
           <key>Name</key>
           <string>遇见(安卓)</string>
+          <key>Filter</key>
+          <string>应用>社交</string>
+        </dict>
+      </array>
+    </dict>
+    <dict>
+      <key>Module</key>
+      <string>android_tantan</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_android_tantan</string>
+          <key>RunnerType</key>
+          <integer>2</integer>
+          <key>Patterns</key>
+          <array>
+            <string>/data/com.p1.mobile.putong/databases$</string>
+            <string>/Apps/com.p1.mobile.putong/databases$</string>
+          </array>
+          <key>Category</key>
+          <string>Tantan</string>
+          <key>Name</key>
+          <string>探探(安卓)</string>
           <key>Filter</key>
           <string>应用>社交</string>
         </dict>
