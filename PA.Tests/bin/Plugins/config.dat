@@ -2693,12 +2693,12 @@
 
     <dict>
       <key>Module</key>
-      <string>android_qqmail</string>
+      <string>android_twr</string>
       <key>Runners</key>
       <array>
         <dict>
           <key>EntryPoint</key>
-          <string>analyze_android_qqmail</string>
+          <string>parse_android_twr</string>
           <key>RunnerType</key>
           <integer>2</integer>
           <key>Patterns</key>
@@ -2717,12 +2717,12 @@
 
     <dict>
       <key>Module</key>
-      <string>android_twr</string>
+      <string>android_qqmail</string>
       <key>Runners</key>
       <array>
         <dict>
           <key>EntryPoint</key>
-          <string>parse_android_twr</string>
+          <string>analyze_android_qqmail</string>
           <key>RunnerType</key>
           <integer>2</integer>
           <key>Patterns</key>
@@ -2903,7 +2903,7 @@
           <key>Category</key>
           <string>Keychains</string>
           <key>Name</key>
-          <string>钥匙串(安卓)</string>
+          <string>Wifi密码(安卓)</string>
           <key>Filter</key>
           <string>基础数据</string>
         </dict>

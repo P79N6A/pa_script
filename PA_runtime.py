@@ -71,8 +71,7 @@ IntNotNull = SQLiteParser.Signatures.SignatureFactory.GetFieldSignature(SQLitePa
 BlobNotNull = SQLiteParser.Signatures.SignatureFactory.GetFieldSignature(SQLiteParser.FieldType.Blob, SQLiteParser.FieldConstraints.NotNull)
 
 def LinkModels(a,b):
-    a.AddJumpTarget(b)
-    b.AddJumpTarget(a)
+    pass
 
 def to_byte_array(s):
     return Encoding.UTF8.GetBytes(s)
