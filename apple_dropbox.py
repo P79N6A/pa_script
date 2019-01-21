@@ -18,6 +18,7 @@ clr.AddReference('System.Data.SQLite')
 
 try:
     clr.AddReference('model_im')
+    clr.AddReference('model_nd')
     clr.AddReference('bcp_im')
 except:
     pass
