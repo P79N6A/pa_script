@@ -662,7 +662,8 @@ class Generate(object):
             18   c.account_id, 
             19   a.mail_read_status, 
             20   a.source, 
-            21   a.deleted        
+            21   a.deleted,
+            22   a.mail_labels
         '''
         try:
             self.db_cmd.CommandText = sql
@@ -676,9 +677,9 @@ class Generate(object):
                     email.Folder.Value = sr[1]  
                 # 发送状态 已发送（发件箱）、未发送（草稿箱）
                 if not IsDBNull(sr[2]):
-                    if sr[2] is SEND_STATUS_SENT:
+                    if sr[2] == SEND_STATUS_SENT:
                         email.Status.Value = MessageStatus.Sent
-                    elif sr[2] is SEND_STATUS_UNSENT:
+                    elif sr[2] == SEND_STATUS_UNSENT:
                         email.Status.Value = MessageStatus.Unsent
                 # 已读、未读
                 if not IsDBNull(sr[19]):
@@ -703,7 +704,7 @@ class Generate(object):
                     party.DatePlayed.Value = self._get_timestamp(sr[5])  #发送时间
                 email.From.Value = party
 
-                if not IsDBNull(sr[8]):
+                if not IsDBNull(sr[8]) and sr[8]:
                     tos = sr[8].split(' ')
                     for t in range(len(tos)-1):
                         if t%2 == 0:
@@ -712,7 +713,7 @@ class Generate(object):
                             party.Name.Value = tos[t+1]  #收件人名
                             party.DatePlayed.Value = self._get_timestamp(sr[5])  #收件时间
                             email.To.Add(party)
-                if not IsDBNull(sr[9]):
+                if not IsDBNull(sr[9]) and sr[9]:
                     cc = sr[9].split(' ')
                     for c in range(len(cc)-1):
                         if c%2 == 0:
@@ -721,7 +722,7 @@ class Generate(object):
                             party.Name.Value = sr[9]  #抄送者名
                             party.DatePlayed.Value = self._get_timestamp(sr[5])  #抄送时间
                             email.Cc.Add(party)
-                if not IsDBNull(sr[10]):
+                if not IsDBNull(sr[10]) and sr[10]:
                     bcc = sr[10].split(' ')
                     for b in range(len(bcc)-1):
                         if b%2 == 0:
@@ -731,16 +732,18 @@ class Generate(object):
                             party.DatePlayed.Value = self._get_timestamp(sr[5])  #密送时间
                             email.Bcc.Add(party)
                 # labels
-                if not IsDBNull(sr[22]):
+                if not IsDBNull(sr[22]) and sr[22]:
                     labels = sr[22].split(',')
-                    for label in labels:
-                        if label:
-                            email.Labels.Add(label)
+                    if labels:
+                        for label in labels:
+                            if label:
+                                email.Labels.Add(label)
                 # 附件
                 account_id = sr[18] if not IsDBNull(sr[18]) else -1
                 mail_id = sr[0]
-                for attachment in ATTACHMENTS.get(account_id, {}).get(mail_id, []): 
-                    email.Attachments.Add(attachment)
+                if ATTACHMENTS:
+                    for attachment in ATTACHMENTS.get(account_id, {}).get(mail_id, []): 
+                        email.Attachments.Add(attachment)
 
                 if not IsDBNull(sr[11]):
                     email.Abstract.Value = sr[11]  #摘要
