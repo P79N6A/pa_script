@@ -271,7 +271,7 @@ class WangxinParser():
     
                     message.type = self.parse_message_type(rec['ZTYPE'].Value)
                     message.content =  UnicodeEncoding.UTF8.GetString(rec['ZCONTENT'].Value) if not IsDBNull(rec['ZCONTENT'].Value) else None
-                    message.send_time = self.macTime_to_unixTime(rec['ZTIME'].Value)
+                    message.send_time = int(float(self.macTime_to_unixTime(rec['ZTIME'].Value)))
                     if message.type == model_im.MESSAGE_CONTENT_TYPE_VIDEO:
                         try:
                             obj = json.loads(message.content)
@@ -309,7 +309,7 @@ class WangxinParser():
                                 message.sender_name = member.display_name
                     message.is_sender = message.sender_id == self.user
                     message.type = self.parse_message_type(rec['ZCONTENTTYPE'].Value)
-                    message.send_time = self.macTime_to_unixTime(rec['ZDTIME'].Value)
+                    message.send_time = int(float(self.macTime_to_unixTime(rec['ZDTIME'].Value)))
                     message.content =  str(rec['ZCONTENT'].Value)
                     if message.type == model_im.MESSAGE_CONTENT_TYPE_IMAGE:
                         try:

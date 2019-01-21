@@ -271,7 +271,7 @@ class RenRenParser():
                     message.sender_name = rec['fname'].Value
                     message.type = self.parse_message_type(rec['class_type'].Value, rec['child_node_string'].Value)
                     message.content = rec['summary'].Value
-                    message.send_time = rec['time_stamp'].Value
+                    message.send_time = int(float(rec['time_stamp'].Value))
                     message.media_path = self.get_media_path(id, message.is_sender, rec['child_node_string'].Value, rec['elements'].Value, 
                                                              message.type, message.send_time, message.deleted, message.repeated)
                     message.msg_id = str(uuid.uuid1()).replace('-', '')
@@ -302,7 +302,7 @@ class RenRenParser():
                     message.sender_name = rec['fname'].Value
                     message.type = self.parse_message_type(rec['class_type'].Value, rec['child_node_string'].Value)
                     message.content = rec['summary'].Value
-                    message.send_time = rec['time_stamp'].Value
+                    message.send_time = int(float(rec['time_stamp'].Value))
                     message.media_path = self.get_media_path(id, message.is_sender, rec['child_node_string'].Value, rec['elements'].Value, 
                                                              message.type, message.send_time, message.deleted, message.repeated)
                     message.msg_id = str(uuid.uuid1()).replace('-', '')
