@@ -117,9 +117,12 @@ class TantanParser(model_im.IM):
 
     def parse(self):
         if self.need_parse(self.cachedb, VERSION_APP_VALUE):
-            if os.path.exists(self.cachepath):
-                shutil.rmtree(self.cachepath)
-            os.mkdir(self.cachepath)
+            try:
+                if os.path.exists(self.cachepath):
+                    shutil.rmtree(self.cachepath)
+                os.mkdir(self.cachepath)
+            except:
+                pass
             self.db_create(self.cachedb)
             self.analyze_data()
             self.db_insert_table_version(model_im.VERSION_KEY_DB, model_im.VERSION_VALUE_DB)
@@ -318,18 +321,21 @@ class TantanParser(model_im.IM):
         db = SQLiteParser.Database.FromNode(node, canceller)
         if db is None:
             return
-        ts = SQLiteParser.TableSignature('Conversation')
-        self.conversation = {}
-        for rec in db.ReadTableRecords(ts, self.extractDeleted, True):
-            try:
-                if self._db_record_get_string_value(rec, 'objectID') == '':
-                    continue
-                pk = self._db_record_get_string_value(rec, 'primaryKeyID')
-                cnt = self._db_record_get_blob_value(rec, 'otherUser_primaryKeyID')
-                if pk not in self.conversation.keys():
-                    self.conversation[pk] = cnt
-            except:
-                traceback.print_exc()
+        try:
+            ts = SQLiteParser.TableSignature('Conversation')
+            self.conversation = {}
+            for rec in db.ReadTableRecords(ts, self.extractDeleted, True):
+                try:
+                    if self._db_record_get_string_value(rec, 'objectID') == '':
+                        continue
+                    pk = self._db_record_get_string_value(rec, 'primaryKeyID')
+                    cnt = self._db_record_get_blob_value(rec, 'otherUser_primaryKeyID')
+                    if pk not in self.conversation.keys():
+                        self.conversation[pk] = cnt
+                except:
+                    pass
+        except:
+            pass
 
     def parse_message(self, node):
         '''解析消息数据'''
