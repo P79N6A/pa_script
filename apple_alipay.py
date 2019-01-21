@@ -50,16 +50,20 @@ def execute(node, extracteDeleted):
     return analyze_alipay(node, extracteDeleted, False)
 
 class AlipayParser():
-    def __init__(self, node, extract_deleted, extract_source):
+    def __init__(self, node, extract_deleted, extract_source, is_scripts = True):
         self.root = node
         self.extract_deleted = False
         self.extract_source = extract_source
-        self.cache = ds.OpenCachePath('Alipay')
+        if is_scripts:
+            self.cache = ds.OpenCachePath('Alipay')
+        else:
+            self.cache = "D:/cache"
         self.contacts_models = []
         self.eb = model_eb.EB(self.cache + '/Alipay', VERSION_APP_VALUE, 'Alipay')
         self.im = self.eb.im
         self.need_parse = self.eb.need_parse
-        nameValues.SafeAddValue('1290007', self.cache + '/Alipay')
+        if is_scripts:
+            nameValues.SafeAddValue('1290007', self.cache + '/Alipay')
 
     def parse(self):
         user_list = self.get_user_list()
@@ -214,8 +218,8 @@ class AlipayParser():
             ts = SQLiteParser.TableSignature('contact_account_list')
             SQLiteParser.Tools.AddSignatureToTable(ts, 'userID', SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
             for rec in db.ReadTableRecords(ts, self.extract_deleted):
-                if canceller.IsCancellationRequested:
-                    return
+                # if canceller.IsCancellationRequested:
+                #     return
 
                 if rec['userID'].Value == self.user:
                     continue
@@ -313,7 +317,7 @@ class AlipayParser():
                 chatroom.name = rec['currentDisplayGroupName'].Value
                 chatroom.photo = rec['groupImageUrl'].Value
                 chatroom.max_member_count = rec['threshold'].Value
-                chatroom.create_time = rec['gmtCreate'].Value
+                chatroom.create_time = int(rec['gmtCreate'].Value)
                 chatroom.owner_id = rec['masterUserId'].Value
                 chatroom.type = model_im.CHATROOM_TYPE_NORMAL
                 member_id_list = rec['memberUserIdsDesc'].Value.replace('[', '').replace(']', '').replace('\"', '').split(',')
@@ -323,8 +327,8 @@ class AlipayParser():
                 self.im.db_insert_table_chatroom(chatroom)
 
                 for member_id in member_id_list:
-                    if canceller.IsCancellationRequested:
-                        return
+                    # if canceller.IsCancellationRequested:
+                    #     return
                     chatroom_member = model_im.ChatroomMember()
                     chatroom_member.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
                     chatroom_member.source = dbPath.AbsolutePath
@@ -418,8 +422,8 @@ class AlipayParser():
                 recentContact[id] = contact
         
         for id in recentContact.keys():
-            if canceller.IsCancellationRequested:
-                return
+            # if canceller.IsCancellationRequested:
+            #     return
 
             contact = self.contacts.get(id)
 
@@ -448,7 +452,7 @@ class AlipayParser():
                         message.type = model_im.MESSAGE_CONTENT_TYPE_LINK
                         message.is_sender = model_im.MESSAGE_TYPE_SEND
                         message.content = '[标题]:' + rec['mSum'].Value
-                        message.send_time = rec['msgTime'].Value
+                        message.send_time = int(rec['msgTime'].Value)
                         self.im.db_insert_table_message(message)
             elif recentContact[id]['userType'] == '1' or recentContact[id]['userType'] == '2':
                 dbPath = self.root.GetByPath('../../../Documents/Chat/' + self.md5_encode(self.user)[8:24] + '.db')
@@ -702,3 +706,16 @@ class AlipayParser():
         if IsDBNull(text):
             return None
         return hashlib.md5(text).hexdigest()
+
+#
+# IPY 脚本入口
+#
+if __name__ == '__main__':
+    root = FileSystem.FromLocalDir(r'D:\Cases\支付宝\0B1F5473-73D7-4C31-81E9-621C8332C184')
+    try:
+        root = root.GetByPath('Library/Preferences/com.alipay.iphoneclient.plist')
+        ap = AlipayParser(root, 1, 1, is_scripts = False)
+        models = ap.parse()
+        print('generate OK!')
+    except:
+        traceback.print_exc()
