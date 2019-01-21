@@ -49,7 +49,8 @@ def parse_statuses(obj):
         slen = int(obj[3]) << 8 | int(obj[4])
         tlen = 2
     else:
-        print('illegal blob detected!')
+        #print('illegal blob detected!')
+        pass
     if slen > length:
         return ""
     bt = obj[3 + tlen: length]
@@ -77,7 +78,9 @@ def parse_description(obj):
     return parse_statuses(obj)
 
 AND_TWR_VERSION = 1
-
+#
+# is_scripts 表明是否从主程序加载的脚本
+#
 class Twitter(object):
     def __init__(self, node, extract_source, extract_deleted, is_scripts = True):
         self.node = node
@@ -122,6 +125,42 @@ class Twitter(object):
                 pass
         for aid in self.account_list:
             print aid
+
+    def parse_recovery(self, aid):
+        db_node = self.node.GetByPath('databases/{}'.format(self.account_dbs[aid]))
+        if db_node is None:
+            return
+        sp = SQLiteParser.Database.FromNode(db_node)
+        ts = SQLiteParser.TableSignature('users')
+        SQLiteParser.Tools.AddSignatureToTable(ts, "user_id", SQLiteParser.FieldType.Int, SQLiteParser.FieldConstraints.NotNull)
+        for rec in sp.ReadTableDeletedRecords(ts, False):
+            f = model_im.Friend()
+            f.account_id = aid
+            f.friend_id = unity_c37r.try_get_rec_value(rec, 'user_id', 0)
+            f.nickname = unity_c37r.try_get_rec_value(rec, 'name',  '')
+            f.remark = unity_c37r.try_get_rec_value(rec, 'username', '')
+            f.signature = unity_c37r.try_get_rec_value(rec, 'description', '')
+            f.photo = unity_c37r.try_get_rec_value(rec, 'image_url')
+            f.deleted = 1
+            self.im.db_insert_table_friend(f)
+        self.im.db_commit()
+        ts = SQLiteParser.TableSignature('statuses')
+        SQLiteParser.Tools.AddSignatureToTable(ts, "content", SQLiteParser.FieldType.Blob, SQLiteParser.FieldConstraints.NotNull)
+        for rec in sp.ReadTableDeletedRecords(ts, False):
+            feed = model_im.Feed()
+            feed.account_id = aid
+            feed.deleted = 1
+            try:
+                feed.content = unity_c37r.try_get_rec_value(rec, 'content', '')
+                feed.content = feed.content.decode('utf-8', 'ignore')
+                feed.sender_id = unity_c37r.try_get_rec_value(rec, 'author_id', 0)
+                feed.send_time = unity_c37r.try_get_rec_value(rec, 'created', 0) / 1000
+                feed.likecount = unity_c37r.try_get_rec_value(rec, 'favorite_count', 0)
+                feed.rtcount = unity_c37r.try_get_rec_value(rec, 'retweet_count', 0)
+                self.im.db_insert_table_feed(feed)
+            except:
+                traceback.print_exc()
+        self.im.db_commit()
 
     def parse(self, aid):
         db_node = self.node.GetByPath('databases/{}'.format(self.account_dbs[aid]))
@@ -195,6 +234,7 @@ class Twitter(object):
                 m.talker_name = f_dict[int(obj_id)].nickname
             self.im.db_insert_table_message(m)
         self.im.db_commit()
+        self.parse_recovery(aid)
 
 
 def parse_android_twr(node, es, ed):
