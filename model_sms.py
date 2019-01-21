@@ -429,6 +429,9 @@ class GenerateModel(object):
                 _to.RemarkName = row[15]        # recv_name     
             sms.ToSet.Add(_to)               
 
+            if row[11] is not None:
+                sms.SourceFile = self._get_source_file(row[11])
+
             if row[12] is not None:
                 sms.Deleted = self._convert_deleted_status(row[12])
             models.append(sms)
