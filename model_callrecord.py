@@ -11,6 +11,10 @@ except:
     pass
 del clr
 
+import PA.InfraLib.ModelsV2.CommonEnum.CallType as CallType
+import PA.InfraLib.ModelsV2.Base.Contact as Contact
+import PA.InfraLib.ModelsV2.Base.Call as Call
+
 from System.IO import MemoryStream
 from System.Text import Encoding
 from System.Xml.Linq import *
@@ -216,33 +220,38 @@ class Generate(object):
             self.db_cmd.CommandText = sql
             sr = self.db_cmd.ExecuteReader()
             while(sr.Read()):
-                c = Calls.Call()
+                c = Call()
                 if not IsDBNull(sr[10]):
-                    c.CountryCode.Value = sr[10]
+                    c.CountryCode = sr[10]
                 if not IsDBNull(sr[3]):
                     hours = sr[3]/3600
                     minutes = sr[3]-hours*3600
                     seconds = sr[3]-hours*3600-minutes*60
-                    c.Duration.Value = System.TimeSpan(hours, minutes, seconds)
+                    c.Duration = System.TimeSpan(hours, minutes, seconds)
                 if not IsDBNull(sr[2]):
-                    c.TimeStamp.Value = TimeStamp.FromUnixTime(int(str(sr[2])[0:10:1]), False)
+                    c.StartTime = TimeStamp.FromUnixTime(int(str(sr[2])[0:10:1]), False)
                 if not IsDBNull(sr[4]):
-                    c.Type.Value = CallType.Incoming if sr[4] == 1 else CallType.Outgoing if sr[4] == 2 else CallType.Missed if sr[4] == 3 else CallType.Unknown
-                party = Generic.Party()
+                    c.Type = CallType.Incoming if sr[4] == 1 else CallType.Outgoing if sr[4] == 2 else CallType.Missed if sr[4] == 3 else CallType.Unknown
+                party = Contact()
                 if not IsDBNull(sr[1]):
-                    party.Identifier.Value = sr[1]
+                    party.PhoneNumbers.Add(sr[1])
                 if not IsDBNull(sr[5]):
-                    party.Name.Value = sr[5]
+                    party.FullName = sr[5]
                 if not IsDBNull(sr[4]):
-                    party.Role.Value = PartyRole.From if sr[4] == 1 or sr[4] == 3 else PartyRole.To
-                c.Parties.Add(party)
-                party = Generic.Party()
+                    if sr[4] == 1 or sr[4] == 3:
+                        c.FromSet.Add(party)
+                    else:
+                        c.ToSet.Add(party)
+                party = Contact()
                 if not IsDBNull(sr[14]):
-                    party.Identifier.Value = sr[14]
+                    party.FullName = sr[14]
                 if not IsDBNull(sr[4]):
-                    party.Role.Value = PartyRole.To if sr[4] == 1 or sr[4] == 3 else PartyRole.From
+                    if sr[4] == 1 or sr[4] == 3:
+                        c.ToSet.Add(party)
+                    else:
+                        c.FromSet.Add(party)
                 if not IsDBNull(sr[11]):
-                    c.SourceFile.Value = self._get_source_file(str(sr[11]))
+                    c.SourceFile = self._get_source_file(str(sr[11]))
                 if not IsDBNull(sr[12]):
                     c.Deleted = self._convert_deleted_status(sr[12])
                 model.append(c)
