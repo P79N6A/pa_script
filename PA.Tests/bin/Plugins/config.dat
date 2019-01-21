@@ -2903,7 +2903,7 @@
           <key>Category</key>
           <string>Keychains</string>
           <key>Name</key>
-          <string>钥匙串(安卓)</string>
+          <string>Wifi密码(安卓)</string>
           <key>Filter</key>
           <string>基础数据</string>
         </dict>
