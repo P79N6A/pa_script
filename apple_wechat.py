@@ -8,7 +8,7 @@ clr.AddReference('System.Xml.Linq')
 clr.AddReference('System.Data.SQLite')
 try:
     clr.AddReference('model_wechat')
-    clr.AddReference('bcp_im')
+    clr.AddReference('bcp_wechat')
     clr.AddReference('base_wechat')
 except:
     pass
@@ -32,7 +32,7 @@ import shutil
 import base64
 import datetime
 import model_wechat
-import bcp_im
+import bcp_wechat
 from base_wechat import *
 import time
 
@@ -45,7 +45,7 @@ VERSION_APP_VALUE = 1
 g_app_build = {}
 
 def analyze_wechat(root, extract_deleted, extract_source):
-    print('%s apple_wechat() analyze_wechat root:%s' % (time.asctime(time.localtime(time.time())), root.AbsolutePath))
+    #print('%s apple_wechat() analyze_wechat root:%s' % (time.asctime(time.localtime(time.time())), root.AbsolutePath))
 
     WeChatParser(root, extract_deleted, extract_source).parse()
     pr = ParserResults()
@@ -90,20 +90,19 @@ class WeChatParser(Wechat):
         if not os.path.exists(self.cache_path):
             os.makedirs(self.cache_path)
         self.cache_db = os.path.join(self.cache_path, self.user_hash + '.db')
-        save_cache_path(bcp_im.CONTACT_ACCOUNT_TYPE_IM_WECHAT, self.cache_db, ds.OpenCachePath("tmp"))
-
-        self._parse_pay_card()
+        #bcp_wechat.GenerateWechatBcp(ds.OpenCachePath('bcp'), node.FileSystem.MountPoint, self.cache_db, os.path.join(ds.OpenCachePath('bcp'), 'bcp.db'), 'collect_target_id', bcp_wechat.CONTACT_ACCOUNT_TYPE_IM_WECHAT).generate()
+        save_cache_path(bcp_wechat.CONTACT_ACCOUNT_TYPE_IM_WECHAT, self.cache_db, ds.OpenCachePath("tmp"))
 
     def parse(self):
         if self.im.need_parse(self.cache_db, VERSION_APP_VALUE):
-            print('%s apple_wechat() parse begin' % time.asctime(time.localtime(time.time())))
+            #print('%s apple_wechat() parse begin' % time.asctime(time.localtime(time.time())))
             self.im.db_create(self.cache_db)
 
             self.contacts = {}
             self.user_account = model_wechat.Account()
             self.models = []
 
-            print('%s apple_wechat() parse account' % time.asctime(time.localtime(time.time())))
+            #print('%s apple_wechat() parse account' % time.asctime(time.localtime(time.time())))
             if not self._get_user_from_setting(self.root.GetByPath('mmsetting.archive')):
                 self.user_account.account_id = self.user_hash
                 self.user_account.insert_db(self.im)
@@ -129,38 +128,38 @@ class WeChatParser(Wechat):
 
             self.set_progress(2)
             try:
-                print('%s apple_wechat() parse WCDB_Contact.sqlite' % time.asctime(time.localtime(time.time())))
+                #print('%s apple_wechat() parse WCDB_Contact.sqlite' % time.asctime(time.localtime(time.time())))
                 self._parse_user_contact_db(self.root.GetByPath('/DB/WCDB_Contact.sqlite'))
             except Exception as e:
                 TraceService.Trace(TraceLevel.Error, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
             self.set_progress(10)
             try:
-                print('%s apple_wechat() parse wc005_008.db' % time.asctime(time.localtime(time.time())))
+                #print('%s apple_wechat() parse wc005_008.db' % time.asctime(time.localtime(time.time())))
                 self._parse_user_wc_db(self.root.GetByPath('/wc/wc005_008.db'))
             except Exception as e:
                 TraceService.Trace(TraceLevel.Error, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
             self.set_progress(35)
             try:
-                print('%s apple_wechat() parse MM.sqlite' % time.asctime(time.localtime(time.time())))
+                #print('%s apple_wechat() parse MM.sqlite' % time.asctime(time.localtime(time.time())))
                 self._parse_user_mm_db(self.root.GetByPath('/DB/MM.sqlite'))
             except Exception as e:
                 TraceService.Trace(TraceLevel.Error, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
             self.set_progress(80)
             try:
-                print('%s apple_wechat() parse fts_message.db' % time.asctime(time.localtime(time.time())))
+                #print('%s apple_wechat() parse fts_message.db' % time.asctime(time.localtime(time.time())))
                 self._parse_user_fts_db(self.root.GetByPath('/fts/fts_message.db'))
             except Exception as e:
                 TraceService.Trace(TraceLevel.Error, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
             self.set_progress(90)
             if self.private_root is not None:
                 try:
-                    print('%s apple_wechat() parse fav.db' % time.asctime(time.localtime(time.time())))
+                    #print('%s apple_wechat() parse fav.db' % time.asctime(time.localtime(time.time())))
                     self._parse_user_fav_db(self.private_root.GetByPath('/Favorites/fav.db'))
                 except Exception as e:
                     TraceService.Trace(TraceLevel.Error, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
                 self.set_progress(98)
                 try:
-                    print('%s apple_wechat() parse wshistory.pb' % time.asctime(time.localtime(time.time())))
+                    #print('%s apple_wechat() parse wshistory.pb' % time.asctime(time.localtime(time.time())))
                     self._parse_user_search(self.private_root.GetByPath('/searchH5/cache/wshistory.pb'))
                 except Exception as e:
                     TraceService.Trace(TraceLevel.Error, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
@@ -173,7 +172,7 @@ class WeChatParser(Wechat):
 
             self.im.db_commit()
             self.im.db_close()
-            print('%s apple_wechat() parse end' % time.asctime(time.localtime(time.time())))
+            #print('%s apple_wechat() parse end' % time.asctime(time.localtime(time.time())))
         else:
             model_wechat.GenerateModel(self.cache_db, self.build).get_models()
 

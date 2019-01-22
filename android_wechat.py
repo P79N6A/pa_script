@@ -8,7 +8,7 @@ clr.AddReference('System.Xml.Linq')
 clr.AddReference('System.Data.SQLite')
 try:
     clr.AddReference('model_wechat')
-    clr.AddReference('bcp_im')
+    clr.AddReference('bcp_wechat')
     clr.AddReference('base_wechat')
     clr.AddReference('tencent_struct')
 except:
@@ -32,7 +32,7 @@ import base64
 import sqlite3
 import shutil
 import model_wechat
-import bcp_im
+import bcp_wechat
 from base_wechat import *
 import tencent_struct
 import time
@@ -46,7 +46,7 @@ VERSION_APP_VALUE = 1
 g_app_build = {}
 
 def analyze_wechat(root, extract_deleted, extract_source):
-    print('%s android_wechat() analyze_wechat root:%s' % (time.asctime(time.localtime(time.time())), root.AbsolutePath))
+    #print('%s android_wechat() analyze_wechat root:%s' % (time.asctime(time.localtime(time.time())), root.AbsolutePath))
 
     WeChatParser(root, extract_deleted, extract_source).parse()
     pr = ParserResults()
@@ -88,8 +88,7 @@ class WeChatParser(Wechat):
         if not os.path.exists(self.cache_path):
             os.makedirs(self.cache_path)
         self.cache_db = os.path.join(self.cache_path, self.user_hash + '.db')
-        save_cache_path(bcp_im.CONTACT_ACCOUNT_TYPE_IM_WECHAT, self.cache_db, ds.OpenCachePath("tmp"))
-        #nameValues.SafeAddValue(bcp_im.CONTACT_ACCOUNT_TYPE_IM_WECHAT, self.cache_db)
+        save_cache_path(bcp_wechat.CONTACT_ACCOUNT_TYPE_IM_WECHAT, self.cache_db, ds.OpenCachePath("tmp"))
 
     def parse(self):
         if not self.is_valid_user_dir:
@@ -108,22 +107,22 @@ class WeChatParser(Wechat):
             node = self.user_node.GetByPath('/EnMicroMsg.db')
             mm_db_path = os.path.join(self.cache_path, self.user_hash + '_mm.db')
             try:
-                print('%s android_wechat() decrypt EnMicroMsg.db' % time.asctime(time.localtime(time.time())))
+                #print('%s android_wechat() decrypt EnMicroMsg.db' % time.asctime(time.localtime(time.time())))
                 if Decryptor.decrypt(node, self._get_db_key(self.imei, self.uin), mm_db_path):
-                    print('%s android_wechat() parse MicroMsg.db' % time.asctime(time.localtime(time.time())))
+                    #print('%s android_wechat() parse MicroMsg.db' % time.asctime(time.localtime(time.time())))
                     self.set_progress(15)
                     self._parse_mm_db(mm_db_path, node.AbsolutePath)
             except Exception as e:
                 TraceService.Trace(TraceLevel.Error, "android_wechat.py Error: LINE {}".format(traceback.format_exc()))
             self.set_progress(65)
             try:
-                print('%s android_wechat() parse SnsMicroMsg.db' % time.asctime(time.localtime(time.time())))
+                #print('%s android_wechat() parse SnsMicroMsg.db' % time.asctime(time.localtime(time.time())))
                 self._parse_wc_db(self.user_node.GetByPath('/SnsMicroMsg.db'))
             except Exception as e:
                 TraceService.Trace(TraceLevel.Error, "android_wechat.py Error: LINE {}".format(traceback.format_exc()))
             self.set_progress(85)
             try:
-                print('%s android_wechat() parse FTS5IndexMicroMsg.db' % time.asctime(time.localtime(time.time())))
+                #print('%s android_wechat() parse FTS5IndexMicroMsg.db' % time.asctime(time.localtime(time.time())))
                 self._parse_fts_db(self.user_node.GetByPath('/FTS5IndexMicroMsg.db'))
             except Exception as e:
                 TraceService.Trace(TraceLevel.Error, "android_wechat.py Error: LINE {}".format(traceback.format_exc()))
@@ -135,13 +134,13 @@ class WeChatParser(Wechat):
                 self.im.db_insert_table_version(model_wechat.VERSION_KEY_APP, VERSION_APP_VALUE)
             self.im.db_commit()
             self.im.db_close()
-            print('%s android_wechat() parse end' % time.asctime(time.localtime(time.time())))
+            #print('%s android_wechat() parse end' % time.asctime(time.localtime(time.time())))
         else:
             model_wechat.GenerateModel(self.cache_db, self.build).get_models()
 
     def set_progress(self, value):
         progress.Value = value
-        print('set_progress() %d' % value)
+        #print('set_progress() %d' % value)
 
     def get_models_from_cache_db(self):
         models = model_wechat.GenerateModel(self.cache_db, get_build(self.root)).get_models()

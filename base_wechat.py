@@ -8,7 +8,6 @@ clr.AddReference('System.Xml.Linq')
 clr.AddReference('System.Data.SQLite')
 try:
     clr.AddReference('model_wechat')
-    clr.AddReference('bcp_im')
 except:
     pass
 del clr
@@ -32,7 +31,6 @@ import shutil
 import base64
 import datetime
 import model_wechat
-import bcp_im
 
 # 消息类型
 MSG_TYPE_TEXT = 1
@@ -1016,7 +1014,7 @@ class Wechat(object):
 
     def get_search_model(self, search):
         try:
-            model = Base.SearchRecord()
+            model = SearchRecord()
             model.SourceFile = search.source
             model.Deleted = model_wechat.GenerateModel._convert_deleted_status(search.deleted)
             model.AppUserAccount = self.user_account_model
