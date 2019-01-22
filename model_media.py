@@ -310,6 +310,8 @@ class Generate(object):
                         media.Size.Value = sr[2]
                     if not IsDBNull(sr[6]) and sr[6] is not '':
                         media.MimeType.Value = sr[6]
+                    if not IsDBNull(sr[7]) and sr[7] is not '':
+                        media.Type.Value = MediaType.Image if sr[7] == 'image' else MediaType.Video if sr[7] == 'video' else MediaType.Other
                     if not IsDBNull(sr[9]) and sr[9] is not '':
                         media.DisplayName.Value = sr[9]
                     if not IsDBNull(sr[4]) and sr[4] is not '':
