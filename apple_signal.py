@@ -105,6 +105,9 @@ def analyze_apple_signal(root, extract_deleted, extract_source):
         nodes = checkhit(root)
         if len(nodes) != 0:
             progress.Start()
+        else:
+            progress.Skip()
+            return pr
         threads = []
         for node in nodes:
             for root in node[0]:
