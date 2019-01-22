@@ -2287,7 +2287,7 @@
           <integer>0</integer>
           <key>Patterns</key>
           <array>
-            <string>/Library/exid.dat$</string>
+            <string>/Library/Preferences/com.yaymedialabs.putong.plist$</string>
           </array>
           <key>Category</key>
           <string>Tantan</string>

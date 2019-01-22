@@ -16,6 +16,7 @@ from System.Xml.XPath import Extensions as XPathExtensions
 import os
 import System
 import sqlite3
+from PA.InfraLib.Utils import ConvertHelper
 
 SQL_CREATE_TABLE_RECORDS = '''
     CREATE TABLE IF NOT EXISTS records(
@@ -158,7 +159,7 @@ class Generate(object):
             canceller.ThrowIfCancellationRequested()
             r = Generic.Recording()
             if row[1] is not None:
-                r.FileUri.Value = row[1]
+                r.FileUri.Value = self._get_uri(row[1])
             if row[2] is not None:
                 r.Title.Value = row[2]
             #if row[3] is not None:
@@ -178,3 +179,9 @@ class Generate(object):
         self.cursor.close()
         self.cursor = None
         return model
+    
+    def _get_uri(self, path):
+        if path.startswith('http') or len(path) == 0:
+            return ConvertHelper.ToUri(path)
+        else:
+            return ConvertHelper.ToUri(path)
