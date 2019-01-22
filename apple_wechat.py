@@ -8,7 +8,7 @@ clr.AddReference('System.Xml.Linq')
 clr.AddReference('System.Data.SQLite')
 try:
     clr.AddReference('model_wechat')
-    clr.AddReference('bcp_im')
+    clr.AddReference('bcp_wechat')
     clr.AddReference('base_wechat')
 except:
     pass
@@ -32,7 +32,7 @@ import shutil
 import base64
 import datetime
 import model_wechat
-import bcp_im
+import bcp_wechat
 from base_wechat import *
 import time
 
@@ -90,9 +90,8 @@ class WeChatParser(Wechat):
         if not os.path.exists(self.cache_path):
             os.makedirs(self.cache_path)
         self.cache_db = os.path.join(self.cache_path, self.user_hash + '.db')
-        save_cache_path(bcp_im.CONTACT_ACCOUNT_TYPE_IM_WECHAT, self.cache_db, ds.OpenCachePath("tmp"))
-
-        self._parse_pay_card()
+        #bcp_wechat.GenerateWechatBcp(ds.OpenCachePath('bcp'), node.FileSystem.MountPoint, self.cache_db, os.path.join(ds.OpenCachePath('bcp'), 'bcp.db'), 'collect_target_id', bcp_wechat.CONTACT_ACCOUNT_TYPE_IM_WECHAT).generate()
+        save_cache_path(bcp_wechat.CONTACT_ACCOUNT_TYPE_IM_WECHAT, self.cache_db, ds.OpenCachePath("tmp"))
 
     def parse(self):
         if self.im.need_parse(self.cache_db, VERSION_APP_VALUE):
