@@ -623,6 +623,8 @@ class DropBoxParser(object):
 
     def __search_query_file(self):
         target_node = self.root.GetByPath("/Library/Caches/Users")
+        if not target_node:
+            return
         search_query_node = list(target_node.FileSystem.Search("SearchQueryHistory$"))
         if search_query_node:
             return search_query_node[0].PathWithMountPoint
