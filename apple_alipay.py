@@ -487,7 +487,7 @@ class AlipayParser():
                             if message.sender_id == self.user:
                                 message.sender_name = self.name
                         message.is_sender = model_im.MESSAGE_TYPE_SEND if message.sender_id == self.user else model_im.MESSAGE_TYPE_RECEIVE
-                        message.send_time = rec['createTime'].Value
+                        message.send_time = int(rec['createTime'].Value)
                         message.type = self.parse_message_type(rec['templateCode'].Value)
                         message.content = self.get_message_content(rec['bizMemo'].Value)
                         data = rec['templateData'].Value
