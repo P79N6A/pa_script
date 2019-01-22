@@ -56,7 +56,7 @@ SQL_INSERT_TABLE_MESSAGE = '''
 
 class TantanParser(model_im.IM):
     def __init__(self, node, extract_deleted, extract_source):
-        self.node = node.Parent.Parent.Parent
+        self.node = node.Parent.Parent.Parent.Parent
         self.messageNode = node.Parent.GetByPath('/Message.db$')
         self.extractDeleted = extract_deleted
         self.db = None
@@ -482,18 +482,21 @@ class TantanParser(model_im.IM):
         db = SQLiteParser.Database.FromNode(node, canceller)
         if db is None:
             return
-        ts = SQLiteParser.TableSignature('Sticker')
-        self.sticker = {}
-        for rec in db.ReadTableRecords(ts, self.extractDeleted, True):
-            try:
-                if self._db_record_get_string_value(rec, 'objectID') == '':
-                    continue
-                pk = self._db_record_get_string_value(rec, 'primaryKeyID')
-                cnt = self._db_record_get_blob_value(rec, 'pictureDictionary')
-                if pk not in self.sticker.keys():
-                    self.sticker[pk] = cnt
-            except:
-                pass
+        try:
+            ts = SQLiteParser.TableSignature('Sticker')
+            self.sticker = {}
+            for rec in db.ReadTableRecords(ts, self.extractDeleted, True):
+                try:
+                    if self._db_record_get_string_value(rec, 'objectID') == '':
+                        continue
+                    pk = self._db_record_get_string_value(rec, 'primaryKeyID')
+                    cnt = self._db_record_get_blob_value(rec, 'pictureDictionary')
+                    if pk not in self.sticker.keys():
+                        self.sticker[pk] = cnt
+                except:
+                    pass
+        except:
+            pass
 
     def parse_feed(self, node):
         '''解析动态数据'''
@@ -501,73 +504,76 @@ class TantanParser(model_im.IM):
         db = SQLiteParser.Database.FromNode(node, canceller)
         if db is None:
             return
-        ts = SQLiteParser.TableSignature('Moment')
-        self.sticker = {}
-        for rec in db.ReadTableRecords(ts, self.extractDeleted, True):
-            try:
-                if self._db_record_get_string_value(rec, 'objectID') == '':
-                    continue
-                feed = model_im.Feed()
-                #多媒体数据
-                media_url = ''
-                tree = BPReader.GetTree(MemoryRange.FromBytes(rec['mediaDictionaries'].Value))
-                if tree is None:
-                    break
-                media_json = self.bplist2json(tree)
-                if media_json is not None:
-                    media_url = media_json['key']['url']
-                #获赞数
-                likescount = self._db_record_get_int_value(rec, 'likesCount')
-                #评论数
-                commentcount = self._db_record_get_int_value(rec, 'commentsCount')
-                #动态id
-                feedpk = self._db_record_get_int_value(rec, 'primaryKeyID')
-                #动态时间
-                createtime = self._db_record_get_int_value(rec, 'createdTime')
-                #动态位置
-                location = self._db_record_get_blob_value(rec, 'locationDictionary')
-                if location is not None:
-                    location = json.loads(location)
-                #location = Encoding.UTF8.GetString(rec['locationDictionary'].Value) if not IsDBNull(rec['locationDictionary'].Value) else None
-                if location is not None:
-                    try:
-                        coordinates = location['coordinates']
-                    except:
-                        coordinates = ''
-                    latitude = 0
-                    longitude = 0
-                    address = ''
-                    if coordinates is not '':
-                        latitude = coordinates[0]
-                        longitude = coordinates[1]
-                        address = location['address'] + location['name']
-                    location = model_im.Location()
-                    feed.location_id = location.location_id  # 地址ID[INT]
-                    location.latitude = latitude
-                    location.longitude = longitude
-                    location.address = address
-                    self.db_insert_table_location(location)
-                #发送者
-                senderid = self._db_record_get_int_value(rec, 'owner_primaryKeyID')
-                if senderid == -1:
-                    senderid = -2
-                #是否给该条动态点赞
-                isliked = self._db_record_get_int_value(rec, 'haveLiked')
-                #动态文本
-                content = self._db_record_get_string_value(rec, 'value')
-                feed.account_id = userid  # 账号ID[TEXT]
-                feed.sender_id = senderid  # 发布者ID[TEXT]
-                feed.content = content  # 文本[TEXT]
-                feed.url = media_url  # 链接[TEXT]
-                feed.send_time = createtime  # 发布时间[INT]
-                feed.likecount = likescount  # 赞数量[INT]
-                feed.commentcount = commentcount  # 评论数量[INT]
-                feed.comment_id = feedpk
-                feed.deleted = rec.IsDeleted
-                self.db_insert_table_feed(feed)
-            except:
-                pass
-        self.db_commit()
+        try:
+            ts = SQLiteParser.TableSignature('Moment')
+            self.sticker = {}
+            for rec in db.ReadTableRecords(ts, self.extractDeleted, True):
+                try:
+                    if self._db_record_get_string_value(rec, 'objectID') == '':
+                        continue
+                    feed = model_im.Feed()
+                    #多媒体数据
+                    media_url = ''
+                    tree = BPReader.GetTree(MemoryRange.FromBytes(rec['mediaDictionaries'].Value))
+                    if tree is None:
+                        break
+                    media_json = self.bplist2json(tree)
+                    if media_json is not None:
+                        media_url = media_json['key']['url']
+                    #获赞数
+                    likescount = self._db_record_get_int_value(rec, 'likesCount')
+                    #评论数
+                    commentcount = self._db_record_get_int_value(rec, 'commentsCount')
+                    #动态id
+                    feedpk = self._db_record_get_int_value(rec, 'primaryKeyID')
+                    #动态时间
+                    createtime = self._db_record_get_int_value(rec, 'createdTime')
+                    #动态位置
+                    location = self._db_record_get_blob_value(rec, 'locationDictionary')
+                    if location is not None:
+                        location = json.loads(location)
+                    #location = Encoding.UTF8.GetString(rec['locationDictionary'].Value) if not IsDBNull(rec['locationDictionary'].Value) else None
+                    if location is not None:
+                        try:
+                            coordinates = location['coordinates']
+                        except:
+                            coordinates = ''
+                        latitude = 0
+                        longitude = 0
+                        address = ''
+                        if coordinates is not '':
+                            latitude = coordinates[0]
+                            longitude = coordinates[1]
+                            address = location['address'] + location['name']
+                        location = model_im.Location()
+                        feed.location_id = location.location_id  # 地址ID[INT]
+                        location.latitude = latitude
+                        location.longitude = longitude
+                        location.address = address
+                        self.db_insert_table_location(location)
+                    #发送者
+                    senderid = self._db_record_get_int_value(rec, 'owner_primaryKeyID')
+                    if senderid == -1:
+                        senderid = -2
+                    #是否给该条动态点赞
+                    isliked = self._db_record_get_int_value(rec, 'haveLiked')
+                    #动态文本
+                    content = self._db_record_get_string_value(rec, 'value')
+                    feed.account_id = userid  # 账号ID[TEXT]
+                    feed.sender_id = senderid  # 发布者ID[TEXT]
+                    feed.content = content  # 文本[TEXT]
+                    feed.url = media_url  # 链接[TEXT]
+                    feed.send_time = createtime  # 发布时间[INT]
+                    feed.likecount = likescount  # 赞数量[INT]
+                    feed.commentcount = commentcount  # 评论数量[INT]
+                    feed.comment_id = feedpk
+                    feed.deleted = rec.IsDeleted
+                    self.db_insert_table_feed(feed)
+                except:
+                    pass
+            self.db_commit()
+        except:
+            pass
         
     def parse_feed_comment(self, node):
         '''解析评论数据'''
@@ -575,32 +581,35 @@ class TantanParser(model_im.IM):
         db = SQLiteParser.Database.FromNode(node, canceller)
         if db is None:
             return
-        ts = SQLiteParser.TableSignature('comment')
-        self.comment = {}
-        for rec in db.ReadTableRecords(ts, self.extractDeleted, True):
-            try:
-                if self._db_record_get_string_value(rec, 'objectID') == '':
-                    continue
-                pk = self._db_record_get_string_value(rec, 'momentID')
-                cnt = self._db_record_get_blob_value(rec, 'primaryKeyID')
-                if pk not in self.sticker.keys():
-                    self.comment[pk] = [cnt]
-                else:
-                    if cnt not in self.comment[pk]:
-                        self.comment[pk].append(cnt)
-                comments = model_im.FeedComment()
-                comments.comment_id = self._db_record_get_string_value(rec, 'momentID')  # 评论ID[INT]
-                comments.sender_id = self._db_record_get_string_value(rec, 'owner_primaryKeyID')  # 发布者ID[TEXT]
-                if comments.sender_id == '-1':
-                    comments.sender_id = -2
-                comments.sender_name = self.friend[comments.sender_id] if comments.sender_id in self.friend else comments.sender_id  # 发布者昵称[TEXT]
-                comments.content = self._db_record_get_string_value(rec, 'value')  # 评论内容[TEXT]
-                comments.create_time = self._get_timestamp(self._db_record_get_int_value(rec, 'createdTime'))  # 发布时间[INT]
-                comments.deleted = rec.IsDeleted
-                self.db_insert_table_feed_comment(comments)
-            except:
-                pass
-        self.db_commit()
+        try:
+            ts = SQLiteParser.TableSignature('comment')
+            self.comment = {}
+            for rec in db.ReadTableRecords(ts, self.extractDeleted, True):
+                try:
+                    if self._db_record_get_string_value(rec, 'objectID') == '':
+                        continue
+                    pk = self._db_record_get_string_value(rec, 'momentID')
+                    cnt = self._db_record_get_blob_value(rec, 'primaryKeyID')
+                    if pk not in self.sticker.keys():
+                        self.comment[pk] = [cnt]
+                    else:
+                        if cnt not in self.comment[pk]:
+                            self.comment[pk].append(cnt)
+                    comments = model_im.FeedComment()
+                    comments.comment_id = self._db_record_get_string_value(rec, 'momentID')  # 评论ID[INT]
+                    comments.sender_id = self._db_record_get_string_value(rec, 'owner_primaryKeyID')  # 发布者ID[TEXT]
+                    if comments.sender_id == '-1':
+                        comments.sender_id = -2
+                    comments.sender_name = self.friend[comments.sender_id] if comments.sender_id in self.friend else comments.sender_id  # 发布者昵称[TEXT]
+                    comments.content = self._db_record_get_string_value(rec, 'value')  # 评论内容[TEXT]
+                    comments.create_time = self._get_timestamp(self._db_record_get_int_value(rec, 'createdTime'))  # 发布时间[INT]
+                    comments.deleted = rec.IsDeleted
+                    self.db_insert_table_feed_comment(comments)
+                except:
+                    pass
+            self.db_commit()
+        except:
+            pass
 
     def _copytocache(self, source):
         sourceDir = source
