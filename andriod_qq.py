@@ -139,6 +139,9 @@ def analyze_andriod_qq(root, extract_deleted, extract_source):
         threads = []
         if len(nodes) != 0:
             progress.Start()
+        else:
+            progress.Skip()
+            return pr
         for node in nodes:
             for root in node[0]:
                 try:                    
