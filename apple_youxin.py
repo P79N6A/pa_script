@@ -125,7 +125,7 @@ class YouXinParser():
                     account.signature = obj['signature']
                 account.gender = model_im.GENDER_MALE if obj['sex'] == '男' else model_im.GENDER_FEMALE
                 try:
-                    account.birthday = int(time.mktime(time.strptime(obj['birthday'], '%Y-%m-%d %H:%M:%S')))
+                    account.birthday = int(time.mktime(time.strptime(obj['birthday'], '%Y-%m-%d')))
                 except:
                     pass
                 break
@@ -159,7 +159,7 @@ class YouXinParser():
                 friend.signature = rec['[signature]'].Value
                 friend.gender = model_im.GENDER_MALE if rec['[sex]'].Value == '男' else model_im.GENDER_FEMALE
                 try:
-                    friend.birthday = int(time.mktime(time.strptime(rec['[birthday]'].Value, '%Y-%m-%d %H:%M:%S')))
+                    friend.birthday = int(time.mktime(time.strptime(rec['[birthday]'].Value, '%Y-%m-%d')))
                 except:
                     pass
                 self.contacts[friend.friend_id] = friend
@@ -191,7 +191,7 @@ class YouXinParser():
                     friend.signature = obj['signature']
                 friend.gender = model_im.GENDER_MALE if obj['sex'] == '男' else model_im.GENDER_FEMALE
                 try:
-                    friend.birthday = int(time.mktime(time.strptime(obj['birthday'], '%Y-%m-%d %H:%M:%S')))
+                    friend.birthday = int(time.mktime(time.strptime(obj['birthday'], '%Y-%m-%d')))
                 except:
                     pass
                 friend.type = model_im.FRIEND_TYPE_STRANGER
