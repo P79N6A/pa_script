@@ -793,8 +793,8 @@ class tencent_struct:
                 return(self.getMessageForTroopGift())
                 # pri)
             else:
-                print(msgtype)
-                print(self.__data)
+                #print(msgtype)
+                #print(self.__data)
                 return None
         except:
             raise
