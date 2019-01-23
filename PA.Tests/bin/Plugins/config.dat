@@ -3503,6 +3503,30 @@
 
     <dict>
       <key>Module</key>
+      <string>android_umetrip</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_Umetrip</string>
+          <key>RunnerType</key>
+          <integer>2</integer>
+          <key>Patterns</key>
+          <array>
+            <string>/com.umetrip.android.msky.app/shared_prefs/mqc_private.xml$</string>
+          </array>
+          <key>Category</key>
+          <string>Umetrip</string>
+          <key>Name</key>
+          <string>航旅纵横(安卓)</string>
+          <key>Filter</key>
+          <string>应用>电子商务</string>
+        </dict>
+      </array>
+    </dict>
+
+    <dict>
+      <key>Module</key>
       <string>android_skype</string>
       <key>Runners</key>
       <array>
