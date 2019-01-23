@@ -98,7 +98,6 @@ class WeChatParser(Wechat):
             #print('%s apple_wechat() parse begin' % time.asctime(time.localtime(time.time())))
             self.im.db_create(self.cache_db)
 
-            self.contacts = {}
             self.user_account = model_wechat.Account()
             self.models = []
 
@@ -674,10 +673,8 @@ class WeChatParser(Wechat):
                             pass
                     if source_info.Element('realchatname'):
                         fav_item.sender = source_info.Element('realchatname').Value
-                        fav_item.sender_name = self.contacts.get(fav_item.sender, {}).get('nickname')
                     elif source_info.Element('fromusr'):
                         fav_item.sender = source_info.Element('fromusr').Value
-                        fav_item.sender_name = self.contacts.get(fav_item.sender, {}).get('nickname')
                 if xml.Element('desc'):
                     fav_item.content = xml.Element('desc').Value
             elif fav_type in [model_wechat.FAV_TYPE_IMAGE, model_wechat.FAV_TYPE_VOICE, model_wechat.FAV_TYPE_VIDEO, model_wechat.FAV_TYPE_VIDEO_2, model_wechat.FAV_TYPE_ATTACHMENT]:
@@ -692,10 +689,8 @@ class WeChatParser(Wechat):
                             pass
                     if source_info.Element('realchatname'):
                         fav_item.sender = source_info.Element('realchatname').Value
-                        fav_item.sender_name = self.contacts.get(fav_item.sender, {}).get('nickname')
                     elif source_info.Element('fromusr'):
                         fav_item.sender = source_info.Element('fromusr').Value
-                        fav_item.sender_name = self.contacts.get(fav_item.sender, {}).get('nickname')
                 if xml.Element('title'):
                     fav_item.content = xml.Element('title').Value
                 if xml.Element('datalist') and xml.Element('datalist').Element('dataitem'):
@@ -716,10 +711,8 @@ class WeChatParser(Wechat):
                             pass
                     if source_info.Element('realchatname'):
                         fav_item.sender = source_info.Element('realchatname').Value
-                        fav_item.sender_name = self.contacts.get(fav_item.sender, {}).get('nickname')
                     elif source_info.Element('fromusr'):
                         fav_item.sender = source_info.Element('fromusr').Value
-                        fav_item.sender_name = self.contacts.get(fav_item.sender, {}).get('nickname')
                     if source_info.Element('link'):
                         fav_item.link_url = source_info.Element('link').Value
                 if xml.Element('weburlitem'):
@@ -740,10 +733,8 @@ class WeChatParser(Wechat):
                             pass
                     if source_info.Element('realchatname'):
                         fav_item.sender = source_info.Element('realchatname').Value
-                        fav_item.sender_name = self.contacts.get(fav_item.sender, {}).get('nickname')
                     elif source_info.Element('fromusr'):
                         fav_item.sender = source_info.Element('fromusr').Value
-                        fav_item.sender_name = self.contacts.get(fav_item.sender, {}).get('nickname')
                 if xml.Element('locitem'):
                     latitude = 0
                     longitude = 0
@@ -784,10 +775,8 @@ class WeChatParser(Wechat):
                                     pass
                             if source_info.Element('realchatname'):
                                 fav_item.sender = source_info.Element('realchatname').Value
-                                fav_item.sender_name = self.contacts.get(fav_item.sender, {}).get('nickname')
                             elif source_info.Element('fromusr'):
                                 fav_item.sender = source_info.Element('fromusr').Value
-                                fav_item.sender_name = self.contacts.get(fav_item.sender, {}).get('nickname')
                         if fav_item.type == model_wechat.FAV_TYPE_TEXT:
                             if item.Element('datadesc'):
                                 fav_item.content = item.Element('datadesc').Value
@@ -933,10 +922,7 @@ class WeChatParser(Wechat):
             self.push_models()
         return True
 
-    def _parse_user_fts_db_with_value(self, deleted, source, username, content):
-        contact = self.contacts.get(username, {})
-        certification_flag = contact.get('certification_flag', 0)
-                    
+    def _parse_user_fts_db_with_value(self, deleted, source, username, content): 
         message = model_wechat.Message()
         message.deleted = deleted
         message.source = source

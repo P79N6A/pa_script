@@ -481,3 +481,6 @@ def analyze_bulletMessage(node, extractDeleted, extractSource):
                     pr.Models.AddRange(results)
                     pr.Build("子弹短信")               
                 return pr
+    else:
+        progress.Skip()
+        return pr
