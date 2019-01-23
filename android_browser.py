@@ -330,6 +330,9 @@ class AndroidBrowserParser(model_browser.BaseBrowserParser, BaseAndroidParser):
             self._parse_DownloadFile('downloads')
         else:
             download_db_node = self.root.Parent.GetByPath('com.android.providers.downloads/databases/downloads.db')
+            # 适配 auto_backup
+            if not download_db_node:
+                download_db_node = self.root.Parent.GetByPath('com.android.providers.downloads/db/downloads.db')
             if self._read_db(db_path='', node=download_db_node):
                 self._parse_DownloadFile('downloads')            
 
