@@ -373,8 +373,8 @@ class ExportModel(object):
                 if canceller.IsCancellationRequested:
                     return
                 search = Base.SearchRecord()
-                if row[0]:
-                    search.account_id = row[0]
+                # if row[0]:
+                #     search.account_id = row[0]
                 if row[1]:
                     search.Keyword = row[1]
                 if row[2]:
@@ -460,7 +460,7 @@ class ExportModel(object):
                         locationContent.Value = loc
                         favpoi.Content = locationContent
                     else:  # 收藏的是一个导航路线
-                        route = Base.Journey()
+                        route = Base.Navigation()
                         start_loc = Base.Location()
                         end_loc = Base.Location()
                         # if sourceApp == "百度地图":
@@ -490,7 +490,6 @@ class ExportModel(object):
                         navContent.Value = route
                         favpoi.Content = navContent
 
-                favpoi.account_id = account_id
                 favpoi.PoiName = poiName
                 favpoi.CityName = cityName
                 favpoi.Deleted = MapUtil.convert_deleted_status(deleted)
@@ -530,8 +529,8 @@ class ExportModel(object):
                 end_loc = Base.Location()
                 start_coord = Base.Coordinate()
                 end_coord = Base.Coordinate()
-                if row[0]:
-                    routerec.account_id = row[0]
+                # if row[0]:
+                #     routerec.account_id = row[0]
                 if row[1]:
                     start_loc.PoiName = row[1]
                 if row[2]:
