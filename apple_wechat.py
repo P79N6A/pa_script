@@ -42,8 +42,6 @@ import time
 # app数据库版本
 VERSION_APP_VALUE = 1
 
-g_app_build = {}
-
 def analyze_wechat(root, extract_deleted, extract_source):
     #print('%s apple_wechat() analyze_wechat root:%s' % (time.asctime(time.localtime(time.time())), root.AbsolutePath))
 
@@ -54,18 +52,15 @@ def analyze_wechat(root, extract_deleted, extract_source):
 
 
 def get_build(node):
-    global g_app_build
     build = '微信'
     if node is None:
         return build
     app_path = node.AbsolutePath
     if app_path in [None, '']:
         return build
-    if app_path not in g_app_build:
-        g_app_build[app_path] = len(g_app_build) + 1
-    count = g_app_build.get(app_path, 0)
-    if count > 1:
-        build += str(count)
+    info = ds.GetApplication(node.AbsolutePath)
+    if info and info.Name:
+        return info.Name.Value
     return build
 
 
