@@ -103,6 +103,8 @@ def analyze_fsevents(root, extract_deleted, extract_source):
         mlm = ModelListMerger()
         pr.Models.AddRange(list(mlm.GetUnique(models)))
         pr.Build('文件日志')
+    else:
+        progress.Skip()
     return pr
 
 
