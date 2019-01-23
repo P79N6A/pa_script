@@ -115,6 +115,18 @@ class WeChatParser(Wechat):
             except Exception as e:
                 TraceService.Trace(TraceLevel.Error, "android_wechat.py Error: LINE {}".format(traceback.format_exc()))
             self.set_progress(65)
+
+            fav_node = self.user_node.GetByPath('/enFavorite.db')
+            fav_db_path = os.path.join(self.cache_path, self.user_hash + '_fav.db')
+            try:
+                #print('%s android_wechat() decrypt enFavorite.db' % time.asctime(time.localtime(time.time())))
+                if Decryptor.decrypt(fav_node, self._get_db_key(self.imei, self.uin), fav_db_path):
+                    #print('%s android_wechat() parse enFavorite.db' % time.asctime(time.localtime(time.time())))
+                    self._parse_fav_db(fav_db_path, fav_node.AbsolutePath)
+            except Exception as e:
+                TraceService.Trace(TraceLevel.Error, "android_wechat.py Error: LINE {}".format(traceback.format_exc()))
+            self.set_progress(70)
+
             try:
                 #print('%s android_wechat() parse SnsMicroMsg.db' % time.asctime(time.localtime(time.time())))
                 self._parse_wc_db(self.user_node.GetByPath('/SnsMicroMsg.db'))
@@ -243,6 +255,237 @@ class WeChatParser(Wechat):
         self.set_progress(30)
         self._parse_mm_db_message(db, source)
 
+    def _parse_fav_db(self, fav_db_path, source):
+        db = None
+        try:
+            node = self.create_memory_node(self.user_node, fav_db_path, os.path.basename(fav_db_path))
+            db = SQLiteParser.Database.FromNode(node, canceller)
+        except Exception as e:
+            TraceService.Trace(TraceLevel.Error, "android_wechat.py Error: LINE {}".format(traceback.format_exc()))
+            return False
+        if not db:
+            return False
+
+        if 'FavItemInfo' in db.Tables:
+            ts = SQLiteParser.TableSignature('FavItemInfo')
+            SQLiteParser.Tools.AddSignatureToTable(ts, "xml", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
+            for rec in db.ReadTableRecords(ts, self.extract_deleted, False, ''):
+                if canceller.IsCancellationRequested:
+                    break
+                if rec is None:
+                    continue
+                try:
+                    local_id = self._db_record_get_int_value(rec, 'localId')
+                    fav_type = self._db_record_get_int_value(rec, 'type')
+                    timestamp = self._db_record_get_int_value(rec, 'updateTime')
+                    from_user = self._db_record_get_string_value(rec, 'fromUser')
+                    to_user = self._db_record_get_string_value(rec, 'toUser')
+                    real_name = self._db_record_get_string_value(rec, 'realChatName')
+                    source_type = self._db_record_get_int_value(rec, 'sourceType')
+                    xml = self._db_record_get_string_value(rec, 'xml')
+                    deleted = 0 if rec.Deleted == DeletedState.Intact else 1
+                    self._parse_fav_db_with_value(deleted, node.AbsolutePath, fav_type, timestamp, from_user, xml)
+                except Exception as e:
+                    TraceService.Trace(TraceLevel.Error, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
+            self.im.db_commit()
+            self.push_models()
+        return True
+
+    def _parse_fav_db_with_value(self, deleted, source, fav_type, timestamp, from_user, xml):
+        favorite = model_wechat.Favorite()
+        favorite.source = source
+        favorite.deleted = deleted
+        favorite.account_id = self.user_account_model.Account
+        favorite.type = fav_type
+        favorite.talker_id = from_user
+        if from_user.endswith('@chatroom'):
+            favorite.talker_type = model_wechat.CHAT_TYPE_GROUP
+        else:
+            favorite.talker_type = model_wechat.CHAT_TYPE_FRIEND
+        favorite.timestamp = timestamp
+        self._parse_user_fav_xml(xml, favorite)
+        favorite.insert_db(self.im)
+        model = self.get_favorite_model(favorite)
+        self.add_model(model)
+
+    def _parse_user_fav_xml(self, xml_str, model):
+        xml = None
+        try:
+            xml = XElement.Parse(xml_str)
+        except Exception as e:
+            if model.deleted == 0:
+                TraceService.Trace(TraceLevel.Error, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
+        if xml is not None and xml.Name.LocalName == 'favitem':
+            try:
+                fav_type = int(xml.Attribute('type').Value) if xml.Attribute('type') else 0
+            except Exception as e:
+                fav_type = 0
+            if fav_type == model_wechat.FAV_TYPE_TEXT:
+                fav_item = model.create_item()
+                fav_item.type = fav_type
+                if xml.Element('source'):
+                    source_info = xml.Element('source')
+                    if source_info.Element('createtime'):
+                        try:
+                            fav_item.timestamp = int(source_info.Element('createtime').Value)
+                        except Exception as e:
+                            pass
+                    if source_info.Element('realchatname'):
+                        fav_item.sender = source_info.Element('realchatname').Value
+                    elif source_info.Element('fromusr'):
+                        fav_item.sender = source_info.Element('fromusr').Value
+                if xml.Element('desc'):
+                    fav_item.content = xml.Element('desc').Value
+            elif fav_type in [model_wechat.FAV_TYPE_IMAGE, model_wechat.FAV_TYPE_VOICE, model_wechat.FAV_TYPE_VIDEO, model_wechat.FAV_TYPE_VIDEO_2, model_wechat.FAV_TYPE_ATTACHMENT]:
+                fav_item = model.create_item()
+                fav_item.type = fav_type
+                if xml.Element('source'):
+                    source_info = xml.Element('source')
+                    if source_info.Element('createtime'):
+                        try:
+                            fav_item.timestamp = int(source_info.Element('createtime').Value)
+                        except Exception as e:
+                            pass
+                    if source_info.Element('realchatname'):
+                        fav_item.sender = source_info.Element('realchatname').Value
+                    elif source_info.Element('fromusr'):
+                        fav_item.sender = source_info.Element('fromusr').Value
+                if xml.Element('title'):
+                    fav_item.content = xml.Element('title').Value
+                if xml.Element('datalist') and xml.Element('datalist').Element('dataitem'):
+                    item = xml.Element('datalist').Element('dataitem')
+                    if item.Element('sourcedatapath'):
+                        fav_item.media_path = self._parse_user_fav_path(item.Element('sourcedatapath').Value)
+                    elif item.Element('sourcethumbpath'):
+                        fav_item.media_path = self._parse_user_fav_path(item.Element('sourcedatapath').Value)
+            elif fav_type == model_wechat.FAV_TYPE_LINK:
+                fav_item = model.create_item()
+                fav_item.type = fav_type
+                if xml.Element('source'):
+                    source_info = xml.Element('source')
+                    if source_info.Element('createtime'):
+                        try:
+                            fav_item.timestamp = int(source_info.Element('createtime').Value)
+                        except Exception as e:
+                            pass
+                    if source_info.Element('realchatname'):
+                        fav_item.sender = source_info.Element('realchatname').Value
+                    elif source_info.Element('fromusr'):
+                        fav_item.sender = source_info.Element('fromusr').Value
+                    if source_info.Element('link'):
+                        fav_item.link_url = source_info.Element('link').Value
+                if xml.Element('weburlitem'):
+                    weburlitem = xml.Element('weburlitem')
+                    if weburlitem.Element('pagetitle'):
+                        fav_item.link_title = weburlitem.Element('pagetitle').Value
+                    if weburlitem.Element('pagethumb_url'):
+                        fav_item.link_image = weburlitem.Element('pagethumb_url').Value
+            elif fav_type == model_wechat.FAV_TYPE_LOCATION:
+                fav_item = model.create_item()
+                fav_item.type = fav_type
+                if xml.Element('source'):
+                    source_info = xml.Element('source')
+                    if source_info.Element('createtime'):
+                        try:
+                            fav_item.timestamp = int(source_info.Element('createtime').Value)
+                        except Exception as e:
+                            pass
+                    if source_info.Element('realchatname'):
+                        fav_item.sender = source_info.Element('realchatname').Value
+                    elif source_info.Element('fromusr'):
+                        fav_item.sender = source_info.Element('fromusr').Value
+                if xml.Element('locitem'):
+                    latitude = 0
+                    longitude = 0
+                    locitem = xml.Element('locitem')
+                    if locitem.Element('lat'):
+                        try:
+                            latitude = float(locitem.Element('lat').Value)
+                        except Exception as e:
+                            pass
+                    if locitem.Element('lng'):
+                        try:
+                            longitude = float(locitem.Element('lng').Value)
+                        except Exception as e:
+                            pass
+                    if latitude != 0 or longitude != 0:
+                        fav_item.location_latitude = latitude
+                        fav_item.location_longitude = longitude
+                        if locitem.Element('label'):
+                            fav_item.location_address = locitem.Element('label').Value
+                        if locitem.Element('poiname'):
+                            fav_item.location_address = locitem.Element('poiname').Value
+                        fav_item.location_type = model_wechat.LOCATION_TYPE_GOOGLE
+            elif fav_type == model_wechat.FAV_TYPE_CHAT:
+                if xml.Element('datalist'):
+                    for item in xml.Element('datalist').Elements('dataitem'):
+                        fav_item = model.create_item()
+                        if item.Attribute('datatype'):
+                            try:
+                                fav_item.type = int(item.Attribute('datatype').Value)
+                            except Exception as e:
+                                 pass
+                        if item.Element('dataitemsource'):
+                            source_info = item.Element('dataitemsource')
+                            if source_info.Element('createtime'):
+                                try:
+                                    fav_item.timestamp = int(source_info.Element('createtime').Value)
+                                except Exception as e:
+                                    pass
+                            if source_info.Element('realchatname'):
+                                fav_item.sender = source_info.Element('realchatname').Value
+                            elif source_info.Element('fromusr'):
+                                fav_item.sender = source_info.Element('fromusr').Value
+                        if fav_item.type == model_wechat.FAV_TYPE_TEXT:
+                            if item.Element('datadesc'):
+                                fav_item.content = item.Element('datadesc').Value
+                        elif fav_item.type in [model_wechat.FAV_TYPE_IMAGE, model_wechat.FAV_TYPE_VOICE, model_wechat.FAV_TYPE_VIDEO, model_wechat.FAV_TYPE_VIDEO_2, model_wechat.FAV_TYPE_ATTACHMENT]:
+                            if item.Element('sourcedatapath'):
+                                fav_item.media_path = self._parse_user_fav_path(item.Element('sourcedatapath').Value)
+                            elif item.Element('sourcethumbpath'):
+                                fav_item.media_path = self._parse_user_fav_path(item.Element('sourcedatapath').Value)
+                        elif fav_item.type == model_wechat.FAV_TYPE_LINK:
+                            if item.Element('dataitemsource'):
+                                source_info = item.Element('dataitemsource')
+                                if source_info.Element('link'):
+                                    fav_item.link_url = source_info.Element('link').Value
+                            if item.Element('weburlitem') and item.Element('weburlitem').Element('pagetitle'):
+                                fav_item.link_title = item.Element('weburlitem').Element('pagetitle').Value
+                            if item.Element('sourcethumbpath'):
+                                fav_item.link_image = self._parse_user_fav_path(item.Element('sourcethumbpath').Value)
+                        elif fav_item.type == model_wechat.FAV_TYPE_LOCATION:
+                            if item.Element('locitem'):
+                                latitude = 0
+                                longitude = 0
+                                locitem = item.Element('locitem')
+                                if locitem.Element('lat'):
+                                    try:
+                                        latitude = float(locitem.Element('lat').Value)
+                                    except Exception as e:
+                                        pass
+                                if locitem.Element('lng'):
+                                    try:
+                                        longitude = float(locitem.Element('lng').Value)
+                                    except Exception as e:
+                                        pass
+                                if latitude != 0 or longitude != 0:
+                                    fav_item.location_type = model_wechat.LOCATION_TYPE_GOOGLE
+                                    fav_item.location_latitude = latitude
+                                    fav_item.location_longitude = longitude
+                                    if locitem.Element('label'):
+                                        fav_item.location_address = locitem.Element('label').Value
+                                    if locitem.Element('poiname'):
+                                        fav_item.location_address = locitem.Element('poiname').Value
+                        else:
+                            fav_item.content = xml_str
+                        if item.Element('datasrcname'):
+                            fav_item.sender_name = item.Element('datasrcname').Value
+            else:
+                fav_item = model.create_item()
+                fav_item.type = fav_type
+                fav_item.content = xml_str
+        return True
+
     def _parse_wc_db(self, node):
         if node is None:
             return False
@@ -350,7 +593,6 @@ class WeChatParser(Wechat):
         except Exception as e:
             TraceService.Trace(TraceLevel.Error, "android_wechat.py Error: LINE {}".format(traceback.format_exc()))
 
-        contacts = {}
         if reader is not None:
             while reader.Read():
                 if canceller.IsCancellationRequested:
