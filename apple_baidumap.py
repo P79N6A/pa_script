@@ -1,23 +1,21 @@
 #coding=utf-8
-import os
-import PA_runtime
-import datetime
-import time
-import json
-import math
+
+__author__ = "Xu Tao"
+
 from PA_runtime import *
-import pickle
 import clr
 try:
-    clr.AddReference('model_map')
-    clr.AddReference("bcp_gis")
+    clr.AddReference('model_map_v2')
+    clr.AddReference("MapUtil")
 except:
     pass
 del clr
-import model_map
-import bcp_gis
+import model_map_v2 as model_map
+from collections import defaultdict
+import traceback
+import MapUtil
+import json
 
-# APPVERSION = "2.0"
 
 class baiduMapParser(object):
 
@@ -26,175 +24,52 @@ class baiduMapParser(object):
         self.extract_deleted = extract_deleted
         self.extract_source = extract_source
         self.cache = ds.OpenCachePath("baiduMap")
-        self.tmp_dir = ds.OpenCachePath("tmp")
         self.baidumap = model_map.Map()
-        
+
     def parse(self):
-        db_path = self.cache + "/baidu_db_1.0.db"
-        # if self.check_to_update(path, APPVERSION):
+
+        db_path = MapUtil.md5(self.cache, self.root.AbsolutePath)  # 唯一路径
         self.baidumap.db_create(db_path)
-        self.account_info()
-        self.analyze_search_history()
-        self.my_history_address()
-        PA_runtime.save_cache_path(bcp_gis.NETWORK_APP_MAP_BAIDU, db_path, self.tmp_dir)
-        result = model_map.Genetate(db_path)
-        tmpresult = result.get_models()
+        self.get_search_history()
+        self.get_navigation_record()
+        self.get_fav_position()
         self.baidumap.db_close()
 
-        return tmpresult
-
-    def account_info(self):
+        result = model_map.ExportModel(db_path).get_model()
+        return result
+    
+    
+    def get_search_history(self):
         """
-        分析百度地图账号信息
+        搜索历史记录
         """
-        account = model_map.Account()
-        account.source = "百度地图"
-        accountNode = self.root
-        if accountNode is None:
-            return 
-        else:
-            bplist = BPReader.GetTree(accountNode)
-            account.sourceFile = accountNode.AbsolutePath
-            if bplist == None:
-                return
-            if bplist["sapi_displayname"]:
-                name = bplist["sapi_displayname"].Value
-                account.username = name
-            if bplist["HEADIMG_URL"]:
-                HEADIMG_URL = bplist["HEADIMG_URL"].Value
-                account.photo = HEADIMG_URL
-
-            # city id
-            city_id = bplist["adsCityId"].Value if bplist["adsCityId"] else None
-            account.city = str(city_id)
-            # first visit date
-            if  "BaiduMobStatTrace" in bplist:
-                if "first_visit" in bplist["BaiduMobStatTrace"]:
-                    tmpdate1 = bplist["BaiduMobStatTrace"]["first_visit"].Value
-                    f_tmp = str(tmpdate1)[:-3]
-                    firstVisitDate = TimeStamp.FromUnixTime(int(f_tmp))
-                    account.install_time = int(f_tmp)
-
-            # last visit date
-            if "BaiduMobStatTrace" in bplist:
-                if "last_visit" in bplist["BaiduMobStatTrace"]:
-                    tmpdate2 = bplist["BaiduMobStatTrace"]["last_visit"].Value
-                    l_tmp = str(int(tmpdate2))[:-3]
-                    lastVisitDate = TimeStamp.FromUnixTime(int(l_tmp))
-                    account.last_login_time = int(l_tmp)
-
-            # get counts of recent visit
-            if "BaiduMobStatTrace" in  bplist:
-                if "recent" in bplist["BaiduMobStatTrace"]:
-                    recent_array = bplist["BaiduMobStatTrace"]["recent"]
-                    dicts = {}
-                    for i in recent_array:
-                        rdate = i["day"].Value
-                        rdatestr = str(rdate)
-                        # int to TimeStamp
-                        year = int(rdatestr[:4])
-                        month = int(rdatestr[4:6])
-                        day = int(rdatestr[6:])
-                        ts = time.strptime('{0}-{1}-{2}'.format(year,month,day), "%Y-%m-%d")
-                        rdate = int(time.mktime(ts))
-                        #rdate = TimeStamp(DateTimeOffset(year, month, day,0,0,0,TimeSpan(0)))
-                        rcount = i["count"].Value
-                        dicts[rdate] = rcount
-                    account.recent_visit = pickle.dumps(dicts)
-            try:
-                if account.username or account.photo or account.install_time or account.last_login_time or recent_visit:
-                    self.baidumap.db_insert_table_account(account)
-            except Exception as e:
-                pass
-            self.baidumap.db_commit()   
-
-    def analyze_search_history(self):
-        """
-        分析搜索历史记录
-        """
-        dicts = defaultdict(lambda: 'None')
         historyNode = self.root.Parent.Parent.Parent.GetByPath("Documents/his_record.sdb")
         if historyNode is None:
             return
-        try:
-            db = SQLiteParser.Database.FromNode(historyNode, canceller)
-            if db is None:
-                return []
-            tb = SQLiteParser.TableSignature('his_record')
-            if self.extract_deleted:
-                SQLiteParser.Tools.AddSignatureToTable(tb, "key", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
-                SQLiteParser.Tools.AddSignatureToTable(tb, "value", SQLiteParser.FieldType.Blob, SQLiteParser.FieldConstraints.NotNull)
-            for rec in db.ReadTableRecords(tb, self.extract_deleted, True):
+        db = SQLiteParser.Database.FromNode(historyNode, canceller)
+        if 'his_record' not in db.Tables:
+            return
+        tb = SQLiteParser.TableSignature('his_record')
+        for rec in db.ReadTableRecords(tb, True):
+            try:
                 if canceller.IsCancellationRequested:
                     return
                 search = model_map.Search()
-                if rec.Deleted == DeletedState.Intact:
-                    search.deleted = 0
-                elif rec.Deleted == DeletedState.Deleted:
+                if rec.Deleted == DeletedState.Deleted:
                     search.deleted = 1
-                search.source = "百度地图"
+                    break
+                search.sourceApp = "百度地图"
                 search.sourceFile = historyNode.AbsolutePath
                 if "key" in rec:
-                    seach_history = rec["key"].Value
-                # blob数据类型
-                if "value" in rec and (not rec["value"].IsDBNull):
-                    x = rec["value"].Value
-                    try:
-                        b = bytes(x)
-                        jsonfile = b.decode("utf-16")
-                        dicts = json.loads(jsonfile)
-                        search_name = dicts.get("historyMainTitleKey") if dicts.get("historyMainTitleKey") else dicts.get("poiHisValue")
-                        search.keyword = search_name
-                        if dicts.get("addtimesec"):
-                            str_time = str(dicts.get("addtimesec")).replace("-","")
-                            search.create_time = int(str_time)
-                    except Exception as e:
-                        pass
-                try:
-                    if search.keyword:
-                        self.baidumap.db_insert_table_search(search)
-                except Exception as e:
-                    pass
-        except Exception as e:
-            pass
-        
+                    search.keyword = rec["key"].Value
+                if search.keyword:
+                    self.baidumap.db_insert_table_search(search)
+            except Exception as e:
+                TraceService.Trace(TraceLevel.Error,"Get model_map.Search() Failed! -{0}".format(e))
         self.baidumap.db_commit()
 
 
-    # def analyze_ususal_address(self):
-    #     """
-    #     分析常用地址和家,公司信息
-    #     """
-    #     ususalAddressNode = self.root.GetByPath("Documents/homeSchool_poi.sdb")
-    #     home_company_addressNode = self.root.GetByPath("Documents/aime/udc.db")
-    #     try:
-    #         db = SQLiteParser.Database.FromNode(ususalAddressNode)
-    #         if db is None:
-    #             return []
-    #         tb = SQLiteParser.TableSignature('homeSchool_poi')
-    #         if self.extract_deleted:
-    #             pass
-    #         for rec in db.ReadTableRecords(tb, self.extract_deleted, True):
-    #             seach_history = rec["key"].Value
-    #             seach_info = rec["value"].Value
-    #     except Exception as e:
-    #         pass
-
-
-    #     db2 = SQLiteParser.Database.FromNode(home_company_addressNode)
-    #     if db2 is None:
-    #         return []
-    #     tb2 = SQLiteParser.TableSignature("sync")
-    #     if self.extract_deleted:
-    #         pass
-    #     for rec2 in db2.ReadTableRecords(tb2, self.extract_deleted, True):
-    #         if rec2["key"].Value == "company":
-    #             company = rec2["content"]
-    #         if rec2["key"].Value == "home":
-    #             home = rec2["content"]  
-
-
-    def my_history_address(self):
+    def get_navigation_record(self):
         """
         导航记录
         """      
@@ -203,70 +78,135 @@ class baiduMapParser(object):
             return
         try:
             db = SQLiteParser.Database.FromNode(hsAddressNode, canceller)
-            if db is None:
-                return 
+            if 'routeHis_record' not in db.Tables:
+                return
             tb = SQLiteParser.TableSignature('routeHis_record')
-            if self.extract_deleted:
-                SQLiteParser.Tools.AddSignatureToTable(tb, "value", SQLiteParser.FieldType.Blob, SQLiteParser.FieldConstraints.NotNull)
-            
-            for rec in db.ReadTableRecords(tb, self.extract_deleted, True):
+            for rec in db.ReadTableRecords(tb, False):
                 if canceller.IsCancellationRequested:
                     return
-                routeaddr = model_map.Address() 
+                routeaddr = model_map.RouteRec()
                 if rec.Deleted == DeletedState.Deleted:
                     routeaddr.deleted = 1
-                routeaddr.source = "百度地图"
+                routeaddr.sourceApp = "百度地图"
                 routeaddr.sourceFile = hsAddressNode.AbsolutePath
+                
                 seach_history = rec["key"].Value
                 if "value" in rec and (not rec["value"].IsDBNull):
                     seach_info = rec["value"].Value
                     try:
                         b = bytes(seach_info)
                         jsonflie = b.decode('utf-16')
-                        dicts= json.loads(jsonflie)
-                        search_time = dicts.get("addtimesec")
-                        routeaddr.create_time = search_time
-
-                        from_name = dicts.get("sfavnode").get("name")
-                        from_geoptx = dicts.get("sfavnode").get("geoptx")
-                        from_geopty = dicts.get("sfavnode").get("geopty")
-                        routeaddr.from_name = from_name
-                        routeaddr.from_posX = from_geoptx
-                        routeaddr.from_posY = from_geopty
-
-                        to_name = dicts.get("efavnode").get("name")
-                        to_geoptx = dicts.get("efavnode").get("geoptx")
-                        to_geopty = dicts.get("efavnode").get("geopty")
-                        routeaddr.to_name = to_name
-                        routeaddr.to_posX = to_geoptx
-                        routeaddr.to_posY = to_geopty
+                        dicts = json.loads(jsonflie)
+                        routeaddr.create_time = dicts.get("addtimesec")
+                        routeaddr.from_name = dicts.get("sfavnode").get("name")
+                        routeaddr.from_posX = dicts.get("sfavnode").get("geoptx")
+                        routeaddr.from_posY = dicts.get("sfavnode").get("geopty")
+                        routeaddr.to_name = dicts.get("efavnode").get("name")
+                        routeaddr.to_posX = dicts.get("efavnode").get("geoptx")
+                        routeaddr.to_posY = dicts.get("efavnode").get("geopty")
+                        routeaddr.type = 6
                     except Exception as e:
-                        pass
-                try:
-                    if routeaddr.from_name and routeaddr.to_name:
-                        self.baidumap.db_insert_table_address(routeaddr)
-                except Exception as e:
-                    pass
+                        TraceService.Trace(TraceLevel.Error,"Get model_map.RouteRec() Failed! -{0}".format(e))      
+                if routeaddr.from_name:
+                    self.baidumap.db_insert_table_routerec(routeaddr)
         except Exception as e:
-            print(e)
+            TraceService.Trace(TraceLevel.Error,"Get model_map.RouteRec() Failed! -{0}".format(e)) 
+        self.baidumap.db_commit()
+
+
+    def get_fav_position(self):
+        """
+        收藏记录
+        """
+        hsAddressNode = self.root.Parent.Parent.Parent.GetByPath("Documents/userCoreData/favCoreDataDB.sqlite")
+        if hsAddressNode is None:
+            return
+        try:
+            db = SQLiteParser.Database.FromNode(hsAddressNode, canceller)
+            if 'ZBMFAVPOI' not in db.Tables:
+                return
+            tb = SQLiteParser.TableSignature('ZBMFAVPOI')
+            for rec in db.ReadTableRecords(tb, False):
+                try:
+                    if canceller.IsCancellationRequested:
+                        return
+                    favpoi = model_map.FavPoi()
+                    loc = model_map.Location()
+                    favpoi.fav_obj = loc.location_id
+                    if rec.Deleted == DeletedState.Deleted:
+                        favpoi.deleted = 1
+                    favpoi.sourceApp = "百度地图"
+                    favpoi.sourceFile = hsAddressNode.AbsolutePath
+                    loc.sourceApp = "百度地图"
+                    loc.sourceFile = hsAddressNode.AbsolutePath
+                    loc.type = 6
+                    if "ZNAME" in rec and (not rec["ZNAME"].IsDBNull):
+                        favpoi.poi_name = rec["ZNAME"].Value
+                    if "ZCITYID" in rec and (not rec["ZCITYID"].IsDBNull):
+                        favpoi.city_id = rec["ZCITYID"].Value
+                    if "ZCITYNAME" in rec and (not rec["ZCITYNAME"].IsDBNull):
+                        favpoi.city_name = rec["ZCITYNAME"].Value
+                    if "ZADDRESS" in rec and (not rec["ZADDRESS"].IsDBNull):
+                        loc.address = rec["ZADDRESS"].Value
+                    if "ZX" in rec and (not rec["ZX"].IsDBNull):
+                        loc.longitude = rec["ZX"].Value
+                    if "ZY" in rec and (not rec["ZY"].IsDBNull):
+                        loc.latitude = rec["ZY"].Value
+                    if loc.latitude and loc.longitude:
+                        self.baidumap.db_insert_table_location(loc)
+                    if favpoi.poi_name:
+                        self.baidumap.db_insert_table_favpoi(favpoi)
+                except Exception as e:
+                    TraceService.Trace(TraceLevel.Error,"Get model_map.FavPoi() Failed! -{0}".format(e)) 
+        except Exception as e:
+            TraceService.Trace(TraceLevel.Error,"Get model_map.FavPoi() Failed! -{0}".format(e)) 
         
+        dicts = defaultdict(list)
+        try:
+            db = SQLiteParser.Database.FromNode(hsAddressNode, canceller)
+            if 'ZBMFAVROUTENODE' not in db.Tables:
+                return
+            tb = SQLiteParser.TableSignature('ZBMFAVROUTENODE')
+            for rec in db.ReadTableRecords(tb, False):
+                try:
+                    if canceller.IsCancellationRequested:
+                        return
+                    if "ZUSNAMESTRING" in rec and (not rec["ZUSNAMESTRING"].IsDBNull):
+                        dicts[rec["ZFAVROUTERS"].Value].append(rec["ZUSNAMESTRING"].Value)
+                    if "ZX" in rec and (not rec["ZX"].IsDBNull):
+                        dicts[rec["ZFAVROUTERS"].Value].append(rec["ZX"].Value)
+                    if "ZY" in rec and (not rec["ZY"].IsDBNull):
+                        dicts[rec["ZFAVROUTERS"].Value].append(rec["ZY"].Value)
+                except Exception as e:
+                    TraceService.Trace(TraceLevel.Error,"Get model_map.FavPoi() Failed! -{0}".format(e))
+            
+            for key,value in dicts.items():
+                route_favpoi = model_map.FavPoi()
+                route_favpoi.sourceApp = "百度地图"
+                route_favpoi.sourceFile = hsAddressNode.AbsolutePath
+                route = model_map.FavRoute()
+                route.sourceApp = "百度地图"
+                route.sourceFile = hsAddressNode.AbsolutePath
+                route_favpoi.fav_obj = route.nav_id
+                route.from_name = value[0]
+                route.from_posX = value[1]
+                route.from_posY = value[2]
+                route.to_name = value[3]
+                route.to_posX = value[4]
+                route.to_posY = value[5]
+                route.type = 6
+                self.baidumap.db_insert_table_favroute(route)
+                self.baidumap.db_insert_table_favpoi(route_favpoi)
+
+        except Exception as e:
+            TraceService.Trace(TraceLevel.Error,"Get model_map.FavPoi() Failed! -{0}".format(e)) 
         self.baidumap.db_commit()
 
 
 def analyze_baidumap(root, extract_deleted, extract_source):
-    """
-    baiduMap
-    data source: ["Library/Preferences/com.baidu.map.plist", "Documents/his_record.sdb",  "Documents/routeHis_record.sdb"]
-    search rules: ("com.baidu.map", analyze_baidumap, "BaiduMap", "百度地图", DescripCategories.BaiduMap)
-    return: Account, SearchHistory, RouteRecord
-    """
     pr = ParserResults()
     prResult = baiduMapParser(root, extract_deleted, extract_source).parse()
     if prResult:
-        for i in prResult:
-            pr.Models.Add(i)
+        pr.Models.AddRange(prResult)
     pr.Build("百度地图")
     return pr
-
-def execute(node, extract_deleted):
-    return analyze_baidumap(node, extract_deleted, False)
