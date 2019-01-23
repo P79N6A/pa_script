@@ -453,7 +453,7 @@ class ExportModel(object):
                         loc.SourceType = LocationSourceType.App
                         loc.Deleted = MapUtil.convert_deleted_status(deleted)
                         loc.SourceFile = MapUtil.format_file_path(sourceFile)
-                        if routerec_type == 6:
+                        if loc_type == 6:
                             loc.Coordinate = Base.Coordinate(longitude,latitude,MapUtil.convert_coordinat_type(loc_type))
                         models.append(loc)
                         locationContent = Base.Content.LocationContent(favpoi)
