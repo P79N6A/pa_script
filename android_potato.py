@@ -45,8 +45,13 @@ def GetInt64(reader, idx):
 
 
 def GetBlob(reader, idx):
-    return reader.GetValue(idx) if not reader.IsDBNull(idx) else None
-
+    try:
+        da = reader.GetValue(idx) if not reader.IsDBNull(idx) else Array[Byte]()
+        if isinstance(da, str):
+            return Encoding.UTF8.GetBytes(da)
+        return da
+    except:
+        return Array[Byte]()
 
 def GetFloat(reader, idx):
     return reader.GetFloat(idx) if not reader.IsDBNull(idx) else 0
@@ -406,7 +411,7 @@ class Potato(object):
             return
         table = 'messages'
         ts = SQLiteParser.TableSignature(table)
-        SQLiteParser.Tools.AddSignatureToTable(ts, "data", SQLiteParser.FieldType.Text,
+        SQLiteParser.Tools.AddSignatureToTable(ts, "data", SQLiteParser.FieldType.Blob,
                                                SQLiteParser.FieldConstraints.NotNull)
         for rec in db.ReadTableDeletedRecords(ts, False):
             if canceller.IsCancellationRequested:
