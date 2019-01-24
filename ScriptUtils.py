@@ -1477,6 +1477,19 @@ class ProtobufDecoder(object):
             return res
         return ''
 
+    def ord_read_char(self, length=1):
+        '''return ord(self.read())
+        
+        Returns:
+            ord(int):
+        '''
+        try:
+            res = self.read()
+            if res:
+                return ord(res)
+        except:
+            return None
+
     def read_move(self, length=1):
         res = self.read(length)
         self.idx += length

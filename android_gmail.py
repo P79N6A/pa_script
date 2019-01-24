@@ -181,7 +181,7 @@ class AndroidGmailParser(BaseParser, BaseAndroidParser):
             _mail_from = item.find_p_after(MAIL_ADDRESS_FLAG)
             if _mail_from and self._is_email_format(email_str=_mail_from):
                 mail_from = _mail_from
-                if ord(item.read()) == 0x1a:
+                if item.ord_read_char() == 0x1a:
                     mail_from += ' ' + item.find_p_after('1a')
 
             # mail_label
@@ -267,11 +267,11 @@ class AndroidGmailParser(BaseParser, BaseAndroidParser):
                 if MAIL_ADDRESS_FLAG in self._2_hexstr(mail_to_all):
                     mail.mail_to = self._get_mail_address_name(mail_to_all)
                     # mail_cc
-                    if ord(hex_str.read()) == 0x12:
+                    if hex_str.ord_read_char() == 0x12:
                         mail.mail_cc = hex_str.find_p_after(MAIL_ADDRESS_FLAG)
                 # mail_from
                 mail_from1 = MAIL_ITEMS.get(rec['items_row_id'].Value, {}).get('mail_from')
-                if ord(hex_str.read()) == 0x22:
+                if hex_str.ord_read_char() == 0x22:
                     mail_from_all = hex_str.find_p_after('22')
                     mail.mail_from = self._get_mail_address_name(mail_from_all)
                 else:
@@ -285,7 +285,7 @@ class AndroidGmailParser(BaseParser, BaseAndroidParser):
                     mail.mail_send_status = 1
 
                 # mail_subject
-                if hex_str.read() and ord(hex_str.read()) == 0x2a:
+                if hex_str.ord_read_char() == 0x2a:
                     hex_str.idx += 1
                     abstract = hex_str.get_parscal()
                     # tp(abstract)
@@ -293,7 +293,7 @@ class AndroidGmailParser(BaseParser, BaseAndroidParser):
 
                 # mail_content
                 CONTENT_ENDS = '18 00'
-                if ord(hex_str.read()) == 0x32:
+                if hex_str.ord_read_char() == 0x32:
                     hex_str.idx += 1
                     beg = hex_str.find('08 00 1a') - hex_str.idx
                     if self._2_hexstr(hex_str.data[beg: beg+3]) == '08 00 1a':
