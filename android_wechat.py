@@ -45,6 +45,8 @@ VERSION_APP_VALUE = 1
 
 g_app_build = {}
 
+DEBUG = False
+
 def analyze_wechat(root, extract_deleted, extract_source):
     #print('%s android_wechat() analyze_wechat root:%s' % (time.asctime(time.localtime(time.time())), root.AbsolutePath))
 
@@ -96,7 +98,7 @@ class WeChatParser(Wechat):
         if not self._can_decrypt(self.uin, self.user_hash):
             return []
 
-        if self.im.need_parse(self.cache_db, VERSION_APP_VALUE):
+        if DEBUG or self.im.need_parse(self.cache_db, VERSION_APP_VALUE):
             self.im.db_create(self.cache_db)
 
             self.extend_nodes = []
@@ -716,6 +718,8 @@ class WeChatParser(Wechat):
                         user_account.telephone = value
                     elif id == 12291:
                         user_account.signature = value
+                    elif id == 12293:
+                        user_account.address = value
                 except Exception as e:
                     TraceService.Trace(TraceLevel.Error, "android_wechat.py Error: LINE {}".format(traceback.format_exc()))
             
@@ -824,14 +828,16 @@ class WeChatParser(Wechat):
                     remark = self._db_record_get_string_value(rec, 'conRemark')
                     contact_type = self._db_record_get_int_value(rec, 'type')
                     verify_flag = self._db_record_get_int_value(rec, 'verifyFlag')
+                    lvbuff = self._db_record_get_blob_value_to_ba(rec, 'lvbuff')
+                    signature, region = Decryptor.parse_lvbuff(lvbuff)
                     deleted = 0 if rec.Deleted == DeletedState.Intact else 1
-                    self._parse_mm_db_contact_with_value(deleted, source, username, alias, nickname, remark, contact_type, verify_flag, heads.get(username))
+                    self._parse_mm_db_contact_with_value(deleted, source, username, alias, nickname, remark, contact_type, verify_flag, heads.get(username), signature, region)
                 except Exception as e:
                     pass
             self.im.db_commit()
             self.push_models()
 
-    def _parse_mm_db_contact_with_value(self, deleted, source, username, alias, nickname, remark, contact_type, verify_flag, head):
+    def _parse_mm_db_contact_with_value(self, deleted, source, username, alias, nickname, remark, contact_type, verify_flag, head, signature, region):
         if username.endswith("@chatroom"):
             chatroom = model_wechat.Chatroom()
             chatroom.deleted = deleted
@@ -858,6 +864,8 @@ class WeChatParser(Wechat):
             friend.nickname = nickname
             friend.remark = remark
             friend.photo = head
+            friend.signature = signature
+            friend.region = region
             friend.insert_db(self.im)
             model = self.get_friend_model(friend)
             self.add_model(model)
@@ -1376,3 +1384,39 @@ class Decryptor:
                     f.seek(19)
                     f.write('\x01')
         return True
+
+    @staticmethod
+    def parse_lvbuff(data):
+        signature = None
+        region = None
+
+        if not data:
+            return signature, region
+
+        try:
+            if data[0] != 0x7B:
+                return
+            length = 1
+            # 这里是数据开始的位置
+            start = 0x30
+            # 个性签名
+            signature_length, = struct.unpack('B', data[start:(start + 0x01)])
+            start = start + length
+            if data[start:start + signature_length]:
+                signature = data[start:start + signature_length].decode(encoding="utf-8")
+            # 国家
+            start = start + signature_length
+            country_length, = struct.unpack('>H', data[start:(start + 2)])
+            start = start + 0x02
+            country = str(data[start:start + country_length]).decode(encoding="utf-8")
+            # 城市
+            start += country_length
+            city_length, = struct.unpack('>H', data[start:(start + 2)])
+            start = start + 0x02
+            city = data[start:start + city_length].decode(encoding="utf-8")
+            if city or country:
+                region = '{} {}'.format(country, city)
+        except Exception as e:
+            print("parse_lvbuff error", e)
+        finally:
+            return signature, region
