@@ -217,6 +217,9 @@ class Map(object):
 
 
 
+nav_id = 1
+loc_id = 2
+
 class Column(object):
 
     def __init__(self):
@@ -285,7 +288,7 @@ class RouteRec(Column):
         self.to_posY = None         # 目的地纬度 [REAL]
         self.to_addr = None         # 目的地地址 [TEXT]
         self.create_time = None     # 目的地搜索时间 [INT]
-        self.nav_id = str(uuid.uuid1())
+        self.nav_id = None
         self.type = LOCATION_TYPE_GPS 
 
 
@@ -298,7 +301,9 @@ class RouteRec(Column):
 class Location(Column):
     def __init__(self):
         super(Location, self).__init__()
-        self.location_id = str(uuid.uuid1())# 地址ID[TEXT]
+        global loc_id
+        self.location_id = loc_id # 地址ID[TEXT]
+        loc_id += 2
         self.latitude = None  # 纬度[REAL]
         self.longitude = None  # 经度[REAL]
         self.elevation = None  # 海拔[REAL]
@@ -315,6 +320,7 @@ class FavRoute(Column):
 
     def __init__(self):
         super(FavRoute, self).__init__()
+        global nav_id
         self.account_id = None      # 账户id [TEXT]
         self.from_name = None       # 起点 [TEXT]
         self.from_posX = None       # 起点经度 [REAL]
@@ -325,7 +331,8 @@ class FavRoute(Column):
         self.to_posY = None         # 目的地纬度 [REAL]
         self.to_addr = None         # 目的地地址 [TEXT]
         self.create_time = None     # 目的地搜索时间 [INT]
-        self.nav_id = str(uuid.uuid1())
+        self.nav_id = nav_id
+        nav_id += 2
         self.type = LOCATION_TYPE_GPS 
 
 
