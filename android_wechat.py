@@ -1417,6 +1417,6 @@ class Decryptor:
             if city or country:
                 region = '{} {}'.format(country, city)
         except Exception as e:
-            print("parse_lvbuff error", e)
+            pass
         finally:
             return signature, region
