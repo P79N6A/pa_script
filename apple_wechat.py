@@ -209,6 +209,23 @@ class WeChatParser(Wechat):
                 self.user_account.photo = self._bpreader_node_get_string_value(setting_node, 'headhdimgurl')
             else:
                 self.user_account.photo = self._bpreader_node_get_string_value(setting_node, 'headimgurl')
+            if 'LOGIN_DEVICE_LIST' in setting_node.Children:
+                try:
+                    devices = setting_node.Children['LOGIN_DEVICE_LIST']
+                    for device in devices:
+                        ld = model_wechat.LoginDevice()
+                        ld.account_id = self.user_account.account_id
+                        if 'uuid' in device.Children:
+                            ld.uuid = self._bpreader_node_get_string_value(device, 'uuid')
+                        if 'name' in device.Children:
+                            ld.name = self._bpreader_node_get_string_value(device, 'name')
+                        if 'deviceType' in device.Children:
+                            ld.type = self._bpreader_node_get_string_value(device, 'deviceType')
+                        if 'lastTime' in device.Children:
+                            ld.last_time = self._bpreader_node_get_int_value(device, 'lastTime')
+                        ld.insert_db(self.im)
+                except Exception as e:
+                    pass
         self.user_account.source = user_plist.AbsolutePath
         self.user_account.insert_db(self.im)
         self.im.db_commit()

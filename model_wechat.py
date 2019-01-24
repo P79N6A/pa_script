@@ -25,7 +25,7 @@ import json
 import uuid
 import time
 
-VERSION_VALUE_DB = 3
+VERSION_VALUE_DB = 4
 
 GENDER_NONE = 0
 GENDER_MALE = 1
@@ -367,6 +367,20 @@ SQL_CREATE_INDEX_ON_TABLE_FAVORITE_ITEM = '''
     create index idxFavoriteItem on favorite_item (favorite_id)
 '''
 
+SQL_CREATE_TABLE_LOGIN_DEVICE = '''
+    create table if not exists login_device(
+        account_id TEXT, 
+        uuid TEXT,
+        name TEXT,
+        type TEXT,
+        last_time INT,
+        source TEXT,
+        deleted INT DEFAULT 0, 
+        repeated INT DEFAULT 0)'''
+
+SQL_INSERT_TABLE_LOGIN_DEVICE = '''
+    insert into login_device(account_id, uuid, name, type, last_time, source, deleted, repeated) values(?, ?, ?, ?, ?, ?, ?, ?)'''
+
 SQL_CREATE_TABLE_VERSION = '''
     create table if not exists version(
         key TEXT primary key,
@@ -442,6 +456,8 @@ class IM(object):
             self.db_cmd.ExecuteNonQuery()
             self.db_cmd.CommandText = SQL_CREATE_TABLE_FAVORITE_ITEM
             self.db_cmd.ExecuteNonQuery()
+            self.db_cmd.CommandText = SQL_CREATE_TABLE_LOGIN_DEVICE
+            self.db_cmd.ExecuteNonQuery()
             self.db_cmd.CommandText = SQL_CREATE_TABLE_VERSION
             self.db_cmd.ExecuteNonQuery()
 
@@ -499,6 +515,9 @@ class IM(object):
 
     def db_insert_table_favorite_item(self, column):
         self.db_insert_table(SQL_INSERT_TABLE_FAVORITE_ITEM, column.get_values())
+
+    def db_insert_table_login_device(self, column):
+        self.db_insert_table(SQL_INSERT_TABLE_LOGIN_DEVICE, column.get_values())
 
     def db_insert_table_version(self, key, version):
         self.db_insert_table(SQL_INSERT_TABLE_VERSION, (key, version))
@@ -870,6 +889,23 @@ class FavoriteItem(Column):
     def insert_db(self, im):
         if isinstance(im, IM):
             im.db_insert_table_favorite_item(self)
+
+
+class LoginDevice(Column):
+    def __init__(self):
+        super(LoginDevice, self).__init__()
+        self.account_id = None  # 账号ID[TEXT]
+        self.uuid = None  # [TEXT]
+        self.name = None  # [TEXT]
+        self.type = None  # [TEXT]
+        self.last_time = None  # [INT]
+
+    def get_values(self):
+        return (self.account_id, self.uuid, self.name, self.type, self.last_time) + super(LoginDevice, self).get_values()
+
+    def insert_db(self, im):
+        if isinstance(im, IM):
+            im.db_insert_table_login_device(self)
 
 
 class GenerateModel(object):

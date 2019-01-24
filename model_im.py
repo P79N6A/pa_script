@@ -1316,12 +1316,12 @@ class GenerateModel(object):
                     photo = self._db_reader_get_string_value(r, 4, None)
                     birthday = self._db_reader_get_int_value(r, 11, None)
                     location_id = self._db_reader_get_int_value(r, 13)
-                    location_latitude = self._db_reader_get_float_value(r, 18)
-                    location_longitude = self._db_reader_get_float_value(r, 19)
-                    location_elevation = self._db_reader_get_float_value(r, 20)
-                    location_address = self._db_reader_get_string_value(r, 21)
-                    location_timestamp = self._db_reader_get_int_value(r, 22)
-                    location_type = self._db_reader_get_int_value(r, 23)
+                    location_latitude = self._db_reader_get_float_value(r, 19)
+                    location_longitude = self._db_reader_get_float_value(r, 20)
+                    location_elevation = self._db_reader_get_float_value(r, 21)
+                    location_address = self._db_reader_get_string_value(r, 22)
+                    location_timestamp = self._db_reader_get_int_value(r, 23)
+                    location_type = self._db_reader_get_int_value(r, 24)
 
                     friend = Common.Friend()
                     friend.SourceFile.Value = source
