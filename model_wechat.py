@@ -1650,7 +1650,8 @@ class GenerateModel(object):
                     model.SourceFile = source
                     model.Deleted = self._convert_deleted_status(deleted)
                     model.From = self.friend_models.get(self._get_user_key(feed_model.AppUserAccount.Account, sender_id))
-                    model.To = self.friend_models.get(self._get_user_key(feed_model.AppUserAccount.Account, ref_user_id))
+                    if ref_user_id not in [None, '']:
+                        model.To = self.friend_models.get(self._get_user_key(feed_model.AppUserAccount.Account, ref_user_id))
                     model.Content = content
                     model.CreateTime = self._get_timestamp(timestamp)
                     models.append(model)
