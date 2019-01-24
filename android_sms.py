@@ -42,13 +42,6 @@ def analyze_sms(node, extract_deleted, extract_source):
     except:
         TraceService.Trace(TraceLevel.Debug, 
                            'android_sms.py 解析新案例 "{}" 出错: {}'.format(CASE_NAME, traceback.format_exc()))        
-    if DEBUG:
-        if res:
-            for sms in res:
-                test_p('sms.Body.Value:', sms.Body.Value)
-        else:
-            test_p('sms res is null')
-
     pr = ParserResults()
     if res:
         pr.Models.AddRange(res)
@@ -239,14 +232,14 @@ class SMSParser(object):
                 sms.smsc    = rec['service_center'].Value
             except:
                 pass    
-            sms._id         = rec['_id'].Value
-            sms.read_status = rec['read'].Value
-            sms.type        = rec['type'].Value    # SMS_TYPE
-
-            sms.subject     = rec['subject'].Value 
-            sms.body        = rec['body'].Value
-            sms.send_time   = rec['date_sent'].Value
-            sms.deliverd    = rec['date'].Value
+            sms._id             = rec['_id'].Value
+            sms.read_status     = rec['read'].Value
+            sms.type            = rec['type'].Value    # SMS_TYPE
+    
+            sms.subject         = rec['subject'].Value 
+            sms.body            = rec['body'].Value
+            sms.send_time       = rec['date_sent'].Value
+            sms.delivered_date  = rec['date'].Value
             # test_p('sms type', sms.type)
             sms.is_sender   = 1 if sms.type in (SMS_TYPE_SENT, SMS_TYPE_OUTBOX, SMS_TYPE_DRAFT) else 0
             if sms.is_sender == 1:  # 发
