@@ -2,8 +2,8 @@
 
 __author__ = "Xu Tao"
 
-from PA_runtime import *
-import PA_runtime
+
+
 import clr
 clr.AddReference('System.Core')
 clr.AddReference('System.Xml.Linq')
@@ -15,6 +15,9 @@ try:
 except:
     pass
 del clr
+
+import PA_runtime
+from PA_runtime import *
 
 import System
 from System.Xml.Linq import *
@@ -295,7 +298,7 @@ class Blued(object):
         self.blued.db_commit()
 
 
-hitdict =  {'(?i)com.soft.blued/databases/blued2015.db$':('子弹短信',ParserResults())}    
+hitdict =  {'(?i)com.soft.blued/databases/blued2015.db$':('Blued',ParserResults())}    
 
 def checkhit(root):
     nodes = []

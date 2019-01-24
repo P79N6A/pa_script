@@ -4,9 +4,13 @@ import json
 __author__ = "TaoJianping"
 import clr
 
-clr.AddReference('System.Core')
-clr.AddReference('System.Xml.Linq')
-clr.AddReference('System.Data.SQLite')
+try:
+    clr.AddReference('System.Core')
+    clr.AddReference('System.Xml.Linq')
+    clr.AddReference('System.Data.SQLite')
+    clr.AddReference('model_im')
+except:
+    pass
 del clr
 import hashlib
 import codecs
