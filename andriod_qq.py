@@ -184,7 +184,7 @@ class Andriod_QQParser(object):
         self.cachepath = ds.OpenCachePath("QQ")
         self.bcppath = ds.OpenCachePath("tmp")
         m = hashlib.md5()
-        m.update(self.root.AbsolutePath)
+        m.update(self.root.AbsolutePath.encode('utf-8'))
         self.cachedb =  self.cachepath  + '/' + m.hexdigest().upper() + ".db"
         self.imei = ''
         self.imeilen = 15
