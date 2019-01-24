@@ -1587,7 +1587,10 @@ class GenerateModel(object):
             return False
 
     def _get_user_key(self, account_id, user_id):
-        return account_id + "#*#" + user_id
+        if account_id is None or user_id is None:
+            return ''
+        else:
+            return account_id + "#*#" + user_id
 
     def _get_feed_likes(self, feed_model, like_id, feed_deleted):
         models = []
