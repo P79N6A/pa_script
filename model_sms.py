@@ -404,9 +404,14 @@ class GenerateModel(object):
                     sms.Folder = SMS_TYPE_TO_FOLDER[row[5]]
                 
             if row[8] is not None:
-                sms.Time = self._get_timestamp(row[8])
+                ts = self._get_timestamp(row[8])
+                if ts:
+                    sms.Time = ts
+
             if row[9] is not None:
-                sms.DeliveredTime = self._get_timestamp(row[9])
+                ts = self._get_timestamp(row[9])
+                if ts:
+                    sms.DeliveredTime = ts
 
             # 注意优先级  row[4] read_status, row[5]: type
             sms.Status = SMSStatus.Read if row[4] == 1 else SMSStatus.Unread
@@ -440,16 +445,15 @@ class GenerateModel(object):
 
     @staticmethod
     def _get_timestamp(timestamp):
-        zero_ts = TimeStamp.FromUnixTime(0, False)
         try:
             if len(str(timestamp)) >= 10:
                 timestamp = int(str(timestamp)[:10]) + 28800
                 ts = TimeStamp.FromUnixTime(timestamp, False)
                 if ts.IsValidForSmartphone():
                     return ts
-            return zero_ts
+            return False
         except:
-            return zero_ts
+            return False
 
     @staticmethod
     def _convert_deleted_status(deleted):
