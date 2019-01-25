@@ -2,8 +2,6 @@
 
 __author__ = "Xu Tao"
 
-
-
 import clr
 clr.AddReference('System.Core')
 clr.AddReference('System.Xml.Linq')
