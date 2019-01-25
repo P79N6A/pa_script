@@ -511,6 +511,16 @@ class Wechat(object):
         return reader.GetString(index) if not reader.IsDBNull(index) else default_value
 
     @staticmethod
+    def _db_record_get_blob_value_to_ba(record, column, default_value=None):
+        if not record[column].IsDBNull:
+            try:
+                value = record[column].Value
+                return bytearray(value)
+            except Exception as e:
+                return default_value
+        return default_value
+
+    @staticmethod
     def _bpreader_node_get_string_value(node, key, default_value='', deleted=0):
         if key in node.Children and node.Children[key] is not None:
             try:
