@@ -1,9 +1,41 @@
 #coding:utf-8
 
 import hashlib
+import math
 from PA_runtime import *
 from PA.InfraLib.ModelsV2.CommonEnum import CoordinateType,LocationSourceType
 
+# 高德像素坐标转换成经纬度
+# src：https://github.com/CntChen/tile-lnglat-transform/blob/master/src/transform-class-slippy.js
+# 适用地图：高德，Google Map，OSM
+def math_sinh(x):
+  return (math.exp(x) - math.exp(-x)) / 2
+
+def getMapSize(level):
+    return math.pow(2, level)
+
+def pixelXTolng(pixelX, level=20):
+    try:
+        pixelXToTileAddition = pixelX / 256.0
+        lngitude = pixelXToTileAddition / getMapSize(level) * 360 - 180
+        if lngitude < 180 and lngitude > 0:
+           return lngitude
+        else:
+           return pixelX
+    except Exception as e:
+        return pixelX
+
+def pixelYToLat(pixelY, level=20):
+    try:
+        pixelYToTileAddition = pixelY / 256.0
+        latitude = math.atan(math_sinh(math.pi * (1 - 2 * (pixelYToTileAddition) / getMapSize(level)))) * 180.0 / math.pi
+        if latitude < 90 and latitude > 0:
+            return latitude
+        else:
+            return pixelY
+    except Exception as e:
+        print(e)
+        return pixelY
 
 
 def md5(cache_path, node_path):
@@ -55,3 +87,5 @@ def convert_coordinat_type(type_value):
         return CoordinateType.MapBar
     elif type_value == 8:           # 51地图坐标
         return CoordinateType.Map51
+    elif type_value == 9:           # 51地图坐标
+        return CoordinateType.GPS

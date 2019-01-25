@@ -40,14 +40,15 @@ SQL_CREATE_TABLE_SEARCH = '''
         address TEXT,
         pos_x REAL,
         pos_y REAL,
+        type INT,
         sourceApp TEXT,
         sourceFile TEXT,
         deleted INT DEFAULT 0
         )'''
 
 SQL_INSERT_TABLE_SEARCH = '''
-    insert into search(account_id,keyword,create_time,address,pos_x,pos_y,sourceApp,sourceFile,deleted)
-        values(?, ?, ?, ?, ?, ?, ?, ?, ?)
+    insert into search(account_id,keyword,create_time,address,pos_x,pos_y,type,sourceApp,sourceFile,deleted)
+        values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     '''
 
 SQL_CREATE_TABLE_FAVPOI = '''
@@ -248,10 +249,11 @@ class Search(Column):
         self.address = None         # 搜索地址 [TEXT]
         self.pos_x = None           # 搜索经度 [REAL]
         self.pos_y = None           # 搜索纬度 [REAL]
+        self.type = LOCATION_TYPE_GPS
 
     def get_values(self):
         return (self.account_id, self.keyword, self.create_time, self.address,
-        self.pos_x, self.pos_y) + super(Search, self).get_values()
+        self.pos_x, self.pos_y, self.type) + super(Search, self).get_values()
 
 
 class FavPoi(Column):
@@ -366,7 +368,7 @@ class ExportModel(object):
         models = []
 
         sql = """
-            select account_id,keyword,create_time,address,pos_x,pos_y,sourceApp,sourceFile,deleted from search
+            select account_id,keyword,create_time,address,pos_x,pos_y,type,sourceApp,sourceFile,deleted from search
             """
 
         row = None
@@ -380,18 +382,22 @@ class ExportModel(object):
                 if canceller.IsCancellationRequested:
                     return
                 search = Base.SearchRecord()
-                # if row[0]:
-                #     search.account_id = row[0]
                 if row[1]:
                     search.Keyword = row[1]
                 if row[2]:
                     search.CreateTime = MapUtil.convert_to_timestamp(row[2])
+                if row[3]:
+                    pass
+                if row[4]:
+                    pass
+                if row[5]:
+                    pass
                 if row[6]:
                     pass
-                if row[7]:
-                    search.SourceFile = MapUtil.format_file_path(row[7])
+                if row[8]:
+                    search.SourceFile = MapUtil.format_file_path(row[8])
 
-                search.Deleted = MapUtil.convert_deleted_status(row[8])
+                search.Deleted = MapUtil.convert_deleted_status(row[9])
                 
                 models.append(search)
             except Exception as e:
@@ -462,6 +468,8 @@ class ExportModel(object):
                         loc.SourceFile = MapUtil.format_file_path(sourceFile)
                         if loc_type == 6:
                             loc.Coordinate = Base.Coordinate(longitude,latitude,MapUtil.convert_coordinat_type(loc_type))
+                        elif loc_type == 9:
+                            loc.Coordinate = Base.Coordinate(MapUtil.pixelXTolng(longitude),MapUtil.pixelYToLat(latitude),MapUtil.convert_coordinat_type(loc_type))
                         models.append(loc)
                         locationContent = Base.Content.LocationContent(favpoi)
                         locationContent.Value = loc
@@ -484,10 +492,12 @@ class ExportModel(object):
                         end_loc.SourceType = LocationSourceType.App
                         end_loc.Deleted = MapUtil.convert_deleted_status(deleted)
                         end_loc.SourceFile = MapUtil.format_file_path(sourceFile)
-                        
-                        start_loc.Coordinate = Base.Coordinate(from_posX,from_posY, MapUtil.convert_coordinat_type(routerec_type))
-                        end_loc.Coordinate = Base.Coordinate(to_posX,to_posY,MapUtil.convert_coordinat_type(routerec_type))
-                        
+                        if routerec_type == 6:
+                            start_loc.Coordinate = Base.Coordinate(from_posX,from_posY, MapUtil.convert_coordinat_type(routerec_type))
+                            end_loc.Coordinate = Base.Coordinate(to_posX,to_posY,MapUtil.convert_coordinat_type(routerec_type))
+                        elif routerec_type == 9:
+                            start_loc.Coordinate = Base.Coordinate(MapUtil.pixelXTolng(from_posX),MapUtil.pixelXTolng(from_posY), MapUtil.convert_coordinat_type(routerec_type))
+                            end_loc.Coordinate = Base.Coordinate(MapUtil.pixelXTolng(to_posX),MapUtil.pixelXTolng(to_posY),MapUtil.convert_coordinat_type(routerec_type))
                         models.append(start_loc)
                         models.append(end_loc)
                         
@@ -541,17 +551,29 @@ class ExportModel(object):
                 if row[1]:
                     start_loc.PoiName = row[1]
                 if row[2]:
-                    start_coord.Longitude = row[2]
+                    if row[11] == 6:
+                        start_coord.Longitude = row[2]
+                    elif row[11] == 9:
+                        start_coord.Longitude = MapUtil.pixelXTolng(row[2])
                 if row[3]:
-                    start_coord.Latitude = row[3]
+                    if row[11] == 6:
+                        start_coord.Latitude = row[3]
+                    elif row[11] == 9:
+                        start_coord.Latitude = MapUtil.pixelYToLat(row[3])
                 if row[4]:
                     start_loc.AddressName = row[4]
                 if row[5]:
                     end_loc.PoiName = row[5]
                 if row[6]:
-                    end_coord.Longitude = row[6]
+                    if row[11] == 6:
+                        end_coord.Longitude = row[6]
+                    elif row[11] == 9:
+                        end_coord.Longitude = MapUtil.pixelXTolng(row[6])
                 if row[7]:
-                    end_coord.Latitude = row[7]
+                    if row[11] == 6:
+                        end_coord.Latitude = row[7]
+                    elif row[11] == 9:
+                        end_coord.Latitude = MapUtil.pixelYToLat(row[7])
                 if row[8]:
                     end_loc.AddressName = row[8]
                 if row[9]:
