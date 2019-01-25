@@ -24,6 +24,7 @@ from System.Text import *
 from System.IO import *
 from System import Convert
 import System.Data.SQLite as SQLite
+from PA.InfraLib.Services import ServiceGetter,IWechatCrackUin
 
 import os
 import hashlib
@@ -96,7 +97,12 @@ class WeChatParser(Wechat):
         if not self.is_valid_user_dir:
             return []
         if not self._can_decrypt(self.uin, self.user_hash):
-            return []
+            wxCrack = ServiceGetter.Get[IWechatCrackUin]()
+            uin = wxCrack.CrackUinFromMd5(self.user_hash)
+            if uin not in [None, 0]:
+                self.uin = uin
+            else:
+                return []
 
         if DEBUG or self.im.need_parse(self.cache_db, VERSION_APP_VALUE):
             self.im.db_create(self.cache_db)
