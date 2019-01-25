@@ -25,7 +25,7 @@ from threading import Thread
 from PIL import Image
 from PIL.ExifTags import TAGS
 
-VERSION_APP_VALUE = 1.3
+VERSION_APP_VALUE = 1.4
 
 
 class MediaParse(object):
@@ -100,11 +100,14 @@ class MediaParse(object):
                     media.size = self._db_record_get_int_value(rec, '_size')
                     media.add_date = self._db_record_get_int_value(rec, 'date_added')
                     media.modify_date = self._db_record_get_int_value(rec, 'date_modified')
-                    media.mime_type = self._db_record_get_string_value(rec, 'mime_type')
+                    media.suffix = self._db_record_get_string_value(rec, 'mime_type')
                     media.title = self._db_record_get_string_value(rec, 'title')
-                    media.display_name = self._db_record_get_string_value(rec, '_display_name')
+                    media.width = self._db_record_get_int_value(rec, 'width')
+                    media.height = self._db_record_get_int_value(rec, 'height')
+                    media.description = self._db_record_get_string_value(rec ,'description')
+                    #media.display_name = self._db_record_get_string_value(rec, '_display_name')
                     fileSuffix = re.sub('.*\.', '', os.path.basename(media.url))  #文件后缀
-                    media.mime_type = fileSuffix
+                    media.suffix = fileSuffix
                     if not fileSuffix in dic1:
                         continue
                     fileType = dic1[fileSuffix]  #文件类型
@@ -112,12 +115,12 @@ class MediaParse(object):
                     media.latitude = self._db_record_get_value(rec, 'latitude')
                     media.longitude = self._db_record_get_value(rec, 'longitude')
                     media.datetaken = self._db_record_get_int_value(rec, 'datetaken')
-                    media.year = self._db_record_get_int_value(rec, 'year')
-                    media.album_artist = self._db_record_get_string_value(rec, 'album_artist')
+                    #media.year = self._db_record_get_int_value(rec, 'year')
+                    #media.album_artist = self._db_record_get_string_value(rec, 'album_artist')
                     media.duration = self._db_record_get_int_value(rec, 'duration')
                     media.artist = self._db_record_get_string_value(rec, 'artist')
                     media.album = self._db_record_get_string_value(rec, 'album')
-                    media.location = 'internal' if i==0 else 'external'
+                    #media.location = 'internal' if i==0 else 'external'
                     media.source = node.AbsolutePath
                     self.mm.db_insert_table_media(media)
                 self.mm.db_commit()
@@ -146,10 +149,10 @@ class MediaParse(object):
                     if thumbnail_path != '':
                         filecCeateDate = os.path.getmtime(thumbnail_path)  #文件创建时间
                         thumbnails.create_date = filecCeateDate
-                    thumbnails.image_id = self._db_record_get_int_value(rec, 'image_id')
+                    thumbnails.media_id = self._db_record_get_int_value(rec, 'image_id')
                     thumbnails.width = self._db_record_get_int_value(rec, 'width')
                     thumbnails.height = self._db_record_get_int_value(rec, 'height')
-                    thumbnails.location = 'internal' if i==0 else 'external'
+                    #thumbnails.location = 'internal' if i==0 else 'external'
                     thumbnails.source = node.AbsolutePath
                     thumbnails.deleted = rec.IsDeleted
                     if thumbnail_path == '':
@@ -158,7 +161,7 @@ class MediaParse(object):
                         self.mm.db_insert_table_thumbnails(thumbnails)
                 self.mm.db_commit()
             except:
-                pass
+                traceback.print_exc()
 
     def analyze_media_with_file_system(self):
         q = Queue.Queue()
@@ -204,14 +207,14 @@ class MediaParse(object):
                     fileModifyDate = os.path.getmtime(filePath)  #文件修改时间
                     media.modify_date = fileModifyDate
                     fileName = os.path.basename(filePath)  #文件名
-                    media.display_name = fileName
+                    #media.display_name = fileName
                     fileSuffix = re.sub('.*\.', '', filePath)  #文件后缀
-                    media.mime_type = fileSuffix
+                    media.suffix = fileSuffix
                     fileType = dic1[fileSuffix]  #文件类型
                     media.type = fileType
                     fileParFullDir = os.path.dirname(filePath)
                     fileParDir = os.path.basename(fileParFullDir)  #文件所在文件夹名
-                    media.parent = fileParDir
+                    #media.parent = fileParDir
                     fileAbsolutePath = fileNode.AbsolutePath
                     media.source = fileAbsolutePath
                     media.url = fileAbsolutePath
@@ -320,6 +323,7 @@ class MediaParse(object):
             except Exception as e:
                 return default_value
         return default_value
+
 
 def analyze_android_media(node, extractDeleted, extractSource):
     pr = ParserResults()
