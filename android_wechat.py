@@ -829,15 +829,18 @@ class WeChatParser(Wechat):
                     contact_type = self._db_record_get_int_value(rec, 'type')
                     verify_flag = self._db_record_get_int_value(rec, 'verifyFlag')
                     lvbuff = self._db_record_get_blob_value_to_ba(rec, 'lvbuff')
-                    signature, region = Decryptor.parse_lvbuff(lvbuff)
+                    signature, region, gender = Decryptor.parse_lvbuff(lvbuff)
                     deleted = 0 if rec.Deleted == DeletedState.Intact else 1
-                    self._parse_mm_db_contact_with_value(deleted, source, username, alias, nickname, remark, contact_type, verify_flag, heads.get(username), signature, region)
+                    self._parse_mm_db_contact_with_value(deleted, source, username, alias, nickname, remark,
+                                                         contact_type, verify_flag, heads.get(username),
+                                                         signature, region, gender)
                 except Exception as e:
                     pass
             self.im.db_commit()
             self.push_models()
 
-    def _parse_mm_db_contact_with_value(self, deleted, source, username, alias, nickname, remark, contact_type, verify_flag, head, signature, region):
+    def _parse_mm_db_contact_with_value(self, deleted, source, username, alias, nickname, remark,
+                                        contact_type, verify_flag, head, signature, region, gender):
         if username.endswith("@chatroom"):
             chatroom = model_wechat.Chatroom()
             chatroom.deleted = deleted
@@ -866,6 +869,7 @@ class WeChatParser(Wechat):
             friend.photo = head
             friend.signature = signature
             friend.region = region
+            friend.gender = gender
             friend.insert_db(self.im)
             model = self.get_friend_model(friend)
             self.add_model(model)
@@ -1386,18 +1390,30 @@ class Decryptor:
         return True
 
     @staticmethod
+    def _judge_sex(flag):
+        if flag == 0x01:
+            return model_wechat.GENDER_MALE
+        elif flag == 0x02:
+            return model_wechat.GENDER_FEMALE
+        else:
+            return model_wechat.GENDER_NONE
+
+    @staticmethod
     def parse_lvbuff(data):
         signature = None
         region = None
+        gender = None
 
         if not data:
-            return signature, region
+            return signature, region, gender
 
         try:
             if data[0] != 0x7B:
                 return
+
             length = 1
-            # 这里是数据开始的位置
+            gender = Decryptor._judge_sex(data[8])
+            # 这里是其他数据开始的位置
             start = 0x30
             # 个性签名
             signature_length, = struct.unpack('B', data[start:(start + 0x01)])
@@ -1419,4 +1435,4 @@ class Decryptor:
         except Exception as e:
             pass
         finally:
-            return signature, region
+            return signature, region, gender
