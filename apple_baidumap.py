@@ -1,6 +1,14 @@
 #coding=utf-8
 
+'''
+The script is based on baidu map version 10.11.0, 
+which is theoretically compatible with less than 10.11.0
+'''
+
 __author__ = "Xu Tao"
+__date__ = "2019-1-24"
+__maintainer__ = 'Xu Tao'
+
 
 from PA_runtime import *
 import clr
@@ -33,7 +41,7 @@ class baiduMapParser(object):
         self.get_search_history()
         self.get_navigation_record()
         self.get_fav_position()
-        self.baidumap.db_close()
+        self.baidumap.db_close() 
 
         result = model_map.ExportModel(db_path).get_model()
         return result
@@ -41,7 +49,7 @@ class baiduMapParser(object):
     
     def get_search_history(self):
         """
-        搜索历史记录
+        search history
         """
         historyNode = self.root.Parent.Parent.Parent.GetByPath("Documents/his_record.sdb")
         if historyNode is None:
@@ -71,7 +79,7 @@ class baiduMapParser(object):
 
     def get_navigation_record(self):
         """
-        导航记录
+        navgation history
         """      
         hsAddressNode = self.root.Parent.Parent.Parent.GetByPath("Documents/routeHis_record.sdb")
         if hsAddressNode is None:
@@ -81,7 +89,7 @@ class baiduMapParser(object):
             if 'routeHis_record' not in db.Tables:
                 return
             tb = SQLiteParser.TableSignature('routeHis_record')
-            for rec in db.ReadTableRecords(tb, False):
+            for rec in db.ReadTableRecords(tb, True):
                 if canceller.IsCancellationRequested:
                     return
                 routeaddr = model_map.RouteRec()
@@ -106,6 +114,7 @@ class baiduMapParser(object):
                         routeaddr.to_posY = dicts.get("efavnode").get("geopty")
                         routeaddr.type = 6
                     except Exception as e:
+                        continue
                         TraceService.Trace(TraceLevel.Error,"Get model_map.RouteRec() Failed! -{0}".format(e))      
                 if routeaddr.from_name:
                     self.baidumap.db_insert_table_routerec(routeaddr)
@@ -116,7 +125,7 @@ class baiduMapParser(object):
 
     def get_fav_position(self):
         """
-        收藏记录
+        favorite history
         """
         hsAddressNode = self.root.Parent.Parent.Parent.GetByPath("Documents/userCoreData/favCoreDataDB.sqlite")
         if hsAddressNode is None:
@@ -126,7 +135,7 @@ class baiduMapParser(object):
             if 'ZBMFAVPOI' not in db.Tables:
                 return
             tb = SQLiteParser.TableSignature('ZBMFAVPOI')
-            for rec in db.ReadTableRecords(tb, False):
+            for rec in db.ReadTableRecords(tb, True):
                 try:
                     if canceller.IsCancellationRequested:
                         return
@@ -167,7 +176,7 @@ class baiduMapParser(object):
             if 'ZBMFAVROUTENODE' not in db.Tables:
                 return
             tb = SQLiteParser.TableSignature('ZBMFAVROUTENODE')
-            for rec in db.ReadTableRecords(tb, False):
+            for rec in db.ReadTableRecords(tb, True):
                 try:
                     if canceller.IsCancellationRequested:
                         return
