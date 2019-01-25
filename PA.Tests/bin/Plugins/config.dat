@@ -3023,7 +3023,7 @@
           <integer>2</integer>
           <key>Patterns</key>
           <array>
-            <string>/media/0/DCIM$</string>
+            <string>/com.android.providers.media/databases/internal.db$</string>
             <string>^/storage/emulated/0/DCIM$</string>
           </array>
           <key>Category</key>

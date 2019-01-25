@@ -1153,7 +1153,7 @@ def exc(e=''):
     try:
         if DEBUG:
             py_name = os.path.basename(__file__)
-            msg = 'DEBUG {} case:<{}> :'.format(py_name, CASE_NAME)
+            msg = 'DEBUG {} New Case:<{}> :'.format(py_name, CASE_NAME)
             TraceService.Trace(TraceLevel.Warning,
                                (msg+'{}{}').format(traceback.format_exc(), e))
     except:
@@ -1267,7 +1267,7 @@ class BaseParser(object):
             tmp_dir = ds.OpenCachePath('tmp')
             save_cache_path(BCP_TYPE, self.cache_db, tmp_dir)   
         models = self.Generate(self.cache_db).get_models()
-        return models     
+        return models
 
     def parse_main(self):
         pass           
@@ -1311,7 +1311,10 @@ class BaseParser(object):
             tb = SQLiteParser.TableSignature(table_name)
             return self.cur_db.ReadTableRecords(tb, read_delete, True)
         except:
-            exc()
+            if self.cur_db and self.cur_db.FilePath:
+                exc('db path: '+self.cur_db.FilePath)
+            else:
+                exc()
             return []
 
     def _read_json(self, json_path):
@@ -1558,4 +1561,3 @@ class ProtobufDecoder(object):
         '''
         end = self.find(identify)
         return self.read_move(end - self.idx)
-                        
