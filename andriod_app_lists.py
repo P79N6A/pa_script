@@ -23,7 +23,7 @@ from System.Data.SQLite import *
 from PA.InfraLib.Services import ServiceGetter,IApplicationService
 from System.IO import Path
 import bcp_other
-
+import zipfile
 
 appService = ServiceGetter.Get[IApplicationService]()
 runPath = appService.RunPath
@@ -43,62 +43,149 @@ class AppLists(object):
         self.apps_db = model_applists.Apps()
 
     def parse(self):
+        icon_list = []
         app_lists = self.root.Children
         cache_db = self.cache + "\\appinfo.db"
         self.apps_db.db_create(cache_db)
         for app in app_lists:
-            dicts = defaultdict(list)
-            base_apk_path = app.PathWithMountPoint + "\\base.apk"
-            file_content = os.popen( destDir + " dump badging {0}".format(base_apk_path)).read()
-            if file_content:
-                app_info = model_applists.Info()
-                app_info.sourceFile = app.AbsolutePath + "/base.apk"
-                app_info.installedPath = app.AbsolutePath + "/base.apk"
-                content_list = file_content.split("\n")
-                for line in content_list:
-                    if line.find("package")!= -1:
-                        reg = re.compile("package:.*name='(.*?)'.*versionName='(.*?)'")
-                        results = re.match(reg, line)
-                        if results:
-                            try:
-                                bind_id ,version = results.groups()
-                                app_info.bind_id = bind_id
-                                app_info.version = version
-                                # dicts["bind_id"].append(bind_id)
-                                # dicts["version"].append(version)
-                            except Exception as e:
-                                print(e)
-                    
-                    elif line.find("uses-permission")!= -1:
-                        reg = re.compile(".*name='(.*?)'")
-                        results = re.match(reg, line)
-                        if results:
-                            try:
-                                name= results.group(1)
-                                dicts["permission"].append(name)
-                            except Exception as e:
-                                print(e)
-                    
-                    elif line.find("application-label")!= -1:
-                        reg = re.compile("application-label:'(.*?)'")
-                        results = re.match(reg, line)
-                        if results:
-                            try:
-                                name= results.group(1)
-                                # dicts["name"].append(name)
-                                app_info.name = name
-                            except Exception as e:
-                                print(e)
+            try:
+                icon_path = None
+                icon_id = None
+                icon = KeyValueModel()
+                dicts = defaultdict(list)
+                base_apk_path = app.PathWithMountPoint + "\\base.apk"
+                file_content = os.popen( destDir + " dump badging {0}".format(base_apk_path)).read()
+                if file_content:
+                    app_info = model_applists.Info()
+                    app_info.sourceFile = app.AbsolutePath + "/base.apk"
+                    app_info.installedPath = app.AbsolutePath + "/base.apk"
+                    content_list = file_content.split("\n")
+                    for line in content_list:
+                        if line.find("package")!= -1:
+                            reg = re.compile("package:.*name='(.*?)'.*versionName='(.*?)'")
+                            results = re.match(reg, line)
+                            if results:
+                                try:
+                                    bind_id ,version = results.groups()
+                                    app_info.bind_id = bind_id
+                                    app_info.version = version
+                                    icon.Key.Value = bind_id
+                                except Exception as e:
+                                    print(e)
+                        
+                        elif line.find("uses-permission")!= -1:
+                            reg = re.compile(".*name='(.*?)'")
+                            results = re.match(reg, line)
+                            if results:
+                                try:
+                                    name= results.group(1)
+                                    dicts["permission"].append(name)
+                                except Exception as e:
+                                    print(e)
+                        
+                        elif line.find("application-label")!= -1:
+                            reg = re.compile("application-label:'(.*?)'")
+                            results = re.match(reg, line)
+                            if results:
+                                try:
+                                    name= results.group(1)
+                                    app_info.name = name
+                                except Exception as e:
+                                    print(e)
 
-                    if "permission" in dicts:
-                        app_info.permission = pickle.dumps(dicts["permission"])
+                        elif line.find("application-icon-160:") != -1:
+                            reg = re.compile("application-icon-160:'(.*?)'")
+                            results = re.match(reg, line)
+                            if results:
+                                try:
+                                    name = results.group(1)
+                                    if os.path.isfile(base_apk_path):
+                                        with zipfile.ZipFile(base_apk_path) as apk:
+                                            if '{0}'.format(name) in apk.namelist():
+                                                export_path = self.cache + "\\" + icon.Key.Value
+                                                byte_icon = apk.extract('{0}'.format(name),export_path)
+                                                icon.Value.Value = export_path + "\\" + name
+                                except Exception as e:
+                                    print(e)
 
-                self.apps_db.db_insert_table_applists(app_info)
-        
+                        elif line.find("application-icon-160:") != -1:
+                            reg = re.compile("application-icon-160:'(.*?)'")
+                            results = re.match(reg, line)
+                            if results:
+                                try:
+                                    name = results.group(1)
+                                    if os.path.isfile(base_apk_path):
+                                        with zipfile.ZipFile(base_apk_path) as apk:
+                                            if '{0}'.format(name) in apk.namelist():
+                                                export_path = self.cache + "\\" + icon.Key.Value
+                                                byte_icon = apk.extract('{0}'.format(name),export_path)
+                                                icon.Value.Value = export_path + "\\" + name
+                                except Exception as e:
+                                    print(e)
+
+
+                        elif line.find("application-icon-240:") != -1:
+                            if icon.Value.Value == None: 
+                                reg = re.compile("application-icon-240:'(.*?)'")
+                                results = re.match(reg, line)
+                                if results:
+                                    try:
+                                        name = results.group(1)
+                                        if os.path.isfile(base_apk_path):
+                                            with zipfile.ZipFile(base_apk_path) as apk:
+                                                if '{0}'.format(name) in apk.namelist():
+                                                    export_path = self.cache + "\\" + icon.Key.Value
+                                                    byte_icon = apk.extract('{0}'.format(name),export_path)
+                                                    icon.Value.Value = export_path + "\\" + name
+                                    except Exception as e:
+                                        print(e)
+
+                        elif line.find("application-icon-320:") != -1:
+                            if icon.Value.Value == None: 
+                                reg = re.compile("application-icon-320:'(.*?)'")
+                                results = re.match(reg, line)
+                                if results:
+                                    try:
+                                        name = results.group(1)
+                                        if os.path.isfile(base_apk_path):
+                                            with zipfile.ZipFile(base_apk_path) as apk:
+                                                if '{0}'.format(name) in apk.namelist():
+                                                    export_path = self.cache + "\\" + icon.Key.Value
+                                                    byte_icon = apk.extract('{0}'.format(name),export_path)
+                                                    icon.Value.Value = export_path + "\\" + name
+                                    except Exception as e:
+                                        print(e)
+
+                        elif line.find("application-icon-480:") != -1:
+                            if icon.Value.Value == None: 
+                                reg = re.compile("application-icon-480:'(.*?)'")
+                                results = re.match(reg, line)
+                                if results:
+                                    try:
+                                        name = results.group(1)
+                                        if os.path.isfile(base_apk_path):
+                                            with zipfile.ZipFile(base_apk_path) as apk:
+                                                if '{0}'.format(name) in apk.namelist():
+                                                    export_path = self.cache + "\\" + icon.Key.Value
+                                                    byte_icon = apk.extract('{0}'.format(name),export_path)
+                                                    icon.Value.Value = export_path + "\\" + name
+                                    except Exception as e:
+                                        print(e)
+
+                        if "permission" in dicts:
+                            app_info.permission = pickle.dumps(dicts["permission"])
+                    if app_info.bind_id:
+                        self.apps_db.db_insert_table_applists(app_info)
+                    if icon.Key.Value and icon.Value.Value:
+                        icon_list.append(icon)
+            except:
+                pass
+
         self.apps_db.db_commit()
         self.apps_db.db_close()
 
         results = model_applists.Generate(cache_db).get_models()
+        results.extend(icon_list)
         tmp_dir = ds.OpenCachePath("tmp")
         PA_runtime.save_cache_path(bcp_other.BCP_OTHER_APP_INSTALLED, cache_db, tmp_dir)
         return results
