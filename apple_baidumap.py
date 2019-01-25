@@ -65,7 +65,6 @@ class baiduMapParser(object):
                 search = model_map.Search()
                 if rec.Deleted == DeletedState.Deleted:
                     search.deleted = 1
-                    break
                 search.sourceApp = "百度地图"
                 search.sourceFile = historyNode.AbsolutePath
                 if "key" in rec:
