@@ -1064,6 +1064,16 @@ class WeChatParser(Wechat):
                 node = extend_node.GetByPath('/image2/{0}/{1}/{2}'.format(m1, m2, img_name))
                 if node is not None:
                     media_path = node.AbsolutePath
+                    
+                    p_node = extend_node.GetByPath('/image2/{0}/{1}'.format(m1, m2))
+                    if img_name.startswith(TH_PREFIX):
+                        hd_file = img_name[len(TH_PREFIX):]
+                    else:
+                        hd_file = img_name
+                    hd_nodes = p_node.Search('/{}[.].+$'.format(hd_file))
+                    if hd_nodes is not None:
+                        for hd_node in hd_nodes:
+                            media_path = hd_nodes.AbsolutePath
                     break
             if media_path is None:
                 media_path = '/no_image'
