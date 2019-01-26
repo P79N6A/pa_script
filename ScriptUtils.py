@@ -891,7 +891,7 @@ class ParserBase(object):
         """获取中间数据库的db路径"""
         self.cache_path = ds.OpenCachePath(self.app_name)
         m = hashlib.md5()
-        m.update(Encoding.UT8.GetBytes(self.root.AbsolutePath))
+        m.update(self.root.AbsolutePath.encode('utf-8'))
         return os.path.join(self.cache_path, m.hexdigest().upper())
 
     def _copy_root(self):
