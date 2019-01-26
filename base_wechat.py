@@ -710,6 +710,21 @@ class Wechat(object):
             print(e)
             return None
 
+    def get_login_device_model(self, login_device):
+        try:
+            model = IM.LoginDevice()
+            model.SourceFile = login_device.source
+            model.Deleted = model_wechat.GenerateModel._convert_deleted_status(login_device.deleted)
+            model.AppUserAccount = self.user_account_model
+            model.Id = login_device.id
+            model.Name = login_device.name
+            model.Type = login_device.type
+            model.LastLoginTime = model_wechat.GenerateModel._get_timestamp(login_device.last_time)
+            return model
+        except Exception as e:
+            print(e)
+            return None
+
     def get_friend_model(self, friend):
         try:
             model = WeChat.Friend()
