@@ -34,7 +34,6 @@ class baiduMapParser(object):
         self.baidumap = model_map.Map()
 
     def parse(self):
-        print(self.root.PathWithMountPoint)
         db_path = MapUtil.md5(self.cache, self.root.AbsolutePath)  # 唯一路径
         self.baidumap.db_create(db_path)
         self.get_search_history()
