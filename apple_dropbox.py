@@ -295,7 +295,7 @@ class DropBoxParser(object):
         """获取中间数据库的db路径"""
         self.cache_path = ds.OpenCachePath(self.app_name)
         m = hashlib.md5()
-        m.update(self.root.AbsolutePath)
+        m.update(Encoding.UT8.GetBytes(self.root.AbsolutePath))
         return os.path.join(self.cache_path, m.hexdigest().upper())
 
     def __add_media_path(self, obj, file_name):
