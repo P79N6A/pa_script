@@ -966,7 +966,7 @@ class WeChatParser(Wechat):
             revoke_content = self._process_parse_group_message(msg, msg_type, img_path, is_send != 0, message)
         else:
             message.talker_type = model_wechat.CHAT_TYPE_FRIEND
-            message.sender_id = self.user_account_model.Account if is_send != 0 else talker
+            message.sender_id = self.user_account_model.Account if is_send != 0 else talker_id
             revoke_content = self._process_parse_friend_message(msg, msg_type, img_path, message)
         message.insert_db(self.im)
         model, tl_model = self.get_message_model(message)
