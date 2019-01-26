@@ -171,7 +171,7 @@ class BaiduNetDiskParser(object):
         """获取中间数据库的db路径"""
         self.cache_path = ds.OpenCachePath("BaiduNetDisk")
         m = hashlib.md5()
-        m.update(self.root.AbsolutePath)
+        m.update(self.root.AbsolutePath.encode('utf-8'))
         return os.path.join(self.cache_path, m.hexdigest().upper())
 
     def __copy_db_file(self):

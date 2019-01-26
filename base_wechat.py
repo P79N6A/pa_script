@@ -511,6 +511,16 @@ class Wechat(object):
         return reader.GetString(index) if not reader.IsDBNull(index) else default_value
 
     @staticmethod
+    def _db_record_get_blob_value_to_ba(record, column, default_value=None):
+        if not record[column].IsDBNull:
+            try:
+                value = record[column].Value
+                return bytearray(value)
+            except Exception as e:
+                return default_value
+        return default_value
+
+    @staticmethod
     def _bpreader_node_get_string_value(node, key, default_value='', deleted=0):
         if key in node.Children and node.Children[key] is not None:
             try:
@@ -695,6 +705,21 @@ class Wechat(object):
             model.Signature = account.signature
             model.PhoneNumber = account.telephone
             model.Email = account.email
+            return model
+        except Exception as e:
+            print(e)
+            return None
+
+    def get_login_device_model(self, login_device):
+        try:
+            model = IM.LoginDevice()
+            model.SourceFile = login_device.source
+            model.Deleted = model_wechat.GenerateModel._convert_deleted_status(login_device.deleted)
+            model.AppUserAccount = self.user_account_model
+            model.Id = login_device.id
+            model.Name = login_device.name
+            model.Type = login_device.type
+            model.LastLoginTime = model_wechat.GenerateModel._get_timestamp(login_device.last_time)
             return model
         except Exception as e:
             print(e)

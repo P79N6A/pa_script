@@ -119,7 +119,12 @@ class WeChatParser(Wechat):
                 self.friend_models[self.user_account.account_id] = model
                 self.add_model(model)
             self.push_models()
-
+            self.set_progress(1)
+            try:
+                #print('%s apple_wechat() parse login device' % time.asctime(time.localtime(time.time())))
+                self._parse_user_login_device_list(self.root.GetByPath('mmsetting.archive'))
+            except Exception as e:
+                TraceService.Trace(TraceLevel.Error, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
             self.set_progress(2)
             try:
                 #print('%s apple_wechat() parse WCDB_Contact.sqlite' % time.asctime(time.localtime(time.time())))
@@ -128,7 +133,13 @@ class WeChatParser(Wechat):
                 TraceService.Trace(TraceLevel.Error, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
             self.set_progress(10)
             try:
-                #print('%s apple_wechat() parse wc005_008.db' % time.asctime(time.localtime(time.time())))
+                #print('%s apple_wechat() parse contactlabel.list' % time.asctime(time.localtime(time.time())))
+                self._parse_user_contact_label(self.root.GetByPath('contactlabel.list'))
+            except Exception as e:
+                TraceService.Trace(TraceLevel.Error, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
+            self.set_progress(11)
+            try:
+                print('%s apple_wechat() parse wc005_008.db' % time.asctime(time.localtime(time.time())))
                 self._parse_user_wc_db(self.root.GetByPath('/wc/wc005_008.db'))
             except Exception as e:
                 TraceService.Trace(TraceLevel.Error, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
@@ -209,14 +220,35 @@ class WeChatParser(Wechat):
                 self.user_account.photo = self._bpreader_node_get_string_value(setting_node, 'headhdimgurl')
             else:
                 self.user_account.photo = self._bpreader_node_get_string_value(setting_node, 'headimgurl')
+            
+        self.user_account.source = user_plist.AbsolutePath
+        self.user_account.insert_db(self.im)
+        self.im.db_commit()
+        return True
+
+    def _parse_user_login_device_list(self, user_plist):
+        if user_plist is None:
+            return False
+
+        root = None
+        try:
+            root = BPReader.GetTree(user_plist)
+        except Exception as e:
+            return False
+        if not root or not root.Children:
+            return False
+
+        if 'new_dicsetting' in root.Children:
+            setting_node = root.Children['new_dicsetting']
             if 'LOGIN_DEVICE_LIST' in setting_node.Children:
                 try:
                     devices = setting_node.Children['LOGIN_DEVICE_LIST']
                     for device in devices:
                         ld = model_wechat.LoginDevice()
+                        ld.source = user_plist.AbsolutePath
                         ld.account_id = self.user_account.account_id
                         if 'uuid' in device.Children:
-                            ld.uuid = self._bpreader_node_get_string_value(device, 'uuid')
+                            ld.id = self._bpreader_node_get_string_value(device, 'uuid')
                         if 'name' in device.Children:
                             ld.name = self._bpreader_node_get_string_value(device, 'name')
                         if 'deviceType' in device.Children:
@@ -224,11 +256,11 @@ class WeChatParser(Wechat):
                         if 'lastTime' in device.Children:
                             ld.last_time = self._bpreader_node_get_int_value(device, 'lastTime')
                         ld.insert_db(self.im)
+                        self.add_model(self.get_login_device_model(ld))
                 except Exception as e:
                     pass
-        self.user_account.source = user_plist.AbsolutePath
-        self.user_account.insert_db(self.im)
-        self.im.db_commit()
+                self.im.db_commit()
+                self.push_models()
         return True
 
     def _parse_user_contact_db(self, node):
@@ -352,6 +384,32 @@ class WeChatParser(Wechat):
             self.add_model(model)
             if deleted == 0 or username not in self.friend_models:
                 self.friend_models[username] = model
+
+    def _parse_user_contact_label(self, node):
+        if node is None:
+            return False
+
+        root = None
+        try:
+            root = BPReader.GetTree(node)
+        except Exception as e:
+            return False
+        if not root or not root.Children:
+            return False
+
+        for label_node in root.Children:
+            value = label_node.Value
+            cl = model_wechat.ContactLabel()
+            cl.source = node.AbsolutePath
+            cl.account_id = self.user_account.account_id
+            if 'm_uiID' in value.Children:
+                cl.id = str(self._bpreader_node_get_int_value(value, 'm_uiID'))
+            if 'm_nsName' in value.Children:
+                cl.name = self._bpreader_node_get_string_value(value, 'm_nsName')
+            cl.insert_db(self.im)
+        self.im.db_commit()
+
+        return True
 
     def _parse_user_mm_db(self, node):
         if not node:
