@@ -879,7 +879,7 @@ class WeChatParser(Wechat):
             friend.insert_db(self.im)
             model = self.get_friend_model(friend)
             self.add_model(model)
-            if deleted == 0 or username not in self.friend_models:
+            if (deleted == 0 or username not in self.friend_models) and username != self.user_account_model.Account:
                 self.friend_models[username] = model
 
     def _parse_mm_db_chatroom_member(self, db, source):
