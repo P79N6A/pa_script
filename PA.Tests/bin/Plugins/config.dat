@@ -1862,7 +1862,7 @@
           <key>Patterns</key>
           <array>
             <string>/com.telecom-guoling.feiin$</string>
-            <string>/com.network.uxin$</string>
+            <string>/com.network.uxin.plist$</string>
           </array>
           <key>Category</key>
           <string>YouXin</string>

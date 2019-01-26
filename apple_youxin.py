@@ -47,7 +47,7 @@ def analyze_youxin(root, extract_deleted, extract_source):
     return pr
 
 def execute(node,extracteDeleted):
-    return analyze_renren(node, extracteDeleted, False)
+    return analyze_youxin(node, extracteDeleted, False)
 
 class YouXinParser():
     def __init__(self, node, extract_deleted, extract_source):
@@ -145,6 +145,7 @@ class YouXinParser():
         if 't_uxin_user' in db.Tables:
             ts = SQLiteParser.TableSignature('t_uxin_user')
             SQLiteParser.Tools.AddSignatureToTable(ts, "[uid]", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
+            pk = []
             for rec in db.ReadTableRecords(ts, self.extract_deleted):
                 if canceller.IsCancellationRequested:
                     return
@@ -153,8 +154,14 @@ class YouXinParser():
                 friend.source = dbPath.AbsolutePath
                 friend.account_id = self.user
                 friend.friend_id = str(rec['[uid]'].Value)
+                if friend.friend_id not in pk:
+                    pk.append(friend.friend_id)
+                else:
+                    continue
                 friend.type = model_im.FRIEND_TYPE_FRIEND
-                friend.nickname = rec['[name]'].Value
+                nickname = rec['[name]'].Value
+                friend.nickname = nickname if nickname is not '' else '未知联系人'
+                friend.fullname = friend.nickname
                 friend.photo = rec['[small_head_image_url]'].Value
                 friend.signature = rec['[signature]'].Value
                 friend.gender = model_im.GENDER_MALE if rec['[sex]'].Value == '男' else model_im.GENDER_FEMALE
@@ -173,6 +180,7 @@ class YouXinParser():
         if 'StrangePhonePersonInfo' in db.Tables:
             ts = SQLiteParser.TableSignature('tatnlinelistusers')
             SQLiteParser.Tools.AddSignatureToTable(ts, "[uid]", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
+            pk == []
             for rec in db.ReadTableRecords(ts, self.extract_deleted):
                 if canceller.IsCancellationRequested:
                     return
@@ -185,7 +193,14 @@ class YouXinParser():
                 friend.source = dbPath.AbsolutePath
                 friend.account_id = self.user
                 friend.friend_id = id
-                friend.username = obj['name']
+                if friend.friend_id not in pk:
+                    pk.append(friend.friend_id)
+                else:
+                    continue
+                username = obj['name']
+                friend.nickname = username if username is not '' else '未知联系人'
+                friend.fullname = username if username is not '' else '未知联系人'
+                friend.username = username if username is not '' else '未知联系人'
                 if rec['[type]'].Value == '2':
                     friend.photo = obj['picture']
                     friend.signature = obj['signature']
