@@ -998,13 +998,13 @@ class WeChatParser(Wechat):
         if msg_type in [MSG_TYPE_TEXT, MSG_TYPE_EMOJI]:
             pass
         elif msg_type == MSG_TYPE_IMAGE:
-            content = ''
+            content = '[图片]'
             model.media_path = self._process_parse_message_tranlate_img_path(img_path)
         elif msg_type == MSG_TYPE_VOICE:
-            content = ''
+            content = '[语音]'
             model.media_path = self._process_parse_message_tranlate_voice_path(img_path)
         elif msg_type in [MSG_TYPE_VIDEO, MSG_TYPE_VIDEO_2]:
-            content = ''
+            content = '[视频]'
             model.media_path = self._process_parse_message_tranlate_video_path(img_path, model)
         elif msg_type == MSG_TYPE_LOCATION:
             content = self._process_parse_message_location(content, model)
@@ -1073,7 +1073,7 @@ class WeChatParser(Wechat):
                     hd_nodes = p_node.Search('/{}[.].+$'.format(hd_file))
                     if hd_nodes is not None:
                         for hd_node in hd_nodes:
-                            media_path = hd_nodes.AbsolutePath
+                            media_path = hd_node.AbsolutePath
                     break
             if media_path is None:
                 media_path = '/no_image'
