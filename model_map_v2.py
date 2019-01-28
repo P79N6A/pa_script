@@ -13,7 +13,6 @@ from PA.InfraLib.ModelsV2.Map import *
 from PA.InfraLib.ModelsV2.CommonEnum import CoordinateType,LocationSourceType
 import sqlite3
 import MapUtil
-import uuid
 import os
 
 
@@ -461,7 +460,7 @@ class ExportModel(object):
                 to_addr = row[23] if row[23] else ''
                 routerec_type = row[24] if row[24] else 1
                 if fav_obj:
-                    if latitude and longitude:   # 收藏的是一个点
+                    if latitude != None and longitude != None:   # 收藏的是一个点
                         loc.AddressName = address
                         loc.SourceType = LocationSourceType.App
                         loc.Deleted = MapUtil.convert_deleted_status(deleted)
