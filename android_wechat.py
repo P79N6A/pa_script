@@ -879,7 +879,7 @@ class WeChatParser(Wechat):
             friend.insert_db(self.im)
             model = self.get_friend_model(friend)
             self.add_model(model)
-            if deleted == 0 or username not in self.friend_models:
+            if (deleted == 0 or username not in self.friend_models) and username != self.user_account_model.Account:
                 self.friend_models[username] = model
 
     def _parse_mm_db_chatroom_member(self, db, source):
@@ -998,13 +998,13 @@ class WeChatParser(Wechat):
         if msg_type in [MSG_TYPE_TEXT, MSG_TYPE_EMOJI]:
             pass
         elif msg_type == MSG_TYPE_IMAGE:
-            content = ''
+            content = '[图片]'
             model.media_path = self._process_parse_message_tranlate_img_path(img_path)
         elif msg_type == MSG_TYPE_VOICE:
-            content = ''
+            content = '[语音]'
             model.media_path = self._process_parse_message_tranlate_voice_path(img_path)
         elif msg_type in [MSG_TYPE_VIDEO, MSG_TYPE_VIDEO_2]:
-            content = ''
+            content = '[视频]'
             model.media_path = self._process_parse_message_tranlate_video_path(img_path, model)
         elif msg_type == MSG_TYPE_LOCATION:
             content = self._process_parse_message_location(content, model)
@@ -1064,6 +1064,16 @@ class WeChatParser(Wechat):
                 node = extend_node.GetByPath('/image2/{0}/{1}/{2}'.format(m1, m2, img_name))
                 if node is not None:
                     media_path = node.AbsolutePath
+                    
+                    p_node = extend_node.GetByPath('/image2/{0}/{1}'.format(m1, m2))
+                    if img_name.startswith(TH_PREFIX):
+                        hd_file = img_name[len(TH_PREFIX):]
+                    else:
+                        hd_file = img_name
+                    hd_nodes = p_node.Search('/{}[.].+$'.format(hd_file))
+                    if hd_nodes is not None:
+                        for hd_node in hd_nodes:
+                            media_path = hd_node.AbsolutePath
                     break
             if media_path is None:
                 media_path = '/no_image'
