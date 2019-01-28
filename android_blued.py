@@ -319,3 +319,5 @@ def analyze_blued(node, extract_Deleted, extract_Source):
                     pr.Models.AddRange(results)
                     pr.Build("Blued")
                 return pr
+    else:
+        progress.Skip()
