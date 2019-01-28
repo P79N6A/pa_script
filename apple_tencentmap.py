@@ -292,4 +292,4 @@ def analyze_tencentmap(node, extract_deleted, extract_source):
 
 
 def execute(node, extract_deleted):
-    return analyze_gaodemap(node, extract_deleted, False)
+    return analyze_tencentmap(node, extract_deleted, False)
