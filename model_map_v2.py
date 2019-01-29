@@ -465,10 +465,12 @@ class ExportModel(object):
                         loc.SourceType = LocationSourceType.App
                         loc.Deleted = MapUtil.convert_deleted_status(deleted)
                         loc.SourceFile = MapUtil.format_file_path(sourceFile)
-                        if loc_type == 6:
-                            loc.Coordinate = Base.Coordinate(longitude,latitude,MapUtil.convert_coordinat_type(loc_type))
-                        elif loc_type == 9:
+                        # if loc_type == 6:
+                        #     loc.Coordinate = Base.Coordinate(longitude,latitude,MapUtil.convert_coordinat_type(loc_type))
+                        if loc_type == 9:
                             loc.Coordinate = Base.Coordinate(MapUtil.pixelXTolng(longitude),MapUtil.pixelYToLat(latitude),MapUtil.convert_coordinat_type(loc_type))
+                        else:
+                            loc.Coordinate = Base.Coordinate(longitude,latitude,MapUtil.convert_coordinat_type(loc_type))
                         models.append(loc)
                         locationContent = Base.Content.LocationContent(favpoi)
                         locationContent.Value = loc
@@ -491,12 +493,15 @@ class ExportModel(object):
                         end_loc.SourceType = LocationSourceType.App
                         end_loc.Deleted = MapUtil.convert_deleted_status(deleted)
                         end_loc.SourceFile = MapUtil.format_file_path(sourceFile)
-                        if routerec_type == 6:
-                            start_loc.Coordinate = Base.Coordinate(from_posX,from_posY, MapUtil.convert_coordinat_type(routerec_type))
-                            end_loc.Coordinate = Base.Coordinate(to_posX,to_posY,MapUtil.convert_coordinat_type(routerec_type))
-                        elif routerec_type == 9:
+                        # if routerec_type == 6:
+                        #     start_loc.Coordinate = Base.Coordinate(from_posX,from_posY, MapUtil.convert_coordinat_type(routerec_type))
+                        #     end_loc.Coordinate = Base.Coordinate(to_posX,to_posY,MapUtil.convert_coordinat_type(routerec_type))
+                        if routerec_type == 9:
                             start_loc.Coordinate = Base.Coordinate(MapUtil.pixelXTolng(from_posX),MapUtil.pixelXTolng(from_posY), MapUtil.convert_coordinat_type(routerec_type))
                             end_loc.Coordinate = Base.Coordinate(MapUtil.pixelXTolng(to_posX),MapUtil.pixelXTolng(to_posY),MapUtil.convert_coordinat_type(routerec_type))
+                        else:
+                            start_loc.Coordinate = Base.Coordinate(from_posX,from_posY, MapUtil.convert_coordinat_type(routerec_type))
+                            end_loc.Coordinate = Base.Coordinate(to_posX,to_posY,MapUtil.convert_coordinat_type(routerec_type))
                         models.append(start_loc)
                         models.append(end_loc)
                         
@@ -547,46 +552,40 @@ class ExportModel(object):
                 end_coord = Base.Coordinate()
                 # if row[0]:
                 #     routerec.account_id = row[0]
-                if row[1]:
-                    start_loc.PoiName = row[1]
-                if row[2]:
-                    if row[11] == 6:
-                        start_coord.Longitude = row[2]
-                    elif row[11] == 9:
-                        start_coord.Longitude = MapUtil.pixelXTolng(row[2])
-                if row[3]:
-                    if row[11] == 6:
-                        start_coord.Latitude = row[3]
-                    elif row[11] == 9:
-                        start_coord.Latitude = MapUtil.pixelYToLat(row[3])
-                if row[4]:
-                    start_loc.AddressName = row[4]
-                if row[5]:
-                    end_loc.PoiName = row[5]
-                if row[6]:
-                    if row[11] == 6:
-                        end_coord.Longitude = row[6]
-                    elif row[11] == 9:
-                        end_coord.Longitude = MapUtil.pixelXTolng(row[6])
-                if row[7]:
-                    if row[11] == 6:
-                        end_coord.Latitude = row[7]
-                    elif row[11] == 9:
-                        end_coord.Latitude = MapUtil.pixelYToLat(row[7])
-                if row[8]:
-                    end_loc.AddressName = row[8]
-                if row[9]:
-                    routerec.StartTime = MapUtil.convert_to_timestamp(row[9])
+
+                from_name = row[1] if row[1] else ""
+                from_posX = row[2] if row[2] else 0
+                from_posY = row[3] if row[3] else 0
+                from_addr = row[4] if row[4] else ""
+
+                to_name = row[5] if row[5] else ""
+                to_posX = row[6] if row[6] else 0
+                to_posY = row[7] if row[7] else 0
+                to_addr = row[8] if row[8] else ""
+
+                create_time = row[9] if row[9] else 0
+                routerec_type = row[11]
+
+                start_loc.PoiName = from_name
+                start_loc.AddressName = from_addr
                 
-                start_coord.Type = MapUtil.convert_coordinat_type(row[11])
-                end_coord.Type = MapUtil.convert_coordinat_type(row[11])
+                if routerec_type == 9:
+                    start_loc.Coordinate = Base.Coordinate(MapUtil.pixelXTolng(from_posX),MapUtil.pixelXTolng(from_posY), MapUtil.convert_coordinat_type(routerec_type))
+                    end_loc.Coordinate = Base.Coordinate(MapUtil.pixelXTolng(to_posX),MapUtil.pixelXTolng(to_posY),MapUtil.convert_coordinat_type(routerec_type))
+                else:
+                    start_loc.Coordinate = Base.Coordinate(from_posX,from_posY, MapUtil.convert_coordinat_type(routerec_type))
+                    end_loc.Coordinate = Base.Coordinate(to_posX,to_posY,MapUtil.convert_coordinat_type(routerec_type))
+
+                end_loc.PoiName = to_name
+                end_loc.AddressName = to_addr
                 
-                if row[13]:
-                    routerec.SourceFile = MapUtil.format_file_path(row[13])
-                    start_loc.SourceFile = MapUtil.format_file_path(row[13])
-                    end_loc.SourceFile = MapUtil.format_file_path(row[13])
-                    start_coord.SourceFile = MapUtil.format_file_path(row[13])
-                    end_coord.SourceFile = MapUtil.format_file_path(row[13])
+                routerec.StartTime = MapUtil.convert_to_timestamp(create_time)
+
+                routerec.SourceFile = MapUtil.format_file_path(row[13])
+                start_loc.SourceFile = MapUtil.format_file_path(row[13])
+                end_loc.SourceFile = MapUtil.format_file_path(row[13])
+                start_coord.SourceFile = MapUtil.format_file_path(row[13])
+                end_coord.SourceFile = MapUtil.format_file_path(row[13])
 
                 routerec.Deleted = MapUtil.convert_deleted_status(row[14])
                 start_loc.Deleted = MapUtil.convert_deleted_status(row[14])
@@ -594,8 +593,6 @@ class ExportModel(object):
                 start_coord.Deleted = MapUtil.convert_deleted_status(row[14])
                 end_coord.Deleted = MapUtil.convert_deleted_status(row[14])
                 
-                start_loc.Coordinate = start_coord
-                end_loc.Coordinate = end_coord
                 start_loc.SourceType = LocationSourceType.App
                 end_loc.SourceType = LocationSourceType.App
                 routerec.StartLocation = start_loc
