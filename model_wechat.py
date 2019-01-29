@@ -397,7 +397,7 @@ SQL_CREATE_TABLE_CONTACT_LABEL = '''
         repeated INT DEFAULT 0)'''
 
 SQL_INSERT_TABLE_CONTACT_LABEL = '''
-    insert into contact_label(account_id, id, name, users, type, source, deleted, repeated) values(?, ?, ?, ?, ?, ?, ?)'''
+    insert into contact_label(account_id, id, name, users, type, source, deleted, repeated) values(?, ?, ?, ?, ?, ?, ?, ?)'''
 
 SQL_CREATE_TABLE_VERSION = '''
     create table if not exists version(
@@ -612,7 +612,7 @@ class Account(Column):
         self.signature = None  # 签名[TEXT]
 
     def get_values(self):
-        return (self.account_id, account_id_alias， self.nickname, self.username, self.password, self.photo, self.telephone, 
+        return (self.account_id, self.account_id_alias, self.nickname, self.username, self.password, self.photo, self.telephone, 
                 self.email, self.gender, self.age, self.country, self.province, self.city, self.address, self.birthday, 
                 self.signature) + super(Account, self).get_values()
 
