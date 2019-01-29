@@ -707,7 +707,7 @@ class Wechat(object):
             model.Email = account.email
             return model
         except Exception as e:
-            print(e)
+            #print(e)
             return None
 
     def get_login_device_model(self, login_device):
@@ -722,7 +722,7 @@ class Wechat(object):
             model.LastLoginTime = model_wechat.GenerateModel._get_timestamp(login_device.last_time)
             return model
         except Exception as e:
-            print(e)
+            #print(e)
             return None
 
     def get_friend_model(self, friend):
@@ -741,7 +741,7 @@ class Wechat(object):
             model.Type = model_wechat.GenerateModel._convert_friend_type(friend.type)
             return model
         except Exception as e:
-            print(e)
+            #print(e)
             return None
 
     def get_chatroom_models(self, cache_db):
@@ -846,7 +846,7 @@ class Wechat(object):
             model.IsSave = chatroom.is_saved != 0
             return model
         except Exception as e:
-            print(e)
+            #print(e)
             return None
 
     def get_chatroom_member_model(self, chatroom_member):
@@ -854,7 +854,7 @@ class Wechat(object):
             model = self.friend_models.get(chatroom_member.member_id)
             return model
         except Exception as e:
-            print(e)
+            #print(e)
             return None
 
     def get_message_model(self, message):
@@ -951,7 +951,7 @@ class Wechat(object):
 
             return model, timeline_model
         except Exception as e:
-            print(e)
+            #print(e)
             return None, None
 
     def get_feed_model(self, feed):
@@ -1020,7 +1020,7 @@ class Wechat(object):
             model.CreateTime = model_wechat.GenerateModel._get_timestamp(feed_like.timestamp)
             return model
         except Exception as e:
-            print(e)
+            #print(e)
             return None
 
     def get_feed_comment_model(self, feed_model, feed_comment):
@@ -1034,7 +1034,7 @@ class Wechat(object):
             model.CreateTime = model_wechat.GenerateModel._get_timestamp(feed_comment.timestamp)
             return model
         except Exception as e:
-            print(e)
+            #print(e)
             return None
 
     def get_search_model(self, search):
@@ -1047,7 +1047,7 @@ class Wechat(object):
             model.CreateTime = model_wechat.GenerateModel._get_timestamp(search.timestamp)
             return model
         except Exception as e:
-            print(e)
+            #print(e)
             return None
 
     def get_favorite_model(self, favorite):
@@ -1061,7 +1061,7 @@ class Wechat(object):
                 model.Contents.Add(self.get_favorite_item_model(item))
             return model
         except Exception as e:
-            print(e)
+            #print(e)
             return None
 
     def get_favorite_item_model(self, favorite_item):
@@ -1102,7 +1102,7 @@ class Wechat(object):
                 model.Content.Value = favorite_item.content
             return model
         except Exception as e:
-            print(e)
+            #print(e)
             return None, None
 
     def get_contact_label_model(self, label):
@@ -1138,5 +1138,5 @@ class Wechat(object):
                         model.Friends.Add(friend)
             return model
         except Exception as e:
-            print(e)
+            #print(e)
             return None
