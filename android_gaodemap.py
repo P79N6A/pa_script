@@ -98,8 +98,8 @@ class gaodeMap(object):
                             pass
                     if route.from_name and route.to_name:
                         self.gaodemap.db_insert_table_routerec(route)
-                except:
-                    pass
+                except Exception as e:
+                    TraceService.Trace(TraceLevel.Error,"{0}".format(e))
         self.gaodemap.db_commit()
 
 
@@ -145,8 +145,8 @@ class gaodeMap(object):
                             self.gaodemap.db_insert_table_location(loc)
                     if favpoi.poi_name:
                         self.gaodemap.db_insert_table_favpoi(favpoi)
-                except:
-                    pass
+                except Exception as e:
+                    TraceService.Trace(TraceLevel.Error,"{0}".format(e))
         self.gaodemap.db_commit()
 
 
@@ -189,7 +189,7 @@ class gaodeMap(object):
                     self.gaodemap.db_insert_table_favroute(fav_route)
                     self.gaodemap.db_insert_table_favpoi(route_favpoi)
                 except Exception as e:
-                    print(e)
+                    TraceService.Trace(TraceLevel.Error,"{0}".format(e))
         self.gaodemap.db_commit()
 
     
@@ -310,11 +310,13 @@ class gaodeMap(object):
 
 
 def analyze_gaodemap(node, extract_deleted, extract_source):
+    TraceService.Trace(TraceLevel.Info,"正在分析安卓高德地图...")
     pr = ParserResults()
     prResult = gaodeMap(node, extract_deleted, extract_source).parse()
     if prResult:
         pr.Models.AddRange(prResult)
     pr.Build("高德地图")
+    TraceService.Trace(TraceLevel.Info,"苹果安卓地图分析完成!")
     return pr
 
 def execute(node, extract_deleted):

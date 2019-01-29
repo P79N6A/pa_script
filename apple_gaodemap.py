@@ -26,6 +26,7 @@ import System.Data.SQLite as SQLite
 import json
 import MapUtil
 import os
+from PA.InfraLib.ModelsV2 import *
 
 
 class gaodeMap(object):
@@ -41,6 +42,7 @@ class gaodeMap(object):
 
 
     def parse(self):
+
         self.decrypt_db_path = self.cache + "/girf_sync_decode.db"
         db_path = MapUtil.md5(self.cache, self.root.AbsolutePath)
 
@@ -53,6 +55,8 @@ class gaodeMap(object):
         self.get_fav_point_history(account_list)
         self.get_fav_route_history(account_list)
         self.get_route_history(account_list)
+
+        self.gaodemap.db_close()
 
         results = model_map.ExportModel(db_path).get_model()
         return results
@@ -187,7 +191,7 @@ class gaodeMap(object):
                     self.gaodemap.db_insert_table_favroute(fav_route)
                     self.gaodemap.db_insert_table_favpoi(route_favpoi)
                 except Exception as e:
-                    print(e)
+                    TraceService.Trace(TraceLevel.Error,"{0}".format(e))
         self.gaodemap.db_commit()
 
     
@@ -308,11 +312,13 @@ class gaodeMap(object):
 
 
 def analyze_gaodemap(node, extract_deleted, extract_source):
+    TraceService.Trace(TraceLevel.Info,"正在分析苹果高德地图...")
     pr = ParserResults()
     prResult = gaodeMap(node, extract_deleted, extract_source).parse()
     if prResult:
         pr.Models.AddRange(prResult)
     pr.Build("高德地图")
+    TraceService.Trace(TraceLevel.Info,"苹果高德地图分析完成!")
     return pr
 
 def execute(node, extract_deleted):
