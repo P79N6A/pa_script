@@ -562,7 +562,10 @@ class TantanParser(model_im.IM):
                     feed.account_id = userid  # 账号ID[TEXT]
                     feed.sender_id = senderid  # 发布者ID[TEXT]
                     feed.content = content  # 文本[TEXT]
-                    feed.url = media_url  # 链接[TEXT]
+                    if re.findall("image", media_url):
+                        feed.image_path = media_url
+                    elif re.findall("video", media_url):
+                        feed.video_path = media_url
                     feed.send_time = createtime  # 发布时间[INT]
                     feed.likecount = likescount  # 赞数量[INT]
                     feed.commentcount = commentcount  # 评论数量[INT]
