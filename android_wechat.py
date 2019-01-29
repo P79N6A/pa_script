@@ -1,8 +1,9 @@
-#coding=utf-8
+# coding=utf-8
 __author__ = "sumeng"
 
 from PA_runtime import *
 import clr
+
 clr.AddReference('System.Core')
 clr.AddReference('System.Xml.Linq')
 clr.AddReference('System.Data.SQLite')
@@ -24,7 +25,7 @@ from System.Text import *
 from System.IO import *
 from System import Convert
 import System.Data.SQLite as SQLite
-from PA.InfraLib.Services import ServiceGetter,IWechatCrackUin
+from PA.InfraLib.Services import ServiceGetter, IWechatCrackUin
 
 import os
 import hashlib
@@ -48,8 +49,9 @@ g_app_build = {}
 
 DEBUG = False
 
+
 def analyze_wechat(root, extract_deleted, extract_source):
-    #print('%s android_wechat() analyze_wechat root:%s' % (time.asctime(time.localtime(time.time())), root.AbsolutePath))
+    # print('%s android_wechat() analyze_wechat root:%s' % (time.asctime(time.localtime(time.time())), root.AbsolutePath))
 
     WeChatParser(root, extract_deleted, extract_source).parse()
     pr = ParserResults()
@@ -73,8 +75,13 @@ def get_build(node):
     return build
 
 
+def print_error():
+    if DEBUG:
+        TraceService.Trace(TraceLevel.Error, "android_wechat.py Error: LINE {}".format(traceback.format_exc()))
+
+
 class WeChatParser(Wechat):
-    
+
     def __init__(self, node, extract_deleted, extract_source):
         super(WeChatParser, self).__init__()
         self.root = node.Parent.Parent.Parent
@@ -115,9 +122,9 @@ class WeChatParser(Wechat):
             node = self.user_node.GetByPath('/EnMicroMsg.db')
             mm_db_path = os.path.join(self.cache_path, self.user_hash + '_mm.db')
             try:
-                #print('%s android_wechat() decrypt EnMicroMsg.db' % time.asctime(time.localtime(time.time())))
+                # print('%s android_wechat() decrypt EnMicroMsg.db' % time.asctime(time.localtime(time.time())))
                 if Decryptor.decrypt(node, self._get_db_key(self.imei, self.uin), mm_db_path):
-                    #print('%s android_wechat() parse MicroMsg.db' % time.asctime(time.localtime(time.time())))
+                    # print('%s android_wechat() parse MicroMsg.db' % time.asctime(time.localtime(time.time())))
                     self.set_progress(15)
                     self._parse_mm_db(mm_db_path, node.AbsolutePath)
             except Exception as e:
@@ -127,22 +134,22 @@ class WeChatParser(Wechat):
             fav_node = self.user_node.GetByPath('/enFavorite.db')
             fav_db_path = os.path.join(self.cache_path, self.user_hash + '_fav.db')
             try:
-                #print('%s android_wechat() decrypt enFavorite.db' % time.asctime(time.localtime(time.time())))
+                # print('%s android_wechat() decrypt enFavorite.db' % time.asctime(time.localtime(time.time())))
                 if Decryptor.decrypt(fav_node, self._get_db_key(self.imei, self.uin), fav_db_path):
-                    #print('%s android_wechat() parse enFavorite.db' % time.asctime(time.localtime(time.time())))
+                    # print('%s android_wechat() parse enFavorite.db' % time.asctime(time.localtime(time.time())))
                     self._parse_fav_db(fav_db_path, fav_node.AbsolutePath)
             except Exception as e:
                 TraceService.Trace(TraceLevel.Error, "android_wechat.py Error: LINE {}".format(traceback.format_exc()))
             self.set_progress(70)
 
             try:
-                #print('%s android_wechat() parse SnsMicroMsg.db' % time.asctime(time.localtime(time.time())))
+                # print('%s android_wechat() parse SnsMicroMsg.db' % time.asctime(time.localtime(time.time())))
                 self._parse_wc_db(self.user_node.GetByPath('/SnsMicroMsg.db'))
             except Exception as e:
                 TraceService.Trace(TraceLevel.Error, "android_wechat.py Error: LINE {}".format(traceback.format_exc()))
             self.set_progress(85)
             try:
-                #print('%s android_wechat() parse FTS5IndexMicroMsg.db' % time.asctime(time.localtime(time.time())))
+                # print('%s android_wechat() parse FTS5IndexMicroMsg.db' % time.asctime(time.localtime(time.time())))
                 self._parse_fts_db(self.user_node.GetByPath('/FTS5IndexMicroMsg.db'))
             except Exception as e:
                 TraceService.Trace(TraceLevel.Error, "android_wechat.py Error: LINE {}".format(traceback.format_exc()))
@@ -154,13 +161,13 @@ class WeChatParser(Wechat):
                 self.im.db_insert_table_version(model_wechat.VERSION_KEY_APP, VERSION_APP_VALUE)
             self.im.db_commit()
             self.im.db_close()
-            #print('%s android_wechat() parse end' % time.asctime(time.localtime(time.time())))
+            # print('%s android_wechat() parse end' % time.asctime(time.localtime(time.time())))
         else:
             model_wechat.GenerateModel(self.cache_db, self.build).get_models()
 
     def set_progress(self, value):
         progress.Value = value
-        #print('set_progress() %d' % value)
+        # print('set_progress() %d' % value)
 
     def get_models_from_cache_db(self):
         models = model_wechat.GenerateModel(self.cache_db, get_build(self.root)).get_models()
@@ -169,9 +176,38 @@ class WeChatParser(Wechat):
     def _is_valid_user_dir(self):
         if self.root is None or self.user_node is None:
             return False
-        if self.root.GetByPath('/shared_prefs/auth_info_key_prefs.xml') is None and self.root.GetByPath('/shared_prefs/com.tencent.mm_preferences.xml'):
+        if self.root.GetByPath('/shared_prefs/auth_info_key_prefs.xml') is None and self.root.GetByPath(
+                '/shared_prefs/com.tencent.mm_preferences.xml'):
             return False
         return True
+
+    @staticmethod
+    def _is_blocked_usr(type_):
+        is_blocked = False
+        if (not type_) or (not isinstance(type_, int)):
+            return
+        try:
+            type_ = hex(type_)
+            if type_[-1] == 'b':
+                is_blocked = True
+        except Exception as e:
+            print_error()
+        finally:
+            return is_blocked
+
+    @staticmethod
+    def _add_label(label_relation, contact_label_id, username):
+        if not contact_label_id:
+            return
+        try:
+            label_list = contact_label_id.split(",")
+            for l in label_list:
+                if label_relation.get(l, None):
+                    label_relation[l].append(username)
+                else:
+                    label_relation[l] = [username]
+        except Exception as e:
+            print_error()
 
     @staticmethod
     def _can_decrypt(uin, user_hash):
@@ -195,7 +231,7 @@ class WeChatParser(Wechat):
             xml = XElement.Parse(node.read())
             es = xml.Elements('int')
         except Exception as e:
-            pass
+            TraceService.Trace(TraceLevel.Error, "android_wechat.py Error: LINE {}".format(traceback.format_exc()))
         for e in es:
             if e.Attribute('name') and e.Attribute('name').Value == '_auth_uin' and e.Attribute('value'):
                 return e.Attribute('value').Value
@@ -211,7 +247,7 @@ class WeChatParser(Wechat):
             xml = XElement.Parse(node.read())
             es = xml.Elements('string')
         except Exception as e:
-            pass
+            TraceService.Trace(TraceLevel.Error, "android_wechat.py Error: LINE {}".format(traceback.format_exc()))
         for e in es:
             if e.Attribute('name') and e.Attribute('name').Value == 'last_login_uin':
                 return e.Value
@@ -233,8 +269,8 @@ class WeChatParser(Wechat):
                 content = node.read()
                 pos = content.find(b'\x01\x02\x74\x00')
                 if pos != -1:
-                    size = ord(content[pos+4:pos+5])
-                    imei = content[pos+5:pos+5+size]
+                    size = ord(content[pos + 4:pos + 5])
+                    imei = content[pos + 5:pos + 5 + size]
             except Exception as e:
                 TraceService.Trace(TraceLevel.Error, "android_wechat.py Error: LINE {}".format(traceback.format_exc()))
         return imei
@@ -253,7 +289,7 @@ class WeChatParser(Wechat):
         except Exception as e:
             TraceService.Trace(TraceLevel.Error, "android_wechat.py Error: LINE {}".format(traceback.format_exc()))
             return
-            
+
         self._parse_mm_db_user_info(db, source)
         self.set_progress(16)
         self._parse_mm_db_contact(db, source)
@@ -276,7 +312,8 @@ class WeChatParser(Wechat):
 
         if 'FavItemInfo' in db.Tables:
             ts = SQLiteParser.TableSignature('FavItemInfo')
-            SQLiteParser.Tools.AddSignatureToTable(ts, "xml", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
+            SQLiteParser.Tools.AddSignatureToTable(ts, "xml", SQLiteParser.FieldType.Text,
+                                                   SQLiteParser.FieldConstraints.NotNull)
             for rec in db.ReadTableRecords(ts, self.extract_deleted, False, ''):
                 if canceller.IsCancellationRequested:
                     break
@@ -294,7 +331,8 @@ class WeChatParser(Wechat):
                     deleted = 0 if rec.Deleted == DeletedState.Intact else 1
                     self._parse_fav_db_with_value(deleted, node.AbsolutePath, fav_type, timestamp, from_user, xml)
                 except Exception as e:
-                    TraceService.Trace(TraceLevel.Error, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
+                    TraceService.Trace(TraceLevel.Error,
+                                       "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
             self.im.db_commit()
             self.push_models()
         return True
@@ -344,7 +382,8 @@ class WeChatParser(Wechat):
                         fav_item.sender = source_info.Element('fromusr').Value
                 if xml.Element('desc'):
                     fav_item.content = xml.Element('desc').Value
-            elif fav_type in [model_wechat.FAV_TYPE_IMAGE, model_wechat.FAV_TYPE_VOICE, model_wechat.FAV_TYPE_VIDEO, model_wechat.FAV_TYPE_VIDEO_2, model_wechat.FAV_TYPE_ATTACHMENT]:
+            elif fav_type in [model_wechat.FAV_TYPE_IMAGE, model_wechat.FAV_TYPE_VOICE, model_wechat.FAV_TYPE_VIDEO,
+                              model_wechat.FAV_TYPE_VIDEO_2, model_wechat.FAV_TYPE_ATTACHMENT]:
                 fav_item = model.create_item()
                 fav_item.type = fav_type
                 if xml.Element('source'):
@@ -432,7 +471,7 @@ class WeChatParser(Wechat):
                             try:
                                 fav_item.type = int(item.Attribute('datatype').Value)
                             except Exception as e:
-                                 pass
+                                pass
                         if item.Element('dataitemsource'):
                             source_info = item.Element('dataitemsource')
                             if source_info.Element('createtime'):
@@ -447,7 +486,9 @@ class WeChatParser(Wechat):
                         if fav_item.type == model_wechat.FAV_TYPE_TEXT:
                             if item.Element('datadesc'):
                                 fav_item.content = item.Element('datadesc').Value
-                        elif fav_item.type in [model_wechat.FAV_TYPE_IMAGE, model_wechat.FAV_TYPE_VOICE, model_wechat.FAV_TYPE_VIDEO, model_wechat.FAV_TYPE_VIDEO_2, model_wechat.FAV_TYPE_ATTACHMENT]:
+                        elif fav_item.type in [model_wechat.FAV_TYPE_IMAGE, model_wechat.FAV_TYPE_VOICE,
+                                               model_wechat.FAV_TYPE_VIDEO, model_wechat.FAV_TYPE_VIDEO_2,
+                                               model_wechat.FAV_TYPE_ATTACHMENT]:
                             if item.Element('sourcedatapath'):
                                 fav_item.media_path = self._parse_user_fav_path(item.Element('sourcedatapath').Value)
                             elif item.Element('sourcethumbpath'):
@@ -509,8 +550,10 @@ class WeChatParser(Wechat):
 
         if 'SnsInfo' in db.Tables:
             ts = SQLiteParser.TableSignature('SnsInfo')
-            SQLiteParser.Tools.AddSignatureToTable(ts, "userName", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
-            SQLiteParser.Tools.AddSignatureToTable(ts, "content", SQLiteParser.FieldType.Blob, SQLiteParser.FieldConstraints.NotNull)
+            SQLiteParser.Tools.AddSignatureToTable(ts, "userName", SQLiteParser.FieldType.Text,
+                                                   SQLiteParser.FieldConstraints.NotNull)
+            SQLiteParser.Tools.AddSignatureToTable(ts, "content", SQLiteParser.FieldType.Blob,
+                                                   SQLiteParser.FieldConstraints.NotNull)
             for rec in db.ReadTableRecords(ts, self.extract_deleted, False, ''):
                 if canceller.IsCancellationRequested:
                     break
@@ -582,8 +625,8 @@ class WeChatParser(Wechat):
             return False
         db.Open()
 
-        #self._parse_fts_contacts(db, node.AbsolutePath)
-        #self._parse_fts_chatroom_member(db, node.AbsolutePath)
+        # self._parse_fts_contacts(db, node.AbsolutePath)
+        # self._parse_fts_chatroom_member(db, node.AbsolutePath)
         self._parse_fts_message(db, node.AbsolutePath)
 
         db.Close()
@@ -655,7 +698,8 @@ class WeChatParser(Wechat):
                     if chatroom != '' and member != '':
                         self._parse_mm_db_chatroom_member_with_value(1, source, chatroom, member, '', None)
                 except Exception as e:
-                    TraceService.Trace(TraceLevel.Error, "android_wechat.py Error: LINE {}".format(traceback.format_exc()))
+                    TraceService.Trace(TraceLevel.Error,
+                                       "android_wechat.py Error: LINE {}".format(traceback.format_exc()))
             reader.Close()
         db_cmd.Dispose()
         self.im.db_commit()
@@ -691,10 +735,12 @@ class WeChatParser(Wechat):
                         message.type = model_wechat.MESSAGE_CONTENT_TYPE_TEXT
                         message.timestamp = timestamp
                         message.content = msg
-                        message.talker_type = model_wechat.CHAT_TYPE_GROUP if talker_id.endswith("@chatroom") else model_wechat.CHAT_TYPE_FRIEND
+                        message.talker_type = model_wechat.CHAT_TYPE_GROUP if talker_id.endswith(
+                            "@chatroom") else model_wechat.CHAT_TYPE_FRIEND
                         message.insert_db(self.im)
                 except Exception as e:
-                    TraceService.Trace(TraceLevel.Error, "android_wechat.py Error: LINE {}".format(traceback.format_exc()))
+                    TraceService.Trace(TraceLevel.Error,
+                                       "android_wechat.py Error: LINE {}".format(traceback.format_exc()))
             reader.Close()
         db_cmd.Dispose()
         self.im.db_commit()
@@ -722,13 +768,18 @@ class WeChatParser(Wechat):
                         user_account.email = value
                     elif id == 6:
                         user_account.telephone = value
+                    elif id == 42:
+                        user_account.account_id_alias = value
                     elif id == 12291:
                         user_account.signature = value
                     elif id == 12293:
                         user_account.address = value
+                    elif id == 352277:
+                        self._parse_mm_db_emergency(user_account.account_id, value, source)
                 except Exception as e:
-                    TraceService.Trace(TraceLevel.Error, "android_wechat.py Error: LINE {}".format(traceback.format_exc()))
-            
+                    TraceService.Trace(TraceLevel.Error,
+                                       "android_wechat.py Error: LINE {}".format(traceback.format_exc()))
+
         if 'userinfo2' in db.Tables:
             ts = SQLiteParser.TableSignature('userinfo2')
             for rec in db.ReadTableRecords(ts, False, False, ''):
@@ -744,13 +795,14 @@ class WeChatParser(Wechat):
                     elif sid == 'USERINFO_SELFINFO_SMALLIMGURL_STRING':
                         user_account.photo = value
                 except Exception as e:
-                    TraceService.Trace(TraceLevel.Error, "android_wechat.py Error: LINE {}".format(traceback.format_exc()))
+                    TraceService.Trace(TraceLevel.Error,
+                                       "android_wechat.py Error: LINE {}".format(traceback.format_exc()))
 
         user_account.insert_db(self.im)
         self.im.db_commit()
         self.user_account_model = self.get_account_model(user_account)
         self.add_model(self.user_account_model)
-        #add self to friend
+        # add self to friend
         if self.user_account_model is not None:
             model = WeChat.Friend()
             model.SourceFile = self.user_account_model.SourceFile
@@ -792,11 +844,14 @@ class WeChatParser(Wechat):
 
     def _parse_mm_db_contact(self, db, source):
         heads = {}
+        black_list = []
+        tag_relation = {}
         if 'img_flag' in db.Tables:
             if canceller.IsCancellationRequested:
                 return
             ts = SQLiteParser.TableSignature('img_flag')
-            SQLiteParser.Tools.AddSignatureToTable(ts, "username", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
+            SQLiteParser.Tools.AddSignatureToTable(ts, "username", SQLiteParser.FieldType.Text,
+                                                   SQLiteParser.FieldConstraints.NotNull)
             for rec in db.ReadTableRecords(ts, self.extract_deleted, False, ''):
                 if canceller.IsCancellationRequested:
                     break
@@ -821,7 +876,8 @@ class WeChatParser(Wechat):
             if canceller.IsCancellationRequested:
                 return
             ts = SQLiteParser.TableSignature('rcontact')
-            SQLiteParser.Tools.AddSignatureToTable(ts, "username", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
+            SQLiteParser.Tools.AddSignatureToTable(ts, "username", SQLiteParser.FieldType.Text,
+                                                   SQLiteParser.FieldConstraints.NotNull)
             for rec in db.ReadTableRecords(ts, self.extract_deleted, False, ''):
                 if canceller.IsCancellationRequested:
                     break
@@ -833,15 +889,24 @@ class WeChatParser(Wechat):
                     nickname = self._db_record_get_string_value(rec, 'nickname')
                     remark = self._db_record_get_string_value(rec, 'conRemark')
                     contact_type = self._db_record_get_int_value(rec, 'type')
+                    if self._is_blocked_usr(contact_type):
+                        black_list.append(username)
                     verify_flag = self._db_record_get_int_value(rec, 'verifyFlag')
                     lvbuff = self._db_record_get_blob_value_to_ba(rec, 'lvbuff')
                     signature, region, gender = Decryptor.parse_lvbuff(lvbuff)
                     deleted = 0 if rec.Deleted == DeletedState.Intact else 1
+                    contact_label_id = self._db_record_get_string_value(rec, 'contactLabelIds')
+                    if contact_label_id and (deleted == 0):
+                        self._add_label(tag_relation, contact_label_id, username)
                     self._parse_mm_db_contact_with_value(deleted, source, username, alias, nickname, remark,
                                                          contact_type, verify_flag, heads.get(username),
                                                          signature, region, gender)
                 except Exception as e:
                     pass
+
+            self._parse_mm_db_black_list(black_list, source)
+            self._parse_mm_db_group(tag_relation, db, source)
+
             self.im.db_commit()
             self.push_models()
 
@@ -868,6 +933,7 @@ class WeChatParser(Wechat):
             friend.deleted = deleted
             friend.source = source
             friend.account_id = self.user_account_model.Account
+            friend.friend_id_alias = alias
             friend.friend_id = username
             friend.type = friend_type
             friend.nickname = nickname
@@ -885,7 +951,8 @@ class WeChatParser(Wechat):
     def _parse_mm_db_chatroom_member(self, db, source):
         if 'chatroom' in db.Tables:
             ts = SQLiteParser.TableSignature('chatroom')
-            SQLiteParser.Tools.AddSignatureToTable(ts, "chatroomname", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
+            SQLiteParser.Tools.AddSignatureToTable(ts, "chatroomname", SQLiteParser.FieldType.Text,
+                                                   SQLiteParser.FieldConstraints.NotNull)
             for rec in db.ReadTableRecords(ts, self.extract_deleted, False, ''):
                 if canceller.IsCancellationRequested:
                     break
@@ -897,15 +964,17 @@ class WeChatParser(Wechat):
                     display_name_list = self._db_record_get_string_value(rec, 'displayname')
                     room_owner = self._db_record_get_string_value(rec, 'roomowner')
                     deleted = 0 if rec.Deleted == DeletedState.Intact else 1
-                    self._parse_mm_db_chatroom_member_with_value(deleted, source, chatroom_id, member_list, display_name_list, room_owner)
+                    self._parse_mm_db_chatroom_member_with_value(deleted, source, chatroom_id, member_list,
+                                                                 display_name_list, room_owner)
                 except Exception as e:
                     pass
             self.im.db_commit()
 
-    def _parse_mm_db_chatroom_member_with_value(self, deleted, source, chatroom_id, member_list, display_name_list, room_owner):
+    def _parse_mm_db_chatroom_member_with_value(self, deleted, source, chatroom_id, member_list, display_name_list,
+                                                room_owner):
         room_members = member_list.split(';')
         display_names = display_name_list.split('、')
-            
+
         cm = model_wechat.ChatroomMember()
         cm.deleted = deleted
         cm.source = source
@@ -926,8 +995,10 @@ class WeChatParser(Wechat):
             if canceller.IsCancellationRequested:
                 return
             ts = SQLiteParser.TableSignature('message')
-            SQLiteParser.Tools.AddSignatureToTable(ts, "talker", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
-            SQLiteParser.Tools.AddSignatureToTable(ts, "content", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
+            SQLiteParser.Tools.AddSignatureToTable(ts, "talker", SQLiteParser.FieldType.Text,
+                                                   SQLiteParser.FieldConstraints.NotNull)
+            SQLiteParser.Tools.AddSignatureToTable(ts, "content", SQLiteParser.FieldType.Text,
+                                                   SQLiteParser.FieldConstraints.NotNull)
             for rec in db.ReadTableRecords(ts, self.extract_deleted, False, ''):
                 if canceller.IsCancellationRequested:
                     break
@@ -945,13 +1016,15 @@ class WeChatParser(Wechat):
                     lv_buffer = self._db_record_get_blob_value(rec, 'lvbuffer')
                     msg_svr_id = self._db_record_get_string_value(rec, 'msgSvrId')
                     deleted = 0 if rec.Deleted == DeletedState.Intact else 1
-                    self._parse_mm_db_message_with_value(deleted, source, talker_id, msg, img_path, is_send, status, msg_type, timestamp, msg_id, lv_buffer, msg_svr_id)
+                    self._parse_mm_db_message_with_value(deleted, source, talker_id, msg, img_path, is_send, status,
+                                                         msg_type, timestamp, msg_id, lv_buffer, msg_svr_id)
                 except Exception as e:
                     pass
             self.im.db_commit()
             self.push_models()
 
-    def _parse_mm_db_message_with_value(self, deleted, source, talker_id, msg, img_path, is_send, status, msg_type, timestamp, msg_id, lv_buffer, msg_svr_id):
+    def _parse_mm_db_message_with_value(self, deleted, source, talker_id, msg, img_path, is_send, status, msg_type,
+                                        timestamp, msg_id, lv_buffer, msg_svr_id):
         revoke_content = None
         message = model_wechat.Message()
         message.deleted = deleted
@@ -977,7 +1050,7 @@ class WeChatParser(Wechat):
             revoke_message = model_wechat.Message()
             revoke_message.IsRecall = True
             revoke_message.deleted = message.deleted
-            revoke_message.source =  message.source
+            revoke_message.source = message.source
             revoke_message.account_id = message.account_id
             revoke_message.talker_id = message.talker_id
             revoke_message.talker_type = message.talker_type
@@ -990,6 +1063,70 @@ class WeChatParser(Wechat):
             model, tl_model = self.get_message_model(revoke_message)
             self.add_model(model)
             self.add_model(tl_model)
+
+    def _parse_mm_db_black_list(self, black_list, source):
+        if not black_list:
+            return
+        try:
+            contact_label = model_wechat.ContactLabel()
+            contact_label.account_id = self.user_account_model.Account
+            contact_label.source = source
+            contact_label.name = '黑名单'
+            contact_label.type = model_wechat.CONTACT_LABEL_TYPE_BLOCKED
+            contact_label.users = ",".join(black_list)
+            contact_label.insert_db(self.im)
+            contact_label_model = self.get_contact_label_model(contact_label)
+            if contact_label_model is not None:
+                self.add_model(contact_label_model)
+        except Exception as e:
+            print_error()
+        finally:
+            return True
+
+    def _parse_mm_db_emergency(self, account_id, emergency, source):
+        if (not emergency) or (emergency == ''):
+            return
+        try:
+            contact_label = model_wechat.ContactLabel()
+            contact_label.account_id = account_id
+            contact_label.source = source
+            contact_label.name = '紧急联系人'
+            contact_label.type = model_wechat.CONTACT_LABEL_TYPE_EMERGENCY
+            contact_label.users = emergency
+            contact_label.insert_db(self.im)
+            contact_label_model = self.get_contact_label_model(contact_label)
+            if contact_label_model is not None:
+                self.add_model(contact_label_model)
+        except Exception as e:
+            print_error()
+        finally:
+            return True
+
+    def _parse_mm_db_group(self, tag, db, source):
+        if 'ContactLabel' in db.Tables:
+            if canceller.IsCancellationRequested:
+                return
+            ts = SQLiteParser.TableSignature('ContactLabel')
+            SQLiteParser.Tools.AddSignatureToTable(ts, "labelName", SQLiteParser.FieldType.Text,
+                                                   SQLiteParser.FieldConstraints.NotNull)
+            for rec in db.ReadTableRecords(ts, self.extract_deleted, False, ''):
+                if canceller.IsCancellationRequested:
+                    break
+                try:
+                    contact_label = model_wechat.ContactLabel()
+                    contact_label.account_id = self.user_account_model.Account
+                    contact_label.source = source
+                    contact_label.name = self._db_record_get_string_value(rec, 'labelName')
+                    contact_label.id = self._db_record_get_int_value(rec, 'labelID')
+                    contact_label.type = model_wechat.CONTACT_LABEL_TYPE_GROUP
+                    contact_label.users = ",".join(tag.get(str(contact_label.id), []))
+                    contact_label.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
+                    contact_label.insert_db(self.im)
+                    contact_label_model = self.get_contact_label_model(contact_label)
+                    if contact_label_model is not None:
+                        self.add_model(contact_label_model)
+                except Exception as e:
+                    print_error()
 
     def _process_parse_friend_message(self, msg, msg_type, img_path, model):
         content = msg
@@ -1011,7 +1148,7 @@ class WeChatParser(Wechat):
         elif msg_type == MSG_TYPE_CONTACT_CARD:
             content = self._process_parse_message_contact_card(content, model)
         elif msg_type == MSG_TYPE_VOIP:
-            content = self._process_parse_message_voip(content)     
+            content = self._process_parse_message_voip(content)
         elif msg_type == MSG_TYPE_VOIP_GROUP:
             content = self._process_parse_message_voip_group(content)
         elif msg_type == MSG_TYPE_SYSTEM:
@@ -1036,9 +1173,9 @@ class WeChatParser(Wechat):
                 index = msg.find(sep)
                 if index != -1:
                     sender_id = msg[:index]
-                    content = msg[index+len(sep):]
+                    content = msg[index + len(sep):]
                     break
-        
+
         model.sender_id = sender_id
         return self._process_parse_friend_message(content, msg_type, img_path, model)
 
@@ -1053,8 +1190,8 @@ class WeChatParser(Wechat):
             m1 = ''
             m2 = ''
             if img_name.startswith(TH_PREFIX):
-                m1 = img_name[len(TH_PREFIX):len(TH_PREFIX)+2]
-                m2 = img_name[len(TH_PREFIX)+2:len(TH_PREFIX)+4]
+                m1 = img_name[len(TH_PREFIX):len(TH_PREFIX) + 2]
+                m2 = img_name[len(TH_PREFIX) + 2:len(TH_PREFIX) + 4]
             else:
                 m1 = img_name[0:2]
                 m2 = img_name[2:4]
@@ -1064,7 +1201,7 @@ class WeChatParser(Wechat):
                 node = extend_node.GetByPath('/image2/{0}/{1}/{2}'.format(m1, m2, img_name))
                 if node is not None:
                     media_path = node.AbsolutePath
-                    
+
                     p_node = extend_node.GetByPath('/image2/{0}/{1}'.format(m1, m2))
                     if img_name.startswith(TH_PREFIX):
                         hd_file = img_name[len(TH_PREFIX):]
@@ -1193,7 +1330,9 @@ class SnsParser:
                     if latitude != 0 or longitude != 0:
                         feed.location_latitude = latitude
                         feed.location_longitude = longitude
-                        feed.location_address = self._get_ts_value(ret, 3) + ' ' + self._get_ts_value(ret, 5) + ' ' + self._get_ts_value(ret, 15)
+                        feed.location_address = self._get_ts_value(ret, 3) + ' ' + self._get_ts_value(ret,
+                                                                                                      5) + ' ' + self._get_ts_value(
+                            ret, 15)
                         feed.location_type = model_wechat.LOCATION_TYPE_GOOGLE
 
     def get_likes(self, feed):
@@ -1267,7 +1406,8 @@ class Decryptor:
                 try:
                     os.remove(dst_db_path)
                 except Exception as e:
-                    TraceService.Trace(TraceLevel.Error, "android_wechat.py Error: LINE {}".format(traceback.format_exc()))
+                    TraceService.Trace(TraceLevel.Error,
+                                       "android_wechat.py Error: LINE {}".format(traceback.format_exc()))
                     return False
 
         size = src_node.Size
@@ -1275,7 +1415,8 @@ class Decryptor:
         first_page = src_node.read(1024)
 
         if len(first_page) < 1024:
-            TraceService.Trace(TraceLevel.Error, "android_wechat.py Error: Decryptor decrypt() first_page size less than 1024!")
+            TraceService.Trace(TraceLevel.Error,
+                               "android_wechat.py Error: Decryptor decrypt() first_page size less than 1024!")
             return False
 
         salt = first_page[0:16]
@@ -1287,7 +1428,9 @@ class Decryptor:
                                         Convert.FromBase64String(base64.b64encode(iv)),
                                         Convert.FromBase64String(base64.b64encode(first_page[16:1008])))
         if not Decryptor.is_valid_decrypted_header(content):
-            TraceService.Trace(TraceLevel.Error, "android_wechat.py Error: Decryptor decrypt() error: db({0}) and key({1}) is not valid".format(src_node.AbsolutePath, key))
+            TraceService.Trace(TraceLevel.Error,
+                               "android_wechat.py Error: Decryptor decrypt() error: db({0}) and key({1}) is not valid".format(
+                                   src_node.AbsolutePath, key))
             return False
 
         de = open(dst_db_path, 'wb')
