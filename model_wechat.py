@@ -98,6 +98,7 @@ VERSION_KEY_APP = 'app'
 SQL_CREATE_TABLE_ACCOUNT = '''
     create table if not exists account(
         account_id TEXT, 
+        account_id_alias TEXT,
         nickname TEXT,
         username TEXT,
         password TEXT, 
@@ -117,14 +118,15 @@ SQL_CREATE_TABLE_ACCOUNT = '''
         repeated INT DEFAULT 0)'''
 
 SQL_INSERT_TABLE_ACCOUNT = '''
-    insert into account(account_id, nickname, username, password, photo, telephone, email, gender, age, 
+    insert into account(account_id, account_id_alias, nickname, username, password, photo, telephone, email, gender, age, 
                         country, province, city, address, birthday, signature, source, deleted, repeated) 
-        values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
+        values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
 
 SQL_CREATE_TABLE_FRIEND = '''
     create table if not exists friend(
         account_id TEXT, 
         friend_id TEXT, 
+        friend_id_alias TEXT, 
         nickname TEXT, 
         remark TEXT,
         photo TEXT, 
@@ -138,9 +140,9 @@ SQL_CREATE_TABLE_FRIEND = '''
         repeated INT DEFAULT 0)'''
 
 SQL_INSERT_TABLE_FRIEND = '''
-    insert into friend(account_id, friend_id, nickname, remark, photo, type, gender, region, signature, 
+    insert into friend(account_id, friend_id, friend_id_alias, nickname, remark, photo, type, gender, region, signature, 
                        add_time, source, deleted, repeated) 
-        values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
+        values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
 
 SQL_CREATE_TABLE_CHATROOM = '''
     create table if not exists chatroom(
@@ -593,6 +595,7 @@ class Account(Column):
     def __init__(self):
         super(Account, self).__init__()
         self.account_id = None  # 账户ID[TEXT]
+        self.account_id_alias = None  # 账户ID别名[TEXT]
         self.nickname = None  # 昵称[TEXT]
         self.username = None  # 用户名[TEXT]
         self.password = None  # 密码[TEXT]
@@ -609,8 +612,8 @@ class Account(Column):
         self.signature = None  # 签名[TEXT]
 
     def get_values(self):
-        return (self.account_id, self.nickname, self.username, self.password, self.photo, self.telephone, self.email, 
-                self.gender, self.age, self.country, self.province, self.city, self.address, self.birthday, 
+        return (self.account_id, account_id_alias， self.nickname, self.username, self.password, self.photo, self.telephone, 
+                self.email, self.gender, self.age, self.country, self.province, self.city, self.address, self.birthday, 
                 self.signature) + super(Account, self).get_values()
 
     def insert_db(self, im):
@@ -623,6 +626,7 @@ class Friend(Column):
         super(Friend, self).__init__()
         self.account_id = None  # 账号ID[TEXT]
         self.friend_id = None  # 好友ID[TEXT]
+        self.friend_id_alias = None  # 好友ID别名[TEXT]
         self.nickname = None  # 昵称[TEXT]
         self.remark = None  # 备注[TEXT]
         self.photo = None  # 头像[TEXT]
@@ -633,7 +637,7 @@ class Friend(Column):
         self.add_time = None  # 添加时间[INT]
 
     def get_values(self):
-        return (self.account_id, self.friend_id, self.nickname, self.remark, self.photo, self.type, 
+        return (self.account_id, self.friend_id, self.friend_id_alias, self.nickname, self.remark, self.photo, self.type, 
                 self.gender, self.region, self.signature, self.add_time) + super(Friend, self).get_values()
 
     def insert_db(self, im):
@@ -935,7 +939,7 @@ class ContactLabel(Column):
         self.account_id = None  # 账号ID[TEXT]
         self.id = None  # [TEXT]
         self.name = None  # [TEXT]
-        self.users = None  # [TEXT]
+        self.users = ''  # [TEXT]
         self.type = 0  # [INT]  CONTACT_LABEL_TYPE
 
     def get_values(self):
@@ -1014,7 +1018,7 @@ class GenerateModel(object):
         if not self._db_has_table('account'):
             return []
 
-        sql = '''select account_id, nickname, username, password, photo, telephone, email, gender, age, country, 
+        sql = '''select account_id, account_id_alias, nickname, username, password, photo, telephone, email, gender, age, country, 
                         province, city, address, birthday, signature, source, deleted, repeated
                  from account'''
         try:
@@ -1026,18 +1030,19 @@ class GenerateModel(object):
                     break
                 deleted = 0
                 try:
-                    source = self._db_reader_get_string_value(r, 15)
-                    deleted = self._db_reader_get_int_value(r, 16, None)
+                    source = self._db_reader_get_string_value(r, 16)
+                    deleted = self._db_reader_get_int_value(r, 17, None)
                     account_id = self._db_reader_get_string_value(r, 0)
-                    nickname = self._db_reader_get_string_value(r, 1)
-                    username = self._db_reader_get_string_value(r, 2)
-                    password = self._db_reader_get_string_value(r, 3)
-                    photo = self._db_reader_get_string_value(r, 4, None)
-                    telephone = self._db_reader_get_string_value(r, 5)
-                    email = self._db_reader_get_string_value(r, 6)
-                    gender = self._db_reader_get_int_value(r, 7)
-                    country = self._db_reader_get_string_value(r, 9)
-                    signature = self._db_reader_get_string_value(r, 14)
+                    account_id_alias = self._db_reader_get_string_value(r, 1)
+                    nickname = self._db_reader_get_string_value(r, 2)
+                    username = self._db_reader_get_string_value(r, 3)
+                    password = self._db_reader_get_string_value(r, 4)
+                    photo = self._db_reader_get_string_value(r, 5, None)
+                    telephone = self._db_reader_get_string_value(r, 6)
+                    email = self._db_reader_get_string_value(r, 7)
+                    gender = self._db_reader_get_int_value(r, 8)
+                    country = self._db_reader_get_string_value(r, 10)
+                    signature = self._db_reader_get_string_value(r, 15)
 
                     if account_id in [None, '']:
                         continue
@@ -1126,7 +1131,7 @@ class GenerateModel(object):
         if not self._db_has_table('friend'):
             return []
 
-        sql = '''select account_id, friend_id, nickname, remark, photo, type, gender, region, signature, 
+        sql = '''select account_id, friend_id, friend_id_alias, nickname, remark, photo, type, gender, region, signature, 
                         add_time, source, deleted, repeated
                  from friend '''
         try:
@@ -1138,18 +1143,19 @@ class GenerateModel(object):
                     break
                 deleted = 0
                 try:
-                    source = self._db_reader_get_string_value(r, 10)
-                    deleted = self._db_reader_get_int_value(r, 11, None)
+                    source = self._db_reader_get_string_value(r, 11)
+                    deleted = self._db_reader_get_int_value(r, 12, None)
                     account_id = self._db_reader_get_string_value(r, 0)
                     user_id = self._db_reader_get_string_value(r, 1)
-                    nickname = self._db_reader_get_string_value(r, 2)
-                    remark = self._db_reader_get_string_value(r, 3)
-                    photo = self._db_reader_get_string_value(r, 4)
-                    user_type = self._db_reader_get_int_value(r, 5)
-                    gender = self._db_reader_get_int_value(r, 6)
-                    region = self._db_reader_get_string_value(r, 7)
-                    signature = self._db_reader_get_string_value(r, 8)
-                    add_time = self._db_reader_get_int_value(r, 9)
+                    user_id_alias = self._db_reader_get_string_value(r, 2)
+                    nickname = self._db_reader_get_string_value(r, 3)
+                    remark = self._db_reader_get_string_value(r, 4)
+                    photo = self._db_reader_get_string_value(r, 5)
+                    user_type = self._db_reader_get_int_value(r, 6)
+                    gender = self._db_reader_get_int_value(r, 7)
+                    region = self._db_reader_get_string_value(r, 8)
+                    signature = self._db_reader_get_string_value(r, 9)
+                    add_time = self._db_reader_get_int_value(r, 10)
                     
                     if account_id in [None, ''] or user_id in [None, '']:
                         continue
