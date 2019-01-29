@@ -879,8 +879,8 @@ class BaseBrowserParser(BaseParser):
             parse_main
             _convert_nodepath
     '''
-    def __init__(self, node, extract_deleted, extract_source, db_name=''):
-        super(BaseBrowserParser, self).__init__(node, extract_deleted, extract_source, 'Browser'+db_name)
+    def __init__(self, node, db_name=''):
+        super(BaseBrowserParser, self).__init__(node, 'Browser'+db_name)
         self.csm = MB()
         self.Generate = Generate
         self.VERSION_KEY_DB = VERSION_KEY_DB

@@ -78,18 +78,16 @@ def analyze_gmail(node, extract_deleted, extract_source):
         return ParserResults()
     return base_analyze(AndroidGmailParser, 
                         node, 
-                        extract_deleted, 
-                        extract_source, 
                         bcp_mail.MAIL_TOOL_TYPE_OTHER, 
                         VERSION_APP_VALUE,
                         'Gmail',
                         'Gmail_A')
 
-class AndroidGmailParser(BaseParser, BaseAndroidParser):
+class AndroidGmailParser(BaseAndroidParser):
     ''' \com.google.android.gm\databases '''
 
-    def __init__(self, node, extract_deleted, extract_source, db_name):
-        super(AndroidGmailParser, self).__init__(node, extract_deleted, extract_source, db_name)
+    def __init__(self, node, db_name):
+        super(AndroidGmailParser, self).__init__(node, db_name)
         self.VERSION_KEY_DB = model_mail.VERSION_KEY_DB
         self.VERSION_VALUE_DB = model_mail.VERSION_VALUE_DB
         self.VERSION_KEY_APP = model_mail.VERSION_KEY_APP

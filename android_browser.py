@@ -67,33 +67,33 @@ LENOVO  = bcp_browser.NETWORK_APP_LENOVO
 
 @parse_decorator
 def analyze_xiaomi_browser(node, extract_deleted, extract_source):
-    return base_analyze(AndroidBrowserParser, node, extract_deleted, extract_source, XIAOMI, VERSION_APP_VALUE, '小米浏览器', 'Xiaomi')
+    return base_analyze(AndroidBrowserParser, node, XIAOMI, VERSION_APP_VALUE, '小米浏览器', 'Xiaomi')
 
 @parse_decorator
 def analyze_huawei_browser(node, extract_deleted, extract_source):
-    return base_analyze(AndroidBrowserParser, node, extract_deleted, extract_source, HUAWEI, VERSION_APP_VALUE, '华为浏览器', 'Huawei')
+    return base_analyze(AndroidBrowserParser, node, HUAWEI, VERSION_APP_VALUE, '华为浏览器', 'Huawei')
 
 @parse_decorator
 def analyze_oppo_browser(node, extract_deleted, extract_source):
     if node.Name == 'downloads.db': # com.android.browser
-        return base_analyze(AndroidBrowserParser, node, extract_deleted, extract_source, OPPO, VERSION_APP_VALUE, 'OPPO浏览器', 'OPPO')
+        return base_analyze(AndroidBrowserParser, node, OPPO, VERSION_APP_VALUE, 'OPPO浏览器', 'OPPO')
     elif node.Name == 'History':    # chrome
         return analyze_oppo_browser_chrome(node, extract_deleted, extract_source)
 
 @parse_decorator
 def analyze_vivo_browser(node, extract_deleted, extract_source):
-    return base_analyze(AndroidBrowserParser, node, extract_deleted, extract_source, VIVO, VERSION_APP_VALUE, 'VIVO浏览器', 'VIVO')
+    return base_analyze(AndroidBrowserParser, node, VIVO, VERSION_APP_VALUE, 'VIVO浏览器', 'VIVO')
     
 @parse_decorator
 def analyze_lenovo_browser(node, extract_deleted, extract_source):
-    return base_analyze(AndroidBrowserParser, node, extract_deleted, extract_source, LENOVO, VERSION_APP_VALUE, '联想浏览器', 'Lenovo')
+    return base_analyze(AndroidBrowserParser, node, LENOVO, VERSION_APP_VALUE, '联想浏览器', 'Lenovo')
 
 
 class AndroidBrowserParser(model_browser.BaseBrowserParser, BaseAndroidParser):
     ''' self.root: com.android.browser/
     '''
-    def __init__(self, node, extract_deleted, extract_source, db_name):
-        super(AndroidBrowserParser, self).__init__(node, extract_deleted, extract_source, db_name)
+    def __init__(self, node, db_name):
+        super(AndroidBrowserParser, self).__init__(node, db_name)
         self.root = node.Parent.Parent
         self.model_db_name = db_name
 
@@ -416,6 +416,7 @@ class AndroidBrowserParser(model_browser.BaseBrowserParser, BaseAndroidParser):
         try:
             if not raw_path:
                 return
+                        
             if self.rename_file_path is not None:  # '/storage/emulated', '/data/media'
                 raw_path = raw_path.replace(self.rename_file_path[0], self.rename_file_path[1])
             fs = self.root.FileSystem
