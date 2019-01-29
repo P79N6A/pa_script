@@ -32,8 +32,7 @@ def analyze_ucbrowser(node, extract_deleted, extract_source):
 
     pr = ParserResults()
     try:
-        parser = UCParser(node, extract_deleted, extract_source, db_name='UC_A')
-        res = parser.parse(bcp_browser.NETWORK_APP_UC, VERSION_APP_VALUE)        
+        res = AndroidUCParser(node, db_name='UC_A').parse(bcp_browser.NETWORK_APP_UC, VERSION_APP_VALUE)        
     except:
         TraceService.Trace(TraceLevel.Debug,
                            'analyze_ucbrowser 解析新案例 <{}> 出错: {}'.format(CASE_NAME, traceback.format_exc()))
@@ -44,9 +43,9 @@ def analyze_ucbrowser(node, extract_deleted, extract_source):
     return pr
 
 
-class UCParser(model_browser.BaseBrowserParser, BaseAndroidParser):
-    def __init__(self, node, extract_deleted, extract_source, db_name):
-        super(UCParser, self).__init__(node, extract_deleted, extract_source, db_name)        
+class AndroidUCParser(model_browser.BaseBrowserParser, BaseAndroidParser):
+    def __init__(self, node, db_name):
+        super(AndroidUCParser, self).__init__(node, db_name)        
         self.root = node.Parent
 
     def parse_main(self):

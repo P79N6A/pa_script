@@ -27,7 +27,7 @@ def analyze_baidumobile(node, extract_deleted, extract_source):
     res = []
     pr = ParserResults()
     try:
-        parser = BaiduMobileParser(node, extract_deleted, extract_source, db_name="BaiduMobile")
+        parser = BaiduMobileParser(node, db_name="BaiduMobile")
         res = parser.parse(bcp_browser.NETWORK_APP_BAIDU, VERSION_APP_VALUE)            
     except:
         TraceService.Trace(TraceLevel.Debug, 
@@ -43,7 +43,7 @@ def analyze_baidumobile_lite(node, extract_deleted, extract_source):
     """
     pr = ParserResults()
     try:
-        parser = BaiduMobileParser(node, extract_deleted, extract_source, db_name="BaiduMobileLite")
+        parser = BaiduMobileParser(node, db_name="BaiduMobileLite")
         res = parser.parse(bcp_browser.NETWORK_APP_BAIDU, VERSION_APP_VALUE)        
     except:
         TraceService.Trace(TraceLevel.Debug, 
@@ -54,8 +54,8 @@ def analyze_baidumobile_lite(node, extract_deleted, extract_source):
     return pr
 
 class BaiduMobileParser(model_browser.BaseBrowserParser):
-    def __init__(self, node, extract_deleted, extract_source, db_name):
-        super(BaiduMobileParser, self).__init__(node, extract_deleted, extract_source, db_name)
+    def __init__(self, node, db_name):
+        super(BaiduMobileParser, self).__init__(node, db_name)
         self.root = node.Parent.Parent  # data/data/com.baidu.searchbox/
         self.uid_list = ['anony']
 

@@ -44,7 +44,7 @@ def analyze_chrome(node, extract_deleted, extract_source):
 class BaseChromeParser(model_browser.BaseBrowserParser):
 
     def __init__(self, node, extract_deleted, extract_source, db_name):
-        super(BaseChromeParser, self).__init__(node, extract_deleted, extract_source, db_name)        
+        super(BaseChromeParser, self).__init__(node, db_name)        
         self.root = node.Parent.Parent
         self.download_path = None
 

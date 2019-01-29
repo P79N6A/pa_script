@@ -28,7 +28,7 @@ def analyze_baidubrowser(node, extract_deleted, extract_source):
     res = []
     pr = ParserResults()
     try:
-        parser = BaiduBrowserParser(node, extract_deleted, extract_source, db_name='BaiduBrowser')
+        parser = BaiduBrowserParser(node, db_name='BaiduBrowser')
         res = parser.parse(bcp_browser.NETWORK_APP_BAIDU, VERSION_APP_VALUE)        
     except:
         TraceService.Trace(TraceLevel.Debug, 
@@ -40,8 +40,8 @@ def analyze_baidubrowser(node, extract_deleted, extract_source):
 
 
 class BaiduBrowserParser(model_browser.BaseBrowserParser):
-    def __init__(self, node, extract_deleted, extract_source, db_name):
-        super(BaiduBrowserParser, self).__init__(node, extract_deleted, extract_source, db_name)
+    def __init__(self, node, db_name):
+        super(BaiduBrowserParser, self).__init__(node, db_name)
         self.root = node.Parent.Parent  # data/data/com.baidu.browser.apps/
 
     def parse_main(self):

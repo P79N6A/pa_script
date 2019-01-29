@@ -1192,7 +1192,7 @@ def parse_decorator(func):
 
 ######### Base Class #########
 
-def base_analyze(Parser, node, extract_deleted, extract_source, BCP_TYPE, VERSION_APP_VALUE, bulid_name, db_name):
+def base_analyze(Parser, node, BCP_TYPE, VERSION_APP_VALUE, bulid_name, db_name):
     '''
     Args:
         Parser (Parser):
@@ -1209,8 +1209,7 @@ def base_analyze(Parser, node, extract_deleted, extract_source, BCP_TYPE, VERSIO
     res = []
     pr = ParserResults()
     try:
-        parser = Parser(node, extract_deleted, extract_source, db_name)
-        res = parser.parse(BCP_TYPE, VERSION_APP_VALUE)
+        res = Parser(node, db_name).parse(BCP_TYPE, VERSION_APP_VALUE)
     except:
         msg = 'analyze_browser.py-{} 解析新案例 <{}> 出错: {}'.format(db_name, CASE_NAME, traceback.format_exc())
         TraceService.Trace(TraceLevel.Debug, msg)
@@ -1242,10 +1241,10 @@ class BaseParser(object):
                 _convert_nodepath
                 update_version
     '''
-    def __init__(self, node, extract_deleted, extract_source, db_name=''):
+    def __init__(self, node, db_name=''):
         self.root = node
-        self.extract_deleted = extract_deleted
-        self.extract_source = extract_source
+        self.extract_deleted = True
+        self.extract_source = False
         self.csm = None
         self.Generate = None
         hash_str = hashlib.md5(node.AbsolutePath).hexdigest()[8:-8]
@@ -1336,6 +1335,26 @@ class BaseParser(object):
         except:
             exc()
             return False
+            
+    def _read_xml(self, xml_path):
+        ''' _read_xml, set self.cur_xml_source
+
+        Args: 
+            xml_path (str): self.root.GetByPath(xm_path)
+        Returns:
+            xml_data (XElement)
+        '''
+        try:
+            xml_node = self.root.GetByPath(xml_path)
+            if xml_node and xml_node.Data:
+                xml_data = XElement.Parse(xml_node.read())
+                self.cur_xml_source = xml_node.AbsolutePath
+                return xml_data
+            else:
+                return False
+        except:
+            exc()
+            return False            
 
     def _is_duplicate(self, rec, pk_name):
         ''' filter duplicate record
@@ -1446,17 +1465,13 @@ class BaseParser(object):
             return False
 
 
-class BaseAndroidParser(object):
-    def __init__(self, node, extract_deleted, extract_source, db_name=''):
+class BaseAndroidParser(BaseParser):
+    def __init__(self, node, db_name):
+        super(BaseAndroidParser, self).__init__(node, db_name)
         if node.FileSystem.Name == 'data.tar':
             self.rename_file_path = ['/storage/emulated', '/data/media'] 
         else:
             self.rename_file_path = None
-
-
-class BaseAppleParser(object):
-    def __init__(self, node, extract_deleted, extract_source, db_name=''):
-        super(BaseAppleParser, self).__init__(node, extract_deleted, extract_source, db_name)
 
 
 class ProtobufDecoder(object):
