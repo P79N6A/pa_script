@@ -1114,7 +1114,7 @@ class Wechat(object):
                 model.Deleted = model_wechat.GenerateModel._convert_deleted_status(label.deleted)
                 model.AppUserAccount = self.user_account_model
                 model.Name = label.name
-                for user_id in users:
+                for user_id in label.users:
                     friend = self.friend_models.get(user_id)
                     if friend is not None:
                         model.Friends.Add(friend)
@@ -1123,7 +1123,7 @@ class Wechat(object):
                 model.SourceFile = label.source
                 model.Deleted = model_wechat.GenerateModel._convert_deleted_status(label.deleted)
                 model.AppUserAccount = self.user_account_model
-                for user_id in users:
+                for user_id in label.users:
                     friend = self.friend_models.get(user_id)
                     if friend is not None:
                         model.Friends.Add(friend)
@@ -1132,7 +1132,7 @@ class Wechat(object):
                 model.SourceFile = label.source
                 model.Deleted = model_wechat.GenerateModel._convert_deleted_status(label.deleted)
                 model.AppUserAccount = self.user_account_model
-                for user_id in users:
+                for user_id in label.users:
                     friend = self.friend_models.get(user_id)
                     if friend is not None:
                         model.Friends.Add(friend)

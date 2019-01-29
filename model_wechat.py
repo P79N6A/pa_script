@@ -23,7 +23,7 @@ import os
 import sqlite3
 import time
 
-VERSION_VALUE_DB = 5
+VERSION_VALUE_DB = 6
 
 GENDER_NONE = 0
 GENDER_MALE = 1
