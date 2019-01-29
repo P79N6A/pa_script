@@ -66,7 +66,7 @@ class MediaParse(object):
             self.mm.db_insert_table_version(model_media.VERSION_KEY_APP, VERSION_APP_VALUE)
             self.mm.db_commit()
             self.mm.db_close()
-        generate = Generate(self.db_cache, self.node)
+        generate = Generate(self.db_cache)
         models = generate.get_models()
         return models
 
@@ -137,7 +137,7 @@ class MediaParse(object):
                 for rec in self.db.ReadTableRecords(ts, self.extractDeleted, True):
                     thumbnails = Thumbnails()
                     canceller.ThrowIfCancellationRequested()
-                    thumbnails.id = self._db_record_get_int_value(rec, '_id')
+                    id = self._db_record_get_int_value(rec, '_id')
                     thumbnails.url = self._db_record_get_string_value(rec, '_data')
                     thumbnails.url = self.dcim_node.AbsolutePath + re.sub('.*DCIM', '', thumbnails.url)
                     media_url = os.path.basename(thumbnails.url)
@@ -157,7 +157,7 @@ class MediaParse(object):
                     thumbnails.deleted = rec.IsDeleted
                     if thumbnail_path == '':
                         thumbnails.deleted = 1
-                    if thumbnails.id != 0:
+                    if id != 0:
                         self.mm.db_insert_table_thumbnails(thumbnails)
                 self.mm.db_commit()
             except:
@@ -332,4 +332,4 @@ def analyze_android_media(node, extractDeleted, extractSource):
     return pr
 
 def execute(node, extractDeleted):
-    return analyze_android_soundrecord(node, extractDeleted, False)
+    return analyze_android_media(node, extractDeleted, False)
