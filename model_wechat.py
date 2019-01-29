@@ -21,11 +21,9 @@ from PA.InfraLib.ModelsV2.IM import *
 
 import os
 import sqlite3
-import json
-import uuid
 import time
 
-VERSION_VALUE_DB = 4
+VERSION_VALUE_DB = 6
 
 GENDER_NONE = 0
 GENDER_MALE = 1
@@ -90,12 +88,17 @@ DEAL_STATUS_SPLIT_BILL_PAID = 11  # 已付款
 DEAL_STATUS_SPLIT_BILL_UNDONE = 12  # 未收齐
 DEAL_STATUS_SPLIT_BILL_DONE = 13  # 已收齐
 
+CONTACT_LABEL_TYPE_GROUP = 1  # 通讯录分组
+CONTACT_LABEL_TYPE_BLOCKED = 2  # 黑名单
+CONTACT_LABEL_TYPE_EMERGENCY = 3  # 紧急联系人
+
 VERSION_KEY_DB = 'db'
 VERSION_KEY_APP = 'app'
 
 SQL_CREATE_TABLE_ACCOUNT = '''
     create table if not exists account(
         account_id TEXT, 
+        account_id_alias TEXT,
         nickname TEXT,
         username TEXT,
         password TEXT, 
@@ -115,14 +118,15 @@ SQL_CREATE_TABLE_ACCOUNT = '''
         repeated INT DEFAULT 0)'''
 
 SQL_INSERT_TABLE_ACCOUNT = '''
-    insert into account(account_id, nickname, username, password, photo, telephone, email, gender, age, 
+    insert into account(account_id, account_id_alias, nickname, username, password, photo, telephone, email, gender, age, 
                         country, province, city, address, birthday, signature, source, deleted, repeated) 
-        values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
+        values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
 
 SQL_CREATE_TABLE_FRIEND = '''
     create table if not exists friend(
         account_id TEXT, 
         friend_id TEXT, 
+        friend_id_alias TEXT, 
         nickname TEXT, 
         remark TEXT,
         photo TEXT, 
@@ -136,9 +140,9 @@ SQL_CREATE_TABLE_FRIEND = '''
         repeated INT DEFAULT 0)'''
 
 SQL_INSERT_TABLE_FRIEND = '''
-    insert into friend(account_id, friend_id, nickname, remark, photo, type, gender, region, signature, 
+    insert into friend(account_id, friend_id, friend_id_alias, nickname, remark, photo, type, gender, region, signature, 
                        add_time, source, deleted, repeated) 
-        values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
+        values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
 
 SQL_CREATE_TABLE_CHATROOM = '''
     create table if not exists chatroom(
@@ -370,7 +374,7 @@ SQL_CREATE_INDEX_ON_TABLE_FAVORITE_ITEM = '''
 SQL_CREATE_TABLE_LOGIN_DEVICE = '''
     create table if not exists login_device(
         account_id TEXT, 
-        uuid TEXT,
+        id TEXT,
         name TEXT,
         type TEXT,
         last_time INT,
@@ -379,7 +383,21 @@ SQL_CREATE_TABLE_LOGIN_DEVICE = '''
         repeated INT DEFAULT 0)'''
 
 SQL_INSERT_TABLE_LOGIN_DEVICE = '''
-    insert into login_device(account_id, uuid, name, type, last_time, source, deleted, repeated) values(?, ?, ?, ?, ?, ?, ?, ?)'''
+    insert into login_device(account_id, id, name, type, last_time, source, deleted, repeated) values(?, ?, ?, ?, ?, ?, ?, ?)'''
+
+SQL_CREATE_TABLE_CONTACT_LABEL = '''
+    create table if not exists contact_label(
+        account_id TEXT, 
+        id TEXT,
+        name TEXT,
+        users TEXT,
+        type INT,
+        source TEXT,
+        deleted INT DEFAULT 0, 
+        repeated INT DEFAULT 0)'''
+
+SQL_INSERT_TABLE_CONTACT_LABEL = '''
+    insert into contact_label(account_id, id, name, users, type, source, deleted, repeated) values(?, ?, ?, ?, ?, ?, ?, ?)'''
 
 SQL_CREATE_TABLE_VERSION = '''
     create table if not exists version(
@@ -458,6 +476,8 @@ class IM(object):
             self.db_cmd.ExecuteNonQuery()
             self.db_cmd.CommandText = SQL_CREATE_TABLE_LOGIN_DEVICE
             self.db_cmd.ExecuteNonQuery()
+            self.db_cmd.CommandText = SQL_CREATE_TABLE_CONTACT_LABEL
+            self.db_cmd.ExecuteNonQuery()
             self.db_cmd.CommandText = SQL_CREATE_TABLE_VERSION
             self.db_cmd.ExecuteNonQuery()
 
@@ -519,6 +539,9 @@ class IM(object):
     def db_insert_table_login_device(self, column):
         self.db_insert_table(SQL_INSERT_TABLE_LOGIN_DEVICE, column.get_values())
 
+    def db_insert_table_contact_label(self, column):
+        self.db_insert_table(SQL_INSERT_TABLE_CONTACT_LABEL, column.get_values())
+
     def db_insert_table_version(self, key, version):
         self.db_insert_table(SQL_INSERT_TABLE_VERSION, (key, version))
 
@@ -572,6 +595,7 @@ class Account(Column):
     def __init__(self):
         super(Account, self).__init__()
         self.account_id = None  # 账户ID[TEXT]
+        self.account_id_alias = None  # 账户ID别名[TEXT]
         self.nickname = None  # 昵称[TEXT]
         self.username = None  # 用户名[TEXT]
         self.password = None  # 密码[TEXT]
@@ -588,8 +612,8 @@ class Account(Column):
         self.signature = None  # 签名[TEXT]
 
     def get_values(self):
-        return (self.account_id, self.nickname, self.username, self.password, self.photo, self.telephone, self.email, 
-                self.gender, self.age, self.country, self.province, self.city, self.address, self.birthday, 
+        return (self.account_id, self.account_id_alias, self.nickname, self.username, self.password, self.photo, self.telephone, 
+                self.email, self.gender, self.age, self.country, self.province, self.city, self.address, self.birthday, 
                 self.signature) + super(Account, self).get_values()
 
     def insert_db(self, im):
@@ -602,6 +626,7 @@ class Friend(Column):
         super(Friend, self).__init__()
         self.account_id = None  # 账号ID[TEXT]
         self.friend_id = None  # 好友ID[TEXT]
+        self.friend_id_alias = None  # 好友ID别名[TEXT]
         self.nickname = None  # 昵称[TEXT]
         self.remark = None  # 备注[TEXT]
         self.photo = None  # 头像[TEXT]
@@ -612,7 +637,7 @@ class Friend(Column):
         self.add_time = None  # 添加时间[INT]
 
     def get_values(self):
-        return (self.account_id, self.friend_id, self.nickname, self.remark, self.photo, self.type, 
+        return (self.account_id, self.friend_id, self.friend_id_alias, self.nickname, self.remark, self.photo, self.type, 
                 self.gender, self.region, self.signature, self.add_time) + super(Friend, self).get_values()
 
     def insert_db(self, im):
@@ -895,17 +920,34 @@ class LoginDevice(Column):
     def __init__(self):
         super(LoginDevice, self).__init__()
         self.account_id = None  # 账号ID[TEXT]
-        self.uuid = None  # [TEXT]
+        self.id = None  # [TEXT]
         self.name = None  # [TEXT]
         self.type = None  # [TEXT]
         self.last_time = None  # [INT]
 
     def get_values(self):
-        return (self.account_id, self.uuid, self.name, self.type, self.last_time) + super(LoginDevice, self).get_values()
+        return (self.account_id, self.id, self.name, self.type, self.last_time) + super(LoginDevice, self).get_values()
 
     def insert_db(self, im):
         if isinstance(im, IM):
             im.db_insert_table_login_device(self)
+
+
+class ContactLabel(Column):
+    def __init__(self):
+        super(ContactLabel, self).__init__()
+        self.account_id = None  # 账号ID[TEXT]
+        self.id = None  # [TEXT]
+        self.name = None  # [TEXT]
+        self.users = ''  # [TEXT]
+        self.type = 0  # [INT]  CONTACT_LABEL_TYPE
+
+    def get_values(self):
+        return (self.account_id, self.id, self.name, self.users, self.type) + super(ContactLabel, self).get_values()
+
+    def insert_db(self, im):
+        if isinstance(im, IM):
+            im.db_insert_table_contact_label(self)
 
 
 class GenerateModel(object):
@@ -942,6 +984,8 @@ class GenerateModel(object):
 
         #print('%s model_wechat() generate model account' % time.asctime(time.localtime(time.time())))
         self._get_account_models()
+        self.set_progress(2)
+        self._get_login_device_models()
         self.set_progress(5)
         #print('%s model_wechat() generate model friend' % time.asctime(time.localtime(time.time())))
         self._get_friend_models()
@@ -949,6 +993,9 @@ class GenerateModel(object):
         #print('%s model_wechat() generate model group' % time.asctime(time.localtime(time.time())))
         self._get_group_models()
         self.set_progress(25)
+        #print('%s model_wechat() generate model contact label' % time.asctime(time.localtime(time.time())))
+        self._get_contact_label_models()
+        self.set_progress(26)
         #print('%s model_wechat() generate model feed' % time.asctime(time.localtime(time.time())))
         self._get_feed_models()
         self.set_progress(45)
@@ -971,7 +1018,7 @@ class GenerateModel(object):
         if not self._db_has_table('account'):
             return []
 
-        sql = '''select account_id, nickname, username, password, photo, telephone, email, gender, age, country, 
+        sql = '''select account_id, account_id_alias, nickname, username, password, photo, telephone, email, gender, age, country, 
                         province, city, address, birthday, signature, source, deleted, repeated
                  from account'''
         try:
@@ -983,18 +1030,19 @@ class GenerateModel(object):
                     break
                 deleted = 0
                 try:
-                    source = self._db_reader_get_string_value(r, 15)
-                    deleted = self._db_reader_get_int_value(r, 16, None)
+                    source = self._db_reader_get_string_value(r, 16)
+                    deleted = self._db_reader_get_int_value(r, 17, None)
                     account_id = self._db_reader_get_string_value(r, 0)
-                    nickname = self._db_reader_get_string_value(r, 1)
-                    username = self._db_reader_get_string_value(r, 2)
-                    password = self._db_reader_get_string_value(r, 3)
-                    photo = self._db_reader_get_string_value(r, 4, None)
-                    telephone = self._db_reader_get_string_value(r, 5)
-                    email = self._db_reader_get_string_value(r, 6)
-                    gender = self._db_reader_get_int_value(r, 7)
-                    country = self._db_reader_get_string_value(r, 9)
-                    signature = self._db_reader_get_string_value(r, 14)
+                    account_id_alias = self._db_reader_get_string_value(r, 1)
+                    nickname = self._db_reader_get_string_value(r, 2)
+                    username = self._db_reader_get_string_value(r, 3)
+                    password = self._db_reader_get_string_value(r, 4)
+                    photo = self._db_reader_get_string_value(r, 5, None)
+                    telephone = self._db_reader_get_string_value(r, 6)
+                    email = self._db_reader_get_string_value(r, 7)
+                    gender = self._db_reader_get_int_value(r, 8)
+                    country = self._db_reader_get_string_value(r, 10)
+                    signature = self._db_reader_get_string_value(r, 15)
 
                     if account_id in [None, '']:
                         continue
@@ -1036,13 +1084,54 @@ class GenerateModel(object):
         except Exception as e:
             TraceService.Trace(TraceLevel.Error, "model_wechat.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
 
+    def _get_login_device_models(self):
+        if canceller.IsCancellationRequested:
+            return []
+        if not self._db_has_table('account'):
+            return []
+
+        sql = '''select account_id, id, name, type, last_time, source, deleted, repeated
+                 from login_device'''
+        try:
+            cmd = self.db.CreateCommand()
+            cmd.CommandText = sql
+            r = cmd.ExecuteReader()
+            while r.Read():
+                if canceller.IsCancellationRequested:
+                    break
+                deleted = 0
+                try:
+                    source = self._db_reader_get_string_value(r, 5)
+                    deleted = self._db_reader_get_int_value(r, 6, None)
+                    account_id = self._db_reader_get_string_value(r, 0)
+                    id = self._db_reader_get_string_value(r, 1)
+                    name = self._db_reader_get_string_value(r, 2)
+                    device_type = self._db_reader_get_string_value(r, 3)
+                    last_time = self._db_reader_get_int_value(r, 4, None)
+
+                    model = IM.LoginDevice()
+                    model.SourceFile = source
+                    model.Deleted = self._convert_deleted_status(deleted)
+                    model.AppUserAccount = self.account_models.get(account_id)
+                    model.Id = id
+                    model.Name = name
+                    model.Type = device_type
+                    model.LastLoginTime = self._get_timestamp(last_time)
+                    self.add_model(model)
+                except Exception as e:
+                    if deleted == 0:
+                        TraceService.Trace(TraceLevel.Error, "model_wechat.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
+            self.push_models()
+        except Exception as e:
+            TraceService.Trace(TraceLevel.Error, "model_wechat.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
+
     def _get_friend_models(self):
         if canceller.IsCancellationRequested:
             return []
         if not self._db_has_table('friend'):
             return []
 
-        sql = '''select account_id, friend_id, nickname, remark, photo, type, gender, region, signature, 
+        sql = '''select account_id, friend_id, friend_id_alias, nickname, remark, photo, type, gender, region, signature, 
                         add_time, source, deleted, repeated
                  from friend '''
         try:
@@ -1054,18 +1143,19 @@ class GenerateModel(object):
                     break
                 deleted = 0
                 try:
-                    source = self._db_reader_get_string_value(r, 10)
-                    deleted = self._db_reader_get_int_value(r, 11, None)
+                    source = self._db_reader_get_string_value(r, 11)
+                    deleted = self._db_reader_get_int_value(r, 12, None)
                     account_id = self._db_reader_get_string_value(r, 0)
                     user_id = self._db_reader_get_string_value(r, 1)
-                    nickname = self._db_reader_get_string_value(r, 2)
-                    remark = self._db_reader_get_string_value(r, 3)
-                    photo = self._db_reader_get_string_value(r, 4)
-                    user_type = self._db_reader_get_int_value(r, 5)
-                    gender = self._db_reader_get_int_value(r, 6)
-                    region = self._db_reader_get_string_value(r, 7)
-                    signature = self._db_reader_get_string_value(r, 8)
-                    add_time = self._db_reader_get_int_value(r, 9)
+                    user_id_alias = self._db_reader_get_string_value(r, 2)
+                    nickname = self._db_reader_get_string_value(r, 3)
+                    remark = self._db_reader_get_string_value(r, 4)
+                    photo = self._db_reader_get_string_value(r, 5)
+                    user_type = self._db_reader_get_int_value(r, 6)
+                    gender = self._db_reader_get_int_value(r, 7)
+                    region = self._db_reader_get_string_value(r, 8)
+                    signature = self._db_reader_get_string_value(r, 9)
+                    add_time = self._db_reader_get_int_value(r, 10)
                     
                     if account_id in [None, ''] or user_id in [None, '']:
                         continue
@@ -1608,6 +1698,113 @@ class GenerateModel(object):
                 TraceService.Trace(TraceLevel.Error, "model_wechat.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
         return models
 
+    def _get_contact_label_models(self):
+        if canceller.IsCancellationRequested:
+            return []
+        if not self._db_has_table('contact_label'):
+            return []
+
+        sql = '''select account_id, id, name, users, type, source, deleted, repeated
+                 from contact_label'''
+        try:
+            cmd = self.db.CreateCommand()
+            cmd.CommandText = sql
+            r = cmd.ExecuteReader()
+            while r.Read():
+                if canceller.IsCancellationRequested:
+                    break
+                deleted = 0
+                try:
+                    source = self._db_reader_get_string_value(r, 5)
+                    deleted = self._db_reader_get_int_value(r, 6, None)
+                    account_id = self._db_reader_get_string_value(r, 0)
+                    name = self._db_reader_get_string_value(r, 2)
+                    users = (self._db_reader_get_string_value(r, 3)).split(',')
+                    cl_type = self._db_reader_get_int_value(r, 4)
+
+                    if cl_type == CONTACT_LABEL_TYPE_GROUP:
+                        model = FriendGroup()
+                        model.SourceFile = source
+                        model.Deleted = self._convert_deleted_status(deleted)
+                        model.AppUserAccount = self.account_models.get(account_id)
+                        model.Name = name
+                        for user_id in users:
+                            friend = self.friend_models.get(self._get_user_key(account_id, user_id))
+                            if friend is not None:
+                                model.Friends.Add(friend)
+                        self.add_model(model)
+                    elif cl_type == CONTACT_LABEL_TYPE_BLOCKED:
+                        model = BlockedList()
+                        model.SourceFile = source
+                        model.Deleted = self._convert_deleted_status(deleted)
+                        model.AppUserAccount = self.account_models.get(account_id)
+                        for user_id in users:
+                            friend = self.friend_models.get(self._get_user_key(account_id, user_id))
+                            if friend is not None:
+                                model.Friends.Add(friend)
+                        self.add_model(model)
+                    elif cl_type == CONTACT_LABEL_TYPE_EMERGENCY:
+                        model = EmergencyContacts()
+                        model.SourceFile = source
+                        model.Deleted = self._convert_deleted_status(deleted)
+                        model.AppUserAccount = self.account_models.get(account_id)
+                        for user_id in users:
+                            friend = self.friend_models.get(self._get_user_key(account_id, user_id))
+                            if friend is not None:
+                                model.Friends.Add(friend)
+                        self.add_model(model)
+
+                    
+                except Exception as e:
+                    if deleted == 0:
+                        TraceService.Trace(TraceLevel.Error, "model_wechat.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
+            self.push_models()
+        except Exception as e:
+            TraceService.Trace(TraceLevel.Error, "model_wechat.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
+
+    def _get_black_list_models(self):
+        if canceller.IsCancellationRequested:
+            return []
+        if not self._db_has_table('black_list'):
+            return []
+        models = []
+
+        sql = '''select account_id, user_id, source, deleted, repeated
+                 from black_list'''
+        try:
+            cmd = self.db.CreateCommand()
+            cmd.CommandText = sql
+            r = cmd.ExecuteReader()
+            while r.Read():
+                if canceller.IsCancellationRequested:
+                    break
+                deleted = 0
+                try:
+                    source = self._db_reader_get_string_value(r, 2)
+                    deleted = self._db_reader_get_int_value(r, 3, None)
+                    account_id = self._db_reader_get_string_value(r, 0)
+                    user_id = self._db_reader_get_string_value(r, 1)
+
+                    model = BlockedList()
+                    model.SourceFile = source
+                    model.Deleted = self._convert_deleted_status(deleted)
+                    model.AppUserAccount = self.account_models.get(account_id)
+                    for user_id in users:
+                        friend = self.friend_models.get(self._get_user_key(account_id, user_id))
+                        if friend is not None:
+                            model.Friends.Add(friend)
+
+                    self.add_model(model)
+                except Exception as e:
+                    if deleted == 0:
+                        TraceService.Trace(TraceLevel.Error, "model_wechat.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
+            self.push_models()
+        except Exception as e:
+            TraceService.Trace(TraceLevel.Error, "model_wechat.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
+
+    def _get_emergency_contact_models(self):
+        pass
+
     def _db_has_table(self, table_name):
         try:
             sql = "select count(*) from sqlite_master where type='table' and name='{}' ".format(table_name)
@@ -1704,6 +1901,8 @@ class GenerateModel(object):
 
     @staticmethod
     def _get_timestamp(timestamp):
+        if timestamp in [None, 0]:
+            return None
         try:
             ts = TimeStamp.FromUnixTime(timestamp, False)
             if not ts.IsValidForSmartphone():
@@ -1711,13 +1910,6 @@ class GenerateModel(object):
             return ts
         except Exception as e:
             return None
-
-    @staticmethod
-    def _get_uri(path):
-        if path.startswith('http') or len(path) == 0:
-            return ConvertHelper.ToUri(path)
-        else:
-            return ConvertHelper.ToUri(path)
 
     @staticmethod
     def _convert_friend_type(friend_type):

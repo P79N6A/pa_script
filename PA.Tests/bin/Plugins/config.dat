@@ -1566,6 +1566,30 @@
 
     <dict>
       <key>Module</key>
+      <string>apple_media</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_apple_media</string>
+          <key>RunnerType</key>
+          <integer>0</integer>
+          <key>Patterns</key>
+          <array>
+            <string>/Media/PhotoData/Photos.sqlite$</string>
+          </array>
+          <key>Category</key>
+          <string>Photos</string>
+          <key>Name</key>
+          <string>多媒体(苹果)</string>
+          <key>Filter</key>
+          <string>基础数据</string>
+        </dict>
+      </array>
+    </dict>
+
+    <dict>
+      <key>Module</key>
       <string>apple_wechat</string>
       <key>Runners</key>
       <array>
@@ -1862,7 +1886,7 @@
           <key>Patterns</key>
           <array>
             <string>/com.telecom-guoling.feiin$</string>
-            <string>/com.network.uxin$</string>
+            <string>/com.network.uxin.plist$</string>
           </array>
           <key>Category</key>
           <string>YouXin</string>
@@ -2832,7 +2856,7 @@
           <key>Name</key>
           <string>Blued(安卓)</string>
           <key>Filter</key>
-          <string>应用>聊天</string>
+          <string>应用>即时通讯</string>
         </dict>
       </array>
     </dict>

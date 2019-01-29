@@ -24,6 +24,7 @@ from System.Text import *
 from System.IO import *
 from System import Convert
 import System.Data.SQLite as SQLite
+from PA.InfraLib.Services import ServiceGetter,IWechatCrackUin
 
 import os
 import hashlib
@@ -96,7 +97,12 @@ class WeChatParser(Wechat):
         if not self.is_valid_user_dir:
             return []
         if not self._can_decrypt(self.uin, self.user_hash):
-            return []
+            wxCrack = ServiceGetter.Get[IWechatCrackUin]()
+            uin = wxCrack.CrackUinFromMd5(self.user_hash)
+            if uin not in [None, 0]:
+                self.uin = uin
+            else:
+                return []
 
         if DEBUG or self.im.need_parse(self.cache_db, VERSION_APP_VALUE):
             self.im.db_create(self.cache_db)
@@ -189,7 +195,7 @@ class WeChatParser(Wechat):
             xml = XElement.Parse(node.read())
             es = xml.Elements('int')
         except Exception as e:
-            TraceService.Trace(TraceLevel.Error, "android_wechat.py Error: LINE {}".format(traceback.format_exc()))
+            pass
         for e in es:
             if e.Attribute('name') and e.Attribute('name').Value == '_auth_uin' and e.Attribute('value'):
                 return e.Attribute('value').Value
@@ -205,7 +211,7 @@ class WeChatParser(Wechat):
             xml = XElement.Parse(node.read())
             es = xml.Elements('string')
         except Exception as e:
-            TraceService.Trace(TraceLevel.Error, "android_wechat.py Error: LINE {}".format(traceback.format_exc()))
+            pass
         for e in es:
             if e.Attribute('name') and e.Attribute('name').Value == 'last_login_uin':
                 return e.Value
@@ -873,7 +879,7 @@ class WeChatParser(Wechat):
             friend.insert_db(self.im)
             model = self.get_friend_model(friend)
             self.add_model(model)
-            if deleted == 0 or username not in self.friend_models:
+            if (deleted == 0 or username not in self.friend_models) and username != self.user_account_model.Account:
                 self.friend_models[username] = model
 
     def _parse_mm_db_chatroom_member(self, db, source):
@@ -960,7 +966,7 @@ class WeChatParser(Wechat):
             revoke_content = self._process_parse_group_message(msg, msg_type, img_path, is_send != 0, message)
         else:
             message.talker_type = model_wechat.CHAT_TYPE_FRIEND
-            message.sender_id = self.user_account_model.Account if is_send != 0 else talker
+            message.sender_id = self.user_account_model.Account if is_send != 0 else talker_id
             revoke_content = self._process_parse_friend_message(msg, msg_type, img_path, message)
         message.insert_db(self.im)
         model, tl_model = self.get_message_model(message)
@@ -992,13 +998,13 @@ class WeChatParser(Wechat):
         if msg_type in [MSG_TYPE_TEXT, MSG_TYPE_EMOJI]:
             pass
         elif msg_type == MSG_TYPE_IMAGE:
-            content = ''
+            content = '[图片]'
             model.media_path = self._process_parse_message_tranlate_img_path(img_path)
         elif msg_type == MSG_TYPE_VOICE:
-            content = ''
+            content = '[语音]'
             model.media_path = self._process_parse_message_tranlate_voice_path(img_path)
         elif msg_type in [MSG_TYPE_VIDEO, MSG_TYPE_VIDEO_2]:
-            content = ''
+            content = '[视频]'
             model.media_path = self._process_parse_message_tranlate_video_path(img_path, model)
         elif msg_type == MSG_TYPE_LOCATION:
             content = self._process_parse_message_location(content, model)
@@ -1058,6 +1064,16 @@ class WeChatParser(Wechat):
                 node = extend_node.GetByPath('/image2/{0}/{1}/{2}'.format(m1, m2, img_name))
                 if node is not None:
                     media_path = node.AbsolutePath
+                    
+                    p_node = extend_node.GetByPath('/image2/{0}/{1}'.format(m1, m2))
+                    if img_name.startswith(TH_PREFIX):
+                        hd_file = img_name[len(TH_PREFIX):]
+                    else:
+                        hd_file = img_name
+                    hd_nodes = p_node.Search('/{}[.].+$'.format(hd_file))
+                    if hd_nodes is not None:
+                        for hd_node in hd_nodes:
+                            media_path = hd_node.AbsolutePath
                     break
             if media_path is None:
                 media_path = '/no_image'
