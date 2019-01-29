@@ -224,7 +224,7 @@ class baiduMapParser(object):
                         route.from_posX = start_data["geoptx"] if "geoptx" in start_data else 0
                         route.from_posY = start_data["geopty"] if "geopty" in start_data else 0
                     except Exception as e:
-                        print(e)
+                        TraceService.Trace(TraceLevel.Error,"{0}".format(e))
                 
                 if "efavnode" in route_rec and (not route_rec["efavnode"].IsDBNull):
                     try:
@@ -233,7 +233,7 @@ class baiduMapParser(object):
                         route.to_posX = end_data["geoptx"] if "geoptx" in end_data else 0
                         route.to_posY = end_data["geopty"] if "geopty" in end_data else 0
                     except:
-                        pass
+                        TraceService.Trace(TraceLevel.Error,"{0}".format(e))
                 route.type = 6
                 if "ctime" in rec and (not rec["ctime"].IsDBNull):
                     route_favpoi.create_time = rec["ctime"].Value
@@ -251,9 +251,11 @@ class baiduMapParser(object):
 
 
 def analyze_baidumap(root, extract_deleted, extract_source):
+    TraceService.Trace(TraceLevel.Info,"正在分析安卓百度地图...")
     pr = ParserResults()
     prResult = baiduMapParser(root, extract_deleted, extract_source).parse()
     if prResult:
         pr.Models.AddRange(prResult)
     pr.Build("百度地图")
+    TraceService.Trace(TraceLevel.Info,"安卓百度地图分析完成!")
     return pr

@@ -212,9 +212,11 @@ class baiduMapParser(object):
 
 
 def analyze_baidumap(root, extract_deleted, extract_source):
+    TraceService.Trace(TraceLevel.Info,"正在分析苹果百度地图...")
     pr = ParserResults()
     prResult = baiduMapParser(root, extract_deleted, extract_source).parse()
     if prResult:
         pr.Models.AddRange(prResult)
     pr.Build("百度地图")
+    TraceService.Trace(TraceLevel.Info,"苹果百度地图分析完成!")
     return pr
