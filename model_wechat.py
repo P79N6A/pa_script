@@ -397,7 +397,7 @@ SQL_CREATE_TABLE_CONTACT_LABEL = '''
         repeated INT DEFAULT 0)'''
 
 SQL_INSERT_TABLE_CONTACT_LABEL = '''
-    insert into contact_label(account_id, id, name, users, type, source, deleted, repeated) values(?, ?, ?, ?, ?, ?, ?)'''
+    insert into contact_label(account_id, id, name, users, type, source, deleted, repeated) values(?, ?, ?, ?, ?, ?, ?, ?)'''
 
 SQL_CREATE_TABLE_VERSION = '''
     create table if not exists version(

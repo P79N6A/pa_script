@@ -408,7 +408,7 @@ class WeChatParser(Wechat):
             if 'm_nsName' in value.Children:
                 cl.name = self._bpreader_node_get_string_value(value, 'm_nsName')
             cl.insert_db(self.im)
-            self.add_model(self.get_contact_label_model())
+            self.add_model(self.get_contact_label_model(cl))
         self.im.db_commit()
         self.push_models()
 
