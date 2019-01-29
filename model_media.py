@@ -519,9 +519,9 @@ class Generate(object):
                         log.OperatingTime = str(date[0])
                         model.append(log)
                 except:
-                    traceback.print_exc()
+                    pass
         except:
-            traceback.print_exc()
+            return []
         return model
 
     def _get_media_thumbnail(self, media_id):
