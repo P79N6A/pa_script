@@ -1232,10 +1232,14 @@ class WeChatParser(Wechat):
         content = xml_str
         xml = None
         try:
-            xml = XElement.Parse(xml_str.replace('\b', ''))
+            xml_content = xml_str.replace('\b', '')  # remove '\b' char
+            index = xml_content.find('<?xml version="1.0"?>')
+            if index > 0:
+                xml_content = xml_content.replace('<?xml version="1.0"?>', '')  # remove xml declare not in front of content
+            xml = XElement.Parse(xml_content)
         except Exception as e:
             if model.deleted == 0:
-                TraceService.Trace(TraceLevel.Error, "base_wechat.py Error: LINE {} \nxml: {}".format(traceback.format_exc(), xml_str))
+                TraceService.Trace(TraceLevel.Error, "apple_wechat.py Error: LINE {} \nxml: {}".format(traceback.format_exc(), xml_str))
             model.type = model_wechat.MESSAGE_CONTENT_TYPE_TEXT
             return
 
