@@ -1646,7 +1646,7 @@
           <integer>0</integer>
           <key>Patterns</key>
           <array>
-            <string>/Documents/MapData.data$</string>
+            <string>/Library/Preferences/com.sogou.map.app.Map.plist$</string>
           </array>
           <key>Category</key>
           <string>SogouMap</string>
@@ -2832,7 +2832,7 @@
           <key>Name</key>
           <string>Blued(安卓)</string>
           <key>Filter</key>
-          <string>应用>聊天</string>
+          <string>应用>即时通讯</string>
         </dict>
       </array>
     </dict>
