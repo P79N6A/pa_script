@@ -1,18 +1,25 @@
-#coding=utf-8
-import os
-import PA_runtime
-from PA_runtime import *
-import json
+#coding:utf-8
+
+'''
+The script is based on sogou map version 8.3.7.561.1, 
+which is theoretically compatible with less than 8.3.7.561.1
+'''
+
+__date__ = "2019-1-30"
+__author__ = "Xu Tao"
+__maintainer__ = "Xu Tao"
+
 import clr
 try:
-    clr.AddReference('model_map')
-    clr.AddReference("bcp_gis")
+    clr.AddReference('model_map_v2')
+    clr.AddReference("MapUtil")
 except:
     pass
-del clr
-import model_map
-import bcp_gis
-import hashlib
+from PA_runtime import *
+import json
+import model_map_v2 as model_map
+import MapUtil
+
 
 class SogouMap(object):
 
@@ -20,169 +27,107 @@ class SogouMap(object):
         self.root = node
         self.extract_deleted = extract_deleted
         self.extract_source = extract_source
-        self.sogoudb = model_map.Map()
+        self.sogouMap = model_map.Map()
         self.db_cache = ds.OpenCachePath("sogouMap")
-        self.tmp_dir = ds.OpenCachePath("tmp")
-    
-    # 历史搜索记录
-    def parse_history_data(self):
-        history_node = self.root
-        # history_node = self.root.GetByPath("Documents/MapData.data")
-        if history_node is None:
-            return
-        try:
-            mapdb = SQLiteParser.Database.FromNode(history_node, canceller)
-            if mapdb is None:
-                return
-            if "ZSGMHISTORYENTITY" not in mapdb.Tables:
-                return
-            tb = SQLiteParser.TableSignature("ZSGMHISTORYENTITY")
-            if self.extract_deleted:
-                SQLiteParser.Tools.AddSignatureToTable(tb, "ZCAPTION", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
-            for rec in mapdb.ReadTableRecords(tb, self.extract_deleted, self.extract_source):
-                try:
-                    if canceller.IsCancellationRequested:
-                        return
-                    search = model_map.Search()
-                    search.source = "搜狗地图"
-                    search.sourceApp = "搜狗地图"
-                    search.sourceFile = history_node.AbsolutePath
-                    if rec.Deleted == DeletedState.Deleted:
-                        search.deleted = 1
-                    # elif rec.Deleted == DeletedState.Intact:
-                    #     search.deleted = 0
-                    if "ZCAPTION" in rec and (not rec["ZCAPTION"].IsDBNull):
-                        search.keyword = rec["ZCAPTION"].Value
-                    if "ZADDRESS" in rec and (not rec["ZADDRESS"].IsDBNull):
-                        search.address = rec["ZADDRESS"].Value
-                    if rec["ZADDRESS"].IsDBNull and (not rec["ZDESC"].IsDBNull):
-                        search.address = rec["ZDESC"].Value
-                    if rec["ZPOINTX"] in rec and (not rec["ZPOINTX"].IsDBNull):
-                        search.pos_x = int(rec["ZPOINTX"].Value)
-                    if rec["ZPOINTY"] in rec and (not rec["ZPOINTY"].IsDBNull):
-                        search.pos_y = int(rec["ZPOINTY"].Value)
-                    if search.keyword or search.address or search.pos_x or search.pos_y:
-                        self.sogoudb.db_insert_table_search(search)
-                except Exception as e:
-                    pass    
-        except Exception as e:
-            pass
-        self.sogoudb.db_commit()
-    
-    def parse_user_data(self):
-        # user_node = self.root.GetByPath("Documents/MapData.data")
-        user_node = self.root
-        if user_node is None:
-            return
-        try:
-            mapdb = SQLiteParser.Database.FromNode(user_node, canceller)
-            if mapdb is None:
-                return
-            if "ZSGMUSERDATAENTITY" not in mapdb.Tables:
-                return
-            tb = SQLiteParser.TableSignature("ZSGMUSERDATAENTITY")
-            for rec in mapdb.ReadTableRecords(tb, self.extract_deleted, self.extract_source):
-                try:
-                    if canceller.IsCancellationRequested:
-                        return
-                    user = model_map.Account()
-                    user.sourceApp = "搜狗地图"
-                    user.sourceFile = user_node.AbsolutePath
-                    if rec.Deleted == DeletedState.Deleted:
-                        user.deleted = 1
-                    elif rec.Deleted == DeletedState.Intact:
-                        user.deleted = 0
-                    if "ZNAME" in rec and (not rec["ZNAME"].IsDBNull):
-                        user.nickname = rec["ZNAME"].Value
-                    if "ZSEX" in rec and (not rec["ZSEX"].IsDBNull):
-                        user.gender = rec["ZSEX"].Value
-                    if "ZUSERID" in rec and (not rec["ZUSERID"].IsDBNull):
-                        user.account_id = rec["ZUSERID"].Value
-                        user.source = "搜狗地图" 
-                    if user.account_id or user.nickname or user.gender:
-                        self.sogoudb.db_insert_table_account(user)
-                except Exception as e:
-                    pass
-        except Exception as e:
-            pass
-        finally:
-            self.sogoudb.db_commit()
 
-    def parse_favorites_data(self):
-        # addr_node = self.root.GetByPath("Documents/MapData.data")
-        addr_node = self.root
-        if addr_node is None:
-            return
-        try:
-            mapdb = SQLiteParser.Database.FromNode(addr_node, canceller)
-            if mapdb is None:
-                return
-            if "ZSGMFAVORITEENTITY" not in mapdb.Tables:
-                return
-            tbs = SQLiteParser.TableSignature("ZSGMFAVORITEENTITY")
-            if self.extract_deleted:
-                SQLiteParser.Tools.AddSignatureToTable(tbs, "ZCAPTION", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
-            for rec in mapdb.ReadTableRecords(tbs, self.extract_deleted, self.extract_source):
-                try:
-                    if canceller.IsCancellationRequested:
-                        return
-                    search = model_map.Search()
-                    search.sourceApp = "搜狗地图"
-                    search.sourceFile = addr_node.AbsolutePath
-                    search.item_type = 1  # 类型是收藏的点
-                    if rec.Deleted == DeletedState.Deleted:
-                        search.deleted = 1
-                    elif rec.Deleted == DeletedState.Intact:
-                        search.deleted = 0
-                    if "ZCAPTION" in rec and (not rec["ZCAPTION"].IsDBNull) and rec["ZTYPE"].Value == 105:
-                        search.keyword = rec["ZCAPTION"].Value
-                    if "ZUSERID" in rec and (not rec["ZUSERID"].IsDBNull) and rec["ZTYPE"].Value == 105:
-                        search.account_id = rec["ZUSERID"].Value
-                        search.source = "搜狗地图"
-                    # if "ZATTRIBUTES" in rec and (not rec["ZATTRIBUTES"].IsDBNull):
-                    #     try:
-                    #         dates = rec["ZATTRIBUTES"].Value
-                    #         dstart = DateTime(1970,1,1,0,0,0)
-                    #         cdate = TimeStampFormats.GetTimeStampEpoch1Jan2001(rec["ZATTRIBUTES"].Value)
-                    #         search.create_time = TimeStamp.FromUnixTime(int((cdate - dstart).TotalSeconds), False)
-                    #     except Exception as e:
-                    #         pass
-                    if search.keyword or search.account_id or search.create_time:
-                        self.sogoudb.db_insert_table_search(search)
-                except Exception as e:
-                    TraceService.Trace(TraceLevel.Error,"{0}".format(e))
-        except Exception as e:
-            TraceService.Trace(TraceLevel.Error,"{0}".format(e))
-        finally:
-            self.sogoudb.db_commit()
 
-    def parse_route_data(self):
-        route_addr =  self.root.Parent.GetByPath("BusHistory.plist")
-        if route_addr is None:
-            return 
-        bplist = BPReader(route_addr.Data).top
+    def parse(self):
+        db_path = MapUtil.md5(self.db_cache, self.root.AbsolutePath)
+        self.sogouMap.db_create(db_path)
+        self.get_search_history_v1()
+        self.get_favpoi_v1()
+        # self.get_route_v1()
+        self.sogouMap.db_close()
+        
+        results = model_map.ExportModel(db_path).get_model()
+        return results
+
+
+    def get_search_history_v1(self):
+        search_node = self.root.Parent.Parent.Parent.GetByPath("Documents/MapData.data")
+        if search_node is None:
+            return
+        mapdb = SQLiteParser.Database.FromNode(search_node, canceller)
+        if "ZSGMHISTORYENTITY" not in mapdb.Tables:
+            return
+        tb = SQLiteParser.TableSignature("ZSGMHISTORYENTITY")
+        for rec in mapdb.ReadTableRecords(tb, self.extract_deleted, self.extract_source):
+            try:
+                if canceller.IsCancellationRequested:
+                    return
+                search = model_map.Search()
+                search.sourceApp = "搜狗地图"
+                search.sourceFile = search_node.AbsolutePath
+                if rec.Deleted == DeletedState.Deleted:
+                    search.deleted = 1
+                if "ZCAPTION" in rec and (not rec["ZCAPTION"].IsDBNull):
+                    search.keyword = rec["ZCAPTION"].Value
+                if "ZADDRESS" in rec and (not rec["ZADDRESS"].IsDBNull):
+                    search.address = rec["ZADDRESS"].Value
+                if "ZDESC" in rec and (not rec["ZDESC"].IsDBNull):
+                    search.address = rec["ZDESC"].Value
+                if "ZDATE" in rec and (not rec["ZDATE"].IsDBNull):
+                    search.create_time = SogouMap._format_mac_timestamp((rec["ZDATE"].Value))
+                if search.keyword:
+                    self.sogouMap.db_insert_table_search(search)
+            except Exception as e:
+                TraceService.Trace(TraceLevel.Error,"{0}".format(e))
+        self.sogouMap.db_commit()
+
+
+    def get_favpoi_v1(self):
+        fav_node = self.root.Parent.Parent.Parent.GetByPath("Documents/MapData.data")
+        if fav_node is None:
+            return
+        mapdb = SQLiteParser.Database.FromNode(fav_node, canceller)
+        if "ZSGMFAVORITEENTITY" not in mapdb.Tables:
+            return
+        tb = SQLiteParser.TableSignature("ZSGMFAVORITEENTITY")
+        for rec in mapdb.ReadTableRecords(tb, self.extract_deleted, self.extract_source):
+            try:
+                if canceller.IsCancellationRequested:
+                    return
+                favpoi = model_map.FavPoi()
+                favpoi.sourceApp = "搜狗地图"
+                favpoi.sourceFile = fav_node.AbsolutePath
+                if rec.Deleted == DeletedState.Deleted:
+                    favpoi.deleted = 1
+                if "ZCAPTION" in rec and (not rec["ZCAPTION"].IsDBNull):
+                    favpoi.poi_name = rec["ZCAPTION"].Value
+                if "ZCREATETIME" in rec and (not rec["ZCREATETIME"].IsDBNull):
+                    favpoi.create_time = SogouMap._format_mac_timestamp(rec["ZCREATETIME"].Value)
+                if favpoi.poi_name:
+                    self.sogouMap.db_insert_table_favpoi(favpoi)
+            except Exception as e:
+                TraceService.Trace(TraceLevel.Error,"{0}".format(e))
+        self.sogouMap.db_commit()
+
+
+    def get_route_v1(self):
+        route_node = self.root.Parent.Parent.Parent.GetByPath("Documents/BusHistory.plist")
+        if route_node is None:
+            return
+        bplist = BPReader(route_node.Data).top
         for uid in bplist["$objects"][1]["NS.objects"]:
             if uid is None:
                 break
-            self.decode_route(bplist["$objects"], uid.Value, route_addr)
-        self.sogoudb.db_commit()
-
-    def decode_route(self, bp, uid, roure_addr):
-        values = self.get_route_from_dict(bp, uid)
-        if values:
-            route_address = model_map.Address()
-            route_address.source = "搜狗地图"
-            route_address.sourceApp = "搜狗地图"
-            route_address.sourceFile = roure_addr.AbsolutePath
-            if "bus.history.startname" in values:
-                route_address.from_name = values.get("bus.history.startname").Value
-            if "bus.history.endname" in values:
-                route_address.to_name = values.get("bus.history.endname").Value
-            try:
-                if route_address.from_name or route_address.to_name:
-                    self.sogoudb.db_insert_table_address(route_address)
-            except Exception as e:
+            data = self.get_route_from_dict(bplist["$objects"], uid.Value)
+            print(data) 
+            route = model_map.RouteRec()
+            route.sourceApp = "搜狗地图"
+            route.sourceFile = route_node.AbsolutePath
+            if "bus.history.startname" in data:
+                route.from_name = data.get("bus.history.startname").Value
+            if "bus.history.endname" in data:
+                route.to_name = data.get("bus.history.endname").Value
+            if "bus.history.detail" in data:
                 pass
+            if "bus.history.date" in data:
+                pass
+            if route.from_name and route.to_name:
+                self.sogouMap.db_insert_table_routerec(route)
+        self.sogouMap.db_commit()
+
 
     def get_route_from_dict(self, bp, uid):
         values = {}
@@ -198,36 +143,30 @@ class SogouMap(object):
             pass
         return values
 
-    def md5(self, cache_path, node_path):
-        m = hashlib.md5()   
-        m.update(node_path.encode(encoding = 'utf-8'))
-        db_path = cache_path + "\\" + m.hexdigest() + ".db"
-        return db_path
+    @staticmethod
+    def _format_mac_timestamp(mac_time, v = 10):
+        """
+        from mac-timestamp generate unix time stamp
+        """
+        date = 0
+        date_2 = mac_time
+        if mac_time < 1000000000:
+            date = mac_time + 978307200
+        else:
+            date = mac_time
+            date_2 = date_2 - 978278400 - 8 * 3600
+        s_ret = date if v > 5 else date_2
+        return int(s_ret)
 
-    def parse(self):
-        
-        db_path = self.md5(self.db_cache, self.root.AbsolutePath)
 
-        self.sogoudb.db_create(db_path)
-        self.parse_history_data()
-        self.parse_user_data()
-        self.parse_favorites_data()
-        self.parse_route_data()
-        self.sogoudb.db_close()
-
-        generate = model_map.Genetate(db_path)   
-        tmpresult = generate.get_models()
-        PA_runtime.save_cache_path(bcp_gis.NETWORK_APP_MAP_SOGOU,db_path, self.tmp_dir)
-        return tmpresult
-
-    
 def analyze_sogoumap(node, extract_deleted, extract_source):
+    TraceService.Trace(TraceLevel.Info,"正在分析苹果搜狗地图...")
     pr = ParserResults()
     results = SogouMap(node, extract_deleted, extract_source).parse()
     if results:
-        for i in results:
-            pr.Models.Add(i)
+        pr.Models.AddRange(results)
     pr.Build("搜狗地图")
+    TraceService.Trace(TraceLevel.Info,"苹果搜狗地图分析完成!")
     return pr
 
 
