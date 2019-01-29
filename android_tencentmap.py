@@ -79,8 +79,8 @@ class TencentMap(object):
                         search.create_time = MapUtil.convert_to_timestamp(rec["_last_used"].Value)
                 if search.keyword:
                     self.tencentMap.db_insert_table_search(search)
-            except:
-                pass
+            except Exception as e:
+                TraceService.Trace(TraceLevel.Error,"{0}".format(e))
         self.tencentMap.db_commit()
 
 
@@ -127,14 +127,14 @@ class TencentMap(object):
                             route.to_posX = TencentMap._convert_coordinate(end_data["lon"],1)
                         if "lat" in end_data:
                             route.to_posY = TencentMap._convert_coordinate(end_data["lat"],2)
-                    except:
-                        pass
+                    except Exception as e:
+                        TraceService.Trace(TraceLevel.Error,"{0}".format(e))
                 if "_lasted_used" in rec and (not rec["_lasted_used"].IsDBNull):
                     route.create_time = MapUtil.convert_to_timestamp(rec["_lasted_used"].Value)
                 if route.from_name and route.to_name:
                     self.tencentMap.db_insert_table_routerec(route)
-            except:
-                pass
+            except Exception as e:
+                TraceService.Trace(TraceLevel.Error,"{0}".format(e))
         self.tencentMap.db_commit()
 
 
@@ -170,13 +170,13 @@ class TencentMap(object):
                             if "mLongitudeE6" in data["point"]:
                                 loc.longitude = TencentMap._convert_coordinate(data["point"]["mLongitudeE6"],1)
                     except Exception as e:
-                        print(e)
+                        TraceService.Trace(TraceLevel.Error,"{0}".format(e))
                 if  loc.longitude and loc.latitude:
                     self.tencentMap.db_insert_table_location(loc)
                 if favpoi.poi_name:
                     self.tencentMap.db_insert_table_favpoi(favpoi)     
             except Exception as e:
-                print(e)
+                TraceService.Trace(TraceLevel.Error,"{0}".format(e))
         self.tencentMap.db_commit()
 
     @staticmethod
@@ -190,11 +190,13 @@ class TencentMap(object):
             return v  
 
 def analyze_tencentmap(node, extract_deleted, extract_source):
+    TraceService.Trace(TraceLevel.Info,"正在分析安卓腾讯地图...")
     pr = ParserResults()
     results = TencentMap(node, extract_deleted, extract_source).parse()
     if results:
         pr.Models.AddRange(results)
     pr.Build("腾讯地图")
+    TraceService.Trace(TraceLevel.Info,"安卓腾讯地图分析完成!")
     return pr
 
 
