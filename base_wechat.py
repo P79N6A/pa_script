@@ -1104,3 +1104,39 @@ class Wechat(object):
         except Exception as e:
             print(e)
             return None, None
+
+    def get_contact_label_model(self, label):
+        try:
+            model = None
+            if label.type == model_wechat.CONTACT_LABEL_TYPE_GROUP:
+                model = FriendGroup()
+                model.SourceFile = label.source
+                model.Deleted = model_wechat.GenerateModel._convert_deleted_status(label.deleted)
+                model.AppUserAccount = self.user_account_model
+                model.Name = label.name
+                for user_id in users:
+                    friend = self.friend_models.get(user_id)
+                    if friend is not None:
+                        model.Friends.Add(friend)
+            elif label.type == model_wechat.CONTACT_LABEL_TYPE_BLOCKED:
+                model = BlockedList()
+                model.SourceFile = label.source
+                model.Deleted = model_wechat.GenerateModel._convert_deleted_status(label.deleted)
+                model.AppUserAccount = self.user_account_model
+                for user_id in users:
+                    friend = self.friend_models.get(user_id)
+                    if friend is not None:
+                        model.Friends.Add(friend)
+            elif label.type == model_wechat.CONTACT_LABEL_TYPE_EMERGENCY:
+                model = EmergencyContacts()
+                model.SourceFile = label.source
+                model.Deleted = model_wechat.GenerateModel._convert_deleted_status(label.deleted)
+                model.AppUserAccount = self.user_account_model
+                for user_id in users:
+                    friend = self.friend_models.get(user_id)
+                    if friend is not None:
+                        model.Friends.Add(friend)
+            return model
+        except Exception as e:
+            print(e)
+            return None

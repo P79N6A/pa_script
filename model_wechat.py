@@ -88,6 +88,10 @@ DEAL_STATUS_SPLIT_BILL_PAID = 11  # 已付款
 DEAL_STATUS_SPLIT_BILL_UNDONE = 12  # 未收齐
 DEAL_STATUS_SPLIT_BILL_DONE = 13  # 已收齐
 
+CONTACT_LABEL_TYPE_GROUP = 1  # 通讯录分组
+CONTACT_LABEL_TYPE_BLOCKED = 2  # 黑名单
+CONTACT_LABEL_TYPE_EMERGENCY = 3  # 紧急联系人
+
 VERSION_KEY_DB = 'db'
 VERSION_KEY_APP = 'app'
 
@@ -385,12 +389,13 @@ SQL_CREATE_TABLE_CONTACT_LABEL = '''
         id TEXT,
         name TEXT,
         users TEXT,
+        type INT,
         source TEXT,
         deleted INT DEFAULT 0, 
         repeated INT DEFAULT 0)'''
 
 SQL_INSERT_TABLE_CONTACT_LABEL = '''
-    insert into contact_label(account_id, id, name, users, source, deleted, repeated) values(?, ?, ?, ?, ?, ?)'''
+    insert into contact_label(account_id, id, name, users, type, source, deleted, repeated) values(?, ?, ?, ?, ?, ?, ?)'''
 
 SQL_CREATE_TABLE_VERSION = '''
     create table if not exists version(
@@ -931,9 +936,10 @@ class ContactLabel(Column):
         self.id = None  # [TEXT]
         self.name = None  # [TEXT]
         self.users = None  # [TEXT]
+        self.type = 0  # [INT]  CONTACT_LABEL_TYPE
 
     def get_values(self):
-        return (self.account_id, self.id, self.name, self.users) + super(ContactLabel, self).get_values()
+        return (self.account_id, self.id, self.name, self.users, self.type) + super(ContactLabel, self).get_values()
 
     def insert_db(self, im):
         if isinstance(im, IM):
@@ -983,6 +989,9 @@ class GenerateModel(object):
         #print('%s model_wechat() generate model group' % time.asctime(time.localtime(time.time())))
         self._get_group_models()
         self.set_progress(25)
+        #print('%s model_wechat() generate model contact label' % time.asctime(time.localtime(time.time())))
+        self._get_contact_label_models()
+        self.set_progress(26)
         #print('%s model_wechat() generate model feed' % time.asctime(time.localtime(time.time())))
         self._get_feed_models()
         self.set_progress(45)
@@ -1682,6 +1691,113 @@ class GenerateModel(object):
             if favorite_deleted == 0:
                 TraceService.Trace(TraceLevel.Error, "model_wechat.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
         return models
+
+    def _get_contact_label_models(self):
+        if canceller.IsCancellationRequested:
+            return []
+        if not self._db_has_table('contact_label'):
+            return []
+
+        sql = '''select account_id, id, name, users, type, source, deleted, repeated
+                 from contact_label'''
+        try:
+            cmd = self.db.CreateCommand()
+            cmd.CommandText = sql
+            r = cmd.ExecuteReader()
+            while r.Read():
+                if canceller.IsCancellationRequested:
+                    break
+                deleted = 0
+                try:
+                    source = self._db_reader_get_string_value(r, 5)
+                    deleted = self._db_reader_get_int_value(r, 6, None)
+                    account_id = self._db_reader_get_string_value(r, 0)
+                    name = self._db_reader_get_string_value(r, 2)
+                    users = (self._db_reader_get_string_value(r, 3)).split(',')
+                    cl_type = self._db_reader_get_int_value(r, 4)
+
+                    if cl_type == CONTACT_LABEL_TYPE_GROUP:
+                        model = FriendGroup()
+                        model.SourceFile = source
+                        model.Deleted = self._convert_deleted_status(deleted)
+                        model.AppUserAccount = self.account_models.get(account_id)
+                        model.Name = name
+                        for user_id in users:
+                            friend = self.friend_models.get(self._get_user_key(account_id, user_id))
+                            if friend is not None:
+                                model.Friends.Add(friend)
+                        self.add_model(model)
+                    elif cl_type == CONTACT_LABEL_TYPE_BLOCKED:
+                        model = BlockedList()
+                        model.SourceFile = source
+                        model.Deleted = self._convert_deleted_status(deleted)
+                        model.AppUserAccount = self.account_models.get(account_id)
+                        for user_id in users:
+                            friend = self.friend_models.get(self._get_user_key(account_id, user_id))
+                            if friend is not None:
+                                model.Friends.Add(friend)
+                        self.add_model(model)
+                    elif cl_type == CONTACT_LABEL_TYPE_EMERGENCY:
+                        model = EmergencyContacts()
+                        model.SourceFile = source
+                        model.Deleted = self._convert_deleted_status(deleted)
+                        model.AppUserAccount = self.account_models.get(account_id)
+                        for user_id in users:
+                            friend = self.friend_models.get(self._get_user_key(account_id, user_id))
+                            if friend is not None:
+                                model.Friends.Add(friend)
+                        self.add_model(model)
+
+                    
+                except Exception as e:
+                    if deleted == 0:
+                        TraceService.Trace(TraceLevel.Error, "model_wechat.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
+            self.push_models()
+        except Exception as e:
+            TraceService.Trace(TraceLevel.Error, "model_wechat.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
+
+    def _get_black_list_models(self):
+        if canceller.IsCancellationRequested:
+            return []
+        if not self._db_has_table('black_list'):
+            return []
+        models = []
+
+        sql = '''select account_id, user_id, source, deleted, repeated
+                 from black_list'''
+        try:
+            cmd = self.db.CreateCommand()
+            cmd.CommandText = sql
+            r = cmd.ExecuteReader()
+            while r.Read():
+                if canceller.IsCancellationRequested:
+                    break
+                deleted = 0
+                try:
+                    source = self._db_reader_get_string_value(r, 2)
+                    deleted = self._db_reader_get_int_value(r, 3, None)
+                    account_id = self._db_reader_get_string_value(r, 0)
+                    user_id = self._db_reader_get_string_value(r, 1)
+
+                    model = BlockedList()
+                    model.SourceFile = source
+                    model.Deleted = self._convert_deleted_status(deleted)
+                    model.AppUserAccount = self.account_models.get(account_id)
+                    for user_id in users:
+                        friend = self.friend_models.get(self._get_user_key(account_id, user_id))
+                        if friend is not None:
+                            model.Friends.Add(friend)
+
+                    self.add_model(model)
+                except Exception as e:
+                    if deleted == 0:
+                        TraceService.Trace(TraceLevel.Error, "model_wechat.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
+            self.push_models()
+        except Exception as e:
+            TraceService.Trace(TraceLevel.Error, "model_wechat.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
+
+    def _get_emergency_contact_models(self):
+        pass
 
     def _db_has_table(self, table_name):
         try:
