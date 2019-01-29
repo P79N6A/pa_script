@@ -86,6 +86,7 @@ class apple_tbParser(object):
         self.extract_deleted = extract_deleted
         self.app_name = '百度贴吧'
         self.accounts = []
+        self.accountname = ""
         self.forumuser =collections.defaultdict(Chatroom) 
         self.friends =  collections.defaultdict(Friend)
         self.groups = collections.defaultdict(Chatroom)
@@ -108,6 +109,7 @@ class apple_tbParser(object):
             for acc in self.accounts:
                 try:
                     acc_id = acc.account_id
+                    self.accountname = acc.nickname
                     self.decode_forumuser_asgroup(acc_id)
                     self.decode_user(acc_id)
                     self.decode_groups(acc_id)
@@ -285,13 +287,17 @@ class apple_tbParser(object):
                 msg.account_id = acc_id
                 msgid = SafeGetInt64(reader,0)
                 content = SafeGetString(reader,1)  
-                msg.talker_id = str(SafeGetInt64(reader,2))                              
+                msg.sender_id = str(SafeGetInt64(reader,2))    
+                msg.talker_id = forumid
+                msg.talker_name = self.forumuser[forumid].name                         
                 msgtype = SafeGetInt64(reader,3)
                 msg.send_time = SafeGetInt64(reader,4)
-                if msg.talker_id == acc_id:
+                if msg.sender_id == acc_id:
                     msg.is_sender = 1
+                    msg.sender_name = self.accountname
                 else:
-                    msg.is_sender = 0            
+                    msg.is_sender = 0
+                    msg.sender_name =  self.forumuser[msg.sender_id].name            
                 self.decode_content(msg,content)                                         
             except Exception as e:
                 print (e)
@@ -317,15 +323,19 @@ class apple_tbParser(object):
                     msgid = SafeGetInt64(reader,0)
                     content = SafeGetString(reader,1)  
                     msg.content = SafeGetString(reader,2)  
-                    msg.talker_id = str(SafeGetInt64(reader,3))       
+                    msg.sender_id = str(SafeGetInt64(reader,3))   
+                    msg.talker_id =  groupid
+                    msg.talk_name =  self.groups[msg.talker_id].name
                     msg.send_time = SafeGetInt64(reader,4)
                     msgtype = SafeGetInt64(reader,5)
                     druation = SafeGetInt64(reader,6)  
                     msg.talker_type = CHAT_TYPE_GROUP                  
-                    if msg.talker_id == acc_id:
+                    if msg.sender_id == acc_id:
                         msg.is_sender = 1
+                        msg.sender_name = self.accountname
                     else:
-                        msg.is_sender = 0            
+                        msg.is_sender = 0   
+                        msg.sender_name =  self.groups[msg.sender_id].name          
                     self.decode_usermsg_content(msg,content,msgtype)                                       
                 except Exception as e:
                     print (e)
@@ -379,15 +389,19 @@ class apple_tbParser(object):
                 msgid = SafeGetInt64(reader,0)
                 content = SafeGetString(reader,1)  
                 msg.content = SafeGetString(reader,2)  
-                msg.talker_id = str(SafeGetInt64(reader,3))                          
+                msg.talker_id = userid
+                msg.talker_name = self.friends[userid].nickname
+                msg.sender_id = str(SafeGetInt64(reader,3))                                     
                 msg.send_time = SafeGetInt64(reader,4)
                 msgtype = SafeGetInt64(reader,5)
                 druation = SafeGetInt64(reader,6)
                 msg.talker_type = CHAT_TYPE_FRIEND                
-                if msg.talker_id == acc_id:
+                if msg.sender_id == acc_id:
                     msg.is_sender = 1
+                    msg.sender_name = self.accountname
                 else:
-                    msg.is_sender = 0            
+                    msg.is_sender = 0
+                    msg.sender_name =  self.friends[msg.sender_id].nickname                        
                 self.decode_usermsg_content(msg,content,msgtype)                                       
             except Exception as e:
                 print (e)
