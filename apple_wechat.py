@@ -401,13 +401,16 @@ class WeChatParser(Wechat):
             value = label_node.Value
             cl = model_wechat.ContactLabel()
             cl.source = node.AbsolutePath
+            cl.type = model_wechat.CONTACT_LABEL_TYPE_GROUP
             cl.account_id = self.user_account.account_id
             if 'm_uiID' in value.Children:
                 cl.id = str(self._bpreader_node_get_int_value(value, 'm_uiID'))
             if 'm_nsName' in value.Children:
                 cl.name = self._bpreader_node_get_string_value(value, 'm_nsName')
             cl.insert_db(self.im)
+            self.add_model(self.get_contact_label_model())
         self.im.db_commit()
+        self.push_models()
 
         return True
 
