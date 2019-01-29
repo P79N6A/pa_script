@@ -283,11 +283,13 @@ class TencentMap(object):
 
 
 def analyze_tencentmap(node, extract_deleted, extract_source):
+    TraceService.Trace(TraceLevel.Info,"正在分析苹果腾讯地图...")
     pr = ParserResults()
     results = TencentMap(node, extract_deleted, extract_source).parse()
     if results:
         pr.Models.AddRange(results)
     pr.Build("腾讯地图")
+    TraceService.Trace(TraceLevel.Info,"苹果腾讯地图分析完成!")
     return pr
 
 
