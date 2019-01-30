@@ -1211,7 +1211,7 @@ def base_analyze(Parser, node, BCP_TYPE, VERSION_APP_VALUE, bulid_name, db_name)
     try:
         res = Parser(node, db_name).parse(BCP_TYPE, VERSION_APP_VALUE)
     except:
-        msg = 'analyze_browser.py-{} 解析新案例 <{}> 出错: {}'.format(db_name, CASE_NAME, traceback.format_exc())
+        msg = '{} 解析新案例 <{}> 出错: {}'.format(db_name, CASE_NAME, traceback.format_exc())
         TraceService.Trace(TraceLevel.Debug, msg)
     if res:
         pr.Models.AddRange(res)
@@ -1335,7 +1335,7 @@ class BaseParser(object):
         except:
             exc()
             return False
-            
+
     def _read_xml(self, xml_path):
         ''' _read_xml, set self.cur_xml_source
 
@@ -1509,6 +1509,13 @@ class ProtobufDecoder(object):
             return None
 
     def read_move(self, length=1):
+        '''read and move idx 
+            length (int, optional): Defaults to 1. [description]
+        
+        Returns:
+            data (str): 
+        '''
+
         res = self.read(length)
         self.idx += length
         return res
@@ -1555,12 +1562,12 @@ class ProtobufDecoder(object):
 
     def find_p_after(self, identify):
         '''return parscal string after identify 
-        
+
         Args:
-            identify (str): 
+            identify (str): e.g. '08 01 12' or '080112'
         
         Returns:
-            (str):
+            (str): string after identify and length_char
         '''
         self.idx = self.find(identify) + len(identify.replace(' ', ''))/2
         return self.get_parscal()
@@ -1569,10 +1576,10 @@ class ProtobufDecoder(object):
         '''return raw str before identify 
         
         Args:
-            identify (str): 
+            identify (str): '18 00' or '1800'
         
         Returns:
-            (str):
+            (str): string before identify
         '''
         end = self.find(identify)
         return self.read_move(end - self.idx)
