@@ -373,6 +373,8 @@ class Generate(object):
                             coordinate.Type = CoordinateType.GPS
                         location.Coordinate = coordinate
                         location.AddressName = self._db_reader_get_string_value(sr, 10)
+                        if not IsDBNull(sr[9]):
+                            model.append(location)
                         image.Location = location
                         media_log = self._get_media_log(sr[0])
                         for log in media_log:
