@@ -413,6 +413,42 @@ SQL_CREATE_TABLE_BANK_CARD = '''
 SQL_INSERT_TABLE_BANK_CARD = '''
     insert into bank_card(account_id, bank_name, card_type, card_number, phone_number, source, deleted, repeated) values(?, ?, ?, ?, ?, ?, ?, ?)'''
 
+SQL_CREATE_TABLE_STORY = '''
+    create table if not exists story(
+        account_id TEXT, 
+        sender_id TEXT,
+        media_path TEXT,
+        story_id INT,
+        timestamp TEXT,
+        location_latitude REAL,
+        location_longitude REAL,
+        location_elevation REAL,
+        location_address TEXT,
+        location_type INT,
+        source TEXT,
+        deleted INT DEFAULT 0, 
+        repeated INT DEFAULT 0)'''
+
+SQL_INSERT_TABLE_STORY = '''
+    insert into story(account_id, sender_id, media_path, story_id, timestamp, location_latitude, 
+                      location_longitude, location_elevation, location_address, location_type, 
+                      source, deleted, repeated)
+        values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
+
+SQL_CREATE_TABLE_STORY_COMMENT = '''
+    create table if not exists story_comment(
+        story_id INT,
+        sender_id TEXT,
+        content TEXT,
+        timestamp TEXT,
+        source TEXT,
+        deleted INT DEFAULT 0, 
+        repeated INT DEFAULT 0)'''
+
+SQL_INSERT_TABLE_STORY_COMMENT = '''
+    insert into story_comment(story_id, sender_id, content, timestamp, source, deleted, repeated)
+        values(?, ?, ?, ?, ?, ?, ?)'''
+
 SQL_CREATE_TABLE_VERSION = '''
     create table if not exists version(
         key TEXT primary key,
@@ -426,6 +462,7 @@ g_feed_like_id = 1
 g_feed_comment_id = 1
 g_favorite_id = 1
 g_chatroom_sp_id = 1
+g_story_id = 1
 
 class IM(object):
     def __init__(self):
@@ -494,6 +531,10 @@ class IM(object):
             self.db_cmd.ExecuteNonQuery()
             self.db_cmd.CommandText = SQL_CREATE_TABLE_BANK_CARD
             self.db_cmd.ExecuteNonQuery()
+            self.db_cmd.CommandText = SQL_CREATE_TABLE_STORY
+            self.db_cmd.ExecuteNonQuery()
+            self.db_cmd.CommandText = SQL_CREATE_TABLE_STORY_COMMENT
+            self.db_cmd.ExecuteNonQuery()
             self.db_cmd.CommandText = SQL_CREATE_TABLE_VERSION
             self.db_cmd.ExecuteNonQuery()
 
@@ -560,6 +601,12 @@ class IM(object):
 
     def db_insert_table_bank_card(self, column):
         self.db_insert_table(SQL_INSERT_TABLE_BANK_CARD, column.get_values())
+
+    def db_insert_table_story(self, column):
+        self.db_insert_table(SQL_INSERT_TABLE_STORY, column.get_values())
+
+    def db_insert_table_story_comment(self, column):
+        self.db_insert_table(SQL_INSERT_TABLE_STORY_COMMENT, column.get_values())
 
     def db_insert_table_version(self, key, version):
         self.db_insert_table(SQL_INSERT_TABLE_VERSION, (key, version))
@@ -984,6 +1031,60 @@ class BankCard(Column):
     def insert_db(self, im):
         if isinstance(im, IM):
             im.db_insert_table_bank_card(self)
+
+
+class Story(Column):
+    def __init__(self):
+        super(Story, self).__init__()
+        global g_story_id
+        self.account_id = None  # 账号ID[TEXT]
+        self.sender_id = None  # 发送者ID[TEXT]
+        self.media_path = None  # 文件路径[TEXT]
+        self.story_id = g_story_id  # story id[INT]
+        g_story_id += 1
+        self.timestamp = None  # 时间戳[INT]
+        self.location_latitude = 0  # 地址纬度[REAL]
+        self.location_longitude = 0  # 地址经度[REAL]
+        self.location_elevation = 0  # 地址海拔[REAL]
+        self.location_address = None  # 地址名称[TEXT]
+        self.location_type = LOCATION_TYPE_GPS  # 地址类型[INT]，LOCATION_TYPE
+
+        self.comments = []
+
+    def get_values(self):
+        return (self.account_id, self.sender_id, self.media_path, self.story_id, self.timestamp, self.location_latitude, 
+                self.location_longitude, self.location_elevation, self.location_address, self.location_type) + super(Story, self).get_values()
+
+    def create_comment(self):
+        comment = StoryComment()
+        comment.story_id = self.story_id
+        comment.deleted = self.deleted
+        comment.source = self.source
+        self.comments.append(comment)
+        return comment
+
+    def insert_db(self, im):
+        if isinstance(im, IM):
+            for comment in self.comments:
+                comment.insert_db(im)
+            im.db_insert_table_story(self)
+
+
+class StoryComment(Column):
+    def __init__(self):
+        super(StoryComment, self).__init__()
+        self.story_id = 0  # ID[INT]
+        self.sender_id = None  # 发送者[TEXT]
+        self.content = None  # 内容[TEXT]
+        self.timestamp = None  # 时间戳[TEXT]
+        
+
+    def get_values(self):
+        return (self.story_id, self.sender_id, self.content, self.timestamp) + super(StoryComment, self).get_values()
+
+    def insert_db(self, im):
+        if isinstance(im, IM):
+            im.db_insert_table_story_comment(self)
 
 
 class GenerateModel(object):
