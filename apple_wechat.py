@@ -127,6 +127,11 @@ class WeChatParser(Wechat):
                 TraceService.Trace(TraceLevel.Error, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
             self.set_progress(2)
             try:
+                self._parse_pay_card()
+            except Exception as e:
+                TraceService.Trace(TraceLevel.Error, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
+            self.set_progress(3)
+            try:
                 #print('%s apple_wechat() parse WCDB_Contact.sqlite' % time.asctime(time.localtime(time.time())))
                 self._parse_user_contact_db(self.root.GetByPath('/DB/WCDB_Contact.sqlite'))
             except Exception as e:
@@ -1339,7 +1344,7 @@ class WeChatParser(Wechat):
         return content
 
     def _parse_pay_card(self):
-        node = self.root.GetByPath('WCPay/WCPayAllScenePayCardList.list')
+        node = self.root.GetByPath('WCPay/WCPayPayCardList.list')
         if node is None:
             return False
 
@@ -1348,11 +1353,23 @@ class WeChatParser(Wechat):
             root = BPReader.GetTree(node)
         except Exception as e:
             return False
-        if not root or not root.Children:
+        if not root or not root.Value:
             return False
 
-        if 'locationInfo' in root.Children:
-                location_node = root.Children['locationInfo']
-
-        UsrName = self._bpreader_node_get_string_value(root, 'UsrName')
+        for card_node in root.Value:
+            if 'm_cardNumber' in card_node.Children:
+                card_number = self._bpreader_node_get_string_value(card_node, 'm_cardNumber')
+                if card_number not in [None, '', 'None']:
+                    card = model_wechat.BankCard()
+                    card.source = node.AbsolutePath
+                    card.account_id = self.user_account.account_id
+                    card.card_number = card_number
+                    if 'm_cardBankName' in card_node.Children:
+                        card.bank_name = self._bpreader_node_get_string_value(card_node, 'm_cardBankName')
+                    if 'm_cardTypeName' in card_node.Children:
+                        card.card_type = self._bpreader_node_get_string_value(card_node, 'm_cardTypeName')
+                    card.insert_db(self.im)
+                    self.add_model(self.get_bank_card_model(card))
+        self.im.db_commit()
+        self.push_models()
         return True
