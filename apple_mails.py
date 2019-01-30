@@ -10,6 +10,7 @@ clr.AddReference('PNFA.iPhoneApps')
 try:
     clr.AddReference('model_mail')
     clr.AddReference('bcp_mail')
+    clr.AddReference('ScriptUtils')
 except:
     pass
 del clr
@@ -19,6 +20,7 @@ from PA.iPhoneApps import *
 from model_mail import MM, Account, Contact, Mail, Attachment as model_Attachment
 from model_mail import VERSION_KEY_DB, VERSION_VALUE_DB, VERSION_KEY_APP
 import bcp_mail
+from ScriptUtils import exc, tp, CASE_NAME, parse_decorator, DEBUG
 
 
 from urllib import unquote
@@ -139,15 +141,27 @@ epoch = DateTime(1970, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
 def split_addresses(value):
     return [create_party(st) for st in value.splitlines() if len(st) > 0]
 
-def create_party(st):    
-    m = patt.match(st)
-    if m:
-        g = m.groups()
-        if g[1] == None:
-            return g[0], None
-        else:
-            return g[1], g[0]
-    return None, None
+def create_party(st):
+    '''
+    Args:
+        st (str): 
+
+    Returns:
+        tuple: (str, str)
+    '''
+    try:
+        st = convert_to_str(st)
+        m = patt.match(st)
+        if m:
+            g = m.groups()
+            if g[1] == None:
+                return g[0], None
+            else:
+                return g[1], g[0]
+        return None, None
+    except:
+        exc()
+        return None, None
 
 uses_netloc.append('pop')
 uses_netloc.append('as')
@@ -261,16 +275,20 @@ def get_emlx_files(mail):
     return emlx, emlxpart
 
 def read_mail(mail_dir, envelope_db, protected_db, extractDeleted, extractSource):
-
+    ''' 
+        envelope_db: Envelope Index
+        protected_db: Protected Index
+    '''
     results = defaultdict(list)
     messages = defaultdict(set)
     
     mailboxes = get_mailboxes(envelope_db, mail_dir, extractDeleted, extractSource)
     part_records = get_data_records(envelope_db, extractDeleted, extractSource)
-
     emlx_files, part_files = get_emlx_files(mail_dir)
-
     message_data = {}
+
+    ##### Protected Index #####
+    # table: message_data
     ts = SQLiteParser.TableSignature('message_data')
     if extractDeleted:
         ts['data'] = SQLiteParser.Signatures.NumericSet(12, 13)    
@@ -279,31 +297,35 @@ def read_mail(mail_dir, envelope_db, protected_db, extractDeleted, extractSource
             continue
         if IsDBNull (record['data'].Value):
             continue
-        if isinstance(record['data'].Value, str):
-            message_data[record['message_data_id'].Value] = record['data'].Value
-        elif isinstance(record['data'].Value, Array[Byte]):
-            message_data[record['message_data_id'].Value] = "".join(map(chr,record['data'].Value))
-        
+        _rec_data = convert_to_str(record['data'].Value)
+        message_data[record['message_data_id'].Value] = _rec_data
+
+    # table: messages
     ts = SQLiteParser.TableSignature('messages')
     if extractDeleted:
         ts['sender'] = ts['subject'] = ts['_to'] = ts['cc'] = ts['bcc'] = SQLiteParser.Signatures.SignatureFactory.GetFieldSignature(SQLiteParser.FieldType.Text)
     for record in protected_db.ReadTableRecords(ts, extractDeleted):
         if record['message_id'].Value < 1:
             continue
-
         msg = Email()
         msg.Source.Value = "Mails"
         if record.ContainsKey('deleted') and record['deleted'].Value not in [0, '0']:
             msg.Deleted = DeletedState.Deleted
         else:
             msg.Deleted = record.Deleted
-        if not IsDBNull(record['sender'].Value):
-            email_address, name = create_party(record['sender'].Value)
+
+        _rec_sender = convert_to_str(record['sender'].Value)
+        _rec_to     = record['_to'].Value
+        _rec_cc     = record['cc'].Value
+        _rec_bcc    = record['bcc'].Value
+
+        if not IsDBNull(_rec_sender):
+            email_address, name = create_party(_rec_sender)
             if email_address == None:
                 if extractSource:        
-                    msg.From.Value = Party.MakeFrom(record['sender'].Value, MemoryRange(record['sender'].Source))
+                    msg.From.Value = Party.MakeFrom(_rec_sender, MemoryRange(record['sender'].Source))
                 else:
-                    msg.From.Value = Party.MakeFrom(record['sender'].Value, None)
+                    msg.From.Value = Party.MakeFrom(_rec_sender, None)
             else:
                 if extractSource:
                     msg.From.Value = Party.MakeFrom(email_address, MemoryRange(record['sender'].Source))
@@ -315,43 +337,44 @@ def read_mail(mail_dir, envelope_db, protected_db, extractDeleted, extractSource
             msg.Subject.Value = record['subject'].Value
             if extractSource:
                 msg.Subject.Source = MemoryRange(record['subject'].Source)
-        if not IsDBNull(record['_to'].Value):
-            for to, name in split_addresses(record['_to'].Value):
+        if not IsDBNull(_rec_to):
+            for to, name in split_addresses(_rec_to):
                 if to == None:
                     continue
                 if extractSource:
                     party = Party.MakeTo(to, MemoryRange(record['_to'].Source))
                 else:
                     party = Party.MakeTo(to, None)
-                if name != None and name != email_address:
+                if name != None and name != to:
                     party.Name.Value = name
                 msg.To.Add(party)
-        if not IsDBNull(record['cc'].Value):
-            for cc, name in split_addresses(record['cc'].Value):
+        if not IsDBNull(_rec_cc):
+            for cc, name in split_addresses(_rec_cc):
                 if cc == None:
                     continue
                 if extractSource:
                     party = Party.MakeTo(cc, MemoryRange(record['cc'].Source))
                 else:
                     party = Party.MakeTo(cc, None)
-                if name != None and name != email_address:
+                if name != None and name != cc:
                     party.Name.Value = name
                 msg.Cc.Add(party)                
-        if not IsDBNull(record['bcc'].Value):                        
-            for bcc, name in split_addresses(record['bcc'].Value):
+        if not IsDBNull(_rec_bcc):                        
+            for bcc, name in split_addresses(_rec_bcc):
                 if bcc == None:
                     continue
                 if extractSource:
                     party = Party.MakeTo(bcc, MemoryRange(record['bcc'].Source))
                 else:
                     party = Party.MakeTo(bcc, None)
-                if name != None and name != email_address:
+                if name != None and name != bcc:
                     party.Name.Value = name
                 msg.Bcc.Add(party)
         if msg not in messages[record['message_id'].Value]:
             messages[record['message_id'].Value].add(msg)
             results[record['message_id'].Value].append(msg)
-        
+
+    ##### Envelope Index #####
     for record in envelope_db['messages_deleted']:
         if record['message_id'].Value in results:
             if extractDeleted:
@@ -365,6 +388,7 @@ def read_mail(mail_dir, envelope_db, protected_db, extractDeleted, extractSource
         ts['date_sent'] = ts['date_received'] = SQLiteParser.Signatures.NumericSet(4)
         ts['external_id'] = ts['read'] = ts['deleted'] = ts['flagged'] = SQLiteParser.Signatures.SignatureFactory.GetFieldSignature(SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
         ts['mailbox'] = SQLiteParser.Signatures.NumericSet(1)    
+
     for record in envelope_db.ReadTableRecords(ts, extractDeleted, True):
         if record['ROWID'].Value not in results:
             if record.Deleted == DeletedState.Deleted:
@@ -488,6 +512,7 @@ def read_old_mail(mail_dir, envelope_db, extractDeleted, extractSource):
             msg.Subject.Value = record['subject'].Value
             if extractSource:
                 msg.Subject.Source = MemoryRange(record['subject'].Source)
+                
         if '_to' in record and not IsDBNull(record['_to'].Value):
             for to, name in split_addresses(record['_to'].Value):
                 if to == None:
@@ -607,11 +632,9 @@ def build_mime(parts):
     for num in parts:
         if num in ['summary', 'meeting', 'meeting data']:
             continue
-
         if not m.is_multipart():
             m.set_payload(parts[num].data)
             break
-        
         payload = m
         for n in num.split("."):
             if not n.isnumeric():
@@ -651,7 +674,6 @@ def read_from_mime(m, parts):
             payload = m.get_payload()
 
             # 邮件的内容可以是任何的MIME内容,有可能多个,这里从简,只取第一个文本块
-
             lookForBody = True
             for part in payload:
                 if part.is_multipart():
@@ -684,7 +706,6 @@ def read_from_mime(m, parts):
                     add_embedded (parts[str(n + 1)].file, [att])
                 
                 n += 1
-                
 
     # 获取正文
     text_part = first
@@ -732,62 +753,81 @@ def read_from_mime(m, parts):
 def hasContent(msg):
 	return msg.Body.Value is not None or msg.From.Value is not None or msg.TimeStamp.Value is not None or msg.To.Count > 0 or msg.Subject.Value is not None or msg.Attachments.Count > 0
 
+
+@parse_decorator
 def analyze_emails(mail_dir, extractDeleted, extractSource):
-
-    pr = ParserResults()
-
-    envelope_file = mail_dir.GetFirstNode("Envelope Index")
-    if envelope_file == None:
-        return pr
-    envelope_db = SQLiteParser.Database.FromNode(envelope_file)
-    if envelope_db == None:
-        return pr
-    
-    results = []
-
-    protected_file = mail_dir.GetFirstNode("Protected Index")
-    if protected_file != None:
-        protected_db = SQLiteParser.Database.FromNode(protected_file)
-        if protected_db == None:
+    try:
+        pr = ParserResults()
+        envelope_file = mail_dir.GetFirstNode("Envelope Index")
+        if envelope_file == None:
             return pr
-        results.extend(read_mail(mail_dir, envelope_db, protected_db, extractDeleted, extractSource))
-    else:
-        results.extend(read_old_mail(mail_dir, envelope_db, extractDeleted, extractSource))
+        envelope_db = SQLiteParser.Database.FromNode(envelope_file)
+        if envelope_db == None:
+            return pr
+        
+        results = []
 
-    # 保存到中间数据库, 导出 BCP 
-    Export2db(mail_dir, results).parse()        
+        protected_file = mail_dir.GetFirstNode("Protected Index")
+        if protected_file != None:
+            protected_db = SQLiteParser.Database.FromNode(protected_file)
+            if protected_db == None:
+                return pr
+            res = read_mail(mail_dir, envelope_db, protected_db, extractDeleted, extractSource)
+            results.extend(res)
+        else:
+            results.extend(read_old_mail(mail_dir, envelope_db, extractDeleted, extractSource))
 
-    pr.Models.AddRange(results)
-    return pr
+        # 保存到中间数据库, 导出 BCP 
+        Export2db(mail_dir, results).parse()        
+        
+        pr.Models.AddRange(results)
+        return pr
+    except:
+        msg = 'apple_mail.py 解析新案例 <{}> 出错: {}'.format(CASE_NAME, traceback.format_exc())
+        TraceService.Trace(TraceLevel.Debug, msg)        
+
+####
+def convert_to_str(ab):
+    '''convert to string if isinstance of Array[Byte]
+    
+    Args:
+        ab (str|Array[Byte]): 
+    
+    Returns:
+        str_res (str)
+    '''
+    try:
+        str_res = ''
+        if isinstance(ab, str):
+            return ab    
+        elif isinstance(ab, Array[Byte]):
+            s =  ''.join(map(chr, ab))
+            str_res = s.decode('utf8')
+            return str_res
+        return str_res
+    except:
+        exc()
+        return ''
 
 
 #################################################
 ##                添加中间数据库                 ##
 #################################################
-DEBUG = True
-DEBUG = False
-VERSION_APP_VALUE = 1
-
-def exc():
-    if DEBUG:
-        traceback.print_exc()
-    else:
-        pass
+VERSION_APP_VALUE = 2
 
 class Export2db(object):
     def __init__(self, mail_dir, results_model):
         self.mm = MM()
         self.results_model = results_model
         self.cachepath = ds.OpenCachePath("AppleEmail")
-        hash_str = hashlib.md5(mail_dir.AbsolutePath).hexdigest()
-        self.cache_db = self.cachepath + '\\{}.db'.format(hash_str)
+        hash_str = hashlib.md5(mail_dir.AbsolutePath).hexdigest()[8:-8]
+        self.cache_db = self.cachepath + '\\apple_email_{}.db'.format(hash_str)
 
         self.account_list = {}            
         self.auto_mail_id = 1
         self.account_id = 0           
 
     def parse(self):
-
         try:
             if DEBUG or self.mm.need_parse(self.cache_db, VERSION_APP_VALUE):
                 self.mm.db_create(self.cache_db) 
@@ -840,7 +880,11 @@ class Export2db(object):
             mail.mail_bcc         = self._handle_mutimodel(email.Bcc)
             mail.mail_sent_date   = self._convert_2_timestamp(email.TimeStamp)
             try:
-                mail.mail_from = email.From.Value.Identifier.Value + ' ' + email.From.Value.Name.Value 
+                if email.From.Value:
+                    if email.From.Value.Name.Value:
+                        mail.mail_from = email.From.Value.Identifier.Value + ' ' + email.From.Value.Name.Value 
+                    else:
+                        mail.mail_from = email.From.Value.Identifier.Value
             except:
                 pass
             # status_dict = {
@@ -874,8 +918,11 @@ class Export2db(object):
         ''' mutimodel party '''
         res = ''
         for m in model:
-            if m.Identifier.Value and m.Name.Value:
-                res += m.Identifier.Value + ' ' + m.Name.Value + ' '
+            if m.Identifier.Value:
+                if m.Name.Value:
+                    res += m.Identifier.Value + ' ' + m.Name.Value + ' '
+                else:
+                    res += m.Identifier.Value + ' '
         return res.rstrip() if res else None
 
     @staticmethod
