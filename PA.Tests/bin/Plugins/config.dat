@@ -555,6 +555,31 @@
         </dict>
       </array>
     </dict>
+
+    <dict>
+      <key>Module</key>
+      <string>apple_12306</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_12306</string>
+          <key>RunnerType</key>
+          <integer>0</integer>
+          <key>Patterns</key>
+          <array>
+            <string>/Library/Preferences/cn\.12306\.rails12306\.plist$</string>
+          </array>
+          <key>Category</key>
+          <string>Railway12306</string>
+          <key>Name</key>
+          <string>铁路12306(苹果)</string>
+          <key>Filter</key>
+          <string>应用>商旅</string>
+        </dict>
+      </array>
+    </dict>    
+
     <dict>
       <key>Module</key>
       <string>apple_copy</string>
@@ -3670,6 +3695,30 @@
         </dict>
       </array>
     </dict>
+
+    <dict>
+      <key>Module</key>
+      <string>android_12306</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_12306</string>
+          <key>RunnerType</key>
+          <integer>2</integer>
+          <key>Patterns</key>
+          <array>
+            <string>/com\.MobileTicket/shared_prefs/12306data\.xml$</string>
+          </array>
+          <key>Category</key>
+          <string>Railway12306</string>
+          <key>Name</key>
+          <string>铁路12306(安卓)</string>
+          <key>Filter</key>
+          <string>应用>商旅</string>
+        </dict>
+      </array>
+    </dict>    
 
     <dict>
       <key>Module</key>
