@@ -1168,7 +1168,7 @@ class GenerateModel(object):
 
     def set_progress(self, value):
         progress.Value = self.progress_value + int(value * (100 - self.progress_value) / 100)
-        print('set_progress() %d' % progress.Value)
+        # print('set_progress() %d' % progress.Value)
 
     def get_models(self):
         models = []
