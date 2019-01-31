@@ -17,7 +17,7 @@
     <RestoreProjectStyle>PackageReference</RestoreProjectStyle>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
-    <PlatformTarget>AnyCPU</PlatformTarget>
+    <PlatformTarget>x64</PlatformTarget>
     <DebugSymbols>true</DebugSymbols>
     <DebugType>full</DebugType>
     <Optimize>false</Optimize>
@@ -25,6 +25,7 @@
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
+    <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <PlatformTarget>AnyCPU</PlatformTarget>
@@ -40,6 +41,12 @@
   </PropertyGroup>
   <PropertyGroup />
   <ItemGroup>
+    <Reference Include="CacheManager.Core">
+      <HintPath>..\Lib\CacheManager.Core.dll</HintPath>
+    </Reference>
+    <Reference Include="CacheManager.SystemRuntimeCaching">
+      <HintPath>..\Lib\CacheManager.SystemRuntimeCaching.dll</HintPath>
+    </Reference>
     <Reference Include="FsAgent, Version=1.0.14.0, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\Lib\FsAgent.dll</HintPath>
@@ -136,6 +143,13 @@
     </Reference>
     <Reference Include="PNFA.Turbo">
       <HintPath>..\Lib\PNFA.Turbo.dll</HintPath>
+    </Reference>
+    <Reference Include="Prism.Runtime, Version=1.0.6964.37768, Culture=neutral, processorArchitecture=AMD64">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\Lib\Prism.Runtime.dll</HintPath>
+    </Reference>
+    <Reference Include="SharpZlib">
+      <HintPath>..\Lib\SharpZlib.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Data" />
