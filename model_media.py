@@ -400,6 +400,18 @@ class Generate(object):
                         video.MimeType = self._db_reader_get_string_value(sr, 5)
                         video.AddTime = self._get_timestamp(addTime)
                         video.Description = self._db_reader_get_string_value(sr, 17)
+                        location = Base.Location()
+                        coordinate = Base.Coordinate()
+                        if not IsDBNull(sr[8]):
+                            coordinate.Latitude = float(sr[8])
+                        if not IsDBNull(sr[9]):
+                            coordinate.Longitude = float(sr[9])
+                            coordinate.Type = CoordinateType.GPS
+                        location.Coordinate = coordinate
+                        location.AddressName = self._db_reader_get_string_value(sr, 10)
+                        if not IsDBNull(sr[9]):
+                            model.append(location)
+                        video.Location = location
                         media_log = self._get_media_log(sr[0])
                         for log in media_log:
                             video.Logs.Add(log)
@@ -551,7 +563,7 @@ class Generate(object):
                 except:
                     traceback.print_exc()
         except:
-            traceback.print_exc()
+            pass
 
     def _get_source_file(self, source_file):
         if isinstance(source_file, str):

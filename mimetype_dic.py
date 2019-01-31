@@ -1,7 +1,7 @@
 #_*_ coding:utf-8 _*_
 
 #根据后缀匹配文件类型
-dic1 = {'ma5': 'audio', 'fh5': 'image', 'aam': 'application', 'nokia-op-logo': 'image', 
+dic1 = {'ma5': 'audio', 'fh5': 'image', 'aam': 'application', 'nokia-op-logo': 'image', 'heic': 'image',
     'hdm': 'text', 'jam': 'application', 'sgm': 'text', 'qtif': 'image', 'pgm': 'image', 
     'skt': 'application', 'ram': 'audio', 'mrm': 'application', 'pnm': 'image', 
     'skm': 'application', 'thm': 'application', 'vrt': 'x-world', 'xdm': 'application', 
@@ -108,5 +108,5 @@ dic2 = {'application': ['aam', 'jam', 'skt', 'mrm', 'skm', 'thm', 'xdm', 'trm', 
         'x-lml': ['dcm', 'lak', 'trk', 'lml', 'rte', 'evm', 'wpt', 'lmlpack', 'gdb', 'ndb'], 
         'image': ['fh5', 'nokia-op-logo', 'qtif', 'pgm', 'pnm', 'toy', 'ras', 'pnz', 'fpx', 'pda', 'j2k', 'cod', 'bmp', 'qti', 'fh4', 'cal', 'si9', 'pict', 
                   'jpeg', 'si7', 'ifm', 'ifs', 'si6', 'jpg', 'svg', 'rf', 'tiff', 'pbm', 'xbm', 'ppm', 'xpm', 'jpz', 'dcx', 'pcx', 'fhc', 'wpng', 'svh', 
-                  'gif', 'fif', 'ief', 'tif', 'svf', 'nbmp', 'xwd', 'wbmp', 'eri', 'rgb', 'png', 'mil', 'jpe', 'wi', 'rp'], 
+                  'gif', 'fif', 'ief', 'tif', 'svf', 'nbmp', 'xwd', 'wbmp', 'eri', 'rgb', 'png', 'mil', 'jpe', 'wi', 'rp', 'heic'], 
         'chemical': ['xyz', 'emb', 'embl', 'mop', 'csml', 'csm', 'gau', 'pdb', 'mol'], 'workbook': ['vts'], '*': [''], 'drawing': ['dwf'], 'i-world': ['ivr']}
