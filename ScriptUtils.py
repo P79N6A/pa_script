@@ -1233,9 +1233,7 @@ class BaseParser(object):
                 self.root
                 self.csm        # c sharp model 
                 self.Generate   # e.g. model_browser.Generate
-                self.VERSION_KEY_DB
                 self.VERSION_VALUE_DB
-                self.VERSION_KEY_APP 
             func:
                 parse
                 _convert_nodepath
@@ -1250,9 +1248,9 @@ class BaseParser(object):
         hash_str = hashlib.md5(node.AbsolutePath).hexdigest()[8:-8]
         self.cachepath = ds.OpenCachePath(db_name)
         self.cache_db = self.cachepath + '\\{}_{}.db'.format(db_name, hash_str)
-        self.VERSION_KEY_DB = ''
+        self.VERSION_KEY_DB = 'db'
         self.VERSION_VALUE_DB = 0
-        self.VERSION_KEY_APP = ''
+        self.VERSION_KEY_APP = 'app'
 
     def parse(self, BCP_TYPE, VERSION_APP_VALUE):
         if DEBUG or self.csm.need_parse(self.cache_db, VERSION_APP_VALUE):
@@ -1274,7 +1272,7 @@ class BaseParser(object):
     def _convert_nodepath(self, raw_path):
         pass
 
-    def _read_db(self, db_path, node=None):
+    def _read_db(self, db_path='', node=None):
         ''' and set self.cur_db, self.cur_db_source
         
         Args:

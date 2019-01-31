@@ -1,43 +1,29 @@
 ﻿# -*- coding: utf-8 -*-
+
 __author__ = 'YangLiyuan'
 
 from PA_runtime import *
 import clr
-clr.AddReference('System.Data.SQLite')
+
+try:
+    clr.AddReference('System.Data.SQLite')
+    clr.AddReference('ScriptUtils')
+except:
+    pass
 del clr
+
+import sqlite3
+import shutil
+import hashlib
+import random
+import json
 
 import System.Data.SQLite as SQLite
 import PA.InfraLib.ModelsV2.CommonEnum.SMSStatus as SMSStatus
 import PA.InfraLib.ModelsV2.Base.Content.TextContent as TextContent
 import PA.InfraLib.ModelsV2.Base.Contact as Contact
+from ScriptUtils import CASE_NAME, exc, tp, BaseParser, DEBUG
 
-
-import sqlite3
-
-import shutil
-import hashlib
-
-DEBUG = True
-DEBUG = False
-
-CASE_NAME = ds.ProjectState.ProjectDir.Name
-
-def exc(e=''):
-    ''' Exception output '''
-    try:
-        if DEBUG:
-            py_name = os.path.basename(__file__)
-            msg = 'DEBUG {} case:<{}> :'.format(py_name, CASE_NAME)
-            TraceService.Trace(TraceLevel.Warning, (msg+'{}{}').format(traceback.format_exc(), e))
-    except:
-        pass   
-
-def test_p(*e):
-    ''' Highlight print in test environments vs console '''
-    if DEBUG:
-        TraceService.Trace(TraceLevel.Warning, "{}".format(e))
-    else:
-        pass
 
 SMS_TYPE_ALL    = 0
 SMS_TYPE_INBOX  = 1
@@ -57,7 +43,7 @@ SMS_TYPE_TO_FOLDER = (
     None,                      # '',
 )
 
-VERSION_VALUE_DB = 2
+VERSION_VALUE_DB = 3
 VERSION_KEY_DB  = 'db'
 VERSION_KEY_APP = 'app'
         
@@ -160,7 +146,7 @@ SQL_INSERT_TABLE_VERSION = '''
     insert or REPLACE into version(key, version) values(?, ?)'''
 
 
-class Model_SMS(object):
+class ModelSMS(object):
     def __init__(self):
         self.db = None
         self.db_cmd = None
@@ -276,9 +262,9 @@ class Column(object):
     def get_values(self):
         return (self.source, self.deleted, self.repeated)
 
-class Sim_cards(Column):
+class SimCard(Column):
     def __init__(self):
-        super(Sim_cards, self).__init__()
+        super(SimCard, self).__init__()
         self.sim_id       = None
         self.number       = None  # 手机号
         self.sync_enabled = None  # 是否同步
@@ -288,7 +274,7 @@ class Sim_cards(Column):
                 self.sim_id,
                 self.number,
                 self.sync_enabled,
-            ) + super(Sim_cards, self).get_values()
+            ) + super(SimCard, self).get_values()
 
 class SMS(Column):
     def __init__(self):
@@ -483,3 +469,239 @@ class GenerateModel(object):
         elif sms_type == 3:    # 草稿箱
             return SMSStatus.Unsent
         # elif sms_type == 1:    # 未读
+
+
+############################################
+######          VMSG DECODEER         ######
+############################################
+
+# vmsg format
+
+# BEGIN:VMSG
+# VERSION:1.1
+# X-IRMS-TYPE:MSG
+# X-MESSAGE-TYPE:DELIVER
+# X-MESSAGE-STATUS:READ
+# X-MESSAGE-SLOT:0
+# X-MESSAGE-LOCKED:UNLOCKED
+# BEGIN:VCARD
+# VERSION:2.1
+# TEL:+86138xxxxxxxx
+# END:VCARD
+# BEGIN:VBODY
+# Date:2014/06/29 09:38:53 GMT
+# Subject;ENCODING=QUOTED-PRINTABLE;CHARSET=UTF-8:=30=31=32=33=34=35=36
+# END:VBODY
+# END:VMSG
+
+# csv format
+# id: integer number
+# tel: phone number
+# type: 'RECEIVED' or 'SEND'
+# date: 2015-09-06T20:47:01.573Z
+# content:
+# end tag: ',y,-1'
+#
+# example:
+# 788,10086,RECEIVED,2013-09-06T20:47:01.573Z,示例内容,y,-1
+
+
+class VMSGDecoder:
+    """vmsg format"""
+    BEGIN = 'BEGIN'
+    END = 'END'
+
+    X_MESSAGE_TYPE = 'X-MESSAGE-TYPE'
+
+    TVMSG = 'VMSG'
+    TVCARD = 'VCARD'
+    TVBODY = 'VBODY'
+
+    X_BOX = 'X-BOX'
+    X_READ = 'X-READ'
+    X_SIMID = 'X-SIMID'
+    X_LOCKED = 'X-LOCKED'
+    X_TYPE = 'X-TYPE'
+
+    INBOX = 'INBOX'
+    READ = 'READ'
+    UNREAD = 'UNREAD'
+
+    TDELIVER = 'DELIVER'
+    TSUBMIT = 'SUBMIT'
+
+    TTEL = 'TEL'
+    TDATE = 'Date'
+    TSUBJECT = 'Subject'
+
+    def __init__(self):
+        pass
+            
+    def build_from_message(self, fvmsg, fcsv):
+        with open(fvmsg, 'r') as f:
+            v_l = []  # result
+            stack = []
+            for line in f:
+                line = line.strip()
+                if line.startswith(VMSG.BEGIN):
+                    self.process_start_tag(line, stack, v_l)
+                elif line.startswith(VMSG.END):
+                    self.process_end_tag(line, stack, v_l)
+                else:
+                    self.process_attribute(line, stack, v_l)
+
+        with open(fcsv, 'wb') as fout:
+            item_id = 1
+            for item in v_l:
+                fout.write(json.dumps(item))
+                fout.write(',')
+                item_id += 1
+
+    def process_start_tag(self, stream, stack, v):
+        _tag, _value = self._get_tag(stream)
+        #print('process_start_tag:', tag)
+        if len(_value) == 0:
+            raise ValueError
+        #print('pushing:', tag)
+        stack.append(_value)
+        if _value == VMSG.TVMSG:
+            item = {'status': 'y', 'end': '-1'}
+            v.append(item)
+
+    def process_end_tag(self, stream, stack, v):
+        _tag, _value = self._get_tag(stream)
+        #print('process_end_tag:', tag)
+        if len(_value) == 0:
+            raise ValueError
+        if _value != stack[-1]:
+            print(_tag, stack[-1])
+            raise ValueError
+        stack.pop()
+        #print('poping:', stream)
+
+        if _tag == VMSG.TVMSG:
+            # decode content here
+            item = v[-1]
+            item['content'] = _value
+
+    def process_attribute(self, stream, stack, v):
+        if len(stack) > 0:
+            tag = stack[-1]
+            if tag == VMSG.TVMSG:
+                if stream.startswith(VMSG.X_MESSAGE_TYPE):
+                    self.process_message_type(stream, v)
+            if tag == VMSG.TVCARD:
+                if stream.startswith(VMSG.TTEL):
+                    self.process_tel(stream, v)
+            elif tag == VMSG.TVBODY:
+                if stream.startswith(VMSG.X_BOX):
+                    self.process_box(stream, v)
+                elif stream.startswith(VMSG.X_READ):
+                    pass
+                elif stream.startswith(VMSG.X_SIMID):
+                    pass
+                elif stream.startswith(VMSG.X_LOCKED):
+                    pass
+                elif stream.startswith(VMSG.X_TYPE):
+                    pass
+                elif stream.startswith(VMSG.TDATE):
+                    self.process_date(stream, v)
+                elif stream.startswith(VMSG.TSUBJECT):
+                    self.process_subject(stream, v)
+                # else:
+                #     # continue subject
+                #     self.process_continue_subject(stream, v)
+
+    def process_message_type(self, stream, v):
+        _type= stream[15:]
+        if _type== VMSG.TSUBMIT:
+            _type= 'SENT'
+        else:
+            _type= 'RECEIVED'
+        item = v[-1]
+        item['type'] = _type
+
+    def process_box(self, stream, v):
+        _tag, _value = self._get_tag(stream)
+        if _tag == VMSG.INBOX:
+            item = v[-1]
+            item['box'] = _value
+
+    def process_status(self, stream, v):
+        _tag, _value = self._get_tag(stream)
+        if _tag == VMSG.X_READ:
+            item = v[-1]
+            item['status'] = _value
+
+    def process_tel(self, stream, v):
+        tel = stream[4:]
+        if tel.startswith("+86"):
+            tel = tel.replace("+86", "")
+        item = v[-1]
+        item['tel'] = tel
+
+    def process_date(self, stream, v):
+        date = stream[5:24]
+        date = date.replace(' ', 'T')
+        date = date.replace('/', '-')
+        r = '%03d' % (random.randint(0, 999))
+        date = date + '.' + r + 'Z'
+        item = v[-1]
+        item['date'] = date
+
+    def process_subject(self, stream, v):
+        s = stream.split(':', 1)
+        content = s[-1]
+        item = v[-1]
+        item['content'] = content.decode('utf8', 'ignore')
+
+    def process_continue_subject(self, stream, v):
+        content = stream
+        item = v[-1]
+        if 'content' in item:
+            try:
+                item['content'] = item['content'] + content.decode('utf8', 'ignore')
+            except Exception as e:
+                print(e)
+
+        else:
+            item['content'] = content
+           
+    def decode_subject(self, content):
+        #b = bytearray.fromhex(item['content'])
+        result = []
+        contents = content.split('=')
+        for c in contents:
+            s = ''
+            if len(c) > 2:
+                c1 = c[:2]
+                c2 = c[2:]
+                # try:
+                b = bytearray.fromhex(c1)
+                s = b.decode(encoding='utf8', errors='ignore')
+                s = c1.decode(encoding='utf8', errors='ignore')
+                # except:
+                result.append(s)
+                result.append(c2.decode(encoding='utf8', errors='ignore'))
+            elif len(c) == 2:
+                try:
+                    b = bytearray.fromhex(c)
+                    s = b.decode(encoding='utf8', errors='ignore')
+                except:
+                    s = c.decode(encoding='utf8', errors='ignore')
+                result.append(s)
+            else:
+                s = c.decode(encoding='utf8', errors='ignore')
+                result.append(s)
+
+        content = ''.join(result)
+        return content
+
+    def _get_tag(self, stream):
+        _p = r'(.*?):(.*)'
+        res = re.search(_p, stream)
+        if res and res.group(1) and res.group(2):
+            return (res.group(1), res.group(2))
+        else:
+            return ('', '')
+        
