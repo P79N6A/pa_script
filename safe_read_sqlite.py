@@ -48,7 +48,10 @@ Example Code:
 
 
 class SqliteByCSharp(object):
+    """
+    SqliteByCSharp需要2个参数，第一个参数是数据库的节点，第二个参数是 ds.OpenCachePath("###") 返回的路径。
 
+    """
     def __init__(self, db_node, cache_path):
         self.path = db_node
         self.cmd = None

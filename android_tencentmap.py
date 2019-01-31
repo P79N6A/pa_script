@@ -1,222 +1,204 @@
 #coding=utf-8
-import PA_runtime
-import json
-from PA_runtime import *
-import os
+
+'''
+The script is based on gaode map version 8.3.7.561.1, 
+which is theoretically compatible with less than 8.3.7.561.1
+'''
+
+__date__ = "2019-1-28"
+__author__ = "Xu Tao"
+__maintainer__ = "Xu Tao"
+
+
 import clr
 try:
-    clr.AddReference('model_map')
-    clr.AddReference("bcp_gis")
-    clr.AddReference("unity_c37r")
+    clr.AddReference('model_map_v2')
+    clr.AddReference("MapUtil")
 except:
     pass
-del clr
-import model_map
-import bcp_gis
-import uuid
-import unity_c37r
+from PA_runtime import *
+import json
+import model_map_v2 as model_map
+import MapUtil
 
 
 class TencentMap(object):
 
-    def __init__(self, node, extract_Deleted, extract_Source):
+    def __init__(self, node, extract_deleted, extract_source):
         self.root = node
-        self.extract_Deleted = extract_Deleted
-        self.extract_Source = extract_Source
-        self.tencentdb = model_map.Map()
+        self.extract_deleted = extract_deleted
+        self.extract_source = extract_source
+        self.tencentMap = model_map.Map()
         self.cache = ds.OpenCachePath("tencentMap")
-        
-    def parse_route(self):
-        """
-        导航记录
-        """
-        try:
-            db = SQLiteParser.Database.FromNode(self.root, canceller)
-            if db is None:
-                return
-            tbs = SQLiteParser.TableSignature("route_search_history_tab")
-            if self.extract_Deleted:
-                SQLiteParser.Tools.AddSignatureToTable(tbs, "_keyword", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
-                SQLiteParser.Tools.AddSignatureToTable(tbs, "from_data", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
-                SQLiteParser.Tools.AddSignatureToTable(tbs, "end_data", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
-            for rec in db.ReadTableRecords(tbs, self.extract_Deleted, True):
-                if canceller.IsCancellationRequested:
-                    return
-                route_addr = model_map.Address()
-                route_addr.source = "腾讯地图"
-                route_addr.sourceApp = "腾讯地图"
-                if rec.Deleted == DeletedState.Deleted:
-                    route_addr.deleted = 1
-                route_addr.sourceFile = self.root.AbsolutePath
-                if "_lasted_used" in rec:
-                    tmp = rec["_lasted_used"].Value
-                    if len(str(tmp)) >= 10:
-                        tmpb = str(tmp).strip()[:10]    #转成unix时间
-                        route_addr.create_time = int(tmpb)
-                if (not rec["from_data"].IsDBNull) and (not rec["end_data"].IsDBNull):
-                    try:
-                        from_data = json.loads(rec["from_data"].Value)
-                    except Exception as e:
-                        pass
-                    if "name" in from_data:
-                        route_addr.from_name = from_data["name"]
-                    if "addr" in from_data:
-                        route_addr.from_addr = from_data["addr"]
-                    if "lon" in from_data:
-                        route_addr.from_posX = from_data["lon"]
-                    if "lat" in from_data:
-                        route_addr.from_posY = from_data["lat"]
-                    try:
-                        end_data = json.loads(rec["end_data"].Value)
-                    except Exception as e:
-                        pass
-                    if "name" in end_data:
-                        route_addr.to_name = end_data["name"]
-                    if "addr" in end_data:
-                        route_addr.to_addr = end_data["addr"]
-                    if "lon" in end_data:
-                        route_addr.to_posX = end_data["lon"]
-                    if "lat" in end_data:
-                        route_addr.to_posY = end_data["lat"]
-                    try:
-                        if (route_addr.from_name or route_addr.from_addr or route_addr.to_name or route_addr.to_addr or route_addr.from_posX or route_addr.from_posY
-                            or route_addr.to_posX or route_addr.to_posY):
-                            self.tencentdb.db_insert_table_address(route_addr)
-                    except Exception as e:
-                        pass
-        except Exception as e:
-            print(e)
-        self.tencentdb.db_commit()                        
 
-    def parse_search(self):
+
+    def parse(self):
+        db_path = MapUtil.md5(self.cache, self.root.AbsolutePath)
+        self.tencentMap.db_create(db_path)
+        self.get_search_history()
+        self.get_route_history()
+        self.get_fav_point()
+        self.tencentMap.db_close()
+
+        results = model_map.ExportModel(db_path).get_model()
+        return results
+
+    
+    def get_search_history(self):
         """
         搜索记录
         """
         search_node = self.root.Parent.GetByPath("poi_search_history.db")
-        try:
-            db = SQLiteParser.Database.FromNode(search_node, canceller)
-            if db is None:
-                return
-            tbs = SQLiteParser.TableSignature("t_poi_search_history")
-            if self.extract_Deleted:
-                SQLiteParser.Tools.AddSignatureToTable(tbs, "_keyword", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
-            for rec in db.ReadTableRecords(tbs, self.extract_Deleted, True):
+        db = SQLiteParser.Database.FromNode(search_node, canceller)
+        if db is None:
+            return
+        if 't_poi_search_history' not in db.Tables:
+            return
+        tbs = SQLiteParser.TableSignature("t_poi_search_history")
+        for rec in db.ReadTableRecords(tbs, self.extract_deleted, True):
+            try:
                 if canceller.IsCancellationRequested:
                     return
                 search = model_map.Search()
-                search.source = "腾讯地图"
                 search.sourceApp = "腾讯地图"
                 search.sourceFile = search_node.AbsolutePath
                 if rec.Deleted == DeletedState.Deleted:
                     search.deleted = 1
-                if "_keyword" in rec:
+                if "_keyword" in rec and (not rec["_keyword"].IsDBNull):
                     search.keyword = rec["_keyword"].Value
                 if "_data" in rec and (not rec["_data"].IsDBNull):
                     tmp = rec["_data"].Value
-                    try:
-                        json_data = json.loads(tmp)
-                    except Exception as e:
-                        pass
+                    json_data = json.loads(tmp)
                     if "address" in json_data:
                         search.address = json_data["address"]
                     if "latLng" in json_data:
-                        # if "a" in json_data["latLng"]:
-                        #     search.pos_x = json_data["latLng"]["a"]
-                        # if "b" in json_data["latLng"]:
-                        #     search.pos_y = json_data["latLng"]["b"]
                         if "a" in json_data["latLng"] and  "b" in json_data["latLng"]:
-                            if str(json_data["latLng"]["b"]).find(".") != -1 and str(json_data["latLng"]["a"]).find(".") != -1:
-                                lat, lng = unity_c37r.gcj2wgs_exact(json_data["latLng"]["a"], json_data["latLng"]["b"])
-                                search.pos_x = lng
-                                search.pos_y = lat
-                            else:
-                                search.pos_x = json_data["latLng"]["a"]
-                                search.pos_y = json_data["latLng"]["b"]
-                if "_last_used" in rec and (not rec["_last_used"].IsDBNull):
-                    tmpa = rec["_last_used"].Value
-                    tmpb = str(tmpa)[:10]
-                    search.create_time = int(tmpb)
-                try:
-                    if search.keyword or search.address or search.pos_x or search.pos_y or search.create_time:
-                        self.tencentdb.db_insert_table_search(search)
-                except Exception as e:
-                    pass
-        except Exception as e:
-            print(e)
-        self.tencentdb.db_commit()
+                            search.pos_x = json_data["latLng"]["a"]
+                            search.pos_y = json_data["latLng"]["b"]
+                    if "_last_used" in rec and (not rec["_last_used"].IsDBNull):
+                        search.create_time = MapUtil.convert_to_timestamp(rec["_last_used"].Value)
+                if search.keyword:
+                    self.tencentMap.db_insert_table_search(search)
+            except Exception as e:
+                TraceService.Trace(TraceLevel.Error,"{0}".format(e))
+        self.tencentMap.db_commit()
 
-    def parse_fav_addr(self):
-        fav_node = self.root.Parent.GetByPath("favorite_new.db")
-        try:
-            db = SQLiteParser.Database.FromNode(fav_node, canceller)
-            if db is None:
-                return
-            tbs = SQLiteParser.TableSignature("favorite_poi_info")
-            if self.extract_Deleted:
-                SQLiteParser.Tools.AddSignatureToTable(tbs, "name", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
-            for rec in db.ReadTableRecords(tbs, self.extract_Deleted, self.extract_Source):
+
+    def get_route_history(self):
+        """
+        导航记录
+        """
+        db = SQLiteParser.Database.FromNode(self.root, canceller)
+        if db is None:
+            return
+        if 'route_search_history_tab' not in db.Tables:
+            return   
+        tbs = SQLiteParser.TableSignature("route_search_history_tab")
+        for rec in db.ReadTableRecords(tbs, self.extract_deleted, True):
+            try:
                 if canceller.IsCancellationRequested:
                     return
-                fav_addr = model_map.Search()
-                fav_addr.source = "腾讯地图"
-                fav_addr.sourceApp = "腾讯地图"
-                fav_addr.sourceFile = fav_node.AbsolutePath
-                fav_addr.item_type = 1
+                route = model_map.RouteRec()
+                route.sourceApp = "腾讯地图"
+                route.sourceFile = self.root.AbsolutePath
                 if rec.Deleted == DeletedState.Deleted:
-                    fav_addr.deleted = 1
-                if "name" in rec:
-                    fav_addr.keyword = rec["name"].Value
-                if "rawData" in rec and (not rec["rawData"].IsDBNull):
+                    route.deleted = 1
+                if "from_data" in rec and (not rec["from_data"].IsDBNull):
                     try:
-                        data = json.loads(rec["rawData"])
-                        if "addr" in data:
-                            fav_addr.address = rec["addr"].Value
-                        if "latLng" in data:
-                            if data["latLng"]["b"] is not None:
-                                fav_addr.pos_x = data["latLng"]["b"].Value
-                            if data["latLng"]["a"] is not None:
-                                fav_addr.pos_y = data["latLng"]["a"].Value
-                    except Exception as e:
+                        from_data = json.loads(rec["from_data"].Value)
+                        if "name" in from_data:
+                            route.from_name = from_data["name"]
+                        if "addr" in from_data:
+                            route.from_addr = from_data["addr"]
+                        if "lon" in from_data:
+                            route.from_posX = TencentMap._convert_coordinate(from_data["lon"],1)
+                        if "lat" in from_data:
+                            route.from_posY = TencentMap._convert_coordinate(from_data["lat"],2)
+                    except:
                         pass
-                if "lastEditTime" in rec and (not rec["lastEditTime"].IsDBNull):
-                    fav_addr.create_time = rec["lastEditTime"].Value
-                try:
-                    if fav_addr.keyword or fav_addr.address or fav_addr.pos_x or fav_addr.pos_y or fav_addr.create_time:
-                        self.tencentdb.db_insert_table_search(fav_addr)
-                except Exception as e:
-                    pass       
-        except Exception as e:
-            pass
-        self.tencentdb.db_commit()
+                if "end_data" in rec and (not rec["end_data"].IsDBNull):
+                    try:
+                        end_data = json.loads(rec["end_data"].Value)
+                        if "name" in end_data:
+                            route.to_name = end_data["name"]
+                        if "addr" in end_data:
+                            route.to_addr = end_data["addr"]
+                        if "lon" in end_data:
+                            route.to_posX = TencentMap._convert_coordinate(end_data["lon"],1)
+                        if "lat" in end_data:
+                            route.to_posY = TencentMap._convert_coordinate(end_data["lat"],2)
+                    except Exception as e:
+                        TraceService.Trace(TraceLevel.Error,"{0}".format(e))
+                if "_lasted_used" in rec and (not rec["_lasted_used"].IsDBNull):
+                    route.create_time = MapUtil.convert_to_timestamp(rec["_lasted_used"].Value)
+                if route.from_name and route.to_name:
+                    self.tencentMap.db_insert_table_routerec(route)
+            except Exception as e:
+                TraceService.Trace(TraceLevel.Error,"{0}".format(e))
+        self.tencentMap.db_commit()
 
-    def check_to_update(self, path_db, appversion):
-        if os.path.exists(path_db) and path_db[-6:-3] == appversion:
-            return False
-        else:
-            return True
 
-    def parse(self):
-        db_path = model_map.md5(self.cache, self.root.AbsolutePath)
-        self.tencentdb.db_create(db_path)
-        self.parse_route()
-        self.parse_search()
-        self.parse_fav_addr()
-        self.tencentdb.db_close()
-        tmp_dir = ds.OpenCachePath("tmp")
-        PA_runtime.save_cache_path(bcp_gis.NETWORK_APP_MAP_TENCENT, db_path, tmp_dir)
-        generate = model_map.Genetate(db_path)   
-        tmpresult = generate.get_models()
-        return tmpresult        
-            
-def analyze_tencentmap(node, extract_Deleted, extract_Source):
+    def get_fav_point(self):
+        fav_node = self.root.Parent.GetByPath("favorite_new.db")
+        db = SQLiteParser.Database.FromNode(fav_node, canceller)
+        if db is None:
+            return
+        if 'favorite_poi_info' not in db.Tables:
+            return  
+        tbs = SQLiteParser.TableSignature("favorite_poi_info")
+        for rec in db.ReadTableRecords(tbs, self.extract_deleted, True):
+            try:
+                if canceller.IsCancellationRequested:
+                    return
+                favpoi = model_map.FavPoi()
+                loc = model_map.Location()
+                favpoi.fav_obj = loc.location_id
+                favpoi.sourceApp = "腾讯地图"
+                favpoi.sourceFile = fav_node.AbsolutePath
+                loc.sourceApp = "腾讯地图"
+                loc.sourceFile = fav_node.AbsolutePath
+                if "`name`" in rec and (not rec["`name`"].IsDBNull):
+                    favpoi.poi_name = rec["`name`"].Value
+                if "`rawData`" in rec and (not rec["`rawData`"].IsDBNull):
+                    try:
+                        data = json.loads(rec["`rawData`"].Value)
+                        if "addr" in data:
+                            loc.address = data["addr"]
+                        if "point" in data:
+                            if "mLatitudeE6" in data["point"]:
+                                loc.latitude = TencentMap._convert_coordinate(data["point"]["mLatitudeE6"],2)
+                            if "mLongitudeE6" in data["point"]:
+                                loc.longitude = TencentMap._convert_coordinate(data["point"]["mLongitudeE6"],1)
+                    except Exception as e:
+                        TraceService.Trace(TraceLevel.Error,"{0}".format(e))
+                if  loc.longitude and loc.latitude:
+                    self.tencentMap.db_insert_table_location(loc)
+                if favpoi.poi_name:
+                    self.tencentMap.db_insert_table_favpoi(favpoi)     
+            except Exception as e:
+                TraceService.Trace(TraceLevel.Error,"{0}".format(e))
+        self.tencentMap.db_commit()
+
+    @staticmethod
+    def _convert_coordinate(v, type):
+        try:
+            if type == 1: # 经度
+                return float(str(v)[:3] + "." + str(v)[3:])
+            elif type == 2:
+                return float(str(v)[:2] +"."+ str(v)[2:])
+        except:
+            return v  
+
+def analyze_tencentmap(node, extract_deleted, extract_source):
+    TraceService.Trace(TraceLevel.Info,"正在分析安卓腾讯地图...")
     pr = ParserResults()
-    results = TencentMap(node, extract_Deleted, extract_Source).parse()
+    results = TencentMap(node, extract_deleted, extract_source).parse()
     if results:
-        for i in results:
-            pr.Models.Add(i)
+        pr.Models.AddRange(results)
     pr.Build("腾讯地图")
-
+    TraceService.Trace(TraceLevel.Info,"安卓腾讯地图分析完成!")
     return pr
-    
+
+
 def execute(node, extract_deleted):
     return analyze_tencentmap(node, extract_deleted, False)

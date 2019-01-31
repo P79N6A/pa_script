@@ -1695,7 +1695,7 @@
           <integer>0</integer>
           <key>Patterns</key>
           <array>
-            <string>/Documents/MapData.data$</string>
+            <string>/Library/Preferences/com.sogou.map.app.Map.plist$</string>
           </array>
           <key>Category</key>
           <string>SogouMap</string>

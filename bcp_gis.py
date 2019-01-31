@@ -706,7 +706,6 @@ class BuildBCP(object):
     def genetate(self):
         self.gis.db_create(self.bcp_db)
         self.db = sqlite3.connect(self.cache_db)
-        self._get_account()
         self._get_address()
         self._get_journey()
         self._get_location()
@@ -715,261 +714,352 @@ class BuildBCP(object):
         self.db.close()
         self.gis.db_close()
 
-
-    def _get_account(self):
-        cursor = self.db.cursor()
-        SQL = """
-            select account_id, nickname, username, password, photo, telephone, email, gender, age, country, 
-                        province, city, address, birthday, signature, install_time, last_login_time, recent_visit, source, sourceApp, sourceFile, deleted, repeated
-            from account
-        """
-        try:
-            cursor.execute(SQL)
-            row = cursor.fetchone()
-        except Exception as e:
-            print(e)
-
-        while row is not None:
-            if canceller.IsCancellationRequested:
-                return
-            account = Account(self.collect_target_id, self.network_app, row[0], row[2])
-            if row[1]:
-                account.regis_nickname = row[1]
-            if row[3]:
-                account.password = row[3]
-            if row[4]:
-                account.user_photo = row[4]
-            if row[5]:
-                account.msisdn = row[5]
-            if row[6]:
-                account.email_account = row[6]
-            account.sexcode = self._convert_sex_type(row[7])
-            if row[8]:
-                account.age = row[8]
-            if row[11]:
-                account.reg_city = row[11]
-            if row[12]:
-                account.postal_address = row[12]
-            if row[13]:
-                account.birthday = row[13]
-            if row[14]:
-                account.personal_desc = row[14]
-            account.browse_type = self._convert_browse_type(row[18])
-            account.delete_status = self._convert_deleted_type(row[21])
-
-            self.gis.db_insert_table_account(account)
-            row = cursor.fetchone()
-        self.gis.db_commit()
-        cursor.close()
-
+    # 地图定位信息
     def _get_location(self):
         cursor = self.db.cursor()
-        SQL_SEARCH = """
-            select account_id, keyword, create_time, delete_time, adcode, address, district, pos_x, pos_y, 
-            item_type, source, sourceApp, sourceFile, deleted, repeated from search where item_type = 0
+        
+        # 搜藏坐标点信息
+        SQL_FAV_POI = """
+            select location_id, latitude, longitude, elevation, address, timestamp, type, sourceApp, sourceFile, deleted from location
         """
+        
+        search_row = None
+        
         try:
-            cursor.execute(SQL_SEARCH)
+            cursor.execute(SQL_FAV_POI)
             search_row = cursor.fetchone()
         except Exception as e:
-            print(e)
+            TraceService.Trace(TraceLevel.Info,"bcp_gis Table location is not exists")
+        
         while search_row is not None:
             if canceller.IsCancellationRequested:
                 return
-            search_location = Location(self.collect_target_id, self.network_app, search_row[0], None)
+            search_location = Location(self.collect_target_id, self.network_app, '', None)
             search_location.locate_type = LOCATE_TYPE_OTHER
-            if search_row[2]:
-                search_location.login_time = search_row[2]
-            if search_row[3]:
-                search_location.delete_time =search_row[3]
             if search_row[5]:
-                search_location.company_address = search_row[5]
-            else:
-                search_location.company_address = search_row[1]
+                search_location.login_time = search_row[5]
+            # if search_row[3]:
+            #     search_location.delete_time =search_row[3]
+            if search_row[4]:
+                search_location.company_address = search_row[4]
+            if search_row[2]:
+                search_location.longitude = self._convert_coordinate_type(search_row[2])
+            if search_row[1]:
+                search_location.latitude = self._convert_coordinate_type(search_row[1])
             if search_row[7]:
-                search_location.longitude = search_row[7]
-            if search_row[8]:
-                search_location.latitude = self._convert_coordinate_type(search_row[8])
-            if search_row[10]:
-                search_location.browse_type = self._convert_browse_type(search_row[10])
-            if search_row[13]:
-                search_location.delete_status = self._convert_deleted_type(search_row[13])
+                search_location.browse_type = self._convert_browse_type(search_row[7])
+            if search_row[9]:
+                search_location.delete_status = self._convert_deleted_type(search_row[9])
             
             self.gis.db_insert_table_location(search_location)
             search_row = cursor.fetchone()
+        
         self.gis.db_commit()
         cursor.close()
 
+        # 导航坐标信息
         cursor2 = self.db.cursor()
         SQL_ROUTE = '''
-            select account_id, city_code, city_name, from_name, from_posX, from_posY, from_addr, to_name, 
-            to_posX, to_posY, to_addr, create_time, source, sourceApp, sourceFile, deleted,  repeated  from address 
+            select account_id, from_name, from_posX, from_posY, from_addr, to_name, to_posX,
+                to_posY, to_addr, create_time, nav_id, type, sourceApp, sourceFile, deleted from routerec 
             '''
+        route_row = None
         try:
             cursor2.execute(SQL_ROUTE)
             route_row = cursor2.fetchone()
         except Exception as e:
-            print(e)
+            TraceService.Trace(TraceLevel.Info,"bcp_gis Table routerec is not exists")
         while route_row is not None:
             if canceller.IsCancellationRequested:
                 return
-            route_location = Location(self.collect_target_id, self.network_app, route_row[0], None)
-            route_location.locate_type = LOCATE_TYPE_OTHER
-            if route_row[8]:
-                route_location.longitude = self._convert_coordinate_type(route_row[8])
+            from_route_location = Location(self.collect_target_id, self.network_app, route_row[0], None)
+            from_route_location.locate_type = LOCATE_TYPE_OTHER
+            if route_row[2]:
+                from_route_location.longitude = self._convert_coordinate_type(route_row[2])
+            if route_row[3]:
+                from_route_location.latitude = self._convert_coordinate_type(route_row[3])
+            if route_row[4]:
+                from_route_location.company_address = route_row[4]
             if route_row[9]:
-                route_location.latitude = self._convert_coordinate_type(route_row[9])
-            if route_row[10]:
-                route_location.company_address = route_row[10]
-            else:
-                route_location.company_address = route_row[7]
-            if route_row[11]:
-                route_location.login_time = route_row[11]
+                from_route_location.login_time = route_row[9]
             if route_row[12]:
-                route_location.browse_type = self._convert_browse_type(route_row[12])
+                from_route_location.browse_type = self._convert_browse_type(route_row[12])
             if route_row[13]:
-                route_location.delete_status = self._convert_deleted_type(route_row[13])
+                from_route_location.delete_status = self._convert_deleted_type(route_row[13])
 
-            self.gis.db_insert_table_location(route_location)
+            end_route_location = Location(self.collect_target_id, self.network_app, route_row[0], None)
+            end_route_location.locate_type = LOCATE_TYPE_OTHER
+            if route_row[6]:
+                end_route_location.longitude = self._convert_coordinate_type(route_row[6])
+            if route_row[7]:
+                end_route_location.latitude = self._convert_coordinate_type(route_row[7])
+            if route_row[8]:
+                end_route_location.company_address = route_row[8]
+            if route_row[9]:
+                end_route_location.login_time = route_row[9]
+            if route_row[12]:
+                end_route_location.browse_type = self._convert_browse_type(route_row[12])
+            if route_row[13]:
+                end_route_location.delete_status = self._convert_deleted_type(route_row[13])
+
+            self.gis.db_insert_table_location(from_route_location)
+            self.gis.db_insert_table_location(end_route_location)
             route_row = cursor2.fetchone()
         self.gis.db_commit()
         cursor2.close()
 
-                    
+
+        # 搜藏坐标导航信息
+        cursor3 = self.db.cursor()
+        SQL_FAV_ROUTE = '''
+            select account_id, from_name, from_posX, from_posY, from_addr, to_name, to_posX,
+                to_posY, to_addr, create_time, nav_id, type, sourceApp, sourceFile, deleted from favroute 
+            '''
+        sql_fav_route = None
+        
+        try:
+            cursor3.execute(SQL_FAV_ROUTE)
+            sql_fav_route = cursor3.fetchone()
+        except Exception as e:
+            TraceService.Trace(TraceLevel.Info,"bcp_gis Table favroute is not exists")
+        
+        while sql_fav_route is not None:
+            if canceller.IsCancellationRequested:
+                return
+            fav_from_route_location = Location(self.collect_target_id, self.network_app, sql_fav_route[0], None)
+            fav_from_route_location.locate_type = LOCATE_TYPE_OTHER
+            if sql_fav_route[2]:
+                fav_from_route_location.longitude = self._convert_coordinate_type(sql_fav_route[2])
+            if sql_fav_route[3]:
+                fav_from_route_location.latitude = self._convert_coordinate_type(sql_fav_route[3])
+            if sql_fav_route[4]:
+                fav_from_route_location.company_address = sql_fav_route[4]
+            if sql_fav_route[9]:
+                fav_from_route_location.login_time = sql_fav_route[9]
+            if sql_fav_route[12]:
+                fav_from_route_location.browse_type = self._convert_browse_type(sql_fav_route[12])
+            if sql_fav_route[13]:
+                fav_from_route_location.delete_status = self._convert_deleted_type(sql_fav_route[13])
+
+            fav_end_route_location = Location(self.collect_target_id, self.network_app, sql_fav_route[0], None)
+            fav_end_route_location.locate_type = LOCATE_TYPE_OTHER
+            if sql_fav_route[6]:
+                fav_end_route_location.longitude = self._convert_coordinate_type(sql_fav_route[6])
+            if sql_fav_route[7]:
+                fav_end_route_location.latitude = self._convert_coordinate_type(sql_fav_route[7])
+            if sql_fav_route[8]:
+                fav_end_route_location.company_address = sql_fav_route[8]
+            if sql_fav_route[9]:
+                fav_end_route_location.login_time = sql_fav_route[9]
+            if sql_fav_route[12]:
+                fav_end_route_location.browse_type = self._convert_browse_type(sql_fav_route[12])
+            if sql_fav_route[13]:
+                fav_end_route_location.delete_status = self._convert_deleted_type(sql_fav_route[13])
+
+            self.gis.db_insert_table_location(fav_from_route_location)
+            self.gis.db_insert_table_location(fav_end_route_location)
+            
+            sql_fav_route = cursor3.fetchone()
+        
+        self.gis.db_commit()
+        cursor3.close()
+
+
+    # 导航信息         
     def _get_journey(self):
         cursor = self.db.cursor()
         SQL = """
-            select account_id, city_code, city_name, from_name, from_posX, from_posY, from_addr, to_name, 
-            to_posX, to_posY, to_addr, create_time, source, sourceApp, sourceFile, deleted,  repeated  from address 
+            select account_id, from_name, from_posX, from_posY, from_addr, to_name, to_posX,
+                to_posY, to_addr, create_time, nav_id, type, sourceApp, sourceFile, deleted from routerec 
             """
+        row = None
         try:
             cursor.execute(SQL)
             row = cursor.fetchone()
         except Exception as e:
-            print(e)
+            TraceService.Trace(TraceLevel.Info,"bcp_gis Table routerec is not exists")
+        
         while row is not None:
             if canceller.IsCancellationRequested:
                 return
             journey = Journey(self.collect_target_id, self.network_app, row[0], None)
-            if row[6]:
-                journey.depart_address = row[6]
-            else:
-                journey.depart_address = row[3]
+            if row[2]:
+                journey.start_longitude = self._convert_coordinate_type(row[2])
+            if row[3]:
+                journey.start_latitude = self._convert_coordinate_type(row[3])
             if row[4]:
-                journey.start_longitude = self._convert_coordinate_type(row[4])
-            if row[5]:
-                journey.start_latitude = self._convert_coordinate_type(row[5])
-            if row[10]:
-                journey.destination_address = row[10]
-            else:
-                journey.destination_address = row[7]
+                journey.depart_address = row[4]
+            
+            if row[6]:
+                journey.destination_longitude = self._convert_coordinate_type(row[6])
+            if row[7]:
+                journey.destination_latitude = self._convert_coordinate_type(row[7])
             if row[8]:
-                journey.destination_longitude = self._convert_coordinate_type(row[8])
+                journey.destination_address = row[8]
+    
             if row[9]:
-                journey.destination_latitude = self._convert_coordinate_type(row[9])
-            if row[11]:
-                journey.start_time = row[11]
+                journey.start_time = row[9]
             if row[12]:
                 journey.browse_type = self._convert_browse_type(row[12])
-            if row[15]:
-                journey.delete_status = self._convert_deleted_type(row[15])
+            if row[14]:
+                journey.delete_status = self._convert_deleted_type(row[14])
             
             self.gis.db_insert_table_journey(journey)
             row = cursor.fetchone()
         self.gis.db_commit()
         cursor.close()
 
-    
+
+    # 搜索记录信息
     def _get_search(self):
         cursor = self.db.cursor()
         sql = '''
-            select account_id, keyword, create_time, delete_time, adcode, address, district, pos_x, pos_y, item_type, source, sourceApp, sourceFile, deleted, repeated from search
+            select account_id,keyword,create_time,address,pos_x,pos_y,type,sourceApp,sourceFile,deleted from search
         '''
+        row = None
         try:
             cursor.execute(sql)
             row = cursor.fetchone()
         except Exception as e:
-            print(e)
+            TraceService.Trace(TraceLevel.Info,"bcp_gis Table Search is not exists")
         while row is not None:
             if canceller.IsCancellationRequested:
                 return
-            search = Search(self.collect_target_id, self.network_app, row[0], None)
+            search = Search(self.collect_target_id, self.network_app, '', None)
             if row[1]:
                 search.keyword = row[1]
             if row[2]:
                 search.create_time = row[2]
-            if row[3]:
-                search.delete_time = row[3]
-            if row[10]:
-                search.browse_type = self._convert_browse_type(row[10])
-            if row[13]:
-                search.delete_status = self._convert_deleted_type(row[13])
+            # if row[3]:
+            #     search.delete_time = row[3]
+            if row[7]:
+                search.browse_type = self._convert_browse_type(row[7])
+            if row[9]:
+                search.delete_status = self._convert_deleted_type(row[9])
             
             self.gis.db_insert_table_search(search)
             row = cursor.fetchone()
         self.gis.db_commit()
         cursor.close()
-
     
+
+    #地址信息
     def _get_address(self):
         cursor = self.db.cursor()
-        ROUTE_SQL = """
-            select account_id, city_code, city_name, from_name, from_posX, from_posY, from_addr, to_name, 
-            to_posX, to_posY, to_addr, create_time, source, sourceApp, sourceFile, deleted,  repeated  from address 
-            """
+        
+        # 搜藏坐标点信息
+        SQL_FAV_POI = """
+            select location_id, latitude, longitude, elevation, address, timestamp, type, sourceApp, sourceFile, deleted from location
+        """
+        sql_fav_poi = None
         try:
-            cursor.execute(ROUTE_SQL)
-            route_row = cursor.fetchone()
+            cursor.execute(SQL_FAV_POI)
+            sql_fav_poi = cursor.fetchone()
         except Exception as e:
-            print(e)
-        while route_row is not None:
+            TraceService.Trace(TraceLevel.Info,"bcp_gis Table location is not exists")
+        
+        while sql_fav_poi is not None:
             if canceller.IsCancellationRequested:
                 return
-            route_address = Address(self.collect_target_id, self.network_app, route_row[0], None)
-            if route_row[10]:
-                route_address.company_address = route_row[10]
-            else:
-                route_address.company_address = route_row[7]
-            if route_row[8]:
-                route_address.longitude = route_row[8]
-            if route_row[9]:
-                route_address.latitude = route_row[9]
-            if route_row[15]:
-                route_address.delete_status = self._convert_deleted_type(route_row[15])
+            route_address = Address(self.collect_target_id, self.network_app, '', None)
+            if sql_fav_poi[4]:
+                route_address.company_address = sql_fav_poi[4]
+            if sql_fav_poi[2]:
+                route_address.longitude = self._convert_coordinate_type(sql_fav_poi[2])
+            if sql_fav_poi[1]:
+                route_address.latitude = self._convert_coordinate_type(sql_fav_poi[1])
+            if sql_fav_poi[9]:
+                route_address.delete_status = self._convert_deleted_type(sql_fav_poi[9])
             
             self.gis.db_insert_table_address(route_address)
-            route_row = cursor.fetchone()
+            sql_fav_poi = cursor.fetchone()
+
         self.gis.db_commit()
         cursor.close()
 
-        cursor2 = self.db.cursor()
-        SEARCH_SQL = '''
-            select account_id, keyword, create_time, delete_time, adcode, address, district, pos_x, pos_y, item_type, 
-            source, sourceApp, sourceFile, deleted, repeated from search where item_type = 1
-        '''
+
+        # 收藏路线地址信息
+        cursor3 = self.db.cursor()
+        FAV_SQL_ROUTE = '''
+            select aaccount_id, from_name, from_posX, from_posY, from_addr, to_name, to_posX,
+                to_posY, to_addr, create_time, nav_id, type, sourceApp, sourceFile, deleted from favroute 
+            '''
+        fav_route_row = None
         try:
-            cursor2.execute(SEARCH_SQL)
-            search_row = cursor2.fetchone()
+            cursor3.execute(FAV_SQL_ROUTE)
+            fav_route_row = cursor3.fetchone()
         except Exception as e:
             print(e)
 
-        while search_row is not None:
+        while fav_route_row is not None:
             if canceller.IsCancellationRequested:
                 return
-            search_address = Address(self.collect_target_id, self.network_app, search_row[0], None)
-            if search_row[5]:
-                search_address.company_address = search_row[5]
-            else:
-                search_address.company_address = search_row[1]
-            if search_row[7]:
-                search_address.longitude = self._convert_coordinate_type(search_row[7])
-            if search_row[8]:
-                search_address.latitude = self._convert_coordinate_type(search_row[8])
-            if search_row[13]:
-                search_address.delete_status = self._convert_deleted_type(search_row[13])
+            from_search_address = Address(self.collect_target_id, self.network_app, fav_route_row[0], None)
+            if fav_route_row[4]:
+                from_search_address.company_address = fav_route_row[4]
+            if fav_route_row[2]:
+                from_search_address.longitude = self._convert_coordinate_type(fav_route_row[2])
+            if fav_route_row[3]:
+                from_search_address.latitude = self._convert_coordinate_type(fav_route_row[3])
+            if fav_route_row[14]:
+                from_search_address.delete_status = self._convert_deleted_type(fav_route_row[14])
 
-            self.gis.db_insert_table_address(search_address)
-            search_row = cursor2.fetchone()
+            
+            end_search_address = Address(self.collect_target_id, self.network_app, search_row[0], None)
+            if fav_route_row[8]:
+                end_search_address.company_address = fav_route_row[8]
+            if fav_route_row[6]:
+                end_search_address.longitude = self._convert_coordinate_type(fav_route_row[6])
+            if fav_route_row[7]:
+                end_search_address.latitude = self._convert_coordinate_type(fav_route_row[7])
+            if fav_route_row[14]:
+                end_search_address.delete_status = self._convert_deleted_type(fav_route_row[14])
+
+            self.gis.db_insert_table_address(from_search_address)
+            fav_route_row = cursor3.fetchone()
+        self.gis.db_commit()
+        cursor3.close()
+
+
+        # 导航坐标信息
+        cursor2 = self.db.cursor()
+        SQL_ROUTE = '''
+            select account_id, from_name, from_posX, from_posY, from_addr, to_name, to_posX,
+                to_posY, to_addr, create_time, nav_id, type, sourceApp, sourceFile, deleted from routerec 
+            '''
+        route_row = None
+        try:
+            cursor2.execute(SQL_ROUTE)
+            route_row = cursor2.fetchone()
+        except Exception as e:
+            print(e)
+
+        while route_row is not None:
+            if canceller.IsCancellationRequested:
+                return
+            from_search_address = Address(self.collect_target_id, self.network_app, route_row[0], None)
+            if route_row[4]:
+                from_search_address.company_address = route_row[4]
+            if route_row[2]:
+                from_search_address.longitude = self._convert_coordinate_type(route_row[2])
+            if route_row[3]:
+                from_search_address.latitude = self._convert_coordinate_type(route_row[3])
+            if route_row[14]:
+                from_search_address.delete_status = self._convert_deleted_type(route_row[14])
+
+            
+            end_search_address = Address(self.collect_target_id, self.network_app, search_row[0], None)
+            if route_row[8]:
+                end_search_address.company_address = route_row[8]
+            if route_row[6]:
+                end_search_address.longitude = self._convert_coordinate_type(route_row[6])
+            if route_row[7]:
+                end_search_address.latitude = self._convert_coordinate_type(route_row[7])
+            if route_row[14]:
+                end_search_address.delete_status = self._convert_deleted_type(route_row[14])
+
+            self.gis.db_insert_table_address(from_search_address)
+            route_row = cursor2.fetchone()
         self.gis.db_commit()
         cursor2.close()
 
@@ -1006,4 +1096,4 @@ class BuildBCP(object):
         try:
             return str(value)
         except Exception as e:
-            pass   
+            return value   
