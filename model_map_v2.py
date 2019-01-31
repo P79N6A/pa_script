@@ -497,8 +497,8 @@ class ExportModel(object):
                         #     start_loc.Coordinate = Base.Coordinate(from_posX,from_posY, MapUtil.convert_coordinat_type(routerec_type))
                         #     end_loc.Coordinate = Base.Coordinate(to_posX,to_posY,MapUtil.convert_coordinat_type(routerec_type))
                         if routerec_type == 9:
-                            start_loc.Coordinate = Base.Coordinate(MapUtil.pixelXTolng(from_posX),MapUtil.pixelXTolng(from_posY), MapUtil.convert_coordinat_type(routerec_type))
-                            end_loc.Coordinate = Base.Coordinate(MapUtil.pixelXTolng(to_posX),MapUtil.pixelXTolng(to_posY),MapUtil.convert_coordinat_type(routerec_type))
+                            start_loc.Coordinate = Base.Coordinate(MapUtil.pixelXTolng(from_posX),MapUtil.pixelYToLat(from_posY), MapUtil.convert_coordinat_type(routerec_type))
+                            end_loc.Coordinate = Base.Coordinate(MapUtil.pixelXTolng(to_posX),MapUtil.pixelYToLat(to_posY),MapUtil.convert_coordinat_type(routerec_type))
                         else:
                             start_loc.Coordinate = Base.Coordinate(from_posX,from_posY, MapUtil.convert_coordinat_type(routerec_type))
                             end_loc.Coordinate = Base.Coordinate(to_posX,to_posY,MapUtil.convert_coordinat_type(routerec_type))
