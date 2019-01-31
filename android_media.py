@@ -117,7 +117,8 @@ class MediaParse(object):
                     media.datetaken = self._db_record_get_int_value(rec, 'datetaken')
                     #media.year = self._db_record_get_int_value(rec, 'year')
                     #media.album_artist = self._db_record_get_string_value(rec, 'album_artist')
-                    media.duration = self._db_record_get_int_value(rec, 'duration')
+                    duration = self._db_record_get_int_value(rec, 'duration')
+                    media.duration = float(duration/1000)
                     media.artist = self._db_record_get_string_value(rec, 'artist')
                     media.album = self._db_record_get_string_value(rec, 'album')
                     #media.location = 'internal' if i==0 else 'external'
