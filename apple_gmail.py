@@ -25,8 +25,6 @@ VERSION_APP_VALUE = 1
 def analyze_gmail(node, extract_deleted, extract_source):
     return base_analyze(GmailParser, 
                         node, 
-                        extract_deleted, 
-                        extract_source, 
                         bcp_mail.MAIL_TOOL_TYPE_OTHER, 
                         VERSION_APP_VALUE,
                         'Gmail',
@@ -41,8 +39,8 @@ class GmailParser(AndroidGmailParser):
         与 android_gmail 的不同:
             account 
     '''
-    def __init__(self, node, extract_deleted, extract_source, db_name):
-        super(GmailParser, self).__init__(node, extract_deleted, extract_source, db_name)
+    def __init__(self, node, db_name):
+        super(GmailParser, self).__init__(node, db_name)
         self.root = node.Parent.Parent.Parent
 
     def parse_main(self):
