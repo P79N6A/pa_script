@@ -105,6 +105,9 @@ SQL_CREATE_TABLE_VERSION = '''
 SQL_INSERT_TABLE_VERSION = '''
     insert into version(key, version) values(?, ?)'''
 
+COORDINATE_TYPE_GOOGLE = 1
+COORDINATE_TYPE_GPS = 2
+
 VERSION_KEY_DB = 'db'
 VERSION_KEY_APP = 'app'
 
@@ -294,11 +297,12 @@ class MediaLog(Column):
 
 class Generate(object):
 
-    def __init__(self, db_cache):
+    def __init__(self, db_cache, CoordinateType):
         self.db_cache = db_cache
         self.db = None
         self.db_cmd = None
         self.db_trans = None
+        self.coordinate_type = CoordinateType
 
     def get_models(self):
         models = []
@@ -370,7 +374,7 @@ class Generate(object):
                             coordinate.Latitude = float(sr[8])
                         if not IsDBNull(sr[9]):
                             coordinate.Longitude = float(sr[9])
-                            coordinate.Type = CoordinateType.GPS
+                            coordinate.Type = CoordinateType.Google if self.coordinate_type == COORDINATE_TYPE_GOOGLE else CoordinateType.GPS
                         location.Coordinate = coordinate
                         location.AddressName = self._db_reader_get_string_value(sr, 10)
                         if not IsDBNull(sr[9]):

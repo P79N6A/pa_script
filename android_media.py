@@ -66,7 +66,7 @@ class MediaParse(object):
             self.mm.db_insert_table_version(model_media.VERSION_KEY_APP, VERSION_APP_VALUE)
             self.mm.db_commit()
             self.mm.db_close()
-        generate = Generate(self.db_cache)
+        generate = Generate(self.db_cache, model_media.COORDINATE_TYPE_GPS)
         models = generate.get_models()
         return models
 
