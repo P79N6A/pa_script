@@ -51,7 +51,7 @@ class TencentMap(object):
         """
         搜索记录
         """
-        search_node = self.root.GetByPath("Documents/user/basehistoryV2.dat")
+        search_node = self.root.Parent.Parent.Parent.GetByPath("Documents/user/basehistoryV2.dat")
         if search_node is None:
             return
         bplist = BPReader(search_node.Data).top
@@ -99,7 +99,7 @@ class TencentMap(object):
         """
         分析收藏的位置
         """
-        favorites_address_node = self.root.GetByPath("Documents/user/favorite.dat")
+        favorites_address_node = self.root.Parent.Parent.Parent.GetByPath("Documents/user/favorite.dat")
         if favorites_address_node is None:
             return
         with open(favorites_address_node.PathWithMountPoint, "r") as f: 
@@ -132,7 +132,7 @@ class TencentMap(object):
 
 
     def get_home_company(self):
-        home_company_node = self.root.GetByPath("Documents/user/frequentAddressArray.dat")
+        home_company_node = self.root.Parent.Parent.Parent.GetByPath("Documents/user/frequentAddressArray.dat")
         if home_company_node is None:
             return
         bp = BPReader(home_company_node.Data).top
@@ -183,7 +183,7 @@ class TencentMap(object):
 
 
     def get_route_by_bus(self):
-        route_node = self.root.GetByPath("Documents/user/busRouteHistory")
+        route_node = self.root.Parent.Parent.Parent.GetByPath("Documents/user/busRouteHistory")
         if route_node is None:
             return 
         bplist = BPReader(route_node.Data).top
@@ -197,7 +197,7 @@ class TencentMap(object):
 
 
     def get_route_by_car(self):
-        route_node = self.root.GetByPath("Documents/user/carRouteHistory")
+        route_node = self.root.Parent.Parent.Parent.GetByPath("Documents/user/carRouteHistory")
         if route_node is None:
             return 
         bplist = BPReader(route_node.Data).top
@@ -211,7 +211,7 @@ class TencentMap(object):
 
 
     def get_route_by_walk(self):
-        route_node = self.root.GetByPath("Documents/user/walkCycleRouteHistory")
+        route_node = self.root.Parent.Parent.Parent.GetByPath("Documents/user/walkCycleRouteHistory")
         if route_node is None:
             return 
         bplist = BPReader(route_node.Data).top

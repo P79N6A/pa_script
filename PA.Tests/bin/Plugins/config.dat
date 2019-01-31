@@ -1743,7 +1743,7 @@
           <integer>1</integer>
           <key>Patterns</key>
           <array>
-            <string>com.tencent.sosomap</string>
+            <string>/Library/Preferences/com.tencent.sosomap.plist$</string>
           </array>
           <key>Category</key>
           <string>TencentMap</string>
