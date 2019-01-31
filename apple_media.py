@@ -49,7 +49,7 @@ class MediaParse(model_media.MM):
             self.db_insert_table_version(model_media.VERSION_KEY_APP, VERSION_APP_VALUE)
             self.db_commit()
             self.db_close()
-        models = model_media.Generate(self.db_cache).get_models()
+        models = model_media.Generate(self.db_cache, model_media.COORDINATE_TYPE_GOOGLE).get_models()
         print(models)
         return models
 
