@@ -630,6 +630,7 @@ class Wechat(object):
             model.SourceFile = account.source
             model.Deleted = model_wechat.GenerateModel._convert_deleted_status(account.deleted)
             model.Account = account.account_id
+            model.CustomAccount = account.account_id_alias
             model.NickName = account.nickname
             model.HeadPortraitPath = account.photo
             model.Gender = model_wechat.GenerateModel._convert_gender(account.gender)
@@ -664,6 +665,7 @@ class Wechat(object):
             model.Deleted = model_wechat.GenerateModel._convert_deleted_status(friend.deleted)
             model.AppUserAccount = self.user_account_model
             model.Account = friend.friend_id
+            model.CustomAccount = friend.friend_id_alias
             model.NickName = friend.nickname
             model.HeadPortraitPath = friend.photo
             model.Gender = model_wechat.GenerateModel._convert_gender(friend.gender)
@@ -1068,6 +1070,21 @@ class Wechat(object):
                     friend = self.friend_models.get(user_id)
                     if friend is not None:
                         model.Friends.Add(friend)
+            return model
+        except Exception as e:
+            #print(e)
+            return None
+
+    def get_bank_card_model(self, card):
+        try:
+            model = Base.BankCard()
+            model.SourceFile = card.source
+            model.Deleted = model_wechat.GenerateModel._convert_deleted_status(card.deleted)
+            model.AppUserAccount = self.user_account_model
+            model.BankName = card.bank_name
+            model.CardType = card.card_type
+            model.CardNumber = card.card_number
+            model.PhoneNumber = card.phone_number
             return model
         except Exception as e:
             #print(e)

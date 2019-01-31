@@ -231,7 +231,7 @@ class WeChatParser(Wechat):
             xml = XElement.Parse(node.read())
             es = xml.Elements('int')
         except Exception as e:
-            TraceService.Trace(TraceLevel.Error, "android_wechat.py Error: LINE {}".format(traceback.format_exc()))
+            pass
         for e in es:
             if e.Attribute('name') and e.Attribute('name').Value == '_auth_uin' and e.Attribute('value'):
                 return e.Attribute('value').Value
@@ -247,7 +247,7 @@ class WeChatParser(Wechat):
             xml = XElement.Parse(node.read())
             es = xml.Elements('string')
         except Exception as e:
-            TraceService.Trace(TraceLevel.Error, "android_wechat.py Error: LINE {}".format(traceback.format_exc()))
+            pass
         for e in es:
             if e.Attribute('name') and e.Attribute('name').Value == 'last_login_uin':
                 return e.Value

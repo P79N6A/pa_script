@@ -23,7 +23,7 @@ import os
 import sqlite3
 import time
 
-VERSION_VALUE_DB = 6
+VERSION_VALUE_DB = 7
 
 GENDER_NONE = 0
 GENDER_MALE = 1
@@ -399,6 +399,56 @@ SQL_CREATE_TABLE_CONTACT_LABEL = '''
 SQL_INSERT_TABLE_CONTACT_LABEL = '''
     insert into contact_label(account_id, id, name, users, type, source, deleted, repeated) values(?, ?, ?, ?, ?, ?, ?, ?)'''
 
+SQL_CREATE_TABLE_BANK_CARD = '''
+    create table if not exists bank_card(
+        account_id TEXT, 
+        bank_name TEXT,
+        card_type TEXT,
+        card_number TEXT,
+        phone_number TEXT,
+        source TEXT,
+        deleted INT DEFAULT 0, 
+        repeated INT DEFAULT 0)'''
+
+SQL_INSERT_TABLE_BANK_CARD = '''
+    insert into bank_card(account_id, bank_name, card_type, card_number, phone_number, source, deleted, repeated) values(?, ?, ?, ?, ?, ?, ?, ?)'''
+
+SQL_CREATE_TABLE_STORY = '''
+    create table if not exists story(
+        account_id TEXT, 
+        sender_id TEXT,
+        media_path TEXT,
+        story_id INT,
+        timestamp TEXT,
+        location_latitude REAL,
+        location_longitude REAL,
+        location_elevation REAL,
+        location_address TEXT,
+        location_type INT,
+        source TEXT,
+        deleted INT DEFAULT 0, 
+        repeated INT DEFAULT 0)'''
+
+SQL_INSERT_TABLE_STORY = '''
+    insert into story(account_id, sender_id, media_path, story_id, timestamp, location_latitude, 
+                      location_longitude, location_elevation, location_address, location_type, 
+                      source, deleted, repeated)
+        values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
+
+SQL_CREATE_TABLE_STORY_COMMENT = '''
+    create table if not exists story_comment(
+        story_id INT,
+        sender_id TEXT,
+        content TEXT,
+        timestamp TEXT,
+        source TEXT,
+        deleted INT DEFAULT 0, 
+        repeated INT DEFAULT 0)'''
+
+SQL_INSERT_TABLE_STORY_COMMENT = '''
+    insert into story_comment(story_id, sender_id, content, timestamp, source, deleted, repeated)
+        values(?, ?, ?, ?, ?, ?, ?)'''
+
 SQL_CREATE_TABLE_VERSION = '''
     create table if not exists version(
         key TEXT primary key,
@@ -412,6 +462,7 @@ g_feed_like_id = 1
 g_feed_comment_id = 1
 g_favorite_id = 1
 g_chatroom_sp_id = 1
+g_story_id = 1
 
 class IM(object):
     def __init__(self):
@@ -478,6 +529,12 @@ class IM(object):
             self.db_cmd.ExecuteNonQuery()
             self.db_cmd.CommandText = SQL_CREATE_TABLE_CONTACT_LABEL
             self.db_cmd.ExecuteNonQuery()
+            self.db_cmd.CommandText = SQL_CREATE_TABLE_BANK_CARD
+            self.db_cmd.ExecuteNonQuery()
+            self.db_cmd.CommandText = SQL_CREATE_TABLE_STORY
+            self.db_cmd.ExecuteNonQuery()
+            self.db_cmd.CommandText = SQL_CREATE_TABLE_STORY_COMMENT
+            self.db_cmd.ExecuteNonQuery()
             self.db_cmd.CommandText = SQL_CREATE_TABLE_VERSION
             self.db_cmd.ExecuteNonQuery()
 
@@ -541,6 +598,15 @@ class IM(object):
 
     def db_insert_table_contact_label(self, column):
         self.db_insert_table(SQL_INSERT_TABLE_CONTACT_LABEL, column.get_values())
+
+    def db_insert_table_bank_card(self, column):
+        self.db_insert_table(SQL_INSERT_TABLE_BANK_CARD, column.get_values())
+
+    def db_insert_table_story(self, column):
+        self.db_insert_table(SQL_INSERT_TABLE_STORY, column.get_values())
+
+    def db_insert_table_story_comment(self, column):
+        self.db_insert_table(SQL_INSERT_TABLE_STORY_COMMENT, column.get_values())
 
     def db_insert_table_version(self, key, version):
         self.db_insert_table(SQL_INSERT_TABLE_VERSION, (key, version))
@@ -950,6 +1016,77 @@ class ContactLabel(Column):
             im.db_insert_table_contact_label(self)
 
 
+class BankCard(Column):
+    def __init__(self):
+        super(BankCard, self).__init__()
+        self.account_id = None  # 账号ID[TEXT]
+        self.bank_name = None  # 银行名称[TEXT]
+        self.card_type = None  # 卡片类型[TEXT]
+        self.card_number = None  # 卡片尾号[TEXT]
+        self.phone_number = None  # 手机号[TEXT]
+
+    def get_values(self):
+        return (self.account_id, self.bank_name, self.card_type, self.card_number, self.phone_number) + super(BankCard, self).get_values()
+
+    def insert_db(self, im):
+        if isinstance(im, IM):
+            im.db_insert_table_bank_card(self)
+
+
+class Story(Column):
+    def __init__(self):
+        super(Story, self).__init__()
+        global g_story_id
+        self.account_id = None  # 账号ID[TEXT]
+        self.sender_id = None  # 发送者ID[TEXT]
+        self.media_path = None  # 文件路径[TEXT]
+        self.story_id = g_story_id  # story id[INT]
+        g_story_id += 1
+        self.timestamp = None  # 时间戳[INT]
+        self.location_latitude = 0  # 地址纬度[REAL]
+        self.location_longitude = 0  # 地址经度[REAL]
+        self.location_elevation = 0  # 地址海拔[REAL]
+        self.location_address = None  # 地址名称[TEXT]
+        self.location_type = LOCATION_TYPE_GPS  # 地址类型[INT]，LOCATION_TYPE
+
+        self.comments = []
+
+    def get_values(self):
+        return (self.account_id, self.sender_id, self.media_path, self.story_id, self.timestamp, self.location_latitude, 
+                self.location_longitude, self.location_elevation, self.location_address, self.location_type) + super(Story, self).get_values()
+
+    def create_comment(self):
+        comment = StoryComment()
+        comment.story_id = self.story_id
+        comment.deleted = self.deleted
+        comment.source = self.source
+        self.comments.append(comment)
+        return comment
+
+    def insert_db(self, im):
+        if isinstance(im, IM):
+            for comment in self.comments:
+                comment.insert_db(im)
+            im.db_insert_table_story(self)
+
+
+class StoryComment(Column):
+    def __init__(self):
+        super(StoryComment, self).__init__()
+        self.story_id = 0  # ID[INT]
+        self.sender_id = None  # 发送者[TEXT]
+        self.content = None  # 内容[TEXT]
+        self.timestamp = None  # 时间戳[TEXT]
+        
+
+    def get_values(self):
+        return (self.story_id, self.sender_id, self.content, self.timestamp) + super(StoryComment, self).get_values()
+
+    def insert_db(self, im):
+        if isinstance(im, IM):
+            im.db_insert_table_story_comment(self)
+
+
 class GenerateModel(object):
     def __init__(self, cache_db, build='微信'):
         self.cache_db = cache_db
@@ -986,6 +1123,8 @@ class GenerateModel(object):
         self._get_account_models()
         self.set_progress(2)
         self._get_login_device_models()
+        self.set_progress(3)
+        self._get_bank_card_models()
         self.set_progress(5)
         #print('%s model_wechat() generate model friend' % time.asctime(time.localtime(time.time())))
         self._get_friend_models()
@@ -1051,6 +1190,7 @@ class GenerateModel(object):
                     model.SourceFile = source
                     model.Deleted = self._convert_deleted_status(deleted)
                     model.Account = account_id
+                    model.CustomAccount = account_id_alias
                     model.NickName = nickname
                     model.HeadPortraitPath = photo
                     model.Gender = self._convert_gender(gender)
@@ -1087,7 +1227,7 @@ class GenerateModel(object):
     def _get_login_device_models(self):
         if canceller.IsCancellationRequested:
             return []
-        if not self._db_has_table('account'):
+        if not self._db_has_table('login_device'):
             return []
 
         sql = '''select account_id, id, name, type, last_time, source, deleted, repeated
@@ -1109,7 +1249,7 @@ class GenerateModel(object):
                     device_type = self._db_reader_get_string_value(r, 3)
                     last_time = self._db_reader_get_int_value(r, 4, None)
 
-                    model = IM.LoginDevice()
+                    model = ModelsV2.IM.LoginDevice()
                     model.SourceFile = source
                     model.Deleted = self._convert_deleted_status(deleted)
                     model.AppUserAccount = self.account_models.get(account_id)
@@ -1117,6 +1257,47 @@ class GenerateModel(object):
                     model.Name = name
                     model.Type = device_type
                     model.LastLoginTime = self._get_timestamp(last_time)
+                    self.add_model(model)
+                except Exception as e:
+                    if deleted == 0:
+                        TraceService.Trace(TraceLevel.Error, "model_wechat.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
+            self.push_models()
+        except Exception as e:
+            TraceService.Trace(TraceLevel.Error, "model_wechat.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
+
+    def _get_bank_card_models(self):
+        if canceller.IsCancellationRequested:
+            return []
+        if not self._db_has_table('bank_card'):
+            return []
+
+        sql = '''select account_id, bank_name, card_type, card_number, phone_number, source, deleted, repeated
+                 from bank_card'''
+        try:
+            cmd = self.db.CreateCommand()
+            cmd.CommandText = sql
+            r = cmd.ExecuteReader()
+            while r.Read():
+                if canceller.IsCancellationRequested:
+                    break
+                deleted = 0
+                try:
+                    source = self._db_reader_get_string_value(r, 5)
+                    deleted = self._db_reader_get_int_value(r, 6, None)
+                    account_id = self._db_reader_get_string_value(r, 0)
+                    bank_name = self._db_reader_get_string_value(r, 1)
+                    card_type = self._db_reader_get_string_value(r, 2)
+                    card_number = self._db_reader_get_string_value(r, 3)
+                    phone_number = self._db_reader_get_string_value(r, 4)
+
+                    model = Base.BankCard()
+                    model.SourceFile = source
+                    model.Deleted = self._convert_deleted_status(deleted)
+                    model.AppUserAccount = self.account_models.get(account_id)
+                    model.BankName = bank_name
+                    model.CardType = card_type
+                    model.CardNumber = card_number
+                    model.PhoneNumber = phone_number
                     self.add_model(model)
                 except Exception as e:
                     if deleted == 0:
@@ -1165,6 +1346,7 @@ class GenerateModel(object):
                     model.Deleted = self._convert_deleted_status(deleted)
                     model.AppUserAccount = self.account_models.get(account_id)
                     model.Account = user_id
+                    model.CustomAccount = user_id_alias
                     model.NickName = nickname
                     model.HeadPortraitPath = photo
                     model.Gender = self._convert_gender(gender)

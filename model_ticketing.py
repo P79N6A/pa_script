@@ -1,4 +1,4 @@
-#coding=utf-8
+ï»¿#coding=utf-8
 from PA_runtime import *
 import clr
 clr.AddReference('System.Core')
@@ -20,6 +20,10 @@ import sqlite3
 import hashlib
 import model_im
 import model_map
+
+from model_im import Account, GenerateModel
+
+VERSION_VALUE_DB = 1
 
 
 class Ticketing(object):
@@ -100,6 +104,7 @@ class Ticketing(object):
             self.db_command.CommandText = model_map.SQL_CREATE_TABLE_PASSENGER
             self.db_command.ExecuteNonQuery()
             self.db_command.CommandText = model_im.SQL_CREATE_TABLE_VERSION
+            self.db_command.ExecuteNonQuery()
 
     def db_insert_table(self, sql, values):
         if self.db_command is not None:
@@ -151,14 +156,8 @@ class Ticketing(object):
         self.db_insert_table(model_map.SQL_INSERT_TABLE_PASSENGER, column.get_values())
 
     def db_insert_table_version(self, key, version):
-        self.db_insert_table(SQL_INSERT_TABLE_VERSION, (key, version))
+        self.db_insert_table(model_im.SQL_INSERT_TABLE_VERSION, (key, version))
 
-    '''
-    °æ±¾¼ì²â·ÖÎªÁ½²¿·Ö
-    Èç¹ûÖÐ¼äÊý¾Ý¿â½á¹¹¸Ä±ä£¬»áÐÞ¸Ädb_version
-    Èç¹ûappÔö¼ÓÁËÐÂµÄÄÚÈÝ£¬ÐèÒªÐÞ¸Äapp_version
-    Ö»ÓÐdb_versionºÍapp_version¶¼Ã»ÓÐ±ä»¯Ê±£¬²Å²»ÐèÒªÖØÐÂ½âÎö
-    '''
     @staticmethod
     def need_parse(cache_db, app_version):
         if not os.path.exists(cache_db):

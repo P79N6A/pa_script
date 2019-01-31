@@ -139,6 +139,11 @@ class WeChatParser(Wechat):
                 TraceService.Trace(TraceLevel.Error, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
             self.set_progress(11)
             try:
+                self._parse_pay_card()
+            except Exception as e:
+                TraceService.Trace(TraceLevel.Error, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
+            self.set_progress(12)
+            try:
                 print('%s apple_wechat() parse wc005_008.db' % time.asctime(time.localtime(time.time())))
                 self._parse_user_wc_db(self.root.GetByPath('/wc/wc005_008.db'))
             except Exception as e:
@@ -156,6 +161,12 @@ class WeChatParser(Wechat):
             except Exception as e:
                 TraceService.Trace(TraceLevel.Error, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
             self.set_progress(90)
+            try:
+                #print('%s apple_wechat() parse story_main.db' % time.asctime(time.localtime(time.time())))
+                self._parse_user_story_db(self.root.GetByPath('/story/story_main.db'))
+            except Exception as e:
+                TraceService.Trace(TraceLevel.Error, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
+            self.set_progress(92)
             if self.private_root is not None:
                 try:
                     #print('%s apple_wechat() parse fav.db' % time.asctime(time.localtime(time.time())))
@@ -205,6 +216,7 @@ class WeChatParser(Wechat):
             return False
 
         self.user_account.account_id = self._bpreader_node_get_string_value(root, 'UsrName')
+        self.user_account.account_id_alias = self._bpreader_node_get_string_value(root, 'AliasName')
         self.user_account.nickname = self._bpreader_node_get_string_value(root, 'NickName')
         self.user_account.gender = self._convert_gender_type(self._bpreader_node_get_int_value(root, 'Sex'))
         self.user_account.telephone = self._bpreader_node_get_string_value(root, 'Mobile')
@@ -247,14 +259,10 @@ class WeChatParser(Wechat):
                         ld = model_wechat.LoginDevice()
                         ld.source = user_plist.AbsolutePath
                         ld.account_id = self.user_account.account_id
-                        if 'uuid' in device.Children:
-                            ld.id = self._bpreader_node_get_string_value(device, 'uuid')
-                        if 'name' in device.Children:
-                            ld.name = self._bpreader_node_get_string_value(device, 'name')
-                        if 'deviceType' in device.Children:
-                            ld.type = self._bpreader_node_get_string_value(device, 'deviceType')
-                        if 'lastTime' in device.Children:
-                            ld.last_time = self._bpreader_node_get_int_value(device, 'lastTime')
+                        ld.id = self._bpreader_node_get_string_value(device, 'uuid')
+                        ld.name = self._bpreader_node_get_string_value(device, 'name')
+                        ld.type = self._bpreader_node_get_string_value(device, 'deviceType')
+                        ld.last_time = self._bpreader_node_get_int_value(device, 'lastTime', None)
                         ld.insert_db(self.im)
                         self.add_model(self.get_login_device_model(ld))
                 except Exception as e:
@@ -372,6 +380,7 @@ class WeChatParser(Wechat):
             friend.source = source
             friend.account_id = self.user_account.account_id
             friend.friend_id = username
+            friend.friend_id_alias = alias
             friend.nickname = nickname
             friend.remark = remark
             friend.type = friend_type
@@ -982,11 +991,19 @@ class WeChatParser(Wechat):
                 if rec is None:
                     continue
                 try:
-                    id = self._db_record_get_int_value(rec, 'c0usernameid', 0)
-                    if id not in username_ids:
+                    usernameid_column = ''
+                    message_column = ''
+                    for key in rec.Keys:    
+                        if key.endswith('usernameid'):
+                            usernameid_column = key
+                        elif key.endswith('Message'):
+                            message_column = key
+
+                    id = self._db_record_get_int_value(rec, usernameid_column, 0)
+                    content = self._db_record_get_string_value(rec, message_column, '')
+                    if (id not in username_ids) or content == '':
                         continue
                     username = username_ids.get(id)
-                    content = self._db_record_get_string_value(rec, 'c3Message', '')
                     #deleted = 0 if rec.Deleted == DeletedState.Intact else 1
                     self._parse_user_fts_db_with_value(1, node.AbsolutePath, username, content)
                 except Exception as e:
@@ -1339,7 +1356,7 @@ class WeChatParser(Wechat):
         return content
 
     def _parse_pay_card(self):
-        node = self.root.GetByPath('WCPay/WCPayAllScenePayCardList.list')
+        node = self.root.GetByPath('WCPay/WCPayPayCardList.list')
         if node is None:
             return False
 
@@ -1348,11 +1365,85 @@ class WeChatParser(Wechat):
             root = BPReader.GetTree(node)
         except Exception as e:
             return False
-        if not root or not root.Children:
+        if not root or not root.Value:
             return False
 
-        if 'locationInfo' in root.Children:
-                location_node = root.Children['locationInfo']
-
-        UsrName = self._bpreader_node_get_string_value(root, 'UsrName')
+        for card_node in root.Value:
+            if 'm_cardNumber' in card_node.Children:
+                card_number = self._bpreader_node_get_string_value(card_node, 'm_cardNumber')
+                if card_number not in [None, '', 'None']:
+                    card = model_wechat.BankCard()
+                    card.source = node.AbsolutePath
+                    card.account_id = self.user_account.account_id
+                    card.card_number = card_number
+                    card.bank_name = self._bpreader_node_get_string_value(card_node, 'm_cardBankName')
+                    card.card_type = self._bpreader_node_get_string_value(card_node, 'm_cardTypeName')
+                    card.insert_db(self.im)
+                    self.add_model(self.get_bank_card_model(card))
+        self.im.db_commit()
+        self.push_models()
         return True
+
+    def _parse_user_story_db(self, node):
+        if node is None:
+            return False
+        if canceller.IsCancellationRequested:
+            return False
+        try:
+            db = SQLiteParser.Database.FromNode(node, canceller)
+        except Exception as e:
+            TraceService.Trace(TraceLevel.Error, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
+            return False
+        if not db:
+            return False
+
+        if 'WCStoryTable' in db.Tables:
+            ts = SQLiteParser.TableSignature('WCStoryTable')
+            for rec in db.ReadTableRecords(ts, self.extract_deleted, False, ''):
+                if canceller.IsCancellationRequested:
+                    break
+                if rec is None:
+                    continue
+                try:
+                    username = self._db_record_get_string_value(rec, 'username')
+                    if username in [None, '']:
+                        continue
+                    tid = self._db_record_get_string_value(rec, 'tid')
+                    media_item = self._db_record_get_blob_value(rec, 'mediaItem')
+                    comment_list = self._db_record_get_blob_value(rec, 'commentList')
+                    local_info = self._db_record_get_blob_value(rec, 'localInfoData')
+                    timestamp = self._db_record_get_int_value(rec, 'createtime')
+                    
+                    deleted = 0 if rec.Deleted == DeletedState.Intact else 1
+                    self._parse_user_story_db_with_value(deleted, node.AbsolutePath, username, tid, media_item, comment_list, local_info, timestamp)
+                except Exception as e:
+                    TraceService.Trace(TraceLevel.Error, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
+            self.im.db_commit()
+            self.push_models()
+
+            self.get_chatroom_models(self.cache_db)
+        return True
+
+    def _parse_user_story_db_with_value(self, deleted, source, username, tid, media_item, comment_list, local_info, timestamp):
+        media_path = self._parse_user_story_media_local_path(tid)
+        if media_path is None:
+            media_path = self._parse_user_story_media_network_path(media_item)
+        comments = self._parse_user_story_comments(comment_list)
+
+        story = model_wechat.Story()
+        story.account_id = self.user_account.account_id
+        story.sender_id = username
+        story.media_path = media_path
+        story.timestamp = timestamp
+
+    def _parse_user_story_media_local_path(self, tid):
+        if self.private_root:
+            name = self._md5(tid)
+            node = self.private_root.GetByPath('/story/media_data/{}/{}.mp4'.format(name[:2], name[2:]))
+        return None
+
+    def _parse_user_story_media_network_path(self, media_item):
+        return None
+
+    def _parse_user_story_comments(self, comment_list):
+        return []
