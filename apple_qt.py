@@ -6,6 +6,9 @@ import re
 from PA_runtime import *
 from System import Convert
 
+from PA.InfraLib.ModelsV2 import *
+from PA.InfraLib.ModelsV2.CommonEnum import *
+
 QT_HEADER = '\x00\x00\x00\x14ftypqt  \x00\x00\x00\x00qt  '
 QT_HEADER_LEN = 0x14
 MD_HDLR_ATOM = '\x00'*8 + 'mdta' + '\x00'*12
@@ -218,31 +221,24 @@ def getFileLocation(f):
                 msSrc = MemoryRange()
             f.MetaData.Add("Lat/Lon/Elev", "%s/%s/%s" % tuple(locval), mdSrc, mdDefGroup)
 
-            cLoc = Location()
+            cLoc = Base.Location()
             cLoc.Deleted = f.Deleted
-            cLoc.Category.Value = LocationCategories.MEDIA
-            cLoc.Position.Value = Coordinate(float(locval[0]), float(locval[1]), float(locval[2]))
-            cLoc.Name.Value = f.Name
-            cLoc.Description.Value = key
-            cLoc.SourceNode =  f #节点溯源
-            cLoc.SourceFile.Value = f.AbsolutePath
-            LinkModels(cLoc, f)
+            cLoc.SourceType = LocationSourceType.Media
+            cLoc.Coordinate = Base.Coordinate(float(locval[0]), float(locval[1]), float(locval[2]))
+            cLoc.SourceFile = f.AbsolutePath
+            # LinkModels(cLoc, f)
             
             if 'com.apple.quicktime.location.ISO6709_source' in filemd:
                 src_ind = filemd['com.apple.quicktime.location.ISO6709_source'][0]
-                cLoc.Position.Value.Latitude.Source = f.Data.GetSubRange(src_ind, len(locval[0]))
                 src_ind += len(locval[0])
-                cLoc.Position.Value.Longitude.Source = f.Data.GetSubRange(src_ind, len(locval[1]))
                 if locval[2] is not None and len(locval[2]) > 1:
                     src_ind += len(locval[1])
-                    cLoc.Position.Value.Elevation.Source = f.Data.GetSubRange(src_ind, len(locval[2]))
 
             if 'com.apple.quicktime.creationdate' in filemd:
                 tsStr = filemd['com.apple.quicktime.creationdate']
-                cLoc.TimeStamp.Value = TimeStamp(Convert.ToDateTime(tsStr), True)
+                cLoc.Time = TimeStamp(Convert.ToDateTime(tsStr), True)
                 if 'com.apple.quicktime.creationdate' in filemd:
                     src = filemd['com.apple.quicktime.creationdate_source']
-                    cLoc.TimeStamp.Source = f.Data.GetSubRange(src[0],src[1])
 
             return cLoc
     return None
@@ -279,30 +275,24 @@ def handleFile(f, lPALocations) :
                 msSrc = MemoryRange()
             f.MetaData.Add("Lat/Lon/Elev", "%s/%s/%s" % tuple(locval), mdSrc, mdDefGroup)
 
-            cLoc = Location()
+            cLoc = Base.Location()
             cLoc.Deleted = f.Deleted
-            cLoc.Category.Value = LocationCategories.MEDIA
-            cLoc.Position.Value = Coordinate(float(locval[0]), float(locval[1]), float(locval[2]))
-            cLoc.Name.Value = f.Name
-            cLoc.Description.Value = key
-            cLoc.SourceNode =  f #节点溯源
-            LinkModels(cLoc, f)
+            cLoc.SourceType = LocationSourceType.Media
+            cLoc.Coordinate = Base.Coordinate(float(locval[0]), float(locval[1]), float(locval[2]))
+            cLoc.SourceFile = f.AbsolutePath
+            # LinkModels(cLoc, f)
             
             if 'com.apple.quicktime.location.ISO6709_source' in filemd:
                 src_ind = filemd['com.apple.quicktime.location.ISO6709_source'][0]
-                cLoc.Position.Value.Latitude.Source = f.Data.GetSubRange(src_ind, len(locval[0]))
                 src_ind += len(locval[0])
-                cLoc.Position.Value.Longitude.Source = f.Data.GetSubRange(src_ind, len(locval[1]))
                 if locval[2] is not None and len(locval[2]) > 1:
                     src_ind += len(locval[1])
-                    cLoc.Position.Value.Elevation.Source = f.Data.GetSubRange(src_ind, len(locval[2]))
 
             if 'com.apple.quicktime.creationdate' in filemd:
                 tsStr = filemd['com.apple.quicktime.creationdate']
-                cLoc.TimeStamp.Value = TimeStamp(Convert.ToDateTime(tsStr), True)
+                cLoc.Time = TimeStamp(Convert.ToDateTime(tsStr), True)
                 if 'com.apple.quicktime.creationdate' in filemd:
                     src = filemd['com.apple.quicktime.creationdate_source']
-                    cLoc.TimeStamp.Source = f.Data.GetSubRange(src[0],src[1])
 
             lPALocations.append(cLoc)
 
