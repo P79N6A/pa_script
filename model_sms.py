@@ -95,7 +95,7 @@ table-sms TYPE
 
 SQL_CREATE_TABLE_SMS = '''
     create table if not exists sms(
-        _id                 TEXT, 
+        _id                 INT, 
         sim_id              INT,
         sender_phonenumber  TEXT,
         sender_name         TEXT,

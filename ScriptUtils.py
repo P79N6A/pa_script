@@ -1277,6 +1277,7 @@ class BaseParser(object):
         
         Args:
             db_path (str): 
+
         Returns:
             bool: is valid db
         '''
@@ -1297,11 +1298,12 @@ class BaseParser(object):
         
         Args:
             table_name (str): 
+
         Returns:
             (iterable): self.cur_db.ReadTableDeletedRecords(tb, ...)
         '''
-        # 每次读表清空并初始化 self._PK_LIST
-        self._PK_LIST = []
+        # 每次读表清空并初始化 self._pk_list
+        self._pk_list = []
         if read_delete is None:
             read_delete = self.extract_deleted
         try:
@@ -1319,6 +1321,7 @@ class BaseParser(object):
 
         Args: 
             json_path (str)
+
         Returns:
             (bool)
         '''
@@ -1339,6 +1342,7 @@ class BaseParser(object):
 
         Args: 
             xml_path (str): self.root.GetByPath(xm_path)
+
         Returns:
             xml_data (XElement)
         '''
@@ -1354,20 +1358,22 @@ class BaseParser(object):
             exc()
             return False            
 
-    def _is_duplicate(self, rec, pk_name):
+    def _is_duplicate(self, rec=None, pk_name='', pk_value=None):
         ''' filter duplicate record
 
         Args:
             rec (record): 
-            pk_name (str): 
+            pk_names (tuple(str, )): 
+
         Returns:
-            bool: rec[pk_name].Value in self._PK_LIST
+            bool: rec[pk_name].Value in self._pk_list
         '''
         try:
-            pk_value = rec[pk_name].Value
-            if IsDBNull(pk_value) or pk_value in self._PK_LIST:
+            if pk_value == None:
+                pk_value = rec[pk_name].Value
+            if IsDBNull(pk_value) or pk_value in self._pk_list:
                 return True
-            self._PK_LIST.append(pk_value)
+            self._pk_list.append(pk_value)
             return False
         except:
             exc()
@@ -1380,6 +1386,7 @@ class BaseParser(object):
         Args:
             rec (rec): 
             args (str): fields
+
         Returns:
             book:
         '''
@@ -1406,6 +1413,7 @@ class BaseParser(object):
         Args:
             rec (rec): 
             *args (tuple<str>):
+
         Returns:
             bool: 
         '''
@@ -1445,6 +1453,7 @@ class BaseParser(object):
             rec (rec): 
             key (str): 
             email_str (str): 
+            
         Returns:
             bool: is valid email address      
         """

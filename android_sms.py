@@ -188,41 +188,41 @@ class AndroidSMSParser(BaseParser):
             favorite_date      INTEGER DEFAULT 0
         """
         for rec in self._read_table(table_name):
-            if (self._is_empty(rec, 'type', 'body') or
-                self._is_duplicate(rec, '_id')):
-                continue
-            if rec['address'].Value and not self._is_num(rec['address'].Value):
-                continue
-            sms = model_sms.SMS()
-            try: # 华为没有的字段
-                sms.sim_id  = rec['sim_id'].Value
-                sms.deleted = rec['deleted'].Value
-                sms.smsc    = rec['service_center'].Value
-            except:
-                pass    
-            sms._id            = rec['_id'].Value
-            sms.read_status    = rec['read'].Value
-            sms.type           = rec['type'].Value    # SMS_TYPE
-            sms.subject        = rec['subject'].Value 
-            sms.body           = rec['body'].Value
-            sms.send_time      = rec['date_sent'].Value
-            sms.delivered_date = rec['date'].Value
-            # tp('sms type', sms.type)
-            sms.is_sender   = 1 if sms.type in (SMS_TYPE_SENT, SMS_TYPE_OUTBOX, SMS_TYPE_DRAFT) else 0
-            if sms.is_sender == 1:  # 发
-                sms.sender_phonenumber = self.sim_phonenumber.get(sms.sim_id, None) if sms.sim_id else None
-                sms.sender_name        = self._get_contacts(sms.sender_phonenumber)
-                sms.recv_phonenumber   = rec['address'].Value
-                sms.recv_name          = self._get_contacts(sms.recv_phonenumber)
-            else:                   # 收
-                sms.sender_phonenumber = rec['address'].Value
-                sms.sender_name        = self._get_contacts(sms.sender_phonenumber)
-                sms.recv_phonenumber   = self.sim_phonenumber.get(sms.sim_id, None) if sms.sim_id else None
-                sms.recv_name          = self._get_contacts(sms.recv_phonenumber)
-
-            sms.deleted = 1 if rec.IsDeleted or sms.deleted else 0         
-            sms.source = self.cur_db_source
             try:
+                if (self._is_empty(rec, 'type', 'body') or
+                    self._is_duplicate(rec, '_id')):
+                    continue
+                if rec['address'].Value and not self._is_num(rec['address'].Value):
+                    continue
+                sms = model_sms.SMS()
+                try: # 华为没有的字段
+                    sms.sim_id  = rec['sim_id'].Value
+                    sms.deleted = rec['deleted'].Value
+                    sms.smsc    = rec['service_center'].Value
+                except:
+                    pass    
+                sms._id            = rec['_id'].Value
+                sms.read_status    = rec['read'].Value
+                sms.type           = rec['type'].Value    # SMS_TYPE
+                sms.subject        = rec['subject'].Value 
+                sms.body           = rec['body'].Value
+                sms.send_time      = rec['date_sent'].Value
+                sms.delivered_date = rec['date'].Value
+                # tp('sms type', sms.type)
+                sms.is_sender   = 1 if sms.type in (SMS_TYPE_SENT, SMS_TYPE_OUTBOX, SMS_TYPE_DRAFT) else 0
+                if sms.is_sender == 1:  # 发
+                    sms.sender_phonenumber = self.sim_phonenumber.get(sms.sim_id, None) if sms.sim_id else None
+                    sms.sender_name        = self._get_contacts(sms.sender_phonenumber)
+                    sms.recv_phonenumber   = rec['address'].Value
+                    sms.recv_name          = self._get_contacts(sms.recv_phonenumber)
+                else:                   # 收
+                    sms.sender_phonenumber = rec['address'].Value
+                    sms.sender_name        = self._get_contacts(sms.sender_phonenumber)
+                    sms.recv_phonenumber   = self.sim_phonenumber.get(sms.sim_id, None) if sms.sim_id else None
+                    sms.recv_name          = self._get_contacts(sms.recv_phonenumber)
+
+                sms.deleted = 1 if rec.IsDeleted or sms.deleted else 0         
+                sms.source = self.cur_db_source
                 self.csm.db_insert_table_sms(sms)
             except:
                 exc()
@@ -304,8 +304,15 @@ class AndroidSMSParser_fs_logic(AndroidSMSParser):
                 if (self._is_empty(rec, 'body', 'phoneNumber') or 
                     rec['isMms'].Value==1):
                     continue
+                
                 sms = model_sms.SMS()
-                # sms.sms_id             = rec['_id'].Value
+                try:
+                    sms.sms_id = rec['phoneNumber'].Value + rec['time'].Value
+                    if self._is_duplicate(pk_value=sms.sms_id):
+                        continue
+                except:
+                    exc()
+                    continue
                 # sms.sender_phonenumber = rec['phoneNumber'].Value if rec['phoneNumber'].Value != 'insert-address-token' else None
                 # sms.sender_name        = self.contacts.get(sms.sender_phonenumber, None)
                 if rec['shortType'].Value == 1:
