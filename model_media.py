@@ -398,6 +398,7 @@ class Generate(object):
                             coordinate.Longitude = float(sr[9])
                             coordinate.Type = CoordinateType.Google if self.coordinate_type == COORDINATE_TYPE_GOOGLE else CoordinateType.GPS
                         location.Coordinate = coordinate
+                        location.Time = image.AddTime
                         location.AddressName = self._db_reader_get_string_value(sr, 10)
                         if not IsDBNull(sr[9]):
                             model.append(location)
@@ -442,6 +443,7 @@ class Generate(object):
                             coordinate.Longitude = float(sr[9])
                             coordinate.Type = CoordinateType.Google if self.coordinate_type == COORDINATE_TYPE_GOOGLE else CoordinateType.GPS
                         location.Coordinate = coordinate
+                        location.Time = video.AddTime
                         location.AddressName = self._db_reader_get_string_value(sr, 10)
                         if not IsDBNull(sr[9]):
                             model.append(location)
