@@ -2647,34 +2647,34 @@
       </array>
     </dict>
 
-    <dict>
-      <key>Module</key>
-      <string>android_icon</string>
-      <key>Runners</key>
-      <array>
-        <dict>
-          <key>EntryPoint</key>
-          <string>analyze_icon</string>
-          <key>RunnerType</key>
-          <integer>2</integer>
-          <key>Patterns</key>
-          <array>
-            <string>/system/theme_magic/customized_icons$</string>
-          </array>
-          <key>Category</key>
-          <string>AndroidIcon</string>
-          <key>Name</key>
-          <string>图标(安卓)</string>
-          <key>Filter</key>
-          <string>基础数据</string>
-          <key>Dependents</key>
-          <array>
+    <!-- <dict> -->
+      <!-- <key>Module</key> -->
+      <!-- <string>android_icon</string> -->
+      <!-- <key>Runners</key> -->
+      <!-- <array> -->
+        <!-- <dict> -->
+          <!-- <key>EntryPoint</key> -->
+          <!-- <string>analyze_icon</string> -->
+          <!-- <key>RunnerType</key> -->
+          <!-- <integer>2</integer> -->
+          <!-- <key>Patterns</key> -->
+          <!-- <array> -->
+            <!-- <string>/system/theme_magic/customized_icons$</string> -->
+          <!-- </array> -->
+          <!-- <key>Category</key> -->
+          <!-- <string>AndroidIcon</string> -->
+          <!-- <key>Name</key> -->
+          <!-- <string>图标(安卓)</string> -->
+          <!-- <key>Filter</key> -->
+          <!-- <string>基础数据</string> -->
+          <!-- <key>Dependents</key> -->
+          <!-- <array> -->
             <!-- EntryPoint#RunnerType#ModuleType@Module -->
-            <string>analyze_app_lists#2#0@andriod_app_lists</string>
-          </array>
-        </dict>
-      </array>
-    </dict>
+            <!-- <string>analyze_app_lists#2#0@andriod_app_lists</string> -->
+          <!-- </array> -->
+        <!-- </dict> -->
+      <!-- </array> -->
+    <!-- </dict> -->
 
 
     <dict>
@@ -3623,6 +3623,7 @@
           <array>
             <string>/appinfo/appinfo\.db$</string>
             <string>/data/app$</string>
+			<string>/Root/app$</string>
           </array>
           <key>Category</key>
           <string>Applications</string>
