@@ -431,12 +431,11 @@ class BeeTalkParser(model_im.IM, model_callrecord.MC):
                                 text_lens = int(data[i + 1], 16)
                                 text_end = text_start + text_lens
                                 text_content = value[text_start*2: text_end*2: ].decode('hex').decode('utf-8')
-                        if location_value is '':
-                            location_value = '无位置信息'
-                        location = model_im.Location()
-                        feed.location_id = location.location_id
-                        location.address = location_value
-                        self.db_insert_table_location(location)
+                        if location_value is not '':
+                            location = model_im.Location()
+                            feed.location_id = location.location_id
+                            location.address = location_value
+                            self.db_insert_table_location(location)
                         feed.content = text_content
                         image_name = []
                         for image in img_name:
@@ -464,7 +463,7 @@ class BeeTalkParser(model_im.IM, model_callrecord.MC):
                     feed.comments = ','.join(comment_id)
                     feed.commentcount = comment_count
                     feed.deleted = self._db_reader_get_int_value(sr, 9)
-                    if feed.content is not None and feed.image_path is not None and not (text_content == '' and location_value == '无位置信息'):
+                    if feed.content is not None and feed.image_path is not None:
                         self.db_insert_table_feed(feed)
                 except:
                     traceback.print_exc()
