@@ -376,6 +376,7 @@ class Generate(object):
                             coordinate.Longitude = float(sr[9])
                             coordinate.Type = CoordinateType.Google if self.coordinate_type == COORDINATE_TYPE_GOOGLE else CoordinateType.GPS
                         location.Coordinate = coordinate
+                        location.Time = image.AddTime
                         location.AddressName = self._db_reader_get_string_value(sr, 10)
                         image.Location = location
                         media_log = self._get_media_log(sr[0])
@@ -422,6 +423,7 @@ class Generate(object):
                             coordinate.Longitude = float(sr[9])
                             coordinate.Type = CoordinateType.Google if self.coordinate_type == COORDINATE_TYPE_GOOGLE else CoordinateType.GPS
                         location.Coordinate = coordinate
+                        location.Time = video.AddTime
                         location.AddressName = self._db_reader_get_string_value(sr, 10)
                         video.Location = location
                         media_log = self._get_media_log(sr[0])
