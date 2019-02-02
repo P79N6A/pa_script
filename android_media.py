@@ -25,7 +25,7 @@ from threading import Thread
 from PIL import Image
 from PIL.ExifTags import TAGS
 
-VERSION_APP_VALUE = 1.4
+VERSION_APP_VALUE = 2
 
 
 class MediaParse(object):
@@ -47,6 +47,9 @@ class MediaParse(object):
         self.db_cache = self.cache_path + "\\" + md5_db.hexdigest().upper() + ".db"
         self.mime_dic = mimetype_dic.dic1
         self.medias = []
+        self.media_id = []
+        self.deleted_media_id = []
+        self.media_url = ''
         
     def parse(self):
         if self.mm.need_parse(self.db_cache, VERSION_APP_VALUE):
@@ -60,7 +63,6 @@ class MediaParse(object):
                 fileNode = self.fs.Search('/DCIM/.*\..*$')
                 for node in fileNode:
                     self.filesNode.append(node)
-                #self.analyze_thumbnails_with_file_system()
                 self.analyze_media_with_file_system()
             self.mm.db_insert_table_version(model_media.VERSION_KEY_DB, model_media.VERSION_VALUE_DB)
             self.mm.db_insert_table_version(model_media.VERSION_KEY_APP, VERSION_APP_VALUE)
@@ -93,6 +95,8 @@ class MediaParse(object):
                         media_nodes = self.dcim_node.Search(media_url + '$')
                         if len(list(media_nodes)) != 0:
                             media.url = media_nodes[0].AbsolutePath
+                            self.media_url = media_nodes[0].PathWithMountPoint
+                            self.assignment(media)
                         else:
                             media.deleted = 1
                     except:
@@ -105,7 +109,6 @@ class MediaParse(object):
                     media.width = self._db_record_get_int_value(rec, 'width')
                     media.height = self._db_record_get_int_value(rec, 'height')
                     media.description = self._db_record_get_string_value(rec ,'description')
-                    #media.display_name = self._db_record_get_string_value(rec, '_display_name')
                     fileSuffix = re.sub('.*\.', '', os.path.basename(media.url))  #文件后缀
                     media.suffix = fileSuffix
                     if not fileSuffix in dic1:
@@ -115,14 +118,15 @@ class MediaParse(object):
                     media.latitude = self._db_record_get_value(rec, 'latitude')
                     media.longitude = self._db_record_get_value(rec, 'longitude')
                     media.datetaken = self._db_record_get_int_value(rec, 'datetaken')
-                    #media.year = self._db_record_get_int_value(rec, 'year')
-                    #media.album_artist = self._db_record_get_string_value(rec, 'album_artist')
                     duration = self._db_record_get_int_value(rec, 'duration')
                     media.duration = float(duration/1000)
                     media.artist = self._db_record_get_string_value(rec, 'artist')
                     media.album = self._db_record_get_string_value(rec, 'album')
-                    #media.location = 'internal' if i==0 else 'external'
                     media.source = node.AbsolutePath
+                    if media.id not in self.media_id:
+                        self.media_id.append(media.id)
+                    if media.id not in self.deleted_media_id and media.deleted == 1:
+                        self.deleted_media_id.append(media.id)
                     self.mm.db_insert_table_media(media)
                 self.mm.db_commit()
             except:
@@ -141,19 +145,34 @@ class MediaParse(object):
                     id = self._db_record_get_int_value(rec, '_id')
                     thumbnails.url = self._db_record_get_string_value(rec, '_data')
                     thumbnails.url = self.dcim_node.AbsolutePath + re.sub('.*DCIM', '', thumbnails.url)
+                    thumbnails.media_id = self._db_record_get_int_value(rec, 'image_id')
                     media_url = os.path.basename(thumbnails.url)
                     thumbnail_path = ''
                     media_nodes = self.dcim_node.Search(media_url)
                     if len(list(media_nodes)) != 0:
                         thumbnails.url = media_nodes[0].AbsolutePath
                         thumbnail_path = media_nodes[0].PathWithMountPoint
+                        #如果本地目录中缩略图存在，本地原图及数据库中原图记录不存在，则将缩略图判定为删除的原图
+                        if thumbnails.media_id not in self.media_id:
+                            media = Media()
+                            media.url = thumbnails.url
+                            media.width = self._db_record_get_int_value(rec, 'width')
+                            media.height = self._db_record_get_int_value(rec, 'height')
+                            media.source = node.AbsolutePath
+                            media.deleted = 1
+                        #如果本地目录中缩略图存在，数据库中有原图记录但为删除记录，则将缩略图判定为删除的原图
+                        elif thumbnails.media_id in self.deleted_media_id:
+                            media = Media()
+                            media.url = thumbnails.url
+                            media.width = self._db_record_get_int_value(rec, 'width')
+                            media.height = self._db_record_get_int_value(rec, 'height')
+                            media.source = node.AbsolutePath
+                            media.deleted = 1
                     if thumbnail_path != '':
                         filecCeateDate = os.path.getmtime(thumbnail_path)  #文件创建时间
                         thumbnails.create_date = filecCeateDate
-                    thumbnails.media_id = self._db_record_get_int_value(rec, 'image_id')
                     thumbnails.width = self._db_record_get_int_value(rec, 'width')
                     thumbnails.height = self._db_record_get_int_value(rec, 'height')
-                    #thumbnails.location = 'internal' if i==0 else 'external'
                     thumbnails.source = node.AbsolutePath
                     thumbnails.deleted = rec.IsDeleted
                     if thumbnail_path == '':
@@ -230,6 +249,8 @@ class MediaParse(object):
                         fileHeight = fileMetaData[3]  #图片高
                         media.height = fileHeight
                         media.datetaken = filecCeateDate
+                        self.media_url = filePath
+                        self.assignment(media)
                     elif fileType == 'video':
                         fileDuration = self._get_video_duration(filePath)  #文件播放时长
                         media.duration = fileDuration
@@ -238,6 +259,70 @@ class MediaParse(object):
                     print(e)
         except Exception as e:
             traceback.print_exc()
+
+    def get_exif_data(self, fname):
+        '''获取图片metadata'''
+        ret = {}
+        try:
+            img = Image.open(fname)
+            if hasattr(img, '_getexif'):
+                exifinfo = img._getexif()
+                if exifinfo != None:
+                    for tag, value in exifinfo.items():
+                        decoded = TAGS.get(tag, tag)
+                        ret[decoded] = value
+                return ret
+        except:
+            return {}
+
+    def assignment(self, media):
+        '''给media详细信息赋值'''
+        try:
+            ret = self.get_exif_data(self.media_url)
+            if ret is None:
+                return
+            if '42036' in ret:
+                media.aperture = str(ret['42036'])
+            if 'Artist' in ret:
+                media.artist = ret['Artist']
+            #if 'DateTimeOriginal' in ret:
+            #    media.datetaken = ret['DateTimeOriginal']
+            if 'Software' in ret:
+                media.software = ret['Software']
+            if 'ExifImageWidth' in ret:
+                media.resolution = str(ret['ExifImageWidth']) + '*' + str(ret['ExifImageHeight'])
+            if 'XResolution' in ret:
+                if len(ret['XResolution']) == 2:
+                    xr = ret['XResolution']
+                    media.xresolution = str(int(xr[0]/xr[1]))
+            if 'YResolution' in ret:
+                if len(ret['YResolution']) == 2:
+                    yr = ret['YResolution']
+                    media.yresolution = str(int(yr[0]/yr[1]))
+            if 'ColorSpace' in ret:
+                ss = 'sRGB' if ret['ColorSpace'] == 1 else ret['ColorSpace']
+                media.color_space = ss
+            if 'Make' in ret:
+                media.make = ret['Make']
+            if 'Model' in ret:
+                media.model = ret['Model']
+            if 'ExposureTime' in ret:
+                if len(ret['ExposureTime']) == 2:
+                    et = ret['ExposureTime']
+                    media.exposure_time = str(int(et[0]/et[1]))
+            if 'ISOSpeedRatings' in ret:
+                media.iso = str(ret['ISOSpeedRatings'])
+            if 'FocalLength' in ret:
+                if len(ret['FocalLength']) == 2:
+                    fl = ret['FocalLength']
+                    media.focal_length = str(int(fl[0]/fl[1]))
+            if 'ExposureProgram' in ret:
+                media.exposure_program = str(ret['ExposureProgram'])
+            if 'ExifVersion' in ret:
+                media.exif_version = str(ret['ExifVersion'])
+        except:
+            traceback.print_exc()
+
 
     @staticmethod
     def _get_exif_data(fname, fileParDir):
