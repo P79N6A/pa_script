@@ -25,15 +25,15 @@ import PA.InfraLib.ModelsV2.Base.Contact as Contact
 from ScriptUtils import CASE_NAME, exc, tp, BaseParser, DEBUG
 
 
-SMS_TYPE_ALL    = 0
-SMS_TYPE_INBOX  = 1
-SMS_TYPE_SENT   = 2
-SMS_TYPE_DRAFT  = 3
-SMS_TYPE_OUTBOX = 4
-SMS_TYPE_FAILED = 5
-SMS_TYPE_QUEUED = 6
+MSG_TYPE_ALL    = 0
+MSG_TYPE_INBOX  = 1
+MSG_TYPE_SENT   = 2
+MSG_TYPE_DRAFT  = 3
+MSG_TYPE_OUTBOX = 4
+MSG_TYPE_FAILED = 5
+MSG_TYPE_QUEUED = 6
 
-SMS_TYPE_TO_FOLDER = (
+MSG_TYPE_TO_FOLDER = (
     None,                      # '',
     Generic.Folders.Inbox,     # '收件箱',
     None,                      # '正在发送',
@@ -66,33 +66,6 @@ SQL_INSERT_TABLE_SIM_CARDS = '''
         values(?, ?, ?, ?, ?, ?)
     '''
 
-''' bcp: 
-    6.1.9　短信记录信息(WA_MFORENSICS_010700)
-
-    字段说明（短信记录信息）
-    0	手机取证采集目标编号	COLLECT_TARGET_ID
-    1	本机号码	MSISDN
-    2	对方号码	RELATIONSHIP_ACCOUNT
-    3	联系人姓名	RELATIONSHIP_NAME
-    4	本地动作	LOCAL_ACTION            标示本机是收方还是发方，01接收方、02发送方、99其他
-    5	发送时间	MAIL_SEND_TIME
-    6	短消息内容	CONTENT
-    7	查看状态	MAIL_VIEW_STATUS        0未读，1已读，9其它
-    8	存储位置	MAIL_SAVE_FOLDER        01收件箱、02发件箱、03草稿箱、04垃圾箱、99其他
-    9	加密状态	PRIVACYCONFIG
-    10	删除状态	DELETE_STATUS
-    11	删除时间	DELETE_TIME             19700101000000基准
-    12	拦截状态	INTERCEPT_STATE
-table-sms TYPE
-    SMS_TYPE_ALL    = 0
-    SMS_TYPE_INBOX  = 1
-    SMS_TYPE_SENT   = 2
-    SMS_TYPE_DRAFT  = 3
-    SMS_TYPE_OUTBOX = 4
-    SMS_TYPE_FAILED = 5
-    SMS_TYPE_QUEUED = 6    
-'''
-
 SQL_CREATE_TABLE_SMS = '''
     create table if not exists sms(
         _id                 INT, 
@@ -111,9 +84,11 @@ SQL_CREATE_TABLE_SMS = '''
         repeated            INT DEFAULT 0,
         recv_phonenumber    TEXT,
         recv_name           TEXT,
-        smsc                TEXT
+        smsc                TEXT,
+        is_mms              INT DEFAULT 0
         )
     '''
+
 SQL_INSERT_TABLE_SMS = ''' 
     insert into sms(
         _id, 
@@ -132,10 +107,35 @@ SQL_INSERT_TABLE_SMS = '''
         repeated,
         recv_phonenumber,
         recv_name,
-        smsc
+        smsc,
+        is_mms
         ) 
         values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-               ?, ?, ?)'''
+               ?, ?, ?, ?)'''
+
+SQL_CREATE_TABLE_MMS_PART = '''
+    create table if not exists mms_part(
+        _id                 INT,
+        mms_id              INT, 
+        sim_id              INT,
+        part_filename       TEXT,
+        part_local_path     TEXT,
+        part_charset        TEXT,
+        part_contenttype    TEXT
+        )
+    '''
+
+SQL_INSERT_TABLE_MMS_PART = ''' 
+    insert into mms_part(
+        _id,
+        mms_id,   
+        sim_id,
+        part_filename,
+        part_local_path,
+        part_charset,
+        part_contenttype
+        ) 
+        values(?, ?, ?, ?, ?, ?, ?)'''
 
 SQL_CREATE_TABLE_VERSION = '''
     create table if not exists version(
@@ -186,9 +186,9 @@ class ModelSMS(object):
             
     def db_create_table(self):
         if self.db_cmd is not None:
-            self.db_cmd.CommandText = SQL_CREATE_TABLE_SMS
-            self.db_cmd.ExecuteNonQuery()
             self.db_cmd.CommandText = SQL_CREATE_TABLE_SIM_CARDS
+            self.db_cmd.ExecuteNonQuery()
+            self.db_cmd.CommandText = SQL_CREATE_TABLE_SMS
             self.db_cmd.ExecuteNonQuery()
             self.db_cmd.CommandText = SQL_CREATE_TABLE_VERSION
             self.db_cmd.ExecuteNonQuery()
@@ -206,10 +206,8 @@ class ModelSMS(object):
     def db_insert_table_sim_cards(self, column):
         self.db_insert_table(SQL_INSERT_TABLE_SIM_CARDS, column.get_values())
 
-
     def db_insert_table_sms(self, column):
         self.db_insert_table(SQL_INSERT_TABLE_SMS, column.get_values())
-
 
     def db_insert_table_version(self, key, version):
         self.db_insert_table(SQL_INSERT_TABLE_VERSION, (key, version))
@@ -249,6 +247,27 @@ class ModelSMS(object):
             db.close()
         return not (db_version_check and app_version_check)
 
+
+class ModelMMS(ModelSMS):
+    def __init__(self):
+        super(ModelMMS, self).__init__()
+
+    def db_create_table(self):
+        if self.db_cmd is not None:
+            self.db_cmd.CommandText = SQL_CREATE_TABLE_SMS.replace('sms(', 'mms(')
+            self.db_cmd.ExecuteNonQuery()
+            self.db_cmd.CommandText = SQL_CREATE_TABLE_MMS_PART
+            self.db_cmd.ExecuteNonQuery()
+            self.db_cmd.CommandText = SQL_CREATE_TABLE_VERSION
+            self.db_cmd.ExecuteNonQuery()
+
+    def db_insert_table_mms(self, column):
+        self.db_insert_table(SQL_INSERT_TABLE_SMS.replace('sms(', 'mms('), column.get_values())
+
+    def db_insert_table_mms_part(self, column):
+        self.db_insert_table(SQL_INSERT_TABLE_MMS_PART, column.get_values())
+
+
 class Column(object):
     def __init__(self):
         self.source   = ''
@@ -284,7 +303,7 @@ class SMS(Column):
         self.sender_phonenumber = None  # 发送者手机号码[TEXT]
         self.sender_name        = None  # 发送者姓名[TEXT]
         self.read_status        = None  # 读取状态[INT], 1 已读, 0 未读
-        self.type               = None  # 消息类型[INT], SMS_TYPE
+        self.type               = None  # 消息类型[INT], MSG_TYPE
         self.suject             = None  # 主题, 一般是彩信 mms 才有[TEXT]
         self.body               = None  # 内容[TEXT]
         self.send_time          = None  # 发送时间[INT]
@@ -293,6 +312,7 @@ class SMS(Column):
         self.recv_phonenumber   = None  # 接受者手机号码[TEXT]
         self.recv_name          = None  # 接受者姓名[TEXT]        
         self.smsc               = None  # 短信服务中心号码[TEXT]        
+        self.is_mms             = 0     # [INT]  
 
     def get_values(self):
         return (
@@ -312,10 +332,32 @@ class SMS(Column):
                 self.repeated,
                 self.recv_phonenumber,
                 self.recv_name,
-                self.smsc
+                self.smsc,
+                self.is_mms
             )
 
-class GenerateModel(object):
+class MMSPart(Column):
+    def __init__(self):
+        self._id              = None   # [INT],
+        self.mms_id           = None   # [INT], 
+        self.sim_id           = None   # [INT],
+        self.part_filename    = None   # [TEXT],
+        self.part_local_path  = None   # [TEXT],
+        self.part_charset     = None   # [TEXT],
+        self.part_contenttype = None   # [TEXT]
+
+    def get_values(self):
+        return (
+            self._id,
+            self.mms_id,
+            self.sim_id,
+            self.part_filename,
+            self.part_local_path,
+            self.part_charset,
+            self.part_contenttype
+            )
+
+class GenerateSMSModel(object):
     def __init__(self, cache_db, cachepath=None):
         self.cache_db = cache_db
         self.cachepath = cachepath
@@ -324,17 +366,56 @@ class GenerateModel(object):
         models = []
         self.db = sqlite3.connect(self.cache_db)
         self.cursor = self.db.cursor()
-
-        models.extend(self._get_sms_models())
-
+        models.extend(self.sms_models_from_db())
         self.cursor.close()
         self.db.close()
         return models
 
-    def _get_sms_models(self):
-        models = []
-        sql = ''' select * from sms '''
+    def _smsmms_base(self, csmodel, row):
+        try:
+            if row[7] is not None:
+                csmodel.Content = TextContent(csmodel)
+                csmodel.Content.Value = row[7]
+            if row[5] in range(7):
+                if MSG_TYPE_TO_FOLDER[row[5]] is not None:
+                    csmodel.Folder = MSG_TYPE_TO_FOLDER[row[5]]
+            if row[8] is not None:
+                ts = self._get_timestamp(row[8])
+                if ts:
+                    csmodel.Time = ts
+            if row[9] is not None:
+                ts = self._get_timestamp(row[9])
+                if ts:
+                    csmodel.DeliveredTime = ts
+            # 注意优先级  row[4] read_status, row[5]: type
+            csmodel.Status = SMSStatus.Read if row[4] == 1 else SMSStatus.Unread
+            if row[5] in [2, 3, 4]:
+                csmodel.Status = self._convert_sms_type(row[5]) 
+            # 发件人
+            _from = Contact()
+            if row[2] is not None:
+                _from.PhoneNumbers.Add(row[2])  # sender_phonenumber
+            if row[3] is not None:
+                _from.RemarkName = row[3]       # sender_name
+            csmodel.FromSet.Add(_from)
+            # 收件人
+            _to = Contact()
+            if row[14] is not None:
+                _to.PhoneNumbers.Add(row[14])   # recv_phonenumber
+            if row[15] is not None:
+                _to.RemarkName = row[15]        # recv_name     
+            csmodel.ToSet.Add(_to)               
 
+            if row[11] is not None:
+                csmodel.SourceFile = row[11]
+            if row[12] is not None:
+                csmodel.Deleted = self._convert_deleted_status(row[12])  
+
+            return csmodel
+        except:
+            exc()
+
+    def sms_models_from_db(self):
         ''' sms.Body
             sms.Folder
             sms.Delivered
@@ -342,92 +423,51 @@ class GenerateModel(object):
             sms.TimeStamp
             sms.SourceFile
 
-        table - sms
-            0    _id              TEXT, 
-            1    sim_id              INT,
-            2    sender_phonenumber  TEXT,
-            3    sender_name         TEXT,
-            4    read_status         INT DEFAULT 0,
-            5    type                INT,
-            6    suject              TEXT,
-            7    body                TEXT,
-            8    send_time           INT,
-            9    delivered_date      INT,
-            10    is_sender           INT,
-            11    source              TEXT,
-            12    deleted             INT DEFAULT 0, 
-            13    repeated            INT DEFAULT 0,
+            table - sms
+                0    _id              TEXT, 
+                1    sim_id              INT,
+                2    sender_phonenumber  TEXT,
+                3    sender_name         TEXT,
+                4    read_status         INT DEFAULT 0,
+                5    type                INT,
+                6    suject              TEXT,
+                7    body                TEXT,
+                8    send_time           INT,
+                9    delivered_date      INT,
+                10    is_sender           INT,
+                11    source              TEXT,
+                12    deleted             INT DEFAULT 0, 
+                13    repeated            INT DEFAULT 0,
 
-            14    recv_phonenumber  TEXT,
-            15    recv_name         TEXT,
-            16    smsc               TEXT
+                14    recv_phonenumber   TEXT,
+                15    recv_name          TEXT,
+                16    smsc               TEXT,
+                17    is_mms             INT
 
-            SMS_TYPE_ALL    = 0
-            SMS_TYPE_INBOX  = 1
-            SMS_TYPE_SENT   = 2
-            SMS_TYPE_DRAFT  = 3
-            SMS_TYPE_OUTBOX = 4
-            SMS_TYPE_FAILED = 5
-            SMS_TYPE_QUEUED = 6                        
-        '''
-        try:
+                MSG_TYPE_ALL    = 0
+                MSG_TYPE_INBOX  = 1
+                MSG_TYPE_SENT   = 2
+                MSG_TYPE_DRAFT  = 3
+                MSG_TYPE_OUTBOX = 4
+                MSG_TYPE_FAILED = 5
+                MSG_TYPE_QUEUED = 6                        
+        '''        
+        try:        
+            models = []
+            sql = ''' SELECT * FROM sms '''
+
             self.cursor.execute(sql)
             row = self.cursor.fetchone()
+            while row is not None:
+                sms = ModelsV2.Base.SMS()
+                self._smsmms_base(sms, row)
+                models.append(sms)
+                row = self.cursor.fetchone() 
+            return models     
         except:
             exc()
-            return 
-        while row is not None:
-            if canceller.IsCancellationRequested:
-                return            
-            sms = ModelsV2.Base.SMS()
+            return []       
 
-            if row[7] is not None:
-                sms.Content = TextContent(sms)
-                sms.Content.Value = row[7]
-
-            if row[5] in range(7):
-                if SMS_TYPE_TO_FOLDER[row[5]] is not None:
-                    sms.Folder = SMS_TYPE_TO_FOLDER[row[5]]
-                
-            if row[8] is not None:
-                ts = self._get_timestamp(row[8])
-                if ts:
-                    sms.Time = ts
-
-            if row[9] is not None:
-                ts = self._get_timestamp(row[9])
-                if ts:
-                    sms.DeliveredTime = ts
-
-            # 注意优先级  row[4] read_status, row[5]: type
-            sms.Status = SMSStatus.Read if row[4] == 1 else SMSStatus.Unread
-            if row[5] in [2, 3, 4]:
-                sms.Status = self._convert_sms_type(row[5]) 
-                
-            # 发件人
-            _from = Contact()
-            if row[2] is not None:
-                _from.PhoneNumbers.Add(row[2])  # sender_phonenumber
-            if row[3] is not None:
-                _from.RemarkName = row[3]       # sender_name
-            sms.FromSet.Add(_from)
-
-            # 收件人
-            _to = Contact()
-            if row[14] is not None:
-                _to.PhoneNumbers.Add(row[14])   # recv_phonenumber
-            if row[15] is not None:                                     
-                _to.RemarkName = row[15]        # recv_name     
-            sms.ToSet.Add(_to)               
-
-            if row[11] is not None:
-                sms.SourceFile = self._get_source_file(row[11])
-
-            if row[12] is not None:
-                sms.Deleted = self._convert_deleted_status(row[12])
-            models.append(sms)
-            row = self.cursor.fetchone()
-        return models        
 
     @staticmethod
     def _get_timestamp(timestamp):
@@ -448,27 +488,158 @@ class GenerateModel(object):
         else:
             return DeletedState.Intact if deleted == 0 else DeletedState.Deleted
 
-    def _get_source_file(self, source_file):
-        if isinstance(source_file, str):
-            return source_file.replace('/', '\\')
-        return ''    
-    
     @staticmethod
     def _convert_sms_type(sms_type):
         '''
-        SMS_TYPE_ALL    = 0
-        SMS_TYPE_INBOX  = 1
-        SMS_TYPE_SENT   = 2
-        SMS_TYPE_DRAFT  = 3
-        SMS_TYPE_OUTBOX = 4
-        SMS_TYPE_FAILED = 5
-        SMS_TYPE_QUEUED = 6 
+        MSG_TYPE_ALL    = 0
+        MSG_TYPE_INBOX  = 1
+        MSG_TYPE_SENT   = 2
+        MSG_TYPE_DRAFT  = 3
+        MSG_TYPE_OUTBOX = 4
+        MSG_TYPE_FAILED = 5
+        MSG_TYPE_QUEUED = 6 
         '''
         if sms_type in [2,4]:  # 发件箱
             return SMSStatus.Sent
         elif sms_type == 3:    # 草稿箱
             return SMSStatus.Unsent
         # elif sms_type == 1:    # 未读
+
+
+class GenerateMMSModel(GenerateSMSModel):
+    def __init__(self, cache_db, cachepath=None):
+        super(GenerateMMSModel, self).__init__(cache_db, cachepath)
+
+    def get_models(self):
+        models = []
+        self.db = sqlite3.connect(self.cache_db)
+        self.cursor = self.db.cursor()
+
+        mms_parts_dict = self.mms_part_from_db()
+        models.extend(self.mms_from_db(mms_parts_dict=mms_parts_dict))
+        self.cursor.close()
+        self.db.close()
+        return models
+
+    def mms_part_from_db(self):
+        ''' mms_parts_dict
+
+            {
+                mms_id: [attachment, attachment...]
+            }
+
+            0    _id                 INT,
+            1    mms_id              INT, 
+            2    sim_id              INT,
+            3    part_filename       TEXT,
+            4    part_local_path     TEXT,
+            5    part_charset        TEXT,
+            6    part_contenttype    TEXT        
+        '''
+        mms_parts_dict = {}
+        try:
+            sql = ''' SELECT * FROM mms_part '''
+            self.cursor.execute(sql)
+            row = self.cursor.fetchone()
+            while row is not None:
+                attachment = ModelsV2.Base.Attachment()
+                if row[1] is not None:
+                    mms_id = row[1]
+                # if row[2] is not None:
+                #     sim_id = row[2]
+                if row[3] is not None:
+                    attachment.FileName = row[3]
+                if row[4] is not None:
+                    attachment.Path = row[4]
+                # if row[5] is not None:
+                #     attachment.Charset = row[5]
+                # if row[6] is not None:
+                #     attachment.ContentType = row[6]
+                if mms_parts_dict.has_key(mms_id):
+                    mms_parts_dict[mms_id].append(attachment)
+                else:
+                    mms_parts_dict[mms_id] = [attachment]
+                row = self.cursor.fetchone()
+                
+            return mms_parts_dict
+        except:
+            exc()
+            return {}
+
+    def mms_from_db(self, mms_parts_dict):
+        try:
+            models = []
+            mms_sql = '''
+                SELECT * FROM mms WHERE is_mms=1;
+            '''
+            self.cursor.execute(mms_sql)
+            row = self.cursor.fetchone()
+
+            while row is not None:
+                mms = ModelsV2.Base.MMS()
+                self._smsmms_base(mms, row)
+                # mms
+                mms_id = row[0] if row[0] else None
+
+                if row[6] is not None:
+                    mms.Subject = row[6]
+                for attachment in mms_parts_dict.get(mms_id, []):
+                    mms.Attachment.Add(attachment)
+
+                models.append(mms)
+                row = self.cursor.fetchone()
+            return models            
+
+        except:
+            exc()                
+            return []
+
+
+''' bcp: 
+    6.1.9　短信记录信息(WA_MFORENSICS_010700)
+
+    字段说明（短信记录信息）
+    0	手机取证采集目标编号	COLLECT_TARGET_ID
+    1	本机号码	MSISDN
+    2	对方号码	RELATIONSHIP_ACCOUNT
+    3	联系人姓名	RELATIONSHIP_NAME
+    4	本地动作	LOCAL_ACTION            标示本机是收方还是发方，01接收方、02发送方、99其他
+    5	发送时间	MAIL_SEND_TIME
+    6	短消息内容	CONTENT
+    7	查看状态	MAIL_VIEW_STATUS        0未读，1已读，9其它
+    8	存储位置	MAIL_SAVE_FOLDER        01收件箱、02发件箱、03草稿箱、04垃圾箱、99其他
+    9	加密状态	PRIVACYCONFIG
+    10	删除状态	DELETE_STATUS
+    11	删除时间	DELETE_TIME             19700101000000基准
+    12	拦截状态	INTERCEPT_STATE
+    
+    table-sms TYPE
+        MSG_TYPE_ALL    = 0
+        MSG_TYPE_INBOX  = 1
+        MSG_TYPE_SENT   = 2
+        MSG_TYPE_DRAFT  = 3
+        MSG_TYPE_OUTBOX = 4
+        MSG_TYPE_FAILED = 5
+        MSG_TYPE_QUEUED = 6    
+
+    6.1.10　彩信记录信息(WA_MFORENSICS_010800)
+    产品应支持获取取证对象的彩信记录信息。
+    序号	元素编码	数据项中文名称	数据项英文描述	数据项长度	说明
+    1.		I050008	手机取证采集目标编号	COLLECT_TARGET_ID	c57	单次取证唯一性编号
+    2.		B020005	本机号码	MSISDN                c..128	本机号码
+    3.		B070003	对方号码	RELATIONSHIP_ACCOUNT   c..128	对方号码
+    4.		B070002	联系人姓名	RELATIONSHIP_NAME      c..64	
+    5.		H040002	本地动作	LOCAL_ACTION           c2	标示本机是收方还是发方，01接收方、02发送方、99其他
+    6.		H030008	发送时间	MAIL_SEND_TIME         n..20	19700101000000基准
+    7.		H040001	彩信文本	CONTENT                c..4000	彩信文本
+    8.		H010019	彩信文件	MAINFILE               c..256	彩信的实体文件的相对路径，包含实体文件名，要求能采用IE浏览器或用厂商提供的插件打开
+    9.		H030009	查看状态	MAIL_VIEW_STATUS       c1	0未读，1已读，9其它
+    10.		H030010 存储位置	MAIL_SAVE_FOLDER       c2	01收件箱、02发件箱、03草稿箱、04垃圾箱、99其他
+    11.		H100034	加密状态	PRIVACYCONFIG          c1	是否加密
+    12.		H010029	删除状态	DELETE_STATUS          c1	是否已删除(0未删除，1已删除)
+    13.		B040033	删除时间	DELETE_TIME            n..20	19700101000000基准
+    14.		C050013	拦截状态	INTERCEPT_STATE        c1	是否拦截(0未拦截，1拦截)
+'''
 
 
 ############################################
