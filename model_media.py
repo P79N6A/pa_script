@@ -43,6 +43,19 @@ SQL_CREATE_TABLE_MEDIA = '''
         width INTEGER,
         height INTEGER,
         description TEXT,
+        aperture TEXT,
+        color_space TEXT,
+        exif_version TEXT,
+        exposure_program TEXT,
+        exposure_time TEXT,
+        focal_length TEXT,
+        iso TEXT,
+        make TEXT,
+        model TEXT,
+        resolution TEXT,
+        software TEXT,
+        xresolution TEXT,
+        yresolution TEXT,
         source TEXT,
         deleted INTEGER,
         repeated INTEGER
@@ -88,8 +101,10 @@ SQL_INSERT_TABLE_MEDIA_LOG = '''INSERT INTO media_log(id, media_id, add_date, ad
 
 SQL_INSERT_TABLE_MEDIA = '''
     INSERT INTO media(id, url, size, add_date, modify_date, suffix, type, title, latitude, longitude, address,
-        datetaken, duration, artist, album, width, height, description, source, deleted, repeated)
-        values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        datetaken, duration, artist, album, width, height, description, aperture, color_space, exif_version,
+        exposure_program, exposure_time, focal_length, iso, make, model, resolution, software, xresolution,
+        yresolution, source, deleted, repeated)
+        values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     '''
 
 SQL_INSERT_TABLE_THUMBNAILS = '''
@@ -251,11 +266,26 @@ class Media(Column):
         self.width = None
         self.height = None
         self.description = None
+        self.aperture = None
+        self.color_space = None 
+        self.exif_version = None
+        self.exposure_program = None 
+        self.exposure_time = None 
+        self.focal_length = None 
+        self.iso = None 
+        self.make = None 
+        self.model = None 
+        self.resolution = None 
+        self.software = None 
+        self.xresolution = None
+        self.yresolution = None
 
     def get_values(self):
         return (self.id, self.url, self.size, self.add_date, self.modify_date, self.suffix, self.type, self.title,
                 self.latitude, self.longitude, self.address, self.datetaken, self.duration, self.artist, self.album, 
-                self.width, self.height, self.description) + super(Media, self).get_values()
+                self.width, self.height, self.description, self.aperture, self.color_space,  self.exif_version,
+                self.exposure_program, self.exposure_time, self.focal_length, self.iso, self.make, self.model, 
+                self.resolution, self.software, self.xresolution, self.yresolution) + super(Media, self).get_values()
 
 
 class Thumbnails(Column):
@@ -352,7 +382,7 @@ class Generate(object):
                             video.Logs.Add(log)
                         modifyTime = self._db_reader_get_int_value(sr, 4)
                         audio.FileExtention = self._db_reader_get_string_value(sr, 5)
-                        audio.MimeType = self._db_reader_get_string_value(sr, 5)
+                        #audio.MimeType = self._db_reader_get_string_value(sr, 5)
                         audio.ModifyTime = self._get_timestamp(modifyTime)
                         audio.Album = self._db_reader_get_string_value(sr, 14)
                         audio.Artist = self._db_reader_get_string_value(sr, 13)
@@ -365,7 +395,7 @@ class Generate(object):
                         image.Size = self._db_reader_get_int_value(sr, 2)
                         addTime = self._db_reader_get_int_value(sr, 3)
                         image.FileExtention = self._db_reader_get_string_value(sr, 5)
-                        image.MimeType = self._db_reader_get_string_value(sr, 5)
+                        #image.MimeType = self._db_reader_get_string_value(sr, 5)
                         image.AddTime = self._get_timestamp(addTime)
                         image.Description = self._db_reader_get_string_value(sr, 17)
                         location = Base.Location()
@@ -389,8 +419,22 @@ class Generate(object):
                         takenDate = self._db_reader_get_int_value(sr, 11)
                         image.TakenDate = self._get_timestamp(takenDate)
                         image.Thumbnail = self._get_media_thumbnail(media_id)
-                        image.SourceFile = self._get_source_file(str(sr[18]))
-                        image.Deleted = self._convert_deleted_status(sr[19])
+                        image.Aperture = self._db_reader_get_string_value(sr,18)
+                        image.Artist = self._db_reader_get_string_value(sr,13)
+                        image.ColorSpace = self._db_reader_get_string_value(sr,19)
+                        image.ExifVersion = self._db_reader_get_string_value(sr,20)
+                        image.ExposureProgram = self._db_reader_get_string_value(sr,21)
+                        image.ExposureTime = self._db_reader_get_string_value(sr,22)
+                        image.FocalLength = self._db_reader_get_string_value(sr,23)
+                        image.ISO = self._db_reader_get_string_value(sr,24)
+                        image.Make = self._db_reader_get_string_value(sr,25)
+                        image.Model = self._db_reader_get_string_value(sr,26)
+                        image.Resolution = self._db_reader_get_string_value(sr,27)
+                        image.Software = self._db_reader_get_string_value(sr,28)
+                        image.XResolution = self._db_reader_get_string_value(sr,29)
+                        image.YResolution = self._db_reader_get_string_value(sr,30)
+                        image.SourceFile = self._get_source_file(str(sr[31]))
+                        image.Deleted = self._convert_deleted_status(sr[32])
                         location = Base.Location(image)
                         coordinate = Base.Coordinate()
                         if not IsDBNull(sr[8]):
@@ -412,7 +456,7 @@ class Generate(object):
                         video.Size = self._db_reader_get_int_value(sr, 2)
                         addTime = self._db_reader_get_int_value(sr, 3)
                         video.FileExtention = self._db_reader_get_string_value(sr, 5)
-                        video.MimeType = self._db_reader_get_string_value(sr, 5)
+                        #video.MimeType = self._db_reader_get_string_value(sr, 5)
                         video.AddTime = self._get_timestamp(addTime)
                         video.Description = self._db_reader_get_string_value(sr, 17)
                         location = Base.Location()
@@ -483,7 +527,7 @@ class Generate(object):
                     addTime = self._db_reader_get_int_value(sr, 5)
                     thumbnail.AddTime = self._get_timestamp(addTime)
                     thumbnail.FileExtention = self._db_reader_get_string_value(sr, 6)
-                    thumbnail.MimeType = self._db_reader_get_string_value(sr, 6)
+                    #thumbnail.MimeType = self._db_reader_get_string_value(sr, 6)
                     thumbnail.SourceFile = self._get_source_file(str(sr[7]))
                     thumbnail.Deleted = self._convert_deleted_status(sr[8])
                     model.append(thumbnail)
@@ -582,7 +626,7 @@ class Generate(object):
                     addTime = self._db_reader_get_int_value(sr, 5)
                     thumbnail.AddTime = self._get_timestamp(addTime)
                     thumbnail.FileExtention = self._db_reader_get_string_value(sr, 6)
-                    thumbnail.MimeType = self._db_reader_get_string_value(sr, 6)
+                    #thumbnail.MimeType = self._db_reader_get_string_value(sr, 6)
                     thumbnail.SourceFile = self._get_source_file(str(sr[7]))
                     thumbnail.Deleted = self._convert_deleted_status(sr[8])
                     return thumbnail

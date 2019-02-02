@@ -22,8 +22,9 @@ import mimetype_dic
 from mimetype_dic import dic1, dic2
 
 from PIL import Image
+from PIL.ExifTags import TAGS
 
-VERSION_APP_VALUE = 2
+VERSION_APP_VALUE = 3
 
 
 class MediaParse(model_media.MM):
@@ -39,6 +40,7 @@ class MediaParse(model_media.MM):
         self.db_cache = self.cache_path + "\\" + md5_db.hexdigest().upper() + ".db"
         self.mime_dic = mimetype_dic.dic1
         self.media = {}
+        self.media_url = ''
 
     def parse(self):
         if self.need_parse(self.db_cache, VERSION_APP_VALUE):
@@ -70,8 +72,9 @@ class MediaParse(model_media.MM):
                     name = self._db_record_get_string_value(rec, 'ZFILENAME')
                     if name == '':
                         continue
-                    media.url = media_dir + '/' + dir + '/' + name
-                    pd = pdir + '/' + dir + '/' + name
+                    media.url = os.path.normcase(media_dir + '/' + dir + '/' + name)
+                    pd = os.path.normcase(pdir + '/' + dir + '/' + name)
+                    self.media_url = pd
                     media.deleted = rec.IsDeleted
                     media.size = os.path.getsize(pd)
                     media.add_date = self.transtime(rec, 'ZADDEDDATE')
@@ -92,11 +95,12 @@ class MediaParse(model_media.MM):
                         media.longitude = longitude
                     media.datetaken = self.transtime(rec, 'ZSORTTOKEN')
                     media.duration = self._db_record_get_int_value(rec, 'ZDURATION')
-                    if not IsDBNull(rec['ZTRASHEDDATE']):
+                    if not IsDBNull(rec['ZTRASHEDDATE'].Value):
                         media.deleted = 1
                     if name not in self.media.keys():
                         self.media[name] = media.id
                     media.source = self.node.AbsolutePath
+                    self.assignment(media)
                     self.db_insert_table_media(media)
 
                     log = MediaLog()
@@ -174,6 +178,69 @@ class MediaParse(model_media.MM):
             except Exception as e:
                 return default_value
         return default_value
+
+    def get_exif_data(self, fname):
+        '''获取图片metadata'''
+        ret = {}
+        try:
+            img = Image.open(fname)
+            if hasattr(img, '_getexif'):
+                exifinfo = img._getexif()
+                if exifinfo != None:
+                    for tag, value in exifinfo.items():
+                        decoded = TAGS.get(tag, tag)
+                        ret[decoded] = value
+                return ret
+        except:
+            return {}
+
+    def assignment(self, media):
+        '''给media详细信息赋值'''
+        try:
+            ret = self.get_exif_data(self.media_url)
+            if ret is None:
+                return
+            if '42036' in ret:
+                media.aperture = str(ret['42036'])
+            if 'Artist' in ret:
+                media.artist = ret['Artist']
+            #if 'DateTimeOriginal' in ret:
+            #    media.datetaken = ret['DateTimeOriginal']
+            if 'Software' in ret:
+                media.software = ret['Software']
+            if 'ExifImageWidth' in ret:
+                media.resolution = str(ret['ExifImageWidth']) + '*' + str(ret['ExifImageHeight'])
+            if 'XResolution' in ret:
+                if len(ret['XResolution']) == 2:
+                    xr = ret['XResolution']
+                    media.xresolution = str(int(xr[0]/xr[1]))
+            if 'YResolution' in ret:
+                if len(ret['YResolution']) == 2:
+                    yr = ret['YResolution']
+                    media.yresolution = str(int(yr[0]/yr[1]))
+            if 'ColorSpace' in ret:
+                ss = 'sRGB' if ret['ColorSpace'] == 1 else ret['ColorSpace']
+                media.color_space = ss
+            if 'Make' in ret:
+                media.make = ret['Make']
+            if 'Model' in ret:
+                media.model = ret['Model']
+            if 'ExposureTime' in ret:
+                if len(ret['ExposureTime']) == 2:
+                    et = ret['ExposureTime']
+                    media.exposure_time = str(int(et[0]/et[1]))
+            if 'ISOSpeedRatings' in ret:
+                media.iso = str(ret['ISOSpeedRatings'])
+            if 'FocalLength' in ret:
+                if len(ret['FocalLength']) == 2:
+                    fl = ret['FocalLength']
+                    media.focal_length = str(int(fl[0]/fl[1]))
+            if 'ExposureProgram' in ret:
+                media.exposure_program = str(ret['ExposureProgram'])
+            if 'ExifVersion' in ret:
+                media.exif_version = str(ret['ExifVersion'])
+        except:
+            traceback.print_exc()
 
     @staticmethod
     def _db_record_get_string_value(record, column, default_value=''):
