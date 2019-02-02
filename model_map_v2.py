@@ -443,8 +443,8 @@ class ExportModel(object):
                 sourceFile = row[8] if row[8] else ''
                 deleted = row[9] if row[9] else 0
                 
-                latitude = row[10] if row[10] else 0
-                longitude = row[11] if row[11] else 0
+                latitude = row[10]
+                longitude = row[11]
                 elevation = row[12] if row[12] else 0
                 address = row[13] if row[13] else ''
                 timestamp = row[14] if row[14] else 0
@@ -460,7 +460,7 @@ class ExportModel(object):
                 to_addr = row[23] if row[23] else ''
                 routerec_type = row[24] if row[24] else 1
                 if fav_obj:
-                    if latitude != None and longitude != None:   # 收藏的是一个点
+                    if latitude is not None and longitude is not None:   # 收藏的是一个点
                         loc.AddressName = address
                         loc.SourceType = LocationSourceType.App
                         loc.Deleted = MapUtil.convert_deleted_status(deleted)
