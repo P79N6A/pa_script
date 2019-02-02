@@ -66,6 +66,8 @@ TICKET_STATUS_OTHER = "9"
 def convert_to_unixtime(timestamp):
     if len(str(timestamp)) == 13:
         timestamp = int(str(timestamp)[0:10])
+    elif len(str(timestamp)) > 13:
+        timestamp = int(str(timestamp)[:10])
     elif len(str(timestamp)) != 13 and len(str(timestamp)) != 10:
         timestamp = 0
     elif len(str(timestamp)) == 10:
@@ -433,6 +435,39 @@ class Ctrip(object):
                     self.ctrip.db_insert_table_journey(order_ticket)
 
         self.ctrip.db_commit()
+    
+
+    def get_cookie(self):
+        cookie_list = []
+        node = self.root.Parent.GetByPath("app_webview/Cookies")
+        if node is None:
+            return
+        db = SQLiteParser.Database.FromNode(node, canceller)
+        if 'cookies' not in db.Tables:
+            return
+        tb = SQLiteParser.TableSignature("cookies")
+        for rec in db.ReadTableRecords(tb, False):
+            try:
+                if canceller.IsCancellationRequested:
+                    return
+                cookie = Cookie()
+                if "host_key" in rec and (not rec["host_key"].IsDBNull):
+                    cookie.Domain.Value = rec["host_key"].Value
+                if "name" in rec and (not rec["name"].IsDBNull):
+                    cookie.Name.Value = rec["name"].Value
+                if "value" in rec and (not rec["value"].IsDBNull):
+                    cookie.Value.Value = rec["value"].Value
+                if "creation_utc" in rec and (not rec["creation_utc"].IsDBNull):
+                    cookie.CreationTime.Value = TimeStamp.FromUnixTime(convert_to_unixtime(rec["creation_utc"].Value))
+                if "last_access_utc" in rec and (not rec["last_access_utc"].IsDBNull):
+                    cookie.LastAccessTime.Value = TimeStamp.FromUnixTime(convert_to_unixtime(rec["last_access_utc"].Value))
+                cookie.SourceFile.Value = node.AbsolutePath
+                cookie_list.append(cookie)
+            except Exception as e:
+                print(e)
+        return cookie_list
+            
+
         
     @staticmethod
     def transfer_time(value):
@@ -452,6 +487,7 @@ class Ctrip(object):
         self.get_current_user()
         self.get_messages()
         self.get_order_data()
+        cookies_list = self.get_cookie()
         self.ctrip.db_close()
         
         tmp_dir = ds.OpenCachePath("tmp")
@@ -462,6 +498,7 @@ class Ctrip(object):
         ticket_results = model_map.Genetate(db_path).get_models()
         models.extend(im_results)
         models.extend(ticket_results)
+        models.extend(cookies_list)
         return models
 
 
