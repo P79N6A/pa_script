@@ -36,7 +36,6 @@ SQL_CREATE_TABLE_CONTACTS = '''
         name TEXT,
         address TEXT,
         notes TEXT,
-        telegram TEXT,
         head_pic BLOB,
         source TEXT,
         deleted INTEGER,
@@ -196,12 +195,11 @@ class Contact(Column):
         self.name = None
         self.address = None
         self.notes = None
-        self.telegram = None
         self.head_pic = None
 
     def get_values(self):
         return (self.raw_contact_id, self.mimetype_id, self.mail, self.company, self.title, self.last_time_contact, self.last_time_modify, self.times_contacted,
-            self.phone_number, self.name, self.address, self.notes, self.telegram, self.head_pic) + super(Contact, self).get_values()
+            self.phone_number, self.name, self.address, self.notes, self.head_pic) + super(Contact, self).get_values()
 
 
 class Generate(object):
@@ -270,7 +268,7 @@ class Generate(object):
     @staticmethod
     def _get_timestamp(timestamp):
         try:
-            if isinstance(timestamp, (long, float, str)) and len(str(timestamp)) > 10:
+            if isinstance(timestamp, (long, float, str, Int64)) and len(str(timestamp)) > 10:
                 timestamp = int(str(timestamp)[:10])
             if isinstance(timestamp, int) and len(str(timestamp)) == 10:
                 ts = TimeStamp.FromUnixTime(timestamp, False)

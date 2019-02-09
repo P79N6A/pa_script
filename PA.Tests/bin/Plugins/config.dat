@@ -2952,14 +2952,15 @@
       <array>
         <dict>
           <key>EntryPoint</key>
-          <string>analyze_android_calls</string>
+          <string>analyze_android_contact</string>
           <key>RunnerType</key>
           <integer>2</integer>
           <key>Patterns</key>
           <array>
             <string>/data/com.android.providers.contacts/databases/contacts2.db$</string>
-            <string>/user_de/0/com.android.providers.contacts/databases/contacts2.db$</string>
             <string>/contacts/contacts.db$</string>
+            <string>/contact.db$</string>
+            <string>/contact.vcf$</string>
           </array>
           <key>Category</key>
           <string>Contacts</string>
