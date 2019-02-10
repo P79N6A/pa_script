@@ -69,14 +69,19 @@ GIF = 2
 SYSTEM = 3
 AVATAR = 4
 APP_V = 1
+
 class Ding(object):
-    def __init__(self, root, extract_deleted, extract_source):
+    def __init__(self, root, extract_deleted, extract_source, is_scripts = True):
         self.root = root
         self.extract_source = extract_source
         self.extract_deleted = extract_deleted
         self.result_sql = list()
         self.im = model_im.IM()
-        cache = ds.OpenCachePath('Dingtalk')
+        self.is_scripts = is_scripts
+        if is_scripts:
+            cache = ds.OpenCachePath('Dingtalk')
+        else:
+            cache = "D:/cache"
         self.need_parse = False
         self.hash = md5(root.PathWithMountPoint)
         if self.im.need_parse(cache + '{}'.format(self.hash), APP_V):
@@ -123,7 +128,10 @@ class Ding(object):
                 if res:
                     scops.append(i)
         #self.log_print('''total find %d accounts''' % len(scops))
-        cache = ds.OpenCachePath('Dingtalk')
+        if self.is_scripts:
+            cache = ds.OpenCachePath('Dingtalk')
+        else:
+            cache = "D:/cache"
         for i in scops:
             r = device_id + i
             hash_code = hashlib.md5(r).hexdigest()
@@ -139,16 +147,17 @@ class Ding(object):
             data = source_node.Data
             sz = source_node.Size
             idx = 0
+            print(key)
             rm = RijndaelManaged()
             rm.Key = Convert.FromBase64String(base64.b64encode(key))
             rm.Mode = CipherMode.ECB
             rm.Padding = PaddingMode.None
             tr = rm.CreateDecryptor()
             while idx < sz:
-                if canceller.IsCancellationRequested:
-                    f_dest.close()
-                    os.remove(dest_sql)
-                    raise IOError('fucked')
+                # if canceller.IsCancellationRequested:
+                #     f_dest.close()
+                #     os.remove(dest_sql)
+                #     raise IOError('fucked')
                 bts = data.read(16)
                 bts = Convert.FromBase64String(base64.b64encode(bts))
                 t_r = tr.TransformFinalBlock(bts, 0, 16)
@@ -163,10 +172,10 @@ class Ding(object):
             data = source_node_fts.Data
             idx = 0
             while idx < sz:
-                if canceller.IsCancellationRequested:
-                    f_dest_fts.close()
-                    os.remove(dest_sql_fts)
-                    raise IOError('fucked')
+                # if canceller.IsCancellationRequested:
+                #     f_dest_fts.close()
+                #     os.remove(dest_sql_fts)
+                #     raise IOError('fucked')
                 bts = data.read(16)
                 bts = Convert.FromBase64String(base64.b64encode(bts))
                 t_r = tr.TransformFinalBlock(bts, 0, 16)
@@ -301,9 +310,9 @@ class Ding(object):
             idx = 0
             f_dict = dict()
             while reader.Read():
-                if canceller.IsCancellationRequested:
-                    self.im.db_close()
-                    raise IOError("fucked")
+                # if canceller.IsCancellationRequested:
+                #     self.im.db_close()
+                #     raise IOError("fucked")
                 if idx == 0:
                     a = model_im.Account()
                     a.account_id = GetInt64(reader, 0)
@@ -361,9 +370,9 @@ class Ding(object):
             reader = cmd.ExecuteReader()
             groups = list()
             while reader.Read():
-                if canceller.IsCancellationRequested:
-                    self.im.db_close()
-                    raise IOError('fucked')
+                # if canceller.IsCancellationRequested:
+                #     self.im.db_close()
+                #     raise IOError('fucked')
                 g = model_im.Chatroom()
                 g.account_id = current_id
                 g.chatroom_id = GetString(reader, 0)
@@ -394,9 +403,9 @@ class Ding(object):
                 '''.format(r)
                 reader = cmd.ExecuteReader()
                 while reader.Read():
-                    if canceller.IsCancellationRequested:
-                        self.im.db_close()
-                        raise IOError('fucked')
+                    # if canceller.IsCancellationRequested:
+                    #     self.im.db_close()
+                    #     raise IOError('fucked')
                     msg = model_im.Message()
                     msg.deleted = 0
                     msg.account_id = current_id
@@ -408,8 +417,10 @@ class Ding(object):
                             msg.talker_id = cvl[1]
                         else:
                             msg.talker_id = cvl[0]
+                        msg.talker_type = model_im.CHAT_TYPE_FRIEND
                     else:
                         msg.talker_id = cv_id
+                        msg.talker_type = model_im.CHAT_TYPE_GROUP
                     msg.sender_id = GetInt64(reader, 5)
                     msg.is_sender = 1 if msg.sender_id == current_id else 0
                     msg.content = GetString(reader, 3)
@@ -514,9 +525,9 @@ class Ding(object):
                     '''.format(t, g)
                     reader = cmd.ExecuteReader()
                     while reader.Read():
-                        if canceller.IsCancellationRequested:
-                            self.im.db_close()
-                            raise IOError('fucked')
+                        # if canceller.IsCancellationRequested:
+                        #     self.im.db_close()
+                        #     raise IOError('fucked')
                         m_id = GetInt64(reader, 0)
                         if members.__contains__(m_id) or m_id == current_id:
                             continue
@@ -528,9 +539,9 @@ class Ding(object):
                     cm.member_id = m
                     if f_dict.__contains__(m):
                         #f = model_im.Friend()
-                        if canceller.IsCancellationRequested:
-                            self.im.db_close()
-                            raise IOError('fucked')
+                        # if canceller.IsCancellationRequested:
+                        #     self.im.db_close()
+                        #     raise IOError('fucked')
                         f = f_dict[m]
                         cm.address = f.address
                         cm.display_name = f.nickname
@@ -552,9 +563,9 @@ class Ding(object):
             reader = cmd.ExecuteReader()
             feed_dict = dict()
             while reader.Read():
-                if canceller.IsCancellationRequested:
-                    self.im.db_close()
-                    raise IOError('fucked')
+                # if canceller.IsCancellationRequested:
+                #     self.im.db_close()
+                #     raise IOError('fucked')
                 s_id = GetInt64(reader, 1)
                 d_id = GetInt64(reader, 0)
                 s_time = GetInt64(reader, 2) / 1000
@@ -577,9 +588,9 @@ class Ding(object):
             except:
                 reader = None
             while reader is not None and reader.Read():
-                if canceller.IsCancellationRequested:
-                    self.im.db_close()
-                    raise IOError('fucked')
+                # if canceller.IsCancellationRequested:
+                #     self.im.db_close()
+                #     raise IOError('fucked')
                 fcm = model_im.FeedComment()
                 d_id = GetInt64(reader, 0)
                 if not feed_dict.__contains__(d_id):
@@ -659,9 +670,9 @@ class Ding(object):
         ts = SQLiteParser.TableSignature('contact')
         SQLiteParser.Tools.AddSignatureToTable(ts, "uid", SQLiteParser.FieldType.Int, SQLiteParser.FieldConstraints.NotNull)
         for rec in sb.ReadTableDeletedRecords(ts, False):
-            if canceller.IsCancellationRequested:
-                self.im.db_close()
-                return
+            # if canceller.IsCancellationRequested:
+            #     self.im.db_close()
+            #     return
             f = model_im.Friend()
             try:
                 f.account_id = aid
@@ -682,9 +693,9 @@ class Ding(object):
             ts = SQLiteParser.TableSignature(t)
             SQLiteParser.Tools.AddSignatureToTable(ts, 'content', SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
             for rec in sb.ReadTableDeletedRecords(ts, False):
-                if canceller.IsCancellationRequested:
-                    self.im.db_close()
-                    return
+                # if canceller.IsCancellationRequested:
+                #     self.im.db_close()
+                #     return
                 m = model_im.Message()
                 try:
                     m.content = str(self.try_get_value(rec, 'content', ''))
@@ -699,8 +710,10 @@ class Ding(object):
                             m.talker_id = cvl[1]
                         else:
                             m.talker_id = cvl[0]
+                        m.talker_type = model_im.CHAT_TYPE_FRIEND
                     else:
                         m.talker_id = cv_id
+                        m.talker_type = model_im.CHAT_TYPE_GROUP
                     self.im.db_insert_table_message(m)
                 except:
                     print('Error happened, dumps below:\n')
@@ -727,6 +740,7 @@ def parse_ding(root, extract_deleted, extract_source):
             d.parse()
             d.im.db_insert_table_version(model_im.VERSION_KEY_APP, APP_V)
             d.im.db_insert_table_version(model_im.VERSION_KEY_DB, model_im.VERSION_VALUE_DB)
+            d.im.db_commit()
         models = model_im.GenerateModel(d.cache_res, root.MountPoint).get_models()
         mlm = ModelListMerger()
         pr = ParserResults()
@@ -735,7 +749,21 @@ def parse_ding(root, extract_deleted, extract_source):
         nameValues.SafeAddValue('1030162', d.cache_res)
         pr.Build('钉钉')
     except Exception as e:
-        print(e)
+        traceback.print_exc()
         pr = ParserResults()
     return pr
-    
+#
+# IPY脚本入口
+#
+if __name__ == '__main__':
+    try:
+        root = FileSystem.FromLocalDir(r'D:\Cases\Dingtalk\private\var\mobile\Containers\Data\Application\E873B391-1D31-46B1-ACCB-D43A3C815A5E')
+        d = Ding(root, 1, 1, False)
+        if d.need_parse:
+            d.search_account()
+            d.parse()
+            d.im.db_insert_table_version(model_im.VERSION_KEY_APP, APP_V)
+            d.im.db_insert_table_version(model_im.VERSION_KEY_DB, model_im.VERSION_VALUE_DB)
+            d.im.db_commit()
+    except:
+        traceback.print_exc()
