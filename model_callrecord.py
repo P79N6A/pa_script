@@ -26,6 +26,21 @@ import System
 import System.Data.SQLite as SQLite
 import sqlite3
 
+#来电通话
+INCOMING_TYPE = 1
+#拨号通话
+OUTGOING_TYPE = 2
+#未接来电
+MISSED_TYPE = 3
+#语音邮箱
+VOICEMAIL_TYPE = 4
+#拒绝接听
+REJECTED_TYPE = 5
+#黑名单
+BLOCKED_TYPE = 6
+#其他设备接听
+ANSWERED_EXTERNALLY_TYPE = 7
+
 SQL_CREATE_TABLE_RECORDS = '''
     CREATE TABLE IF NOT EXISTS records(
         id INTEGER,
@@ -51,7 +66,7 @@ SQL_INSERT_TABLE_RECORDS = '''
     '''
 
 SQL_FIND_TABLE_RECORDS = '''
-    SELECT * FROM RECORDS
+    SELECT * FROM RECORDS ORDER BY deleted ASC
     '''
 
 SQL_CREATE_TABLE_VERSION = '''
@@ -202,6 +217,7 @@ class Generate(object):
         self.db_cache = db_cache
         self.db = None
         self.db_cmd = None
+        self.id = []
 
     def get_models(self):
         models = []
@@ -220,6 +236,12 @@ class Generate(object):
             self.db_cmd.CommandText = sql
             sr = self.db_cmd.ExecuteReader()
             while(sr.Read()):
+                if sr[0] == 0:
+                    continue
+                if sr[2] not in self.id:
+                    self.id.append(sr[2])
+                else:
+                    continue
                 c = Call()
                 if not IsDBNull(sr[10]):
                     c.CountryCode = sr[10]
@@ -231,7 +253,7 @@ class Generate(object):
                 if not IsDBNull(sr[2]):
                     c.StartTime = TimeStamp.FromUnixTime(int(str(sr[2])[0:10:1]), False)
                 if not IsDBNull(sr[4]):
-                    c.Type = CallType.Incoming if sr[4] == 1 else CallType.Outgoing if sr[4] == 2 else CallType.Missed if sr[4] == 3 else CallType.Unknown
+                    c.Type = CallType.Incoming if sr[4] == INCOMING_TYPE else CallType.Outgoing if sr[4] == OUTGOING_TYPE else CallType.Missed if sr[4] == MISSED_TYPE else CallType.VoiceMail if sr[4] == VOICEMAIL_TYPE else CallType.Rejected if sr[4] == REJECTED_TYPE else CallType.Blocked if sr[4] == BLOCKED_TYPE else CallType.AnsweredExternally if sr[4] == ANSWERED_EXTERNALLY_TYPE else CallType.Unknown
                 party = Contact()
                 if not IsDBNull(sr[1]):
                     party.PhoneNumbers.Add(sr[1])

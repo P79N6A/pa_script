@@ -2958,6 +2958,7 @@
           <key>Patterns</key>
           <array>
             <string>/data/com.android.providers.contacts/databases/contacts2.db$</string>
+            <string>/user_de/0/com.android.providers.contacts/databases/contacts2.db$</string>
             <string>/contacts/contacts.db$</string>
             <string>/contact.db$</string>
             <string>/contact.vcf$</string>
@@ -2987,6 +2988,8 @@
             <string>/data/com.android.providers.contacts/databases/contacts2.db$</string>
             <string>/user_de/0/com.android.providers.contacts/databases/contacts2.db$</string>
             <string>/calls/callinfo.db$</string>
+            <string>^/calllog.db$</string>
+            <string>/callrecord_backup.xml$</string>
           </array>
           <key>Category</key>
           <string>Calls</string>
