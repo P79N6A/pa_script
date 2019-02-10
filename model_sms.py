@@ -34,13 +34,13 @@ MSG_TYPE_FAILED = 5
 MSG_TYPE_QUEUED = 6
 
 MSG_TYPE_TO_FOLDER = (
-    None,                      # '',
-    Generic.Folders.Inbox,     # '收件箱',
-    None,                      # '正在发送',
-    Generic.Folders.Sent,      # '草稿箱',
-    Generic.Folders.Sent,      # '发件箱',
-    Generic.Folders.Sent,      # '发送失败',
-    None,                      # '',
+    Generic.Folders.Unknown,     # '',
+    Generic.Folders.Inbox,       # '收件箱',
+    Generic.Folders.Outbox,      # '正在发送',
+    Generic.Folders.Drafts,      # '草稿箱',
+    Generic.Folders.Sent,        # '发件箱',
+    Generic.Folders.Sent,        # '发送失败',
+    None,                        # '',
 )
 
 VERSION_VALUE_DB = 3
@@ -120,6 +120,7 @@ SQL_CREATE_TABLE_MMS_PART = '''
         sim_id              INT,
         part_filename       TEXT,
         part_local_path     TEXT,
+        part_text           TEXT,
         part_charset        TEXT,
         part_contenttype    TEXT
         )
@@ -132,10 +133,11 @@ SQL_INSERT_TABLE_MMS_PART = '''
         sim_id,
         part_filename,
         part_local_path,
+        part_text,
         part_charset,
         part_contenttype
         ) 
-        values(?, ?, ?, ?, ?, ?, ?)'''
+        values(?, ?, ?, ?, ?, ?, ?, ?)'''
 
 SQL_CREATE_TABLE_VERSION = '''
     create table if not exists version(
@@ -343,6 +345,7 @@ class MMSPart(Column):
         self.sim_id           = None   # [INT],
         self.part_filename    = None   # [TEXT],
         self.part_local_path  = None   # [TEXT],
+        self.part_text        = None   # [TEXT],
         self.part_charset     = None   # [TEXT],
         self.part_contenttype = None   # [TEXT]
 
@@ -353,6 +356,7 @@ class MMSPart(Column):
             self.sim_id,
             self.part_filename,
             self.part_local_path,
+            self.part_text,
             self.part_charset,
             self.part_contenttype
             )
@@ -372,6 +376,42 @@ class GenerateSMSModel(object):
         return models
 
     def _smsmms_base(self, csmodel, row):
+        ''' sms.Body
+            sms.Folder
+            sms.Delivered
+            sms.Read
+            sms.TimeStamp
+            sms.SourceFile
+
+            table - sms
+                0    _id              TEXT, 
+                1    sim_id              INT,
+                2    sender_phonenumber  TEXT,
+                3    sender_name         TEXT,
+                4    read_status         INT DEFAULT 0,
+                5    type                INT,
+                6    suject              TEXT,
+                7    body                TEXT,
+                8    send_time           INT,
+                9    delivered_date      INT,
+                10    is_sender           INT,
+                11    source              TEXT,
+                12    deleted             INT DEFAULT 0, 
+                13    repeated            INT DEFAULT 0,
+
+                14    recv_phonenumber   TEXT,
+                15    recv_name          TEXT,
+                16    smsc               TEXT,
+                17    is_mms             INT
+
+                MSG_TYPE_ALL    = 0
+                MSG_TYPE_INBOX  = 1
+                MSG_TYPE_SENT   = 2
+                MSG_TYPE_DRAFT  = 3
+                MSG_TYPE_OUTBOX = 4
+                MSG_TYPE_FAILED = 5
+                MSG_TYPE_QUEUED = 6                        
+        '''            
         try:
             if row[7] is not None:
                 csmodel.Content = TextContent(csmodel)
@@ -416,42 +456,6 @@ class GenerateSMSModel(object):
             exc()
 
     def sms_models_from_db(self):
-        ''' sms.Body
-            sms.Folder
-            sms.Delivered
-            sms.Read
-            sms.TimeStamp
-            sms.SourceFile
-
-            table - sms
-                0    _id              TEXT, 
-                1    sim_id              INT,
-                2    sender_phonenumber  TEXT,
-                3    sender_name         TEXT,
-                4    read_status         INT DEFAULT 0,
-                5    type                INT,
-                6    suject              TEXT,
-                7    body                TEXT,
-                8    send_time           INT,
-                9    delivered_date      INT,
-                10    is_sender           INT,
-                11    source              TEXT,
-                12    deleted             INT DEFAULT 0, 
-                13    repeated            INT DEFAULT 0,
-
-                14    recv_phonenumber   TEXT,
-                15    recv_name          TEXT,
-                16    smsc               TEXT,
-                17    is_mms             INT
-
-                MSG_TYPE_ALL    = 0
-                MSG_TYPE_INBOX  = 1
-                MSG_TYPE_SENT   = 2
-                MSG_TYPE_DRAFT  = 3
-                MSG_TYPE_OUTBOX = 4
-                MSG_TYPE_FAILED = 5
-                MSG_TYPE_QUEUED = 6                        
-        '''        
         try:        
             models = []
             sql = ''' SELECT * FROM sms '''
@@ -467,7 +471,6 @@ class GenerateSMSModel(object):
         except:
             exc()
             return []       
-
 
     @staticmethod
     def _get_timestamp(timestamp):
@@ -505,7 +508,7 @@ class GenerateSMSModel(object):
             return SMSStatus.Unsent
         # elif sms_type == 1:    # 未读
 
-
+ 
 class GenerateMMSModel(GenerateSMSModel):
     def __init__(self, cache_db, cachepath=None):
         super(GenerateMMSModel, self).__init__(cache_db, cachepath)
@@ -523,18 +526,17 @@ class GenerateMMSModel(GenerateSMSModel):
 
     def mms_part_from_db(self):
         ''' mms_parts_dict
-
             {
                 mms_id: [attachment, attachment...]
             }
-
             0    _id                 INT,
             1    mms_id              INT, 
             2    sim_id              INT,
             3    part_filename       TEXT,
             4    part_local_path     TEXT,
-            5    part_charset        TEXT,
-            6    part_contenttype    TEXT        
+            5    part_text           TEXT,
+            6    part_charset        TEXT,
+            7    part_contenttype    TEXT        
         '''
         mms_parts_dict = {}
         try:
@@ -551,10 +553,10 @@ class GenerateMMSModel(GenerateSMSModel):
                     attachment.FileName = row[3]
                 if row[4] is not None:
                     attachment.Path = row[4]
-                # if row[5] is not None:
-                #     attachment.Charset = row[5]
                 # if row[6] is not None:
-                #     attachment.ContentType = row[6]
+                #     attachment.Charset = row[6]
+                # if row[7] is not None:
+                #     attachment.ContentType = row[7]
                 if mms_parts_dict.has_key(mms_id):
                     mms_parts_dict[mms_id].append(attachment)
                 else:
@@ -584,7 +586,7 @@ class GenerateMMSModel(GenerateSMSModel):
                 if row[6] is not None:
                     mms.Subject = row[6]
                 for attachment in mms_parts_dict.get(mms_id, []):
-                    mms.Attachment.Add(attachment)
+                    mms.Attachments.Add(attachment)
 
                 models.append(mms)
                 row = self.cursor.fetchone()

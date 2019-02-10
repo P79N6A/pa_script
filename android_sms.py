@@ -19,6 +19,8 @@ import model_sms
 from ScriptUtils import DEBUG, CASE_NAME, exc, tp, base_analyze, BaseAndroidParser, parse_decorator
 
 
+VERSION_APP_VALUE = 2
+
 MSG_TYPE_ALL    = 0
 MSG_TYPE_INBOX  = 1
 MSG_TYPE_SENT   = 2
@@ -27,9 +29,7 @@ MSG_TYPE_OUTBOX = 4
 MSG_TYPE_FAILED = 5   
 MSG_TYPE_QUEUED = 6
 
-
-VERSION_APP_VALUE = 2
-
+# 彩信地址类型
 PDUHEADERS_BCC  = 129
 PDUHEADERS_CC   = 130
 PDUHEADERS_FROM = 137
@@ -329,15 +329,16 @@ class AndroidMMSParser(AndroidSMSParser):
         '''
         for rec in self._read_table(table_name):
             try:
-                if self._is_duplicate(rec, '_id'):
+                if self._is_duplicate(rec, '_id') or self._is_empty(rec, '_data'):
                     continue
                 part = model_sms.MMSPart()
-                part._id              = rec['_id'].Value
-                part.mms_id           = rec['mid'].Value
+                part._id             = rec['_id'].Value
+                part.mms_id          = rec['mid'].Value
                 # part.sim_id
-                part.part_filename    = rec['name'].Value
-                part.part_local_path  = rec['_data'].Value
-                # part.part_charset     
+                part.part_filename   = rec['name'].Value
+                part.part_local_path = self._convert_nodepath(rec['_data'].Value)
+                part.part_text       = rec['text'].Value
+                # part.part_charset
                 # part.part_contenttype 
                 self.csm.db_insert_table_mms_part(part)
             except:
@@ -395,29 +396,39 @@ class AndroidMMSParser(AndroidSMSParser):
                 if (self._is_duplicate(rec, '_id')):
                     continue
                 mms.is_mms             = 1
-                mms.mms_id             = rec['_id'].Value
-                mms.sender_phonenumber = addr_dict.get(mms.mms_id, {}).get('from_address')
-                mms.recv_phonenumber   = addr_dict.get(mms.mms_id, {}).get('to_address')
+                mms._id                = rec['_id'].Value
+                mms.sender_phonenumber = addr_dict.get(mms._id, {}).get('from_address')
+                mms.recv_phonenumber   = addr_dict.get(mms._id, {}).get('to_address')
                 mms.subject            = rec['sub'].Value
                 mms.read_status        = rec['read'].Value
                 # mms.body               = rec['body'].Value
                 mms.send_time          = rec['date_sent'].Value
-                mms.deliverd           = rec['date'].Value
-                mms.type               = rec['msg_box'].Value    # MSG_TYPE
+                mms.delivered_date     = rec['date'].Value
+                mms.type               = rec['msg_box'].Value        # MSG_TYPE
                 mms.is_sender          = 1 if mms.type in (MSG_TYPE_SENT, MSG_TYPE_OUTBOX) else 0
                 mms.deleted            = 1 if rec.IsDeleted else 0
                 mms.source             = self.cur_db_source
                 self.csm.db_insert_table_mms(mms)
             except:
-                exc()                
+                exc()
 
     def _convert_nodepath(self, raw_path):
+        '''
+        /data/user_de/0/com.android.providers.telephony/app_parts/PART_1548924720904_1545360899806joint_15453608969.mp4
+        '''
+
         try:
             if not raw_path:
                 return
+
+            _path = raw_path.split('com.android.providers.telephony')
+            if len(_path) == 2:
+                local_path_node = self.root.Parent.GetByPath(_path[1])
+                if local_path_node and local_path_node.Type == NodeType.File:
+                    return local_path_node.AbsolutePath
+            
             if self.rename_file_path: 
                 raw_path = raw_path.replace(self.rename_file_path[0], self.rename_file_path[1])
- 
             fs = self.root.FileSystem
             for prefix in ['', '/data', ]:
                 file_node = fs.GetByPath(prefix + raw_path)
@@ -517,7 +528,6 @@ class AndroidSMSParser_fs_logic(AndroidSMSParser):
             return 
 
 
-
 class AutoBackupHuaweiParser(AndroidSMSParser):
     def __init__(self, node, db_name):
         super(AutoBackupHuaweiParser, self).__init__(node, db_name)
@@ -587,6 +597,5 @@ class AutoBackupHuaweiParser(AndroidSMSParser):
             except:
                 exc()
         self.csm.db_commit()
-
 
 
