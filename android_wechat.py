@@ -75,6 +75,61 @@ def get_build(node):
     return build
 
 
+# def get_build(node):
+#     build = '微信'
+#     if not node:
+#         return build
+#
+#     app_path = node.AbsolutePath
+#     if not app_path:
+#         return build
+#
+#     if app_path not in g_app_build:
+#         g_app_build[app_path] = len(g_app_build) + 1
+#
+#     if app_path == r'/data/data/com.tencent.mm':
+#         return build
+#
+#     if re.match(r'/data/user/\d+/com.tencent.mm', app_path) is not None:
+#         build = '系统分身'
+#
+#     if build != '系统分身':
+#         build = '第三方分身'
+#         for k, v in THIRDBUILDPARTTERN.items():
+#             if re.match(v, app_path) is not None:
+#                 build = k
+#                 break
+#
+#     count = g_app_build.get(app_path, 0)
+#     if count > 1:
+#         build += str(count)
+#     return build
+
+
+def get_uin_from_cache(cache_path, user_hash):
+    file_path = os.path.join(cache_path, 'cache_uin.json')
+    if not os.path.exists(file_path):
+        with open(file_path, 'w') as f:
+            data = {}
+            wxCrack = ServiceGetter.Get[IWechatCrackUin]()
+            uin = wxCrack.CrackUinFromMd5(user_hash)
+            data[user_hash] = uin
+            json.dump(data, f)
+            return uin
+    else:
+        with open(file_path, 'r') as f:
+            data = json.load(f)
+        if data.get(user_hash, None):
+            return data[user_hash]
+        else:
+            with open(file_path, 'w') as f:
+                wxCrack = ServiceGetter.Get[IWechatCrackUin]()
+                uin = wxCrack.CrackUinFromMd5(user_hash)
+                data[user_hash] = uin
+                json.dump(data, f)
+                return uin
+
+
 def print_error():
     if DEBUG:
         TraceService.Trace(TraceLevel.Error, "android_wechat.py Error: LINE {}".format(traceback.format_exc()))
@@ -104,8 +159,7 @@ class WeChatParser(Wechat):
         if not self.is_valid_user_dir:
             return []
         if not self._can_decrypt(self.uin, self.user_hash):
-            wxCrack = ServiceGetter.Get[IWechatCrackUin]()
-            uin = wxCrack.CrackUinFromMd5(self.user_hash)
+            uin = get_uin_from_cache(self.cache_path, self.user_hash)
             if uin not in [None, 0]:
                 self.uin = uin
             else:
