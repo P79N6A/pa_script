@@ -298,6 +298,7 @@ class WeChatParser(Wechat):
         self.get_chatroom_models(self.cache_db)
         self.set_progress(30)
         self._parse_mm_db_message(db, source)
+        self._parse_mm_db_bank_cards(db, source)
 
     def _parse_fav_db(self, fav_db_path, source):
         db = None
@@ -1125,6 +1126,36 @@ class WeChatParser(Wechat):
                     contact_label_model = self.get_contact_label_model(contact_label)
                     if contact_label_model is not None:
                         self.add_model(contact_label_model)
+                except Exception as e:
+                    print_error()
+
+    def _parse_mm_db_bank_cards(self, db, source):
+        if 'WalletBankcard' in db.Tables:
+            if canceller.IsCancellationRequested:
+                return
+            ts = SQLiteParser.TableSignature('WalletBankcard')
+            SQLiteParser.Tools.AddSignatureToTable(ts, "bankName", SQLiteParser.FieldType.Text,
+                                                   SQLiteParser.FieldConstraints.NotNull)
+            SQLiteParser.Tools.AddSignatureToTable(ts, "bankcardTail", SQLiteParser.FieldType.Text,
+                                                   SQLiteParser.FieldConstraints.NotNull)
+            SQLiteParser.Tools.AddSignatureToTable(ts, "mobile", SQLiteParser.FieldType.Text,
+                                                   SQLiteParser.FieldConstraints.NotNull)
+            for rec in db.ReadTableRecords(ts, self.extract_deleted, False, ''):
+                if canceller.IsCancellationRequested:
+                    break
+                try:
+                    bank_card = model_wechat.BankCard()
+                    bank_card.account_id = self.user_account_model.Account
+                    bank_card.source = source
+                    bank_card.bank_name = self._db_record_get_string_value(rec, 'bankName')
+                    bank_card.phone_number = self._db_record_get_string_value(rec, 'mobile')
+                    bank_card.card_number = self._db_reader_get_string_value(rec, 'bankcardTail')
+                    bank_card.card_type = self._db_record_get_string_value(rec, 'bankcardTypeName')
+                    bank_card.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
+                    bank_card.insert_db(self.im)
+                    bank_card_model = self.get_contact_label_model(bank_card)
+                    if bank_card_model is not None:
+                        self.add_model(bank_card_model)
                 except Exception as e:
                     print_error()
 
