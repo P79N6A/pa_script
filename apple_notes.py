@@ -3,6 +3,7 @@ import os
 import PA_runtime
 from PA_runtime import *
 from PA.InfraLib.Utils import ConvertHelper
+import re
 
 def analyze_notes(node, extractDeleted, extractSource):
     pr = ParserResults()
@@ -30,18 +31,29 @@ def analyze_notes(node, extractDeleted, extractSource):
             SQLiteParser.Tools.ReadColumnToField(record, "ZCONTENT", res.Body, extractSource)
             pr.Models.Add(res)
 
+    attach_node = node.Parent.GetByPath('/attachments')
     attach_dic = {}
     ts = SQLiteParser.TableSignature('ZNOTEATTACHMENT')
     for rec in db.ReadTableRecords(ts, extractDeleted, True):
         try:
-            note_id = rec['ZNOTE'].Value if 'ZNOTE' in rec and not IsDBNull(rec['ZNOTE'].Value) else 0
+            cid = rec['ZCONTENTID'].Value if 'ZCONTENTID' in rec and not IsDBNull(rec['ZCONTENTID'].Value) else ''
+            filename = rec['ZFILENAME'].Value if 'ZFILENAME' in rec and not IsDBNull(rec['ZFILENAME'].Value) else ''
+            mimetype = rec['ZMIMETYPE'].Value if 'ZMIMETYPE' in rec and not IsDBNull(rec['ZMIMETYPE'].Value) else ''
             attach_id = rec['Z_PK'].Value if 'Z_PK' in rec and not IsDBNull(rec['Z_PK'].Value) else 0
-            if note_id == 0 or attach_id == 0:
+            if cid is '' or attach_id == 0 or filename is '' or mimetype is '':
                 continue
-            if note_id not in attach_dic.keys():
-                attach_dic[note_id] = [attach_id,]
+            if cid not in attach_dic.keys():
+                attach_dic[cid] = ''
+                dir_node = attach_node.Search('.*' + str(attach_id) + '$')
+                if len(list(dir_node)) != 0:
+                    file_node = list(dir_node)[0].Search('.*\..*')
+                    if len(list(file_node)) != 0:
+                        if re.findall('image', mimetype):
+                            attach_dic[cid] = "<img src = '" + file_node[0].PathWithMountPoint + "'/>"
+                        elif re.findall('video', mimetype):
+                            attach_dic[cid] = "<video src = '" + file_node[0].PathWithMountPoint + "'/>"
             else:
-                attach_dic[note_id].append(attach_id)
+                attach_dic[cid].append(attach_id)
         except:
             pass
 
@@ -52,7 +64,6 @@ def analyze_notes(node, extractDeleted, extractSource):
         ts['ZMODIFICATIONDATE'] = ts['ZCREATIONDATE'] = SQLiteParser.Signatures.NumericSet(4, 7)
         ts['Z_OPT'] = ts['ZCONTAINSCJK'] = ts['ZEXTERNALFLAGS'] = ts['ZDELETEDFLAG'] = SQLiteParser.Signatures.NumericSet(1)
 
-    attach_node = node.Parent.GetByPath('/attachments')
     
     for record in db.ReadTableRecords(ts, extractDeleted, True):
         if not record['ZBODY'].Value in body_dic:
@@ -71,7 +82,14 @@ def analyze_notes(node, extractDeleted, extractSource):
             if extractSource:
                 res.Summary.Source = MemoryRange(record['ZSUMMARY'].Source)
         if not IsDBNull(body_dic[record['ZBODY'].Value].Value):
-            res.Body.Value = body_dic[record['ZBODY'].Value].Value
+            body = body_dic[record['ZBODY'].Value].Value
+            cids = re.findall('cid:(.*?)"', body)
+            for cid in cids:
+                src = attach_dic[cid] if cid in attach_dic else ''
+                pattern = '<object.*'+cid+'.*/object>'
+                body = re.sub(pattern, src, body)
+            res.Body.Value = body
+            #res.Body.Value = body_dic[record['ZBODY'].Value].Value
             if extractSource:
                 res.Body.Source = MemoryRange(body_dic[record['ZBODY'].Value].Source)
         if not IsDBNull(record['ZCREATIONDATE'].Value):
@@ -88,29 +106,9 @@ def analyze_notes(node, extractDeleted, extractSource):
                     res.Modification.Source = MemoryRange(record['ZMODIFICATIONDATE'].Source)
             except:
                 pass
-        if not IsDBNull(record['Z_PK'].Value):
-            try:
-                note_id = record['Z_PK'].Value
-                attach_ids = attach_dic[note_id] if note_id in attach_dic else []
-                for attach_id in attach_ids:
-                    dir_node = attach_node.Search('.*' + str(attach_id) + '$')
-                    if len(list(dir_node)) != 0:
-                        attach = Attachment()
-                        file_node = list(dir_node)[0].Search('.*\..*')
-                        if len(list(file_node)) != 0:
-                            attach.Uri.Value = get_uri(list(file_node)[0].AbsolutePath)
-                            res.Attachments.Add(attach)
-            except:
-                pass
         pr.Models.Add(res)
     pr.Build('备忘录')
     return pr
-
-def get_uri(path):
-        if path.startswith('http') or len(path) == 0:
-            return ConvertHelper.ToUri(path)
-        else:
-            return ConvertHelper.ToUri(path)
 
 def analyze_old_notes(node, extractDeleted, extractSource):
     db = SQLiteParser.Database.FromNode(node)
