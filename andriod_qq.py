@@ -269,10 +269,10 @@ class Andriod_QQParser(object):
             f = open(d,"rb")
             l = f.readlines()
             for x in l:
-                pos = x.find('imei')
+                pos = x.find('imei=')
                 if(pos != -1):
-                    self.imei = x[-16:-1]
-                    self.imeilen = 15
+                    self.imei = x[5:len(x)-1]
+                    self.imeilen = len(self.imei)
         except Exception as e:
             pass
         return
