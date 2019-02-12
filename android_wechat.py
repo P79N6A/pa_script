@@ -47,6 +47,14 @@ VERSION_APP_VALUE = 1
 
 g_app_build = {}
 
+# 第三方的分身工具
+THIRDBUILDPARTTERN = {
+    'LBE平行空间': r'/data/data/com.lbe.parallel/parallel/\d+/com.tencent.mm',
+    '360分身大师': r'/data/data/com.qihoo.magic/Plugin/com.tencent.mm/data/com.tencent.mm',
+    '双开助手多开分身': r'/data/data/com.excelliance.dualaid/gameplugins/com.tencent.mm',
+    '多开助手': r'/data/data/com.kzshuankia.rewq/virtual/data/user/\d+/com.tencent.mm'
+}
+
 DEBUG = False
 
 
@@ -59,51 +67,51 @@ def analyze_wechat(root, extract_deleted, extract_source):
     return pr
 
 
-def get_build(node):
-    global g_app_build
-    build = '微信'
-    if node is None:
-        return build
-    app_path = node.AbsolutePath
-    if app_path in [None, '']:
-        return build
-    if app_path not in g_app_build:
-        g_app_build[app_path] = len(g_app_build) + 1
-    count = g_app_build.get(app_path, 0)
-    if count > 1:
-        build += str(count)
-    return build
-
-
 # def get_build(node):
+#     global g_app_build
 #     build = '微信'
-#     if not node:
+#     if node is None:
 #         return build
-#
 #     app_path = node.AbsolutePath
-#     if not app_path:
+#     if app_path in [None, '']:
 #         return build
-#
 #     if app_path not in g_app_build:
 #         g_app_build[app_path] = len(g_app_build) + 1
-#
-#     if app_path == r'/data/data/com.tencent.mm':
-#         return build
-#
-#     if re.match(r'/data/user/\d+/com.tencent.mm', app_path) is not None:
-#         build = '系统分身'
-#
-#     if build != '系统分身':
-#         build = '第三方分身'
-#         for k, v in THIRDBUILDPARTTERN.items():
-#             if re.match(v, app_path) is not None:
-#                 build = k
-#                 break
-#
 #     count = g_app_build.get(app_path, 0)
 #     if count > 1:
 #         build += str(count)
 #     return build
+
+
+def get_build(node):
+    build = '微信'
+    if not node:
+        return build
+
+    app_path = node.AbsolutePath
+    if not app_path:
+        return build
+
+    if app_path not in g_app_build:
+        g_app_build[app_path] = len(g_app_build) + 1
+
+    if app_path == r'/data/data/com.tencent.mm':
+        return build
+
+    if re.match(r'/data/user/\d+/com.tencent.mm', app_path) is not None:
+        build = '系统分身'
+
+    if build != '系统分身':
+        build = '第三方分身'
+        for k, v in THIRDBUILDPARTTERN.items():
+            if re.match(v, app_path) is not None:
+                build = k
+                break
+
+    count = g_app_build.get(app_path, 0)
+    if count > 1:
+        build += str(count)
+    return build
 
 
 def get_uin_from_cache(cache_path, user_hash):
@@ -619,7 +627,7 @@ class WeChatParser(Wechat):
                     deleted = 0 if rec.Deleted == DeletedState.Intact else 1
                     self._parse_wc_db_with_value(deleted, node.AbsolutePath, username, content, attr)
                 except Exception as e:
-                    pass
+                    print('read sns failed', e)
             self.im.db_commit()
             self.push_models()
 
@@ -630,6 +638,7 @@ class WeChatParser(Wechat):
             content = tencent_struct.tencent_struct().getSnsContent(content_blob)
             attr = tencent_struct.tencent_struct().getSnsAttrBuf(attr_blob)
         except Exception as e:
+            print('parse sns failed', e)
             return
         if content is None:
             return
