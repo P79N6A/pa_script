@@ -3185,8 +3185,10 @@
           <integer>2</integer>
           <key>Patterns</key>
           <array>
+            <string>com.android.providers.telephony/databases$</string> -->
             <string>sms/sms.db$</string>
-            <string>com\.android\.providers\.telephony/databases$</string>
+            <string>sms.db$</string>
+            <string>sms.vmsg</string>
           </array>
           <key>Category</key>
           <string>Messages</string>
@@ -3196,7 +3198,27 @@
           <string>基础数据</string>
           <key>Dependents</key>
           <array>
-            <!--EntryPoint#RunnerType#ModuleType@Module-->
+            <string>analyze_android_calls#2#0@android_contact</string>
+          </array>
+        </dict>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_mms</string>
+          <key>RunnerType</key>
+          <integer>2</integer>
+          <key>Patterns</key>
+          <array>
+            <string>com.android.providers.telephony/databases$</string>
+            <string>sms.db$</string>
+          </array>
+          <key>Category</key>
+          <string>Messages</string>
+          <key>Name</key>
+          <string>彩信(安卓)</string>
+          <key>Filter</key>
+          <string>基础数据</string>
+          <key>Dependents</key>
+          <array>
             <string>analyze_android_calls#2#0@android_contact</string>
           </array>
         </dict>
