@@ -1326,6 +1326,7 @@ class BaseParser(object):
             read_delete = self.extract_deleted
         try:
             tb = SQLiteParser.TableSignature(table_name)
+            res = self.cur_db.ReadTableRecords(tb, read_delete, True)
             return self.cur_db.ReadTableRecords(tb, read_delete, True)
         except:
             if self.cur_db and self.cur_db.FilePath:

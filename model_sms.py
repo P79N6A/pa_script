@@ -679,10 +679,10 @@ class GenerateMMSModel(GenerateSMSModel):
 # 788,10086,RECEIVED,2013-09-06T20:47:01.573Z,示例内容,y,-1
 
 
-class VMSGDecoder:
+class VMSG:
     """vmsg format"""
-    BEGIN = 'BEGIN'
-    END = 'END'
+    BEGIN = 'BEGIN:'
+    END = 'END:'
 
     X_MESSAGE_TYPE = 'X-MESSAGE-TYPE'
 
@@ -690,47 +690,49 @@ class VMSGDecoder:
     TVCARD = 'VCARD'
     TVBODY = 'VBODY'
 
-    X_BOX = 'X-BOX'
-    X_READ = 'X-READ'
-    X_SIMID = 'X-SIMID'
-    X_LOCKED = 'X-LOCKED'
-    X_TYPE = 'X-TYPE'
+    X_BOX = 'X-BOX:'
+    X_READ = 'X-READ:'
+    X_SIMID = 'X-SIMID:'
+    X_LOCKED = 'X-LOCKED:'
+    X_TYPE = 'X-TYPE:'
+
+    TTEL = 'TEL:'
+    TDATE = 'Date'
+    TDATEORIGIN = 'DateOrigin:'
+    TSUBJECT = 'Subject'
 
     INBOX = 'INBOX'
+    SENDBOX = 'SENDBOX'
+
     READ = 'READ'
     UNREAD = 'UNREAD'
 
     TDELIVER = 'DELIVER'
     TSUBMIT = 'SUBMIT'
 
-    TTEL = 'TEL'
-    TDATE = 'Date'
-    TSUBJECT = 'Subject'
 
-    def __init__(self):
-        pass
+    def __init__(self, vmsg_node):
+        '''
+        
+        Args:
+            vmsg (node)
+        '''
+        self._data = vmsg_node.Data.read().split('\r\n')
             
-    def build_from_message(self, fvmsg, fcsv):
-        with open(fvmsg, 'r') as f:
-            v_l = []  # result
-            stack = []
-            for line in f:
-                line = line.strip()
-                if line.startswith(VMSG.BEGIN):
-                    self.process_start_tag(line, stack, v_l)
-                elif line.startswith(VMSG.END):
-                    self.process_end_tag(line, stack, v_l)
-                else:
-                    self.process_attribute(line, stack, v_l)
-
-        with open(fcsv, 'wb') as fout:
-            item_id = 1
-            for item in v_l:
-                fout.write(json.dumps(item))
-                fout.write(',')
-                item_id += 1
-
-    def process_start_tag(self, stream, stack, v):
+    def dict_from_vmsg(self):
+        res = []
+        stack = []
+        for line in self._data:
+            line = line.strip()
+            if line.startswith(VMSG.BEGIN):
+                self.process_start_tag(line, stack, res)
+            elif line.startswith(VMSG.END):
+                self.process_end_tag(line, stack, res)
+            else:
+                self.process_attribute(line, stack, res)
+        return res
+    
+    def process_start_tag(self, stream, stack, res):
         _tag, _value = self._get_tag(stream)
         #print('process_start_tag:', tag)
         if len(_value) == 0:
@@ -738,10 +740,10 @@ class VMSGDecoder:
         #print('pushing:', tag)
         stack.append(_value)
         if _value == VMSG.TVMSG:
-            item = {'status': 'y', 'end': '-1'}
-            v.append(item)
+            item = {'VMSG': 1}
+            res.append(item)
 
-    def process_end_tag(self, stream, stack, v):
+    def process_end_tag(self, stream, stack, res):
         _tag, _value = self._get_tag(stream)
         #print('process_end_tag:', tag)
         if len(_value) == 0:
@@ -754,23 +756,23 @@ class VMSGDecoder:
 
         if _tag == VMSG.TVMSG:
             # decode content here
-            item = v[-1]
+            item = res[-1]
             item['content'] = _value
 
-    def process_attribute(self, stream, stack, v):
+    def process_attribute(self, stream, stack, res):
         if len(stack) > 0:
             tag = stack[-1]
             if tag == VMSG.TVMSG:
                 if stream.startswith(VMSG.X_MESSAGE_TYPE):
-                    self.process_message_type(stream, v)
+                    self.process_message_type(stream, res)
             if tag == VMSG.TVCARD:
                 if stream.startswith(VMSG.TTEL):
-                    self.process_tel(stream, v)
+                    self.process_tel(stream, res)
             elif tag == VMSG.TVBODY:
                 if stream.startswith(VMSG.X_BOX):
-                    self.process_box(stream, v)
+                    self.process_box(stream, res)
                 elif stream.startswith(VMSG.X_READ):
-                    pass
+                    self.process_status(stream, res)
                 elif stream.startswith(VMSG.X_SIMID):
                     pass
                 elif stream.startswith(VMSG.X_LOCKED):
@@ -778,67 +780,81 @@ class VMSGDecoder:
                 elif stream.startswith(VMSG.X_TYPE):
                     pass
                 elif stream.startswith(VMSG.TDATE):
-                    self.process_date(stream, v)
+                    self.process_date(stream, res)
                 elif stream.startswith(VMSG.TSUBJECT):
-                    self.process_subject(stream, v)
+                    self.process_subject(stream, res)
                 # else:
                 #     # continue subject
-                #     self.process_continue_subject(stream, v)
+                #     self.process_continue_subject(stream, res)
 
-    def process_message_type(self, stream, v):
+    def process_message_type(self, stream, res):
         _type= stream[15:]
         if _type== VMSG.TSUBMIT:
             _type= 'SENT'
         else:
             _type= 'RECEIVED'
-        item = v[-1]
+        item = res[-1]
         item['type'] = _type
 
-    def process_box(self, stream, v):
+    def process_box(self, stream, res):
         _tag, _value = self._get_tag(stream)
-        if _tag == VMSG.INBOX:
-            item = v[-1]
-            item['box'] = _value
+        if _value == VMSG.INBOX:
+            item = res[-1]
+            item['box'] = MSG_TYPE_INBOX
+        elif _value == VMSG.SENDBOX:
+            item = res[-1]
+            item['box'] = MSG_TYPE_SENT
 
-    def process_status(self, stream, v):
+    def process_status(self, stream, res):
         _tag, _value = self._get_tag(stream)
-        if _tag == VMSG.X_READ:
-            item = v[-1]
-            item['status'] = _value
-
-    def process_tel(self, stream, v):
+        item = res[-1]
+        if _value == VMSG.READ:
+            item['read_status'] = 1
+        elif _value == VMSG.UNREAD:
+            item['read_status'] = 0
+            
+    def process_tel(self, stream, res):
         tel = stream[4:]
         if tel.startswith("+86"):
             tel = tel.replace("+86", "")
-        item = v[-1]
+        item = res[-1]
         item['tel'] = tel
 
-    def process_date(self, stream, v):
-        date = stream[5:24]
-        date = date.replace(' ', 'T')
-        date = date.replace('/', '-')
-        r = '%03d' % (random.randint(0, 999))
-        date = date + '.' + r + 'Z'
-        item = v[-1]
-        item['date'] = date
+    def process_date(self, stream, res):
+        try:
+            if stream.startswith(VMSG.TDATEORIGIN):
+                date = int(stream.replace(VMSG.TDATEORIGIN, ''))
+            elif stream.startswith(VMSG.TDATE + ':'):
+                date = stream.replace(VMSG.TDATE + ':', '')
+            item = res[-1]
+            item['date'] = date
+        except:
+            exc()
 
-    def process_subject(self, stream, v):
+    def process_subject(self, stream, res):
         s = stream.split(':', 1)
         content = s[-1]
-        item = v[-1]
-        item['content'] = content.decode('utf8', 'ignore')
 
-    def process_continue_subject(self, stream, v):
-        content = stream
-        item = v[-1]
-        if 'content' in item:
-            try:
-                item['content'] = item['content'] + content.decode('utf8', 'ignore')
-            except Exception as e:
-                print(e)
+        item = res[-1]
+        # = 分隔 hex str
+        if 'ENCODING=QUOTED-PRINTABLE' in s[0]:
+            if content.startswith('='):
+                try:
+                    content = content.replace('=', '').decode('hex')
+                except:
+                    pass
+            item['content'] = content.decode('utf8', 'ignore')
 
-        else:
-            item['content'] = content
+    # def process_continue_subject(self, stream, res):
+    #     content = stream
+    #     item = res[-1]
+    #     if 'content' in item:
+    #         try:
+    #             item['content'] = item['content'] + content.decode('utf8', 'ignore')
+    #         except Exception as e:
+    #             print(e)
+    #     else:
+    #         item['content'] = content
            
     def decode_subject(self, content):
         #b = bytearray.fromhex(item['content'])
@@ -878,3 +894,11 @@ class VMSGDecoder:
         else:
             return ('', '')
         
+    def _str_from_hex(self, hex_str):
+        '''
+
+        Args:
+            hex_str (str): 
+        '''
+
+
