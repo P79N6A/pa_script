@@ -44,14 +44,14 @@ def analyze_sms(node, extract_deleted, extract_source):
     node_path = node.AbsolutePath
     _Parser = AndroidSMSParser
 
-    if node_path.endswith('sms/sms.db'):
+    if node_path.endswith('/sms/sms.db'):
         _Parser = AndroidSMSParser_fs_logic
-    elif node_path.endswith('com.android.providers.telephony/databases'):
+    elif node_path.endswith('/com.android.providers.telephony/databases'):
         _Parser = AndroidSMSParser
-    elif node_path.endswith('sms.vmsg'):
+    elif node_path.endswith('/sms.vmsg'):
         # OPPO MEIZU
         _Parser = VMSGParser
-    elif node_path.endswith('sms.db'):
+    elif node_path.endswith('/sms.db'):
         _Parser = AutoBackupHuaweiSMSParser
 
     return base_analyze(_Parser,
@@ -64,13 +64,22 @@ def analyze_sms(node, extract_deleted, extract_source):
 @parse_decorator
 def analyze_mms(node, extract_deleted, extract_source):
     # node_path = node.AbsolutePath
-    return base_analyze(AndroidMMSParser,
-                        node,
-                        bcp_basic.BASIC_SMS_INFORMATION,
-                        VERSION_APP_VALUE,
-                        bulid_name='彩信',
-                        db_name='AndroidMMS')
+    try:
+        if node.AbsolutePath.endswith('/sms/sms.db'):
+            return 
+        if node.AbsolutePath.endswith('/sms.db'):
+            cur_db = SQLiteParser.Database.FromNode(node, canceller)
+            if 'pdu_tb' not in cur_db.Tables:
+                return 
 
+        return base_analyze(AndroidMMSParser,
+                            node,
+                            bcp_basic.BASIC_SMS_INFORMATION,
+                            VERSION_APP_VALUE,
+                            bulid_name='彩信',
+                            db_name='AndroidMMS')
+    except:
+        exc()
 
 class AndroidSMSParser(BaseAndroidParser):
     def __init__(self, node, db_name):
@@ -278,7 +287,7 @@ class AndroidMMSParser(AndroidSMSParser):
                 self.parse_part('part')
                 self.parse_mms('pdu', addr_dict)            
 
-        elif self.root.AbsolutePath.endswith('sms.db'):
+        elif not self.root.AbsolutePath.endswith('sms/sms.db') and self.root.AbsolutePath.endswith('/sms.db'):
             if self._read_db(node=self.root):
                 addr_dict = self.preparse_addr('addr_tb')
                 self.parse_part('part_tb')
@@ -605,6 +614,6 @@ class AutoBackupHuaweiSMSParser(AndroidSMSParser):
         """
         self.pre_parse_calls()
 
-        if self._read_db(node=self.root):
+        if self._read_db(node=self.root) and 'sms_tb' in self.cur_db.Tables:
             self.parse_sms('sms_tb') 
 
