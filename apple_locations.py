@@ -499,6 +499,7 @@ class FrequentLocationsParser(object):
         results.extend(self.parseStateModels())
         results.extend(self.parse_new_version_locations())
         results.extend(self.get_waypoint())
+        results.extend(self.get_recent_one_week_location())
         return results
 
     @staticmethod
@@ -519,6 +520,7 @@ class FrequentLocationsParser(object):
             moveFileto(node.PathWithMountPoint, dest_file)
             #moveFileto(wal_path, dest_wal_file)
             return dest_file
+
     # ios 11 常去地理位置存放在cache.sqlite,cloud.sqlite,local.sqlite 
     # herf = https://blog.elcomsoft.com/2018/06/apple-probably-knows-what-you-did-last-summer/
     def parse_new_version_locations(self):
@@ -689,6 +691,67 @@ class FrequentLocationsParser(object):
             except Exception as e:
                 pass
         return results
+
+    
+    def get_recent_one_week_location(self):
+        results = []
+        dbNodes = self.root.Files
+        if dbNodes is None:
+            return
+        for dbFile in dbNodes:
+            if not dbFile.Name.endswith("sqlite"):
+                continue
+            db = SQLiteParser.Database.FromNode(dbFile, canceller)
+            if db is None:
+                continue
+            if "ZRTCLLOCATIONMO" not in db.Tables:
+                continue
+            connection = System.Data.SQLite.SQLiteConnection('Data Source = {0}; ReadOnly = True'.format(self.read_file_path(dbFile)))
+            try:
+                connection.Open()
+                cmd = System.Data.SQLite.SQLiteCommand(connection)
+                cmd.CommandText = """
+                     SELECT
+                        DATETIME(ZTIMESTAMP + 978307200, 'unixepoch') AS "TIMESTAMP",
+                        ZCOURSE AS "COURSE",
+                        ZSPEED AS "SPEED (M/S)",
+                        ZHORIZONTALACCURACY AS "HORIZONTAL ACCURACY",
+                        ZVERTICALACCURACY AS "VERTICAL ACCURACY",
+                        ZLATITUDE AS "LATITUDE",
+                        ZLONGITUDE AS "LONGITUDE",
+                        ZRTCLLOCATIONMO.Z_PK AS "ZRTCLLOCATIONMO TABLE ID" 
+                    FROM
+                        ZRTCLLOCATIONMO
+                """
+                reader = cmd.ExecuteReader()
+                while reader.Read():
+                    try:
+                        loc = Base.Location()
+                        loc.SourceType = LocationSourceType.FrequentLocsOfWeek
+                        create_time = str(GetBlob(reader,0))
+                        loc.Time = self.str_to_timestamp(create_time)
+                        latitude = GetFloat(reader, 5)
+                        longitude = GetFloat(reader, 6)
+                        loc.Coordinate = Base.Coordinate(longitude,latitude,CoordinateType.GPS)
+                        results.append(loc)
+                    except Exception as e:
+                        TraceService.Trace(TraceLevel.Error,"{0}".format(e))
+            except Exception as e:
+                TraceService.Trace(TraceLevel.Error,"{0}".format(e))
+        if reader != None:
+            reader.Close()
+        if connection != None:
+            connection.Close()
+        return results
+
+    
+    def str_to_timestamp(self, v):
+        try:
+            _format = "%Y-%m-%d %H:%M:%S"
+            b = time.strptime(v, _format)
+            return TimeStamp.FromUnixTime(time.mktime(b))
+        except:
+            pass
 
     # ios 10之前存放在：
     # >   private/var/mobile/Library/Caches/com.apple.routined/StateModel1.archive
