@@ -565,7 +565,7 @@
           <string>应用>商旅</string>
         </dict>
       </array>
-    </dict>    
+    </dict>
 
     <dict>
       <key>Module</key>
@@ -1788,7 +1788,7 @@
           <string>应用>邮箱</string>
         </dict>
       </array>
-    </dict>    
+    </dict>
 
     <dict>
       <key>Module</key>
@@ -2799,7 +2799,7 @@
         </dict>
       </array>
     </dict>
-    
+
     <dict>
       <key>Module</key>
       <string>android_qqbrowser</string>
@@ -3209,7 +3209,7 @@
           <integer>2</integer>
           <key>Patterns</key>
           <array>
-            <string>/com.android.providers.telephony/databases$</string> -->
+            <string>/com.android.providers.telephony/databases$</string>
             <string>/sms.db$</string>
             <string>/sms.vmsg</string>
           </array>
@@ -3672,7 +3672,7 @@
           <array>
             <string>/appinfo/appinfo\.db$</string>
             <string>/data/app$</string>
-			<string>/Root/app$</string>
+            <string>/Root/app$</string>
           </array>
           <key>Category</key>
           <string>Applications</string>
