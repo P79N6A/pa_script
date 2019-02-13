@@ -3209,7 +3209,7 @@
           <integer>2</integer>
           <key>Patterns</key>
           <array>
-            <string>/com.android.providers.telephony/databases$</string> -->
+            <string>/com.android.providers.telephony/databases$</string>
             <string>/sms.db$</string>
             <string>/sms.vmsg</string>
           </array>
