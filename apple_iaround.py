@@ -23,7 +23,7 @@ import json
 
 from System.Text import *
 
-VERSION_APP_VALUE = 3
+VERSION_APP_VALUE = 4
 
 class IAroundParser(model_im.IM):
     def __init__(self, node, extract_deleted, extract_source):
@@ -82,10 +82,7 @@ class IAroundParser(model_im.IM):
             db_cmd.CommandText = """select * from cfurl_cache_receiver_data where receiver_data like '%nickname%'"""
             sr = db_cmd.ExecuteReader()
             try:
-                if not sr.HasRows:
-                    account = model_im.Account()
-                    account.account_id = '未知用户'
-                    account.username = '未知用户'
+                account = model_im.Account()
                 while(sr.Read()):
                     account = model_im.Account()
                     account.source = self.node.AbsolutePath
@@ -99,6 +96,10 @@ class IAroundParser(model_im.IM):
                     account.country = account_dic['country']
                     account.province = account_dic['province']
                     account.deleted = 0
+                    self.db_insert_table_account(account)
+                if account.account_id is None:
+                    account.account_id = '未知用户'
+                    account.username = '未知用户'
                     self.db_insert_table_account(account)
             except:
                 traceback.print_exc()
@@ -202,7 +203,7 @@ class IAroundParser(model_im.IM):
                     message.talker_name = self._db_reader_get_string_value(sr, 10)
                     msgstate = self._db_reader_get_int_value(sr, 3)
                     message.sender_id = self._db_reader_get_int_value(sr, 1) if msgstate == 1 else self.account_id if msgstate == 2 else 0
-                    message.sender_name = self._db_reader_get_string_value(sr, 10) if msgstate == 1 else self.account_name if msgstate == 2 else ''
+                    message.sender_name = self._db_reader_get_string_value(sr, 10) if msgstate == 1 else self.account_name if msgstate == 2 else '未知用户'
                     message.is_sender = 1 if msgstate == 2 else 0
                     message.msgid = self._db_reader_get_int_value(sr, 2)
                     message.talker_type = model_im.CHAT_TYPE_FRIEND

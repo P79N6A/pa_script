@@ -15,6 +15,7 @@ from System.Data.SQLite import *
 import System
 from System.Text import *
 import shutil
+import time
 
 def moveFileto(sourceDir,  targetDir): 
     shutil.copy(sourceDir,  targetDir)
@@ -1666,12 +1667,17 @@ def analyze_network(network,extractDeleted,extractSource):
     if network.ContainsKey('SecurityMode'):           
         res.SecurityMode.Init(network['SecurityMode'].Value,MemoryRange(network['SecurityMode'].Source) if extractSource else None)
     if network.ContainsKey('lastAutoJoined'):           
-        res.LastAutoConnection.Init(TimeStamp.FromFileTime(network['lastAutoJoined'].Value.ToUniversalTime().ToFileTimeUtc()),
+        res.LastAutoConnection.Init(TimeStamp.FromUnixTime(format_time(network['lastAutoJoined'].Value)),
                        MemoryRange(network['lastAutoJoined'].Source) if extractSource else None)        
     if network.ContainsKey('lastJoined'):           
-        res.LastConnection.Init(TimeStamp.FromFileTime(network['lastJoined'].Value.ToUniversalTime().ToFileTimeUtc()),
-                                MemoryRange(network['lastJoined'].Source) if extractSource else None)  
-    return res     
+        res.LastConnection.Init(TimeStamp.FromUnixTime(format_time(network['lastJoined'].Value)),
+					MemoryRange(network['lastJoined'].Source) if extractSource else None)  
+    return res
+
+def format_time(v):
+    _format = "%Y/%m/%d %H:%M:%S"
+    b = time.strptime(str(v), _format)
+    return time.mktime(b)    
 
 def analyze_passbook(d, extractDeleted, extractSource):
     results = []

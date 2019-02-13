@@ -655,7 +655,7 @@ class Generate(object):
                 if not IsDBNull(row[3]) and row[3]:
                     download.Uri.Value = self._get_uri(row[3])
                 elif not IsDBNull(row[1]) and row[1]:
-                    download.Uri.Value = self._get_uri(row[1])
+                    download.URL.Value = row[1]
                 if not IsDBNull(row[2]):
                     download.Filename.Value = row[2]  
                 if not IsDBNull(row[4]):
@@ -823,7 +823,7 @@ class Generate(object):
             epoch_start = datetime.datetime(1601, 1, 1)
             delta = datetime.timedelta(microseconds=int(webkit_timestamp))
             timestamp = time.mktime((epoch_start + delta).timetuple())
-            ts = TimeStamp.FromUnixTime(int(timestamp) + 28800, False)
+            ts = TimeStamp.FromUnixTime(int(timestamp), False)
             if not ts.IsValidForSmartphone():
                 ts = TimeStamp.FromUnixTime(0, False)
             return ts            
@@ -955,7 +955,7 @@ class BaseBrowserParser(BaseParser):
             epoch_start = datetime.datetime(1601,1,1)
             delta = datetime.timedelta(microseconds=int(webkit_timestamp))
             ts = time.mktime((epoch_start + delta).timetuple())
-            return int(ts) + 28800
+            return int(ts)
         except:
             return None            
 

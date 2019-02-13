@@ -10,7 +10,7 @@ clr.AddReference('System.Data.SQLite')
 try:
     clr.AddReference('model_im')
     clr.AddReference('bcp_im')
-    clr.AddReference('tao')
+    clr.AddReference('ScriptUtils')
 except Exception:
     pass
 
@@ -18,7 +18,15 @@ del clr
 
 import model_im
 import PA_runtime
-from tao import ModelCol, RecoverTableHelper, TaoUtils, ParserBase, TimeHelper, FieldType, FieldConstraints
+from ScriptUtils import (
+    ModelCol,
+    RecoverTableHelper,
+    TaoUtils,
+    ParserBase,
+    TimeHelper,
+    FieldType,
+    FieldConstraints,
+)
 import System
 from PA_runtime import *
 from System.Data.SQLite import *

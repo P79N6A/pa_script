@@ -1176,7 +1176,7 @@ def print_run_time(func):
             msg = 'Current Function <{}> run time is {:.2} s'.format(
                 func.__name__, time.time() - local_time)
             TraceService.Trace(TraceLevel.Warning, '{}'.format(msg))
-        if res:
+        if res is not None:
             return res
     return wrapper
 
@@ -1217,6 +1217,7 @@ def base_analyze(Parser, node, BCP_TYPE, VERSION_APP_VALUE, bulid_name, db_name)
         pr.Models.AddRange(res)
         pr.Build(bulid_name)
     return pr
+
 
 class BaseParser(object):
     ''' common func:
@@ -1272,6 +1273,23 @@ class BaseParser(object):
     def _convert_nodepath(self, raw_path):
         pass
 
+    @staticmethod
+    def _convert_ios_time(timestamp):
+        ''' convert_ios_time
+
+        :type timestamp: float, Int64  9 digit
+        :rtype unixtime: int           13 digit
+        '''
+        try:
+            if timestamp < 0 or len(str(int(timestamp))) != 9:
+                return 
+            dstart = DateTime(1970,1,1,0,0,0)
+            cdate = TimeStampFormats.GetTimeStampEpoch1Jan2001(timestamp)
+            uinixtime = int((cdate - dstart).TotalSeconds)
+            return uinixtime
+        except:
+            exc()
+
     def _read_db(self, db_path='', node=None):
         ''' and set self.cur_db, self.cur_db_source
         
@@ -1308,6 +1326,7 @@ class BaseParser(object):
             read_delete = self.extract_deleted
         try:
             tb = SQLiteParser.TableSignature(table_name)
+            res = self.cur_db.ReadTableRecords(tb, read_delete, True)
             return self.cur_db.ReadTableRecords(tb, read_delete, True)
         except:
             if self.cur_db and self.cur_db.FilePath:
@@ -1470,6 +1489,28 @@ class BaseParser(object):
         except:
             exc()
             return False
+
+    @staticmethod
+    def _convert_strtime_2_ts(format_time):
+        ''' "2018/8/15 15:27:20" -> 10位 时间戳 1534318040.0
+            
+        Args:
+            format_time (str)
+        Returns:
+            (int/float): timastamp e.g. 1534318040.0
+        '''
+        try:
+            if format_time:
+                div_str = format_time[4]
+                if re.match(r'\d', div_str):
+                    div_str = ''
+                time_pattren = "%Y{div}%m{div}%d %H:%M:%S".format(div=div_str)
+                ts = time.strptime(format_time, time_pattren)
+                return time.mktime(ts)
+            return 0
+        except:
+            exc()
+            return 0               
 
 
 class BaseAndroidParser(BaseParser):

@@ -57,8 +57,8 @@ class MediaParse(object):
             if re.findall('/com.android.providers.media/databases/internal.db$', self.node.AbsolutePath):
                 self.dcim_node = self.node.FileSystem.Search('media/0/DCIM$')[0]
                 self.nodes = [self.node, self.node.Parent.GetByPath('/external.db')]
-                self.analyze_thumbnails_with_db()
                 self.analyze_media_with_db()
+                self.analyze_thumbnails_with_db()
             else:
                 fileNode = self.fs.Search('/DCIM/.*\..*$')
                 for node in fileNode:
@@ -146,9 +146,9 @@ class MediaParse(object):
                     thumbnails.url = self._db_record_get_string_value(rec, '_data')
                     thumbnails.url = self.dcim_node.AbsolutePath + re.sub('.*DCIM', '', thumbnails.url)
                     thumbnails.media_id = self._db_record_get_int_value(rec, 'image_id')
-                    media_url = os.path.basename(thumbnails.url)
+                    media_url = os.path.basename(thumbnails.url).replace('+', '.')
                     thumbnail_path = ''
-                    media_nodes = self.dcim_node.Search(media_url)
+                    media_nodes = self.dcim_node.Search(media_url+'$')
                     if len(list(media_nodes)) != 0:
                         thumbnails.url = media_nodes[0].AbsolutePath
                         thumbnail_path = media_nodes[0].PathWithMountPoint
@@ -160,6 +160,7 @@ class MediaParse(object):
                             media.height = self._db_record_get_int_value(rec, 'height')
                             media.source = node.AbsolutePath
                             media.deleted = 1
+                            self.mm.db_insert_table_media(media)
                         #如果本地目录中缩略图存在，数据库中有原图记录但为删除记录，则将缩略图判定为删除的原图
                         elif thumbnails.media_id in self.deleted_media_id:
                             media = Media()
@@ -168,6 +169,7 @@ class MediaParse(object):
                             media.height = self._db_record_get_int_value(rec, 'height')
                             media.source = node.AbsolutePath
                             media.deleted = 1
+                            self.mm.db_insert_table_media(media)
                     if thumbnail_path != '':
                         filecCeateDate = os.path.getmtime(thumbnail_path)  #文件创建时间
                         thumbnails.create_date = filecCeateDate

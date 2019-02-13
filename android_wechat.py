@@ -47,6 +47,14 @@ VERSION_APP_VALUE = 1
 
 g_app_build = {}
 
+# 第三方的分身工具
+THIRDBUILDPARTTERN = {
+    'LBE平行空间': r'/data/data/com.lbe.parallel/parallel/\d+/com.tencent.mm',
+    '360分身大师': r'/data/data/com.qihoo.magic/Plugin/com.tencent.mm/data/com.tencent.mm',
+    '双开助手多开分身': r'/data/data/com.excelliance.dualaid/gameplugins/com.tencent.mm',
+    '多开助手': r'/data/data/com.kzshuankia.rewq/virtual/data/user/\d+/com.tencent.mm'
+}
+
 DEBUG = False
 
 
@@ -59,20 +67,75 @@ def analyze_wechat(root, extract_deleted, extract_source):
     return pr
 
 
+# def get_build(node):
+#     global g_app_build
+#     build = '微信'
+#     if node is None:
+#         return build
+#     app_path = node.AbsolutePath
+#     if app_path in [None, '']:
+#         return build
+#     if app_path not in g_app_build:
+#         g_app_build[app_path] = len(g_app_build) + 1
+#     count = g_app_build.get(app_path, 0)
+#     if count > 1:
+#         build += str(count)
+#     return build
+
+
 def get_build(node):
-    global g_app_build
     build = '微信'
-    if node is None:
+    if not node:
         return build
+
     app_path = node.AbsolutePath
-    if app_path in [None, '']:
+    if not app_path:
         return build
+
     if app_path not in g_app_build:
         g_app_build[app_path] = len(g_app_build) + 1
+
+    if app_path == r'/data/data/com.tencent.mm':
+        return build
+
+    if re.match(r'/data/user/\d+/com.tencent.mm', app_path) is not None:
+        build = '系统分身'
+
+    if build != '系统分身':
+        build = '第三方分身'
+        for k, v in THIRDBUILDPARTTERN.items():
+            if re.match(v, app_path) is not None:
+                build = k
+                break
+
     count = g_app_build.get(app_path, 0)
     if count > 1:
         build += str(count)
     return build
+
+
+def get_uin_from_cache(cache_path, user_hash):
+    file_path = os.path.join(cache_path, 'cache_uin.json')
+    if not os.path.exists(file_path):
+        with open(file_path, 'w') as f:
+            data = {}
+            wxCrack = ServiceGetter.Get[IWechatCrackUin]()
+            uin = wxCrack.CrackUinFromMd5(user_hash)
+            data[user_hash] = uin
+            json.dump(data, f)
+            return uin
+    else:
+        with open(file_path, 'r') as f:
+            data = json.load(f)
+        if data.get(user_hash, None):
+            return data[user_hash]
+        else:
+            with open(file_path, 'w') as f:
+                wxCrack = ServiceGetter.Get[IWechatCrackUin]()
+                uin = wxCrack.CrackUinFromMd5(user_hash)
+                data[user_hash] = uin
+                json.dump(data, f)
+                return uin
 
 
 def print_error():
@@ -104,8 +167,7 @@ class WeChatParser(Wechat):
         if not self.is_valid_user_dir:
             return []
         if not self._can_decrypt(self.uin, self.user_hash):
-            wxCrack = ServiceGetter.Get[IWechatCrackUin]()
-            uin = wxCrack.CrackUinFromMd5(self.user_hash)
+            uin = get_uin_from_cache(self.cache_path, self.user_hash)
             if uin not in [None, 0]:
                 self.uin = uin
             else:
@@ -559,13 +621,14 @@ class WeChatParser(Wechat):
                 if canceller.IsCancellationRequested:
                     break
                 try:
+                    feed_id = self._db_record_get_int_value(rec, 'snsId')
                     username = self._db_record_get_string_value(rec, 'userName')
                     content = self._db_record_get_blob_value(rec, 'content')
                     attr = self._db_record_get_blob_value(rec, 'attrBuf')
                     deleted = 0 if rec.Deleted == DeletedState.Intact else 1
                     self._parse_wc_db_with_value(deleted, node.AbsolutePath, username, content, attr)
                 except Exception as e:
-                    pass
+                    print_error()
             self.im.db_commit()
             self.push_models()
 
@@ -1149,7 +1212,7 @@ class WeChatParser(Wechat):
                     bank_card.source = source
                     bank_card.bank_name = self._db_record_get_string_value(rec, 'bankName')
                     bank_card.phone_number = self._db_record_get_string_value(rec, 'mobile')
-                    bank_card.card_number = self._db_reader_get_string_value(rec, 'bankcardTail')
+                    bank_card.card_number = self._db_record_get_string_value(rec, 'bankcardTail')
                     bank_card.card_type = self._db_record_get_string_value(rec, 'bankcardTypeName')
                     bank_card.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
                     bank_card.insert_db(self.im)
@@ -1433,9 +1496,13 @@ class SnsParser:
                     if latitude != 0 or longitude != 0:
                         feed.location_latitude = latitude
                         feed.location_longitude = longitude
-                        feed.location_address = self._get_ts_value(ret, 3) + ' ' + self._get_ts_value(ret,
-                                                                                                      5) + ' ' + self._get_ts_value(
-                            ret, 15)
+                        try:
+                            address1 = self._get_ts_value(ret, 3) or ""
+                            address2 = self._get_ts_value(ret, 5) or ""
+                            address3 = self._get_ts_value(ret, 15) or ""
+                            feed.location_address = " ".join((address1, address2, address3))
+                        except Exception as e:
+                            feed.location_address = None
                         feed.location_type = model_wechat.LOCATION_TYPE_GOOGLE
 
     def get_likes(self, feed):

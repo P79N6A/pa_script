@@ -10,75 +10,33 @@ import clr
 try:
     clr.AddReference('model_im')
     clr.AddReference('bcp_im')
+    clr.AddReference('ScriptUtils')
 except:
     pass
 del clr
 
 import model_im
 import bcp_im
+from ScriptUtils import CASE_NAME, DEBUG, exc, tp, print_run_time, parse_decorator, base_analyze, BaseParser
 
-DEBUG = True
-DEBUG = False
-
-CASE_NAME = ds.ProjectState.ProjectDir.Name
 
 DEFAULT_USERNAME = '未知用户名'
 
-VERSION_APP_VALUE = 1
+VERSION_APP_VALUE = 2
 
 
-def exc(e=''):
-    ''' Exception output '''
-    try:
-        if DEBUG:
-            py_name = os.path.basename(__file__)
-            msg = 'DEBUG {} case:<{}> :'.format(py_name, CASE_NAME)
-            TraceService.Trace(TraceLevel.Warning, (msg+'{}{}').format(traceback.format_exc(), e))
-    except:
-        pass   
-
-def test_p(*e):
-    ''' Highlight print in test environments vs console '''
-    if DEBUG:
-        TraceService.Trace(TraceLevel.Warning, "{}".format(e))
-    else:
-        pass
-
-def print_run_time(func): 
-    ''' decorator ''' 
-    def wrapper(*args, **kw):  
-        local_time = time.time()  
-        res = func(*args, **kw) 
-        if DEBUG:
-            msg = 'Current Function <{}> run time is {:.2} s'.format(func.__name__ , time.time() - local_time)  
-            TraceService.Trace(TraceLevel.Warning, "{}".format(msg))
-        if res:
-            return res
-    return wrapper
-
-################################
-
+@parse_decorator
 def analyze_line(node, extract_deleted, extract_source):
-    ''' ios LINE jp.naver.line '''
+    return base_analyze(AppleLineParser, 
+                        node, 
+                        bcp_im.CONTACT_ACCOUNT_TYPE_IM_LINE, 
+                        VERSION_APP_VALUE,
+                        bulid_name='LINE',
+                        db_name='LINE_i')
 
-    test_p('apple_line.py is running ...')
-    pr = ParserResults()
-    res = []
 
-    try:
-        res = LineParser(node, extract_deleted, extract_source).parse()
-    except:
-        TraceService.Trace(TraceLevel.Debug, 
-                           'apple_line.py 解析新案例 "{}" 出错: {}'.format(CASE_NAME, traceback.format_exc()))
-    if res:
-        pr.Models.AddRange(res)
-        pr.Build('LINE')
-        test_p('apple_line.py is finished !')
-    return pr
-
-class LineParser(object):
-
-    def __init__(self, node, extract_deleted, extract_source):
+class AppleLineParser(BaseParser):
+    def __init__(self, node, db_name):
         ''' boundId: 
             
             jp.naver.line    
@@ -89,48 +47,23 @@ class LineParser(object):
                 Library\Preferences\group.com.linecorp.line.plist
                 Library\\Application Support\\PrivateStore\\P_u423af962f1456db6cba8465cf82bb91b\\Messages\\Line.sqlite    
         '''
-        # test_p('node.AbsolutePath:', node.AbsolutePath)
+        super(AppleLineParser, self).__init__(node, db_name)
+        self.VERSION_VALUE_DB = model_im.VERSION_VALUE_DB
+        self.Generate = model_im.GenerateModel
+        self.csm = model_im.IM()
+
         self.root = node.Parent.Parent.Parent
         self.user_plist_node = self.root.GetByPath('Library/Preferences/jp.naver.line.plist')
-
         ################# group.com.linecorp.line ################
         # Library\Preferences\group.com.linecorp.line.plist
         self.group_plist_node = list(self.root.FileSystem.Search('group.com.linecorp.line.plist$'))[0]
-        # test_p(type(self.group_plist_node)) 
-        # test_p(self.group_plist_node.AbsolutePath)
         # Library\\Application Support\\PrivateStore
         self.group_root = self.group_plist_node.Parent.Parent.Parent
         self.group_db_root = self.group_root.GetByPath('Library/Application Support/PrivateStore')
-
-        self.extract_deleted = extract_deleted
-        self.extract_source  = extract_source
-        self.im = model_im.IM()        
-        self.cachepath = ds.OpenCachePath("LINE")
-        hash_str = hashlib.md5(self.root.AbsolutePath).hexdigest()[8:-8]
-        self.cache_db = self.cachepath + '\\i_line_{}.db'.format(hash_str)
-
         self.friend_list = {} # friend_pk: Friend()
 
-    def parse(self):
-        
-        if DEBUG or self.im.need_parse(self.cache_db, VERSION_APP_VALUE):
-            if not self.user_plist_node:
-                return []
-            self.im.db_create(self.cache_db) 
-            self.parse_main()
-            if not canceller.IsCancellationRequested:
-                self.im.db_insert_table_version(model_im.VERSION_KEY_DB, model_im.VERSION_VALUE_DB)
-                self.im.db_insert_table_version(model_im.VERSION_KEY_APP, VERSION_APP_VALUE)
-                self.im.db_commit()
-            self.im.db_close()
-        tmp_dir = ds.OpenCachePath('tmp')
-        save_cache_path(bcp_im.CONTACT_ACCOUNT_TYPE_IM_LINE, self.cache_db, tmp_dir)
-
-        models = model_im.GenerateModel(self.cache_db).get_models()
-        return models
-
     def parse_main(self):
-        ''' 
+        '''
             # self.CHAT_DICT              = {}   # table ZCHAT, keys: 'ZTYPE', 'ZMID', 'chat_name'
             # self.CHAT_PK_FRIEND_PKS     = {}   # chat pk: friend pk            Z_1MEMBERS
             # self.CHAT_PK_CHATROOM_MID   = {}   # chat pk: chatroom_mid
@@ -160,6 +93,9 @@ class LineParser(object):
                 2. ZUSER, ZCHAT => friend.mid: chatroom.mid  # CHAT_PK_CHATROOM_MID
             需要: FRIEND_MID_PK_MAP
         '''
+        if not self.user_plist_node:
+            return
+                
         account = self.parse_Account(self.user_plist_node, self.group_plist_node)
         if not account.account_id:
             return 
@@ -168,14 +104,12 @@ class LineParser(object):
 
         ######### Share 目录下 group.com.linecorp.line #########
         if self._read_db(self.group_db_root, account_file_name+'/Messages/Line.sqlite'):
-            
             # 群 mid: member_count
             CHATROOM_MEMBER_COUNT, MEMBER_PK_CHATROOM_PKS = self.preparse_group_member('Z_4MEMBERS')   
             # friend ZMID: telphone
             FRIEND_MID_TEL     = self.preparse_friend_tel('ZCONTACT')       
             # chat pk: friend pk
             CHAT_PK_FRIEND_PKS = self.preparse_chat_friend_pk('Z_1MEMBERS') 
-
             FRIEND_PK_NAME_MAP, FRIEND_PK_MID_MAP = self.parse_Friend('ZUSER', FRIEND_MID_TEL)
             CHATROOM_MID_NAME, CHATROOM_PK_MID  = self.parse_Chatroom('ZGROUP', CHATROOM_MEMBER_COUNT)
             CHAT_DICT, CHATROOM_MID_NAME = self.preparse_ZCHAT('ZCHAT', 
@@ -222,11 +156,11 @@ class LineParser(object):
         account = model_im.Account()
         if user_plist_res:
             account.account_id = self.cur_account_id = user_plist_res['mid']
-            account.nickname   = user_plist_res['name']
-            account.username   = user_plist_res['uid']
-            account.signature  = user_plist_res['statusMessage']
-            account.telephone  = user_plist_res['tel']
-            pic_url = group_plist_res['LineProfilePicturePath']
+            account.nickname   = user_plist_res.get('name')
+            account.username   = user_plist_res.get('uid')
+            account.signature  = user_plist_res.get('statusMessage')
+            account.telephone  = user_plist_res.get('tel')
+            pic_url = group_plist_res.get('LineProfilePicturePath')
             if pic_url and pic_url.startswith('/'):
                 account.photo = self._search_profile_img(pic_url)        
             account.source     = self.user_plist_node.AbsolutePath
@@ -243,10 +177,10 @@ class LineParser(object):
         if not account.account_id:
             return account        
         try:
-            account.insert_db(self.im)
+            account.insert_db(self.csm)
         except:
             exc()
-        self.im.db_commit()      
+        self.csm.db_commit()      
         return account
 
     def preparse_group_member(self, table_name):
@@ -403,7 +337,7 @@ class LineParser(object):
                     chatroom.source      = self.cur_db_source
                     chatroom.deleted     = 1
                     try:
-                        chatroom.insert_db(self.im)
+                        chatroom.insert_db(self.csm)
                     except:
                         exc()
                 chat_name = CHATROOM_MID_NAME.get(chat_zmid, '已退出该群')
@@ -415,7 +349,7 @@ class LineParser(object):
                 'ZMID'     : chat_zmid, # 会话对象 MID
                 'chat_name': chat_name, # 会话对象的名称, 例如好友, 群...
             }
-        self.im.db_commit()                      
+        self.csm.db_commit()                      
         return CHAT_DICT, CHATROOM_MID_NAME
 
     @print_run_time
@@ -479,14 +413,14 @@ class LineParser(object):
                 CHATROOM_MID_NAME[chatroom.chatroom_id] = chatroom.name
                 CHATROOM_PK_MID[rec['Z_PK'].Value] = chatroom.chatroom_id
             except:
-                test_p('self.CHATROOM_MID_NAME', CHATROOM_MID_NAME)
-                test_p('chatroom.chatroom_id', chatroom.chatroom_id)
+                tp('self.CHATROOM_MID_NAME', CHATROOM_MID_NAME)
+                tp('chatroom.chatroom_id', chatroom.chatroom_id)
                 exc()
             try:
-                chatroom.insert_db(self.im)
+                chatroom.insert_db(self.csm)
             except:
                 exc()
-        self.im.db_commit()  
+        self.csm.db_commit()  
         return CHATROOM_MID_NAME, CHATROOM_PK_MID
 
     @print_run_time
@@ -578,11 +512,11 @@ class LineParser(object):
             FRIEND_PK_NAME_MAP[friend_pk] = friend.nickname
             self.friend_list[friend_pk] = friend
             try:
-                friend.insert_db(self.im)
+                friend.insert_db(self.csm)
             except:
                 exc()
 
-        self.im.db_commit()
+        self.csm.db_commit()
         return FRIEND_PK_NAME_MAP, FRIEND_PK_MID_MAP
 
     @print_run_time
@@ -614,33 +548,32 @@ class LineParser(object):
         for friend_pk, friend in friend_list.iteritems():
             # M2M,  friend chatroom
             for chatroom_pk in MEMBER_PK_CHATROOM_PKS.get(friend_pk, [False]):
-
-                if chatroom_pk:
-                    chatroom_mid = CHATROOM_PK_MID.get(chatroom_pk, None)
-                # 如果 chatroom_pk 不在 群与群成员关系表里, 则说明是 退出的群
-                # 需要根据 ZCHAT, 即 ZCHAT 表的 pk, 关联 群id(ZMID)
-                else: # pk 2 mid
-                    chatroom_mid = DEL_FRIEND_PK_CHATROOM_MID.get(friend_pk, None)
-                if not chatroom_mid:
-                    continue
-                cm = model_im.ChatroomMember()
-                cm.account_id   = friend.account_id # 账户ID[TEXT]
-                if chatroom_mid and chatroom_mid.startswith('c'):
-                    cm.chatroom_id  = chatroom_mid
-                cm.member_id    = friend.friend_id  # 成员ID[TEXT]
-                cm.display_name = friend.remark if friend.remark else friend.nickname # 群内显示名称[TEXT]
-                cm.photo        = friend.photo      # 头像[TEXT]
-                cm.telephone    = friend.telephone  
-                cm.email        = friend.email
-                cm.gender       = friend.gender
-                cm.age          = friend.age 
-                cm.address      = friend.address
-                cm.birthday     = friend.birthday
-                cm.signature    = friend.signature  
-                cm.deleted      = friend.deleted  
-                cm.source       = friend.source  
                 try:
-                    cm.insert_db(self.im)
+                    if chatroom_pk:
+                        chatroom_mid = CHATROOM_PK_MID.get(chatroom_pk, None)
+                    # 如果 chatroom_pk 不在 群与群成员关系表里, 则说明是 退出的群
+                    # 需要根据 ZCHAT, 即 ZCHAT 表的 pk, 关联 群id(ZMID)
+                    else: # pk 2 mid
+                        chatroom_mid = DEL_FRIEND_PK_CHATROOM_MID.get(friend_pk, None)
+                    if not chatroom_mid:
+                        continue
+                    cm = model_im.ChatroomMember()
+                    cm.account_id   = friend.account_id # 账户ID[TEXT]
+                    if chatroom_mid and chatroom_mid.startswith('c'):
+                        cm.chatroom_id  = chatroom_mid
+                    cm.member_id    = friend.friend_id  # 成员ID[TEXT]
+                    cm.display_name = friend.remark if friend.remark else friend.nickname # 群内显示名称[TEXT]
+                    cm.photo        = friend.photo      # 头像[TEXT]
+                    cm.telephone    = friend.telephone  
+                    cm.email        = friend.email
+                    cm.gender       = friend.gender
+                    cm.age          = friend.age 
+                    cm.address      = friend.address
+                    cm.birthday     = friend.birthday
+                    cm.signature    = friend.signature  
+                    cm.deleted      = friend.deleted  
+                    cm.source       = friend.source  
+                    cm.insert_db(self.csm)
                 except:
                     exc()
 
@@ -683,76 +616,74 @@ class LineParser(object):
         '''
         DEL_FRIEND_PK_CHATROOM_MID = {}
         for rec in self._read_table(table_name):
-            if canceller.IsCancellationRequested:
-                return
-            if self._is_empty(rec, 'ZTIMESTAMP', 'ZCHAT') or self._is_duplicate(rec, 'Z_PK'):
-                continue        
-            message = model_im.Message()
-            message.account_id  = self.cur_account_id
-            message.msg_id      = rec['ZID'].Value
-            sender_pk           = rec['ZSENDER'].Value
-            message.sender_id   = FRIEND_PK_MID_MAP.get(sender_pk, None)
-            message.sender_name = FRIEND_PK_NAME_MAP.get(sender_pk, None)
-            message.content     = rec['ZTEXT'].Value
-            message.send_time   = self._get_im_ts(rec['ZTIMESTAMP'].Value)
-            message.status      = self._convert_msg_status(rec['ZSENDSTATUS'].Value)
-
-            # MESSAGE_CONTENT_TYPE
-            if IsDBNull(rec['ZSENDER'].Value) and IsDBNull(rec['ZID'].Value):
-                message.type = model_im.MESSAGE_CONTENT_TYPE_SYSTEM
-            else:            
-                message.type = self._convert_msg_type(rec['ZCONTENTTYPE'].Value)
-
-            if rec['Z_OPT'].Value==3 or (rec['ZCONTENTTYPE'].Value!=18 and not sender_pk and rec['ZID'].Value):
-                message.is_sender = 1
-                message.sender_id = self.cur_account_id
-            # CHAT_TYPE 区分是 好友聊天还是群聊天 CHAT_TYPE, 2 是群, 0 是好友
             try:
-                ZCHAT_ZTYPE = CHAT_DICT.get(rec['ZCHAT'].Value, {}).get('ZTYPE', None)
-                message.talker_type = self._convert_chat_type(ZCHAT_ZTYPE)
+                if self._is_empty(rec, 'ZTIMESTAMP', 'ZCHAT') or self._is_duplicate(rec, 'Z_PK'):
+                    continue        
+                message = model_im.Message()
+                message.account_id  = self.cur_account_id
+                message.msg_id      = rec['ZID'].Value
+                sender_pk           = rec['ZSENDER'].Value
+                message.sender_id   = FRIEND_PK_MID_MAP.get(sender_pk, None)
+                message.sender_name = FRIEND_PK_NAME_MAP.get(sender_pk, None)
+                message.content     = rec['ZTEXT'].Value
+                message.send_time   = self._get_im_ts(rec['ZTIMESTAMP'].Value)
+                message.status      = self._convert_msg_status(rec['ZSENDSTATUS'].Value)
+
+                # MESSAGE_CONTENT_TYPE
+                if IsDBNull(rec['ZSENDER'].Value) and IsDBNull(rec['ZID'].Value):
+                    message.type = model_im.MESSAGE_CONTENT_TYPE_SYSTEM
+                else:            
+                    message.type = self._convert_msg_type(rec['ZCONTENTTYPE'].Value)
+
+                if rec['Z_OPT'].Value==3 or (rec['ZCONTENTTYPE'].Value!=18 and not sender_pk and rec['ZID'].Value):
+                    message.is_sender = 1
+                    message.sender_id = self.cur_account_id
+                # CHAT_TYPE 区分是 好友聊天还是群聊天 CHAT_TYPE, 2 是群, 0 是好友
+                try:
+                    ZCHAT_ZTYPE = CHAT_DICT.get(rec['ZCHAT'].Value, {}).get('ZTYPE', None)
+                    message.talker_type = self._convert_chat_type(ZCHAT_ZTYPE)
+                except:
+                    exc()
+                message.talker_id = rec['ZCHAT'].Value
+
+                # 获取已删除的群与群成员关系, 即 ZMESSAGE.ZCHAT: ZMESSAGE.sender_mid
+                # 如果 ZCHAT 对应的 ZCHAT 对应的 chatroom mid 不存在于 ZGROUP 表中, 即已删除
+                if message.talker_type == model_im.CHAT_TYPE_GROUP:
+                    # CHAT_PK_CHATROOM_MID
+                    msg_chat_pk = rec['ZCHAT'].Value
+                    if sender_pk and CHAT_DICT.get(msg_chat_pk, {}).get('chat_name', '').startswith('已退出'):
+                        DEL_FRIEND_PK_CHATROOM_MID[sender_pk] = CHAT_DICT.get(msg_chat_pk, {}).get('ZMID', None)
+                    message.talker_name = CHAT_DICT.get(msg_chat_pk, {}).get('chat_name', None)
+                else: # 非群聊
+                    chat_pk    = rec['ZCHAT'].Value
+                    friend_pks = CHAT_PK_FRIEND_PKS.get(chat_pk, [None])
+                    message.talker_name = FRIEND_PK_NAME_MAP.get(friend_pks[0], None)
+
+                if message.content and message.content[-4:] in ['.m4a', '.mp4']:
+                    # 本人发的语音, 视频, 保留在 /tmp, 文件名不变 self.root + tmp/_3997735.m4a
+                    message.media_path = message.content
+                elif message.type in [model_im.MESSAGE_CONTENT_TYPE_IMAGE, 
+                                      model_im.MESSAGE_CONTENT_TYPE_VOICE,
+                                      model_im.MESSAGE_CONTENT_TYPE_VIDEO,
+                                      model_im.MESSAGE_CONTENT_TYPE_ATTACHMENT]:
+                    msg_ZCHAT = rec['ZCHAT'].Value                
+                    msg_ZID   = rec['ZID'].Value
+                    if msg_ZID and msg_ZCHAT:
+                        message.media_path = self._get_msg_media_path(CHAT_DICT, msg_ZCHAT, msg_ZID)
+                # 位置
+                if message.type == model_im.MESSAGE_CONTENT_TYPE_LOCATION:
+                    location = message.create_location()
+                    location.latitude  = rec['ZLATITUDE'].Value
+                    location.longitude = rec['ZLONGITUDE'].Value
+                    location.address   = rec['ZTEXT'].Value
+                    location.timestamp = self._get_im_ts(rec['ZTIMESTAMP'].Value)
+                    location.source    = self.cur_db_source
+                message.source  = self.cur_db_source
+                message.deleted = 1 if rec.IsDeleted else 0         
+                message.insert_db(self.csm)
             except:
                 exc()
-            message.talker_id = rec['ZCHAT'].Value
-
-            # 获取已删除的群与群成员关系, 即 ZMESSAGE.ZCHAT: ZMESSAGE.sender_mid
-            # 如果 ZCHAT 对应的 ZCHAT 对应的 chatroom mid 不存在于 ZGROUP 表中, 即已删除
-            if message.talker_type == model_im.CHAT_TYPE_GROUP:
-                # CHAT_PK_CHATROOM_MID
-                msg_chat_pk = rec['ZCHAT'].Value
-                if sender_pk and CHAT_DICT.get(msg_chat_pk, {}).get('chat_name', '').startswith('已退出'):
-                    DEL_FRIEND_PK_CHATROOM_MID[sender_pk] = CHAT_DICT.get(msg_chat_pk, {}).get('ZMID', None)
-                message.talker_name = CHAT_DICT.get(msg_chat_pk, {}).get('chat_name', None)
-            else: # 非群聊
-                chat_pk    = rec['ZCHAT'].Value
-                friend_pks = CHAT_PK_FRIEND_PKS.get(chat_pk, [None])
-                message.talker_name = FRIEND_PK_NAME_MAP.get(friend_pks[0], None)
-
-            if message.content and message.content[-4:] in ['.m4a', '.mp4']:
-                # 本人发的语音, 视频, 保留在 /tmp, 文件名不变 self.root + tmp/_3997735.m4a
-                message.media_path = message.content
-            elif message.type in [model_im.MESSAGE_CONTENT_TYPE_IMAGE, 
-                                  model_im.MESSAGE_CONTENT_TYPE_VOICE,
-                                  model_im.MESSAGE_CONTENT_TYPE_VIDEO,
-                                  model_im.MESSAGE_CONTENT_TYPE_ATTACHMENT]:
-                msg_ZCHAT = rec['ZCHAT'].Value                
-                msg_ZID   = rec['ZID'].Value
-                if msg_ZID and msg_ZCHAT:
-                    message.media_path = self._get_msg_media_path(CHAT_DICT, msg_ZCHAT, msg_ZID)
-            # 位置
-            if message.type == model_im.MESSAGE_CONTENT_TYPE_LOCATION:
-                location = message.create_location()
-                location.latitude  = rec['ZLATITUDE'].Value
-                location.longitude = rec['ZLONGITUDE'].Value
-                location.address   = rec['ZTEXT'].Value
-                location.timestamp = self._get_im_ts(rec['ZTIMESTAMP'].Value)
-                location.source    = self.cur_db_source
-            message.source  = self.cur_db_source
-            message.deleted = 1 if rec.IsDeleted else 0         
-            try:
-                message.insert_db(self.im)
-            except:
-                exc()
-        self.im.db_commit()  
+        self.csm.db_commit()  
         return DEL_FRIEND_PK_CHATROOM_MID
 
     def parse_Feed(self, plist_node=None):
@@ -835,7 +766,7 @@ class LineParser(object):
                 location.latitude  = loc_node['latitude'].Value
                 location.longitude = loc_node['longitude'].Value
                 try:
-                    self.im.db_insert_table_location(location)
+                    self.csm.db_insert_table_location(location)
                 except:
                     exc()            
                 feed.location = location.location_id
@@ -847,10 +778,10 @@ class LineParser(object):
             feed.commentcount = feed_node['postInfo']['commentCount'].Value           # 评论数量[INT]
             feed.source = plist_node.AbsolutePath
             try:
-                self.im.db_insert_table_feed(feed)
+                self.csm.db_insert_table_feed(feed)
             except:
                 exc()
-        self.im.db_commit()       
+        self.csm.db_commit()       
 
     def parse_Search(self, table_name):
         ''' # 5A249183-668C-4CC0-B983-C0A7EA2E657F
@@ -872,20 +803,18 @@ class LineParser(object):
             self.create_time = None  # 搜索时间[INT]            
         '''
         for rec in self._read_table(table_name):
-            if canceller.IsCancellationRequested:
-                return
-            if self._is_empty(rec, 'ZSEARCHKEYWORD') or self._is_duplicate(rec, 'Z_PK'):
-                continue              
-            search = model_im.Search()
-            search.account_id = self.cur_account_id
-            search.key        = rec['ZSEARCHKEYWORD'].Value
-            search.source     = self.cur_db_source
-            search.deleted    = 1 if rec.IsDeleted else 0               
             try:
-                search.insert_db(self.im)
+                if self._is_empty(rec, 'ZSEARCHKEYWORD') or self._is_duplicate(rec, 'Z_PK'):
+                    continue              
+                search = model_im.Search()
+                search.account_id = self.cur_account_id
+                search.key        = rec['ZSEARCHKEYWORD'].Value
+                search.source     = self.cur_db_source
+                search.deleted    = 1 if rec.IsDeleted else 0               
+                search.insert_db(self.csm)
             except:
                 exc()
-        self.im.db_commit()                        
+        self.csm.db_commit()                        
 
     @staticmethod
     def _read_plist(plist_node, *keys):
@@ -897,16 +826,15 @@ class LineParser(object):
         '''
         res = {}
         bp = BPReader(plist_node.Data).top    
-        try:
-            for k in keys:
-                # test_p(k)
+        for k in keys:
+            try:
+                # tp(k)
                 if bp and bp[k]:
                     res[k] = bp[k].Value
-                    # test_p(res[k])
-            return res
-        except:
-            exc()
-            return res
+                    # tp(res[k])
+            except:
+                tp('plist error key:', k)
+        return res
 
     def _search_profile_img(self, file_name):
         # 用户, 好友, 群 头像 存储位置: \F8B8...
@@ -917,16 +845,15 @@ class LineParser(object):
         pp = '/Library/Caches/PrivateStore/P_' \
              + self.cur_account_id + r'/Profile Images' \
              + file_name
-        #test_p('friend pic url pattern ', pp)
+        #tp('friend pic url pattern ', pp)
 
         _node = self.group_root.GetByPath(pp)
         if _node:
             for file_node in _node.Children:
                 file_path = file_node.AbsolutePath
                 if file_path.split('/')[-1].endswith('.jpg'):
-                    # test_p(file_path)
+                    # tp(file_path)
                     return file_path
-        return 
 
     def _get_msg_media_path(self, CHAT_DICT, msg_ZCHAT, msg_ZID):
         ''' 获取聊天 media_path
@@ -947,7 +874,7 @@ class LineParser(object):
             for file_node in download_media_node.Children:
                 file_path = file_node.AbsolutePath
                 if file_path.split('/')[-1].startswith(msg_ZID):
-                    # test_p(file_path)
+                    # tp(file_path)
                     return file_path
         cache_media_path = '/Library/Application Support/PrivateStore/P_' \
                         + self.cur_account_id + r'/Message Thumbnails/' \
@@ -973,7 +900,7 @@ class LineParser(object):
         try:
             return type_map[ZTYPE]
         except:
-            test_p('new CHAT_TYPE {}!!!!!!!!!!!!!!!!!'.format(ZTYPE))
+            tp('new CHAT_TYPE {}!!!!!!!!!!!!!!!!!'.format(ZTYPE))
 
     @staticmethod
     def _convert_msg_type(ZCONTENTTYPE):
@@ -999,7 +926,7 @@ class LineParser(object):
         try:
             return type_map[ZCONTENTTYPE]
         except:
-            test_p('new ZCONTENTTYPE {}!!!!!!!!!!!!!!!!!'.format(ZCONTENTTYPE))
+            tp('new ZCONTENTTYPE {}!!!!!!!!!!!!!!!!!'.format(ZCONTENTTYPE))
 
     @staticmethod
     def _convert_msg_status(ZSENDSTATUS):
@@ -1020,7 +947,7 @@ class LineParser(object):
         try:
             return type_map[ZSENDSTATUS]
         except:
-            test_p('new ZSENDSTATUS {}!!!!!!!!!!!!!!!!!'.format(ZSENDSTATUS))
+            tp('new ZSENDSTATUS {}!!!!!!!!!!!!!!!!!'.format(ZSENDSTATUS))
 
     @staticmethod
     def _convert_friend_type(ZCONTACTTYPE):
@@ -1047,7 +974,7 @@ class LineParser(object):
         try:
             return type_map[ZCONTACTTYPE]
         except:
-            test_p('new ZCONTACTTYPE {}!!!!!!!!!!!!!!!!!'.format(ZCONTACTTYPE))
+            tp('new ZCONTACTTYPE {}!!!!!!!!!!!!!!!!!'.format(ZCONTACTTYPE))
 
     @staticmethod
     def _convert_send_status(ZSENDSTATUS):
@@ -1072,22 +999,7 @@ class LineParser(object):
         try:
             return type_map[ZSENDSTATUS]
         except:
-            test_p('new ZSENDSTATUS {}!!!!!!!!!!!!!!!!!'.format(ZSENDSTATUS))
-
-    @staticmethod
-    def _convert_ios_time(timestamp):
-        ''' convert_ios_time
-
-        :type timestamp: float, Int64  9 digit
-        :rtype unixtime: int           13 digit
-        '''
-        if timestamp < 0 or len(str(int(timestamp))) != 9:
-            return 
-        dstart = DateTime(1970,1,1,0,0,0)
-        cdate = TimeStampFormats.GetTimeStampEpoch1Jan2001(timestamp)
-        uinixtime = int((cdate - dstart).TotalSeconds)
-        return uinixtime
-
+            tp('new ZSENDSTATUS {}!!!!!!!!!!!!!!!!!'.format(ZSENDSTATUS))
 
     def _read_db(self, db_root, db_path):
         ''' 读取手机数据库
@@ -1095,62 +1007,16 @@ class LineParser(object):
         :type db_path: str
         :rtype: bool                              
         '''
-        db_node = db_root.GetByPath(db_path)
-        self.cur_db = SQLiteParser.Database.FromNode(db_node, canceller)
-        if self.cur_db is None:
-            return False
-        self.cur_db_source = db_node.AbsolutePath
-        return True
-
-    def _read_table(self, table_name):
-        ''' 读取手机数据库 - 表
-
-        :type table_name: str
-        :rtype: db.ReadTableRecords()                                       
-        '''
-        self._PK_LIST = []
         try:
-            tb = SQLiteParser.TableSignature(table_name)  
-            return self.cur_db.ReadTableRecords(tb, self.extract_deleted, True)
-        except:
-            exc()
-            return []
-
-    def _is_duplicate(self, rec, pk_name):
-        ''' filter duplicate record
-        
-        Args:
-            rec (record): 
-            pk_name (str): 
-        Returns:
-            bool: rec[pk_name].Value in self._PK_LIST
-        '''
-        try:
-            pk_value = rec[pk_name].Value
-            if IsDBNull(pk_value) or pk_value in self._PK_LIST:
-                return True
-            self._PK_LIST.append(pk_value)
-            return False
-        except:
-            exc()
+            db_node = db_root.GetByPath(db_path)
+            self.cur_db = SQLiteParser.Database.FromNode(db_node, canceller)
+            if self.cur_db is None:
+                return False
+            self.cur_db_source = db_node.AbsolutePath
             return True
-            
-    @staticmethod
-    def _is_empty(rec, *args):
-        ''' 过滤 DBNull 空数据, 有一空值就跳过
-        
-        :type rec:   rec
-        :type *args: str
-        :rtype: bool
-        '''
-        try:
-            for i in args:
-                if IsDBNull(rec[i].Value) or rec[i].Value in ('', ' ', None, [], {}):
-                    return True
-            return False
         except:
             exc()
-            return True    
+            return False
 
     @staticmethod
     def _get_im_ts(timestamp):
