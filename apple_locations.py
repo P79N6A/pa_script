@@ -4,7 +4,6 @@ import PA_runtime
 from PA_runtime import *
 import re
 from PA.Common.Utilities.Types import TimeStampFormats
-from PA.InfraLib import LocationSourceType
 import sqlite3
 import clr
 clr.AddReference('System.Core')
@@ -16,6 +15,8 @@ import System
 from System.Text import *
 import shutil
 import time
+from PA.InfraLib.ModelsV2 import *
+from PA.InfraLib.ModelsV2.CommonEnum import CoordinateType
 
 def moveFileto(sourceDir,  targetDir): 
     shutil.copy(sourceDir,  targetDir)
@@ -168,7 +169,7 @@ class LocationsParser(object):
             result = Location()
             result.Deleted = record.Deleted
             result.Category.Value = LocationCategories.CELL_TOWERS
-            result.SourceType = LocationSourceType.CellTowers
+
             cell = CellTower()
             cell.Deleted = result.Deleted
 
@@ -207,7 +208,7 @@ class LocationsParser(object):
             result = Location()
             result.Deleted = record.Deleted
             result.Category.Value = LocationCategories.CELL_TOWERS
-            result.SourceType = LocationSourceType.CellTowers
+
             cell = CellTower()
             cell.Deleted = result.Deleted
 
@@ -244,7 +245,6 @@ class LocationsParser(object):
             result = Location()
             result.Deleted = record.Deleted
             result.Category.Value = LocationCategories.WIFI_NETWORKS
-            result.SourceType = LocationSourceType.WifiNetwork
 
             self.get_timestamp_from_record(record, result.TimeStamp)
             self.get_mac_from_record(record, result.Description)
@@ -271,7 +271,6 @@ class LocationsParser(object):
             result = Location()
             result.Deleted = record.Deleted
             result.Category.Value = LocationCategories.HARVESTED
-            result.SourceType = LocationSourceType.LocationHarvest
 
             self.get_timestamp_from_record(record, result.TimeStamp)
             self.get_description_from_record(record, result.Description, ['MCC', 'MNC'])
@@ -299,7 +298,6 @@ class LocationsParser(object):
             result = Location()
             result.Deleted = record.Deleted
             result.Category.Value = 'Wifi探测'
-            result.SourceType = LocationSourceType.WifiHarvest
 
             wn = WirelessNetwork()
             wn.Deleted = result.Deleted
@@ -340,8 +338,6 @@ class LocationsParser(object):
             result = Location()
             result.Deleted = record.Deleted
             result.Category.Value = "Harvested Cell Towers"
-            result.SourceType = LocationSourceType.CellHarvest
-
             self.get_timestamp_from_record(record, result.TimeStamp)
             self.get_description_from_record(record, result.Description, ['Operator', 'MCC', 'MNC', 'LAC', 'CI'])
             self.get_coordinate_and_data_from_record(record, result)
@@ -405,7 +401,6 @@ class LocationsParser(object):
             result = Location()
             result.Deleted = record.Deleted
             result.Category.Value = LocationCategories.REMINDER
-            result.SourceType = LocationSourceType.Reminder
 
             SQLiteParser.Tools.ReadColumnToField(record, 'BundleId', result.Description, self.extract_source)
             self.get_timestamp_from_record(record, result.TimeStamp)
@@ -453,8 +448,6 @@ class LocationsParser(object):
             result = Location()
             result.Deleted = record.Deleted
             result.Category.Value = "应用探测"
-            result.SourceType = LocationSourceType.Reminder
-
             self.get_timestamp_from_record(record, result.TimeStamp)
             SQLiteParser.Tools.ReadColumnToField(record, 'BundleId', result.Description, self.extract_source)
             self.get_coordinate_and_data_from_record(record, result)
@@ -490,7 +483,6 @@ class FrequentLocationsParser(object):
         self.extractDeleted = extractDeleted
         self.category = LocationCategories.FREQUENT_LOCATIONS
         self.cache = ds.OpenCachePath("Frequent_locations")
-        self.sourceType = LocationSourceType.FrequentLocs
 
     def parse(self):
         results = []
@@ -499,6 +491,8 @@ class FrequentLocationsParser(object):
         results.extend(self.parseStateModels())
         results.extend(self.parse_new_version_locations())
         results.extend(self.get_waypoint())
+        results.extend(self.get_recent_one_week_location())
+        print(len(results))
         return results
 
     @staticmethod
@@ -541,7 +535,6 @@ class FrequentLocationsParser(object):
                         return
                     loc = Location()
                     loc.Deleted = rec.Deleted
-                    loc.SourceType = self.sourceType
                     coor = Coordinate()
                     if "ZLATITUDE" in rec and(not rec["ZLATITUDE"].IsDBNull):
                         coor.Latitude.Value = float(rec["ZLATITUDE"].Value)
@@ -669,14 +662,14 @@ class FrequentLocationsParser(object):
                                 cdate = TimeStampFormats.GetTimeStampEpoch1Jan2001(s_dates)
                                 loc.TimeStamp.Value = TimeStamp.FromUnixTime(int((cdate - dstart).TotalSeconds), False)
                             except Exception as e:
-                                TraceService.Debug("Time Transfer Failed!")
+                                TraceService.Trace(TraceLevel.Error,"".format(e))
                             try:
                                 e_dates = GetFloat(g_results,1)
                                 dstart = DateTime(1970,1,1,0,0,0)
                                 cdate = TimeStampFormats.GetTimeStampEpoch1Jan2001(e_dates)
                                 loc.EndTime.Value = TimeStamp.FromUnixTime(int((cdate - dstart).TotalSeconds), False)
                             except Exception as e:
-                                TraceService.Debug("Time Transfer Failed!")
+                                TraceService.Trace(TraceLevel.Error,"{0}".format(e))
                             frequent_journey.WayPoints.Add(loc)
                         cmd.Dispose()
                         results.append(frequent_journey)
@@ -689,6 +682,66 @@ class FrequentLocationsParser(object):
             except Exception as e:
                 pass
         return results
+
+    def get_recent_one_week_location(self):
+        results = []
+        dbNodes = self.root.Files
+        if dbNodes is None:
+            return
+        for dbFile in dbNodes:
+            if not dbFile.Name.endswith("sqlite"):
+                continue
+            db = SQLiteParser.Database.FromNode(dbFile, canceller)
+            if db is None:
+                continue
+            if "ZRTCLLOCATIONMO" not in db.Tables:
+                continue
+            connection = System.Data.SQLite.SQLiteConnection('Data Source = {0}; ReadOnly = True'.format(self.read_file_path(dbFile)))
+            try:
+                connection.Open()
+                cmd = System.Data.SQLite.SQLiteCommand(connection)
+                cmd.CommandText = """
+                     SELECT
+                        DATETIME(ZTIMESTAMP + 978307200, 'unixepoch') AS "TIMESTAMP",
+                        ZCOURSE AS "COURSE",
+                        ZSPEED AS "SPEED (M/S)",
+                        ZHORIZONTALACCURACY AS "HORIZONTAL ACCURACY",
+                        ZVERTICALACCURACY AS "VERTICAL ACCURACY",
+                        ZLATITUDE AS "LATITUDE",
+                        ZLONGITUDE AS "LONGITUDE",
+                        ZRTCLLOCATIONMO.Z_PK AS "ZRTCLLOCATIONMO TABLE ID" 
+                    FROM
+                        ZRTCLLOCATIONMO
+                """
+                reader = cmd.ExecuteReader()
+                while reader.Read():
+                    try:
+                        loc = Base.Location()
+                        loc.SourceType = LocationSourceType.FrequentLocsOfWeek
+                        create_time = str(GetBlob(reader,0))
+                        loc.Time = self.str_to_timestamp(create_time)
+                        latitude = GetFloat(reader, 5)
+                        longitude = GetFloat(reader, 6)
+                        loc.Coordinate = Base.Coordinate(longitude,latitude,CoordinateType.GPS)
+                        results.append(loc)
+                    except Exception as e:
+                        TraceService.Trace(TraceLevel.Error,"{0}".format(e))
+            except Exception as e:
+                TraceService.Trace(TraceLevel.Error,"{0}".format(e))
+        if reader != None:
+            reader.Close()
+        if connection != None:
+            connection.Close()
+        return results
+
+    
+    def str_to_timestamp(self, v):
+        try:
+            _format = "%Y-%m-%d %H:%M:%S"
+            b = time.strptime(v, _format)
+            return TimeStamp.FromUnixTime(time.mktime(b))
+        except:
+            pass
 
     # ios 10之前存放在：
     # >   private/var/mobile/Library/Caches/com.apple.routined/StateModel1.archive
@@ -724,7 +777,6 @@ class FrequentLocationsParser(object):
                     SQLiteParser.Tools.ReadColumnToField[float](rec, 'Altitude', coor.Elevation, self.extractSource, float)
 
                 loc = Location()
-                loc.SourceType = self.sourceType
                 loc.Category.Value = self.category
                 loc.Deleted = rec.Deleted
                 loc.Position.Value = coor
@@ -753,7 +805,6 @@ class FrequentLocationsParser(object):
                 continue
 
             loc = Location()
-            loc.SourceType = self.sourceType
             loc.Category.Value = self.category
             loc.Deleted = DeletedState.Intact
 
@@ -1264,7 +1315,6 @@ class apple_maps(object):
                 l.Category.Value = "Apple Maps Bookmarks"
             l.Description.Value = description
             l.Position.Value = position
-            l.SourceType = LocationSourceType.AppleMap
             locs.append(l)
         return locs
 
@@ -1456,9 +1506,8 @@ def analyze_locations_from_deleted_photos(node, extractDeleted, extractSource):
             SQLiteParser.Tools.ReadColumnToField[TimeStamp](rec, 'ZDATECREATED', loc.TimeStamp, extractSource, ParserHelperTools.TryGetValidTimeStampEpoch1Jan2001)                    
             if extractSource:
                 loc.TimeStamp.Source = MemoryRange (rec['ZDATECREATED'].Source)
-            loc.Category.Value = LocationCategories.MEDIA
+            loc.Category.Value = LocationCategories.MEDIA;
             loc.Deleted = DeletedState.Deleted
-            loc.SourceType = LocationSourceType.PhotoRecover
             SQLiteParser.Tools.ReadColumnToField(rec, 'ZFILENAME', loc.Name, extractSource)
             if buf.startswith("bplist"):
                 tree = BPReader.GetTree(MemoryRange(rec["ZLOCATIONDATA"].Source))
@@ -1485,7 +1534,7 @@ def analyze_locations_from_deleted_photos(node, extractDeleted, extractSource):
     pr.Build('已删除照片')
     return pr
 
-def read_old_locationd(bp, cat, extractSource,srcfile,sourceType):
+def read_old_locationd(bp, cat, extractSource,srcfile):
     pr = ParserResults()
     for desc in bp.Keys:
         if not type(bp[desc]) == BPArray:
@@ -1499,7 +1548,6 @@ def read_old_locationd(bp, cat, extractSource,srcfile,sourceType):
             result.Source.Value = '系统'
             result.SourceApp ='系统'
             result.SourceFile = srcfile
-            result.SourceType = sourceType
             result.TimeStamp.Value = TimeStamp(epoch.AddSeconds(fix['Timestamp'].Value), True)
             if extractSource:
                 result.TimeStamp.Source = MemoryRange(fix['Timestamp'].Source)
@@ -1527,7 +1575,7 @@ def analyze_hcells_from_plist(node, extractDeleted, extractSource):
     if bp is None:
         return
     srcfile = node.AbsolutePathWithFileSystem
-    return read_old_locationd(bp, LocationCategories.CELL_TOWERS, extractSource ,srcfile,LocationSourceType.CellHarvest)
+    return read_old_locationd(bp, LocationCategories.CELL_TOWERS, extractSource ,srcfile)
 
 def analyze_hwifis_from_plist(node, extractDeleted, extractSource):
     if node.Data is None or node.Data.Length <= 0:
@@ -1539,7 +1587,7 @@ def analyze_hwifis_from_plist(node, extractDeleted, extractSource):
     if bp is None:
         return
     srcfile = node.AbsolutePathWithFileSystem
-    return read_old_locationd(bp, LocationCategories.WIFI_NETWORKS, extractSource,srcfile,LocationSourceType.WifiHarvest)
+    return read_old_locationd(bp, LocationCategories.WIFI_NETWORKS, extractSource,srcfile)
 
 def analyze_maps_search(node, extractDeleted, extractSource):
     if node.Data is None or node.Data.Length <= 0:
@@ -1565,7 +1613,7 @@ def analyze_maps_search(node, extractDeleted, extractSource):
                 results.append(search)
     pr = ParserResults()
     pr.Models.AddRange(results)
-    pr.Build('苹果地图搜索记录')
+    pr.Build('苹果地图')
     return pr
 
 def analyze_wifi_from_plist(f, extractDeleted, extractSource):
@@ -1655,7 +1703,7 @@ def analyze_wifi_from_plist(f, extractDeleted, extractSource):
     pr = ParserResults()
     pr.Models.AddRange(results)
     pr.Models.AddRange(locs)
-    pr.Build('Wifi配置')
+    pr.Build('地理位置')
     return pr   
 
 def analyze_network(network,extractDeleted,extractSource):
