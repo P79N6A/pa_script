@@ -2,8 +2,6 @@
 
 import clr
 
-from ScriptUtils import btree2dict, ModelCol, TaoUtils
-
 __author__ = "TaoJianping"
 
 clr.AddReference('System.Core')
@@ -20,7 +18,7 @@ except Exception as e:
 
 import model_eb
 import model_im
-from ScriptUtils import ParserBase, DataModel, Fields, TimeHelper
+from ScriptUtils import ParserBase, DataModel, Fields, TimeHelper, TaoUtils, ModelCol
 import PA_runtime
 import System
 from PA_runtime import *
@@ -95,15 +93,9 @@ class UmetripParser(ParserBase):
         self.master_account = None
         self.history_account_list = []
 
-    def _get_used_account_list(self):
-        return
-
     def _search_account_file(self):
         file_ = self.root.Search("userinfo.dat$")
         return next(iter(file_), None)
-
-    def _search_msg_db(self, account_id):
-        pass
 
     def _search_chat_db(self):
         file_ = self.root.Search("Chat.sqlite$")
@@ -279,6 +271,9 @@ class UmetripParser(ParserBase):
 
     def _main(self):
         self._generate_account_table()
+        if self.master_account is None:
+            print('没有登陆账号')
+            return
         self._generate_history_account()
         self._generate_friend_table()
         self._generate_message_table()

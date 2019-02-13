@@ -80,7 +80,9 @@ class bulletMessage(object):
 
         db_path = model_map.md5(self.cache, self.root.AbsolutePath)
         self.bulletMessage.db_create(db_path)
-        self.main()
+        self.get_user_friends()
+        self.get_messages()
+        self.get_feeds()
         self.bulletMessage.db_close()
 
         tmp_dir = ds.OpenCachePath("tmp")
@@ -93,7 +95,7 @@ class bulletMessage(object):
         return results
 
 
-    def main(self):
+    def get_user_friends(self):
         account_nodes = self.root.Parent.Parent.Parent.GetByPath("/Documents/")
         if account_nodes is None:
             return
@@ -107,6 +109,7 @@ class bulletMessage(object):
                 self.get_friends(a_node, account_id)
 
 
+    def get_messages(self):
         messages_nodes = self.root.Parent.Parent.Parent.GetByPath("/Documents/NIMSDK/93b8bdf673198ce4bb42d4356e7ee5ba/Users/")
         if messages_nodes is None:
             return
@@ -119,6 +122,15 @@ class bulletMessage(object):
             self.get_friends_message(node, m_node.Name)
             self.get_chatroom(m_node.Name)
             self.get_groups_message(node, m_node.Name)
+
+
+    def get_feeds(self):
+        feed_nodes = self.root.Parent.Parent.GetByPath("/Caches/com.bullet.message/FeedCache/")
+        if feed_nodes is None:
+            return
+        for node in feed_nodes:
+            if node.Name.startswith("moment_feed_") and node.Name.endswith("_all"):
+                self._get_user_feed(node)
 
 
     def get_account(self, node):
@@ -566,12 +578,76 @@ class bulletMessage(object):
             pass
 
 
+    def _get_user_feed(self, node):
+        account_id = node.Name[12:-4]
+        with open(node.PathWithMountPoint, "r") as f:
+            json_data = json.loads(f.read())
+            if "list" in json_data:
+                feed_lists = json_data["list"]
+                for item in feed_lists:
+                    feed = model_im.Feed()
+                    feed.source = node.AbsolutePath
+                    feed.account_id = account_id
+                    if "userAccid" in item:
+                        feed.sender_id = item["userAccid"]
+                    if "createTime" in item:
+                        feed.send_time = convert_to_unixtime(item["createTime"])
+                    if "text" in item:
+                        feed.content = item["text"]
+                    if "liked" in item and item["liked"] == True:
+                        like_lists = item["likeList"]
+                        for item_like in like_lists:
+                            f1 = feed.create_like()
+                            f1.send_id = item_like["userAccid"]
+                            f1.sender_name = item_like["name"]
+                            f1.create_time = convert_to_unixtime(item["createTime"])
+                            feed.likecount += 1
+                        if feed.likecount == 0:
+                            feed.like_id = 0
+                    if "location" in item:
+                        loc = feed.create_location()
+                        loc.address = item["location"]
+                        if "longitude" in item:
+                            loc.longitude = item["longitude"]
+                        if "latitude" in item:
+                            loc.longitude = item["latitude"]
+                        loc.timestamp = convert_to_unixtime(item["createTime"])
+                    if "commentList" in item:
+                        comment_list = item["commentList"]
+                        if comment_list:
+                            for item_cmt in comment_list:
+                                fc = feed.create_comment()
+                                fc.sender_id = item_cmt["userAccid"]
+                                fc.sender_name = item_cmt["sponsorName"]
+                                fc.content = item_cmt["text"]
+                                fc.create_time = convert_to_unixtime(item_cmt["createTime"])
+                                feed.commentcount += 1
+                            if feed.commentcount == 0:
+                                feed.comment_id = 0
+                    if item["feedType"] != "text":
+                        resource_lists = item["images"]
+                        if resource_lists:
+                            urls = []
+                            for item_res in resource_lists:
+                                urls.append(item_res)
+                            if len(urls) > 0:
+                                if item["feedType"] == "image":
+                                    feed.image_path = ','.join(str(u) for u in urls)
+                                else:
+                                    feed.video_path = ','.join(str(u) for u in urls)
+                    
+                    feed.insert_db(self.bulletMessage)
+            self.bulletMessage.db_commit()        
+                    
+
+
 def analyze_bulletMessage(node, extractDeleted, extractSource):
-    
+    TraceService.Trace(TraceLevel.Info,"正在分析苹果聊天宝...")
     pr = ParserResults()
     # pr.Categories = DescripCategories.bulletMessage
     results = bulletMessage(node, extractDeleted, extractSource).parse()
     if results:
         pr.Models.AddRange(results)
-        pr.Build("子弹短信")               
+        pr.Build("聊天宝")
+    TraceService.Trace(TraceLevel.Info,"聊天宝分析完成！")               
     return pr
