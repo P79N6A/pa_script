@@ -476,7 +476,7 @@ class GenerateSMSModel(object):
     def _get_timestamp(timestamp):
         try:
             if len(str(timestamp)) >= 10:
-                timestamp = int(str(timestamp)[:10]) + 28800
+                timestamp = int(str(timestamp)[:10])
                 ts = TimeStamp.FromUnixTime(timestamp, False)
                 if ts.IsValidForSmartphone():
                     return ts
