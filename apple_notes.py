@@ -49,9 +49,13 @@ def analyze_notes(node, extractDeleted, extractSource):
                     file_node = list(dir_node)[0].Search('.*\..*')
                     if len(list(file_node)) != 0:
                         if re.findall('image', mimetype):
-                            attach_dic[cid] = "<img src = '" + file_node[0].PathWithMountPoint + "' width='100%'/>"
+                            src = file_node[0].PathWithMountPoint
+                            src = get_uri(src)
+                            attach_dic[cid] = "<img src = '" + src.ToString() + "' width='100%'/>"
                         elif re.findall('video', mimetype):
-                            attach_dic[cid] = "<video src = '" + file_node[0].PathWithMountPoint + "' width='100%'/>"
+                            src = file_node[0].PathWithMountPoint
+                            src = get_uri(src)
+                            attach_dic[cid] = "<video src = '" + src.ToString() + "' width='100%'/>"
             else:
                 attach_dic[cid].append(attach_id)
         except:
@@ -109,6 +113,12 @@ def analyze_notes(node, extractDeleted, extractSource):
         pr.Models.Add(res)
     pr.Build('备忘录')
     return pr
+
+def get_uri(path):
+        if path.startswith('http') or len(path) == 0:
+            return ConvertHelper.ToUri(path)
+        else:
+            return ConvertHelper.ToUri(path)
 
 def analyze_old_notes(node, extractDeleted, extractSource):
     db = SQLiteParser.Database.FromNode(node)
