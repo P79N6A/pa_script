@@ -398,7 +398,7 @@ class Generate(object):
                         image.MimeType = self._db_reader_get_string_value(sr, 5)
                         image.AddTime = self._get_timestamp(addTime)
                         image.Description = self._db_reader_get_string_value(sr, 17)
-                        location = Base.Location()
+                        location = Base.Location(image)
                         coordinate = Base.Coordinate()
                         if not IsDBNull(sr[8]):
                             coordinate.Latitude = float(sr[8])
@@ -435,16 +435,16 @@ class Generate(object):
                         image.YResolution = self._db_reader_get_string_value(sr,30)
                         image.SourceFile = self._get_source_file(str(sr[31]))
                         image.Deleted = self._convert_deleted_status(sr[32])
-                        location = Base.Location(image)
-                        coordinate = Base.Coordinate()
-                        if not IsDBNull(sr[8]):
-                            coordinate.Latitude = float(sr[8])
-                        if not IsDBNull(sr[9]):
-                            coordinate.Longitude = float(sr[9])
-                            coordinate.Type = CoordinateType.Google if self.coordinate_type == COORDINATE_TYPE_GOOGLE else CoordinateType.GPS
-                        location.Coordinate = coordinate
-                        location.Time = image.AddTime
-                        location.AddressName = self._db_reader_get_string_value(sr, 10)
+                        #location = Base.Location(image)
+                        #coordinate = Base.Coordinate()
+                        #if not IsDBNull(sr[8]):
+                        #    coordinate.Latitude = float(sr[8])
+                        #if not IsDBNull(sr[9]):
+                        #    coordinate.Longitude = float(sr[9])
+                        #    coordinate.Type = CoordinateType.Google if self.coordinate_type == COORDINATE_TYPE_GOOGLE else CoordinateType.GPS
+                        #location.Coordinate = coordinate
+                        #location.Time = image.AddTime
+                        #location.AddressName = self._db_reader_get_string_value(sr, 10)
                         if not IsDBNull(sr[9]):
                             model.append(location)
                         model.append(image)
@@ -459,7 +459,7 @@ class Generate(object):
                         video.MimeType = self._db_reader_get_string_value(sr, 5)
                         video.AddTime = self._get_timestamp(addTime)
                         video.Description = self._db_reader_get_string_value(sr, 17)
-                        location = Base.Location()
+                        location = Base.Location(video)
                         coordinate = Base.Coordinate()
                         if not IsDBNull(sr[8]):
                             coordinate.Latitude = float(sr[8])
@@ -481,16 +481,16 @@ class Generate(object):
                             video.Duration = sr[12]
                         video.SourceFile = self._get_source_file(str(sr[18]))
                         video.Deleted = self._convert_deleted_status(sr[19])
-                        location = Base.Location(video)
-                        coordinate = Base.Coordinate()
-                        if not IsDBNull(sr[8]):
-                            coordinate.Latitude = float(sr[8])
-                        if not IsDBNull(sr[9]):
-                            coordinate.Longitude = float(sr[9])
-                            coordinate.Type = CoordinateType.Google if self.coordinate_type == COORDINATE_TYPE_GOOGLE else CoordinateType.GPS
-                        location.Coordinate = coordinate
-                        location.Time = video.AddTime
-                        location.AddressName = self._db_reader_get_string_value(sr, 10)
+                        #location = Base.Location(video)
+                        #coordinate = Base.Coordinate()
+                        #if not IsDBNull(sr[8]):
+                        #    coordinate.Latitude = float(sr[8])
+                        #if not IsDBNull(sr[9]):
+                        #    coordinate.Longitude = float(sr[9])
+                        #    coordinate.Type = CoordinateType.Google if self.coordinate_type == COORDINATE_TYPE_GOOGLE else CoordinateType.GPS
+                        #location.Coordinate = coordinate
+                        #location.Time = video.AddTime
+                        #location.AddressName = self._db_reader_get_string_value(sr, 10)
                         if not IsDBNull(sr[9]):
                             model.append(location)
                         model.append(video)
