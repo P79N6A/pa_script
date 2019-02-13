@@ -655,7 +655,7 @@ class Generate(object):
                 if not IsDBNull(row[3]) and row[3]:
                     download.Uri.Value = self._get_uri(row[3])
                 elif not IsDBNull(row[1]) and row[1]:
-                    download.Uri.Value = self._get_uri(row[1])
+                    download.URL.Value = row[1]
                 if not IsDBNull(row[2]):
                     download.Filename.Value = row[2]  
                 if not IsDBNull(row[4]):
