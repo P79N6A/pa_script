@@ -621,13 +621,14 @@ class WeChatParser(Wechat):
                 if canceller.IsCancellationRequested:
                     break
                 try:
+                    feed_id = self._db_record_get_int_value(rec, 'snsId')
                     username = self._db_record_get_string_value(rec, 'userName')
                     content = self._db_record_get_blob_value(rec, 'content')
                     attr = self._db_record_get_blob_value(rec, 'attrBuf')
                     deleted = 0 if rec.Deleted == DeletedState.Intact else 1
                     self._parse_wc_db_with_value(deleted, node.AbsolutePath, username, content, attr)
                 except Exception as e:
-                    print('read sns failed', e)
+                    print_error()
             self.im.db_commit()
             self.push_models()
 
@@ -638,7 +639,6 @@ class WeChatParser(Wechat):
             content = tencent_struct.tencent_struct().getSnsContent(content_blob)
             attr = tencent_struct.tencent_struct().getSnsAttrBuf(attr_blob)
         except Exception as e:
-            print('parse sns failed', e)
             return
         if content is None:
             return
@@ -1212,7 +1212,7 @@ class WeChatParser(Wechat):
                     bank_card.source = source
                     bank_card.bank_name = self._db_record_get_string_value(rec, 'bankName')
                     bank_card.phone_number = self._db_record_get_string_value(rec, 'mobile')
-                    bank_card.card_number = self._db_reader_get_string_value(rec, 'bankcardTail')
+                    bank_card.card_number = self._db_record_get_string_value(rec, 'bankcardTail')
                     bank_card.card_type = self._db_record_get_string_value(rec, 'bankcardTypeName')
                     bank_card.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
                     bank_card.insert_db(self.im)
@@ -1496,9 +1496,13 @@ class SnsParser:
                     if latitude != 0 or longitude != 0:
                         feed.location_latitude = latitude
                         feed.location_longitude = longitude
-                        feed.location_address = self._get_ts_value(ret, 3) + ' ' + self._get_ts_value(ret,
-                                                                                                      5) + ' ' + self._get_ts_value(
-                            ret, 15)
+                        try:
+                            address1 = self._get_ts_value(ret, 3) | ""
+                            address2 = self._get_ts_value(ret, 5) | ""
+                            address3 = self._get_ts_value(ret, 15) | ""
+                            feed.location_address = " ".join((address1, address2, address3))
+                        except Exception as e:
+                            feed.location_address = None
                         feed.location_type = model_wechat.LOCATION_TYPE_GOOGLE
 
     def get_likes(self, feed):
