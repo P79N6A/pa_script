@@ -1497,9 +1497,9 @@ class SnsParser:
                         feed.location_latitude = latitude
                         feed.location_longitude = longitude
                         try:
-                            address1 = self._get_ts_value(ret, 3) | ""
-                            address2 = self._get_ts_value(ret, 5) | ""
-                            address3 = self._get_ts_value(ret, 15) | ""
+                            address1 = self._get_ts_value(ret, 3) or ""
+                            address2 = self._get_ts_value(ret, 5) or ""
+                            address3 = self._get_ts_value(ret, 15) or ""
                             feed.location_address = " ".join((address1, address2, address3))
                         except Exception as e:
                             feed.location_address = None
