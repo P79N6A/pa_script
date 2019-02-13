@@ -10,7 +10,7 @@ except:
 import System.Data.SQLite as SQLite
 from PA.InfraLib.ModelsV2 import *
 from PA.InfraLib.ModelsV2.Map import *
-from PA.InfraLib.ModelsV2.CommonEnum import CoordinateType,LocationSourceType
+from PA.InfraLib.ModelsV2.CommonEnum import CoordinateType
 import sqlite3
 import MapUtil
 import os
