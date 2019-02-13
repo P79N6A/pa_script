@@ -823,7 +823,7 @@ class Generate(object):
             epoch_start = datetime.datetime(1601, 1, 1)
             delta = datetime.timedelta(microseconds=int(webkit_timestamp))
             timestamp = time.mktime((epoch_start + delta).timetuple())
-            ts = TimeStamp.FromUnixTime(int(timestamp) + 28800, False)
+            ts = TimeStamp.FromUnixTime(int(timestamp), False)
             if not ts.IsValidForSmartphone():
                 ts = TimeStamp.FromUnixTime(0, False)
             return ts            
@@ -955,7 +955,7 @@ class BaseBrowserParser(BaseParser):
             epoch_start = datetime.datetime(1601,1,1)
             delta = datetime.timedelta(microseconds=int(webkit_timestamp))
             ts = time.mktime((epoch_start + delta).timetuple())
-            return int(ts) + 28800
+            return int(ts)
         except:
             return None            
 
