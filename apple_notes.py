@@ -49,9 +49,9 @@ def analyze_notes(node, extractDeleted, extractSource):
                     file_node = list(dir_node)[0].Search('.*\..*')
                     if len(list(file_node)) != 0:
                         if re.findall('image', mimetype):
-                            attach_dic[cid] = "<img src = '" + file_node[0].PathWithMountPoint + "'/>"
+                            attach_dic[cid] = "<img src = '" + file_node[0].PathWithMountPoint + "' width='100%'/>"
                         elif re.findall('video', mimetype):
-                            attach_dic[cid] = "<video src = '" + file_node[0].PathWithMountPoint + "'/>"
+                            attach_dic[cid] = "<video src = '" + file_node[0].PathWithMountPoint + "' width='100%'/>"
             else:
                 attach_dic[cid].append(attach_id)
         except:
