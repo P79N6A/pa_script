@@ -9,13 +9,14 @@ import clr
 try:
     clr.AddReference('model_browser')
     clr.AddReference('bcp_browser')
+    clr.AddReference('ScriptUtils')
 except:
     pass
 del clr
 
 from PA_runtime import *
 import model_browser
-from model_browser import tp, exc, print_run_time, CASE_NAME
+from ScriptUtils import tp, exc, print_run_time, CASE_NAME, parse_decorator, base_analyze
 import bcp_browser
 
 
@@ -23,27 +24,19 @@ import bcp_browser
 VERSION_APP_VALUE = 3
 
 
+@parse_decorator
 def analyze_chrome(node, extract_deleted, extract_source):
     ''' Patterns:string>/Library/Application Support/Google/Chrome/Default/History$  '''
-    tp('apple_chrome.py is running ...')
-    res = []
-    pr = ParserResults()
-    try:
-        parser = AppleChromeParser(node, extract_deleted, extract_source, db_name='Chrome_i')
-        res = parser.parse(bcp_browser.NETWORK_APP_CHROME, VERSION_APP_VALUE)        
-    except:
-        TraceService.Trace(TraceLevel.Debug,
-                           'analyze_chrome 解析新案例 <{}> 出错: {}'.format(CASE_NAME, traceback.format_exc()))
-    if res:
-        pr.Models.AddRange(res)
-        pr.Build('Chrome浏览器')
-        tp('apple_chrome.py is finished !')
-    return pr
+    return base_analyze(AppleChromeParser, 
+                        node, 
+                        bcp_browser.NETWORK_APP_CHROME, 
+                        VERSION_APP_VALUE,
+                        bulid_name='Chrome浏览器',
+                        db_name='Chrome_i')
 
 
 class BaseChromeParser(model_browser.BaseBrowserParser):
-
-    def __init__(self, node, extract_deleted, extract_source, db_name):
+    def __init__(self, node, db_name):
         super(BaseChromeParser, self).__init__(node, db_name)        
         self.root = node.Parent.Parent
         self.download_path = None
@@ -313,9 +306,9 @@ class BaseChromeParser(model_browser.BaseBrowserParser):
 
 
 class AppleChromeParser(BaseChromeParser):
-    def __init__(self, node, extract_deleted, extract_source, db_name):
+    def __init__(self, node, db_name):
         ''' Patterns:string>/Library/Application Support/Google/Chrome/Default/History$ '''
-        super(AppleChromeParser, self).__init__(node, extract_deleted, extract_source, db_name)
+        super(AppleChromeParser, self).__init__(node, db_name)
 
     def _convert_nodepath(self, raw_path):
         ''' huawei: /data/user/0/com.baidu.searchbox/files/template/profile.zip
