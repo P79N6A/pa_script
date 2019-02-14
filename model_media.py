@@ -479,8 +479,8 @@ class Generate(object):
                         video.ModifyTime = self._get_timestamp(modifyTime)
                         if not IsDBNull(sr[12]):
                             video.Duration = sr[12]
-                        video.SourceFile = self._get_source_file(str(sr[18]))
-                        video.Deleted = self._convert_deleted_status(sr[19])
+                        video.SourceFile = self._get_source_file(str(sr[31]))
+                        video.Deleted = self._convert_deleted_status(sr[32])
                         #location = Base.Location(video)
                         #coordinate = Base.Coordinate()
                         #if not IsDBNull(sr[8]):
