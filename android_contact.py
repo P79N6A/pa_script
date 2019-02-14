@@ -357,7 +357,10 @@ class ContactParser(model_contact.MC):
                 othernumber = self._db_record_get_string_value(rec, "otherNumbers")
                 customnumber = self._db_record_get_string_value(rec, "customNumbers")
                 numbers = phonenumber + homenumber + jobnumber + othernumber + customnumber
-                contacts.phone_number = numbers.replace('\n', '').replace('][', ',').replace('[', '').replace(']', '').replace('\"', '').replace(' ', '')
+                pnumber = numbers.replace('\n', '').replace('][', ',').replace('[', '').replace(']', '').replace('\"', '').replace(' ', '')
+                pnumber = pnumber.split(',')
+                pnumber = list(set(pnumber))
+                contacts.phone_number = ','.join(pnumber)
                 contacts.name = self._db_record_get_string_value(rec, "name")
                 contacts.address = self._db_record_get_string_value(rec, "homeStreets")
                 contacts.notes = self._db_record_get_string_value(rec, "remark")
