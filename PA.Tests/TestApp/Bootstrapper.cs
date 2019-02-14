@@ -17,6 +17,9 @@ using PA.Engine.Python;
 using PA.iPhoneApps.Parsers;
 using System.Collections.Generic;
 using PA.Logic.Services;
+using iTunesBackup;
+using PA.iTunes.Android;
+using PA.InfraLib.Files;
 
 namespace TestApp
 {
@@ -52,14 +55,18 @@ namespace TestApp
             //3.测试
             //4.
             //这个路径改成你们电脑上的实际案例路径,支持多镜像案例(比如安卓的全盘包括data.img和external_data.img)
-            string casePath = @"E:\Cases\iPhone 5s_9.0.2_5012906926512_full\Manifest.PGFD";
+            string casePath = @"I:\Cases\iPhone 6_11.1.2_201901311803_全盘镜像(1)\Manifest.PGFD";
             var importer = new CaseImportService();
-            //var pack = CasePackage.FromPath(casePath);
+            var pack = CasePackage.FromPath(casePath);
+
+            MemoryRange range = MemoryRange.CreateFromFile(@"K:\lg");
+            MemoryNode node = new MemoryNode("lg", range);
+            EncryptedUserdataStream.GetEncryptionVariables(node);
 
             //演示如何从厂商备份构建
             //var pack = importer.FromExtenalEnvidence(@"H:\X\backup.ab", ImportType.AndroidBackup); //从*.ab文件构建
             //var pack = importer.FromExtenalEnvidence(@"H:\X\backup.ab", ImportType.AndroidBackup); //从*.ab文件构建
-            var pack = importer.FromExtenalEnvidence(@"H:\X\2019-01-16_16-32-21", ImportType.HuaweiBackup); //从华为自备份目录构建,注意华为可以设置密码,*.db会被解成*.dbx,优先使用*.dbx(明文数据库)
+            //var pack = importer.FromExtenalEnvidence(@"H:\X\2019-01-16_16-32-21", ImportType.HuaweiBackup); //从华为自备份目录构建,注意华为可以设置密码,*.db会被解成*.dbx,优先使用*.dbx(明文数据库)
             if (pack!=null && pack.RpcClient.Connect())
             {
                 var task = pack.LoadData();

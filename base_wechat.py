@@ -839,7 +839,7 @@ class Wechat(object):
             elif message.type == model_wechat.MESSAGE_CONTENT_TYPE_LOCATION:
                 model.Content = Base.Content.LocationContent(model)
                 model.Content.Value = Base.Location()
-                model.Content.Value.SourceType = CommonEnum.LocationSourceType.App
+                model.Content.Value.SourceType = LocationSourceType.App
                 model.Content.Value.Time = model.CreateTime
                 model.Content.Value.AddressName = message.location_address
                 model.Content.Value.Coordinate = Base.Coordinate(message.location_longitude, message.location_latitude, model_wechat.GenerateModel._convert_location_type(message.location_type))
@@ -930,7 +930,7 @@ class Wechat(object):
             if feed.location_latitude != 0 or feed.location_longitude != 0:
                 location_content = Base.Content.LocationContent(model)
                 location_content.Value = Base.Location()
-                location_content.Value.SourceType = CommonEnum.LocationSourceType.App
+                location_content.Value.SourceType = LocationSourceType.App
                 location_content.Value.Time = model.CreateTime
                 location_content.Value.AddressName = feed.location_address
                 location_content.Value.Coordinate = Base.Coordinate(feed.location_longitude, feed.location_latitude, model_wechat.GenerateModel._convert_location_type(feed.location_type))
@@ -1024,7 +1024,7 @@ class Wechat(object):
             elif favorite_item.type == model_wechat.FAV_TYPE_LOCATION:
                 model.Content = Base.Content.LocationContent(model)
                 model.Content.Value = Base.Location()
-                model.Content.Value.SourceType = CommonEnum.LocationSourceType.App
+                model.Content.Value.SourceType = LocationSourceType.App
                 model.Content.Value.Time = model_wechat.GenerateModel._get_timestamp(favorite_item.timestamp)
                 model.Content.Value.AddressName = favorite_item.location_address
                 model.Content.Value.Coordinate = Base.Coordinate(favorite_item.location_longitude, favorite_item.location_latitude, model_wechat.GenerateModel._convert_location_type(favorite_item.location_type))
