@@ -3,7 +3,7 @@
 import hashlib
 import math
 from PA_runtime import *
-from PA.InfraLib.ModelsV2.CommonEnum import CoordinateType,LocationSourceType
+from PA.InfraLib.ModelsV2.CommonEnum import CoordinateType
 
 # 高德像素坐标转换成经纬度
 # src：https://github.com/CntChen/tile-lnglat-transform/blob/master/src/transform-class-slippy.js
