@@ -433,6 +433,7 @@ class LineParser(object):
                 location.latitude  = rec['location_latitude'].Value * (10 ** -6)
                 location.longitude = rec['location_longitude'].Value * (10 ** -6)
                 location.address   = rec['location_address'].Value
+                location.type      = model_im.LOCATION_TYPE_GOOGLE
                 location.timestamp = self._get_im_ts(rec['created_time'].Value)
                 location.source    = self.cur_db_source
             message.source  = self.cur_db_source
