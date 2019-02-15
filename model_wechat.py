@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
+
 __author__ = "sumeng"
 
+
+import operator
 from PA_runtime import *
 import clr
 clr.AddReference('System.Core')
@@ -1063,6 +1066,60 @@ class Story(Column):
         self.comments.append(comment)
         return comment
 
+    def parse_segment(self, comment_row):
+        try:
+            sign_head_length = 0x0c
+
+            sender_length = comment_row[sign_head_length]
+            sender_start_index = sign_head_length + 0x01
+            sender_end_index = sign_head_length + sender_length
+            sender_id = comment_row[sender_start_index:(sender_end_index + 0x01)]
+
+            receiver_id_length = comment_row[(sender_end_index + 0x02)]
+            receiver_id_start_index = sender_end_index + 0x03
+            receiver_id_end_index = receiver_id_start_index + receiver_id_length
+            receiver_id = comment_row[receiver_id_start_index: receiver_id_end_index]
+
+            receiver_nickname_length = comment_row[(receiver_id_end_index + 0x01)]
+            receiver_nickname_start_index = receiver_id_end_index + 0x02
+            receiver_nickname_end_index = receiver_nickname_start_index + receiver_nickname_length
+            receiver_nickname = comment_row[receiver_nickname_start_index:receiver_nickname_end_index]
+
+            try:
+                comment_length = comment_row[receiver_nickname_end_index + 0x07]
+                comment_start_index = receiver_nickname_end_index + 0x08
+                comment_end_index = comment_start_index + comment_length
+                comment = comment_row[comment_start_index:comment_end_index]
+            except Exception as e:
+                comment = b''
+
+            story_comment = self.create_comment()
+            story_comment.content = comment.decode(encoding="utf-8")
+            story_comment.sender_id = sender_id.decode(encoding="utf-8")
+            return story_comment
+        except Exception as e:
+            return None
+
+    def generate_comments(self, data):
+        if not data:
+            return
+        sign_length = 0x0c
+        length = len(data)
+        prefix = data[:sign_length]
+        index = 0x00
+        segment_index = []
+        while index < length:
+            compare_data = data[index:(index + sign_length)]
+            if operator.eq(compare_data, prefix):
+                segment_index.append(index)
+            index += 0x01
+        segment_data = [data[segment_index[i]:segment_index[i + 1]] for i in range(len(segment_index) - 1)]
+        story_comments_row = segment_data[1:]
+        for i in story_comments_row:
+            comment = self.parse_segment(i)
+            if comment is not None:
+                yield comment
+
     def insert_db(self, im):
         if isinstance(im, IM):
             for comment in self.comments:
@@ -1077,7 +1134,6 @@ class StoryComment(Column):
         self.sender_id = None  # 发送者[TEXT]
         self.content = None  # 内容[TEXT]
         self.timestamp = None  # 时间戳[TEXT]
-        
 
     def get_values(self):
         return (self.story_id, self.sender_id, self.content, self.timestamp) + super(StoryComment, self).get_values()
@@ -1529,7 +1585,7 @@ class GenerateModel(object):
                     elif msg_type == MESSAGE_CONTENT_TYPE_LOCATION:
                         model.Content = Base.Content.LocationContent(model)
                         model.Content.Value = Base.Location()
-                        model.Content.Value.SourceType = CommonEnum.LocationSourceType.App
+                        model.Content.Value.SourceType = LocationSourceType.App
                         model.Content.Value.Time = model.CreateTime
                         model.Content.Value.AddressName = location_address
                         model.Content.Value.Coordinate = Base.Coordinate(location_longitude, location_latitude, self._convert_location_type(location_type))
@@ -1696,7 +1752,7 @@ class GenerateModel(object):
                     if location_latitude != 0 or location_longitude != 0:
                         location_content = Base.Content.LocationContent(model)
                         location_content.Value = Base.Location()
-                        location_content.Value.SourceType = CommonEnum.LocationSourceType.App
+                        location_content.Value.SourceType = LocationSourceType.App
                         location_content.Value.Time = model.CreateTime
                         location_content.Value.AddressName = location_address
                         location_content.Value.Coordinate = Base.Coordinate(location_longitude, location_latitude, self._convert_location_type(location_type))
@@ -1860,7 +1916,7 @@ class GenerateModel(object):
                     elif fav_type == FAV_TYPE_LOCATION:
                         model.Content = Base.Content.LocationContent(model)
                         model.Content.Value = Base.Location()
-                        model.Content.Value.SourceType = CommonEnum.LocationSourceType.App
+                        model.Content.Value.SourceType = LocationSourceType.App
                         model.Content.Value.Time = self._get_timestamp(timestamp)
                         model.Content.Value.AddressName = location_address
                         model.Content.Value.Coordinate = Base.Coordinate(location_longitude, location_latitude, self._convert_location_type(location_type))

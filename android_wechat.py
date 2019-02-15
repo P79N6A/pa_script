@@ -55,7 +55,7 @@ THIRDBUILDPARTTERN = {
     '多开助手': r'/data/data/com.kzshuankia.rewq/virtual/data/user/\d+/com.tencent.mm'
 }
 
-DEBUG = True
+DEBUG = False
 
 
 def analyze_wechat(root, extract_deleted, extract_source):
@@ -215,6 +215,10 @@ class WeChatParser(Wechat):
             try:
                 # print('%s android_wechat() parse FTS5IndexMicroMsg.db' % time.asctime(time.localtime(time.time())))
                 self._parse_fts_db(self.user_node.GetByPath('/FTS5IndexMicroMsg.db'))
+            except Exception as e:
+                TraceService.Trace(TraceLevel.Error, "android_wechat.py Error: LINE {}".format(traceback.format_exc()))
+            try:
+                self._parse_story_db(self.user_node.GetByPath('/StoryMicroMsg.db'))
             except Exception as e:
                 TraceService.Trace(TraceLevel.Error, "android_wechat.py Error: LINE {}".format(traceback.format_exc()))
             self.set_progress(99)
@@ -675,6 +679,60 @@ class WeChatParser(Wechat):
         model, tl_model = self.get_feed_model(feed)
         self.add_model(model)
         self.add_model(tl_model)
+
+    def _parse_story_db(self, node):
+        if node is None:
+            return False
+
+        db_path = os.path.join(self.cache_path, 'cache.db')
+        self.db_mapping(node.PathWithMountPoint, db_path)
+        if not os.path.exists(db_path):
+            return False
+        db = SQLite.SQLiteConnection('Data Source = {}'.format(db_path))
+        if db is None:
+            return False
+        db.Open()
+
+        sql = '''select MMStoryInfo.storyID, 
+                        MMStoryInfo.userName, 
+                        MMStoryInfo.createTime, 
+                        MMStoryInfo.commentListCount, 
+                        MMStoryInfo.content, 
+                        MMStoryInfo.attrBuf, 
+                        MMStoryInfo.postBuf, 
+                        StoryExtItem.newThumbUrl, 
+                        StoryExtItem.newVideoUrl, 
+                        StoryVideoCacheInfo.filePath 
+                    from MMStoryInfo 
+                    left join StoryExtItem on MMStoryInfo.storyID = StoryExtItem.syncId 
+                    left join StoryVideoCacheInfo on MMStoryInfo.storyId = StoryVideoCacheInfo.storyId;'''
+        db_cmd = SQLite.SQLiteCommand(sql, db)
+        reader = None
+        try:
+            reader = db_cmd.ExecuteReader()
+        except Exception as e:
+            TraceService.Trace(TraceLevel.Error, "android_wechat.py Error: LINE {}".format(traceback.format_exc()))
+
+        if reader is not None:
+            while reader.Read():
+                try:
+                    story = model_wechat.Story()
+                    story.account_id = self.user_account_model.Account
+                    story.sender_id = self._db_reader_get_string_value(reader, 1)
+                    local_path = self._db_reader_get_string_value(reader, 9)
+                    url = self._db_reader_get_string_value(reader, 8)
+                    story.media_path = local_path if local_path is not None else url
+                    story.timestamp = self._db_reader_get_int_value(reader, 2)
+                    for comment in story.generate_comments(bytearray(self._db_reader_get_blob_value(reader, 5))):
+                        comment.insert_db(self.im)
+                    story.insert_db(self.im)
+                except Exception as e:
+                    print_error()
+            reader.Close()
+        db_cmd.Dispose()
+        self.im.db_commit()
+        db.Close()
+        self.db_remove_mapping(db_path)
 
     def _parse_fts_db(self, node):
         if node is None:
