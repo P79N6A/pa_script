@@ -121,9 +121,9 @@ class AppleLineParser(BaseParser):
                                                                         CHAT_DICT, 
                                                                         CHAT_PK_FRIEND_PKS)
             self.parse_ChatroomMember(self.friend_list, 
-                                        DEL_FRIEND_PK_CHATROOM_MID,
-                                        MEMBER_PK_CHATROOM_PKS, 
-                                        CHATROOM_PK_MID)
+                                      DEL_FRIEND_PK_CHATROOM_MID,
+                                      MEMBER_PK_CHATROOM_PKS, 
+                                      CHATROOM_PK_MID)
         ######### Data 目录下 jp.naver.line ##############
         search_db_path = '/Library/Application Support/PrivateStore/'+account_file_name+'/Search Data/SearchData.sqlite'
         if self._read_db(self.root, search_db_path):
@@ -676,6 +676,7 @@ class AppleLineParser(BaseParser):
                     location.latitude  = rec['ZLATITUDE'].Value
                     location.longitude = rec['ZLONGITUDE'].Value
                     location.address   = rec['ZTEXT'].Value
+                    location.type      = model_im.LOCATION_TYPE_GOOGLE
                     location.timestamp = self._get_im_ts(rec['ZTIMESTAMP'].Value)
                     location.source    = self.cur_db_source
                 message.source  = self.cur_db_source

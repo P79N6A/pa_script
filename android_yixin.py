@@ -396,6 +396,7 @@ class YiXinParser():
     def get_location(self, location, content, attachstr, time):
         location.account_id = self.user
         location.timestamp = time
+        location.type = model_im.LOCATION_TYPE_GOOGLE
         location.latitude = content.split(',')[0]
         location.longitude = content.split(',')[1]
         try:

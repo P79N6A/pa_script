@@ -432,7 +432,11 @@ class Generate(object):
                         image.Resolution = self._db_reader_get_string_value(sr,27)
                         image.Software = self._db_reader_get_string_value(sr,28)
                         image.XResolution = self._db_reader_get_string_value(sr,29)
+                        if image.XResolution is not '':
+                            image.XResolution = image.XResolution + ' dpi'
                         image.YResolution = self._db_reader_get_string_value(sr,30)
+                        if image.YResolution is not '':
+                            image.YResolution = image.YResolution + ' dpi'
                         image.SourceFile = self._get_source_file(str(sr[31]))
                         image.Deleted = self._convert_deleted_status(sr[32])
                         #location = Base.Location(image)
