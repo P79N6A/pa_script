@@ -55,7 +55,7 @@ THIRDBUILDPARTTERN = {
     '多开助手': r'/data/data/com.kzshuankia.rewq/virtual/data/user/\d+/com.tencent.mm'
 }
 
-DEBUG = False
+DEBUG = True
 
 
 def analyze_wechat(root, extract_deleted, extract_source):
@@ -162,6 +162,8 @@ class WeChatParser(Wechat):
             os.makedirs(self.cache_path)
         self.cache_db = os.path.join(self.cache_path, self.user_hash + '.db')
         save_cache_path(bcp_wechat.CONTACT_ACCOUNT_TYPE_IM_WECHAT, self.cache_db, ds.OpenCachePath("tmp"))
+
+        self.chatroom_owners = dict()
 
     def parse(self):
         if not self.is_valid_user_dir:
@@ -354,9 +356,9 @@ class WeChatParser(Wechat):
 
         self._parse_mm_db_user_info(db, source)
         self.set_progress(16)
+        self._parse_mm_db_chatroom_member(db, source)
         self._parse_mm_db_contact(db, source)
         self.set_progress(25)
-        self._parse_mm_db_chatroom_member(db, source)
         self.get_chatroom_models(self.cache_db)
         self.set_progress(30)
         self._parse_mm_db_message(db, source)
@@ -983,6 +985,7 @@ class WeChatParser(Wechat):
             chatroom.sp_id = 0
             chatroom.account_id = self.user_account_model.Account
             chatroom.chatroom_id = username
+            chatroom.owner_id = self.chatroom_owners.get(chatroom.chatroom_id, None)
             chatroom.name = nickname
             chatroom.photo = head
             chatroom.is_saved = contact_type % 2
@@ -1027,6 +1030,8 @@ class WeChatParser(Wechat):
                     member_list = self._db_record_get_string_value(rec, 'memberlist')
                     display_name_list = self._db_record_get_string_value(rec, 'displayname')
                     room_owner = self._db_record_get_string_value(rec, 'roomowner')
+                    # 通过这一步挂载各个room群主的关系
+                    self.chatroom_owners[chatroom_id] = room_owner
                     deleted = 0 if rec.Deleted == DeletedState.Intact else 1
                     self._parse_mm_db_chatroom_member_with_value(deleted, source, chatroom_id, member_list,
                                                                  display_name_list, room_owner)

@@ -469,7 +469,7 @@ def checkhit(root):
 
 
 def analyze_bulletMessage(node, extractDeleted, extractSource):
-    
+    TraceService.Trace(TraceLevel.Info,"正在分析安卓聊天宝...")
     pr = ParserResults()
     nodes = checkhit(node)
     if len(nodes) != 0:
@@ -479,8 +479,10 @@ def analyze_bulletMessage(node, extractDeleted, extractSource):
                 results = bulletMessage(root, extractDeleted, extractSource).parse()
                 if results:
                     pr.Models.AddRange(results)
-                    pr.Build("子弹短信")               
+                    pr.Build("聊天宝")
+                    TraceService.Trace(TraceLevel.Info,"安卓聊天宝分析完成！")               
                 return pr
     else:
+        TraceService.Trace(TraceLevel.Info,"安卓聊天宝未找到对应节点，跳过分析") 
         progress.Skip()
         return pr
