@@ -1026,6 +1026,10 @@ class ParserBase(object):
                     return result
         return None
 
+    def _search_file_simple(self, file_name):
+        file_ = self.root.Search(file_name)
+        return next(iter(file_), None)
+
 
 class BaseField(object):
     def __init__(self, column_name, null=True):
