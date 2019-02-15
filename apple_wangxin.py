@@ -352,6 +352,7 @@ class WangxinParser():
                 location.longitude = rec['ZLONGITUDE'].Value
                 location.address = rec['ZNAME'].Value
                 location.timestamp = msg_time
+                location.type = model_im.LOCATION_TYPE_GOOGLE
                 self.im.db_insert_table_location(location)
                 self.im.db_commit()
                 return location.location_id
@@ -361,6 +362,7 @@ class WangxinParser():
             location.longitude = param.split(',')[0]
             location.address = param.split(',')[2]
             location.timestamp = msg_time
+            location.type = model_im.LOCATION_TYPE_GOOGLE
             self.im.db_insert_table_location(location)
             self.im.db_commit()
             return location.location_id
