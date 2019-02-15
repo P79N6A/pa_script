@@ -212,6 +212,7 @@ class YiXinParser():
         location.latitude = object['location'].split(',')[0]
         location.longitude = object['location'].split(',')[1]
         location.address = object['description']
+        location.type = model_im.LOCATION_TYPE_GOOGLE
         location.timestamp = time
         
         self.im.db_insert_table_location(location)
