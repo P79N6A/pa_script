@@ -52,6 +52,9 @@ class CallsParse(MC):
             #oppo自带备份案例
             elif re.findall('callrecord_backup.xml', self.node.AbsolutePath):
                 self.analyze_call_records_case6()
+            #meizu自带备份案例
+            elif re.findall('calllog.vcl', self.node.AbsolutePath):
+                self.analyze_call_records_case7()
             #vivo自带备份案例
             #小米自带备份案例
             #华为全盘通话记录存储在calls.db中
@@ -251,6 +254,59 @@ class CallsParse(MC):
         except:
             traceback.print_exc()
 
+    def analyze_call_records_case7(self):
+        try:
+            dir = self.node.PathWithMountPoint
+            f = open(dir, 'r')
+            lines = f.readlines()
+            f.close()
+            dic = {}
+            for line in lines:
+                if re.findall('BEGIN:CALLLOG', line):
+                    dic = {}
+                elif re.findall('END:LOGBODY', line):
+                    records = Records()
+                    records.phone_number = dic['normalized_number'] if 'normalized_number' in dic else dic['formated_number'] if 'formated_number' in dic else dic['number'] if 'number' in dic else ''
+                    records.date = dic['date'] if 'date' in dic else 0
+                    records.duration = dic['duration'] if 'duration' in dic else 0
+                    records.type = dic['type'] if 'type' in dic else 0
+                    name = dic['name'] if 'name' in dic else ''
+                    records.name = name if name is not '' else records.phone_number
+                    records.geocoded_location = dic['geocoded_location'] if 'geocoded_location' in dic else ''
+                    records.country_code = dic['country_iso'] if 'country_iso' in dic else ''
+                    records.source = self.node.AbsolutePath
+                    self.db_insert_table_call_records(records)
+                #获取姓名
+                elif re.findall("X-NAME:", line):
+                    dic['name'] = re.sub('X-NAME:', '', line).replace('\n', '')
+                #获取通话时间
+                elif re.findall('X-DATE', line):
+                    dic['date'] = re.sub('X-DATE:', '', line).replace('\n', '')
+                #获取通话时长
+                elif re.findall('X-DURATION:', line):
+                    dic['duration'] = re.sub('X-DURATION:', '', line).replace('\n', '')
+                #获取国家码
+                elif re.findall('X-COUNTRYISO:', line):
+                    dic['country_iso'] = re.sub('X-COUNTRYISO:', '', line).replace('\n', '')
+                #通信商
+                elif re.findall('X-GEOCODED_LOCATION:', line):
+                    dic['geocoded_location'] = re.sub('X-GEOCODED_LOCATION:', '', line).replace('\n', '')
+                #电话号码
+                elif re.findall('X-NUMBER:', line):
+                    dic['number'] = re.sub('X-NUMBER:', '', line).replace('\n', '')
+                #标准号码
+                elif re.findall('X-NORMALIZED_NUMBER:', line):
+                    dic['normalized_number'] = re.sub('X-NORMALIZED_NUMBER:', '', line).replace('\n', '')
+                #格式化号码
+                elif re.findall('X-FORMATTED_NUMBER:', line):
+                    dic['formated_number'] = re.sub('X-FORMATTED_NUMBER:', '', line).replace('\n', '')
+                #通话类型
+                elif re.findall('X-TYPE:', line):
+                    dic['type'] = re.sub('X-TYPE:', '', line).replace('\n', '')
+            self.db_commit()
+        except:
+            traceback.print_exc()
+
     @staticmethod
     def _db_record_get_value(record, column, default_value=None):
         if column not in record:
@@ -295,6 +351,19 @@ class CallsParse(MC):
             except Exception as e:
                 return default_value
         return default_value
+    
+    @staticmethod
+    def _get_timestamp(timestamp):
+        try:
+            if isinstance(timestamp, (long, float, str)) and len(str(timestamp)) > 10:
+                timestamp = int(str(timestamp)[:10])
+            if isinstance(timestamp, (Int64, long, int)) and len(str(timestamp)) == 10:
+                ts = TimeStamp.FromUnixTime(timestamp, False)
+                if not ts.IsValidForSmartphone():
+                    ts = TimeStamp.FromUnixTime(0, False)
+                return ts
+        except:
+            return TimeStamp.FromUnixTime(0, False)
 
 def analyze_android_calls(node, extractDeleted, extractSource):
     pr = ParserResults()
