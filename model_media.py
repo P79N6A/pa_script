@@ -408,6 +408,7 @@ class Generate(object):
                         location.Coordinate = coordinate
                         location.Time = image.AddTime
                         location.AddressName = self._db_reader_get_string_value(sr, 10)
+                        location.SourceType = LocationSourceType.Media
                         image.Location = location
                         media_log = self._get_media_log(sr[0])
                         for log in media_log:
@@ -473,6 +474,7 @@ class Generate(object):
                         location.Coordinate = coordinate
                         location.Time = video.AddTime
                         location.AddressName = self._db_reader_get_string_value(sr, 10)
+                        location.SourceType = LocationSourceType.Media
                         video.Location = location
                         media_log = self._get_media_log(sr[0])
                         for log in media_log:

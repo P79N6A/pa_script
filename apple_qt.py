@@ -278,7 +278,7 @@ def handleFile(f, lPALocations) :
             cLoc = Base.Location()
             cLoc.Deleted = f.Deleted
             cLoc.SourceType = LocationSourceType.Media
-            cLoc.Coordinate = Base.Coordinate(float(locval[0]), float(locval[1]), float(locval[2]))
+            cLoc.Coordinate = Base.Coordinate(float(locval[1]), float(locval[0]), float(locval[2]))
             cLoc.SourceFile = f.AbsolutePath
             # LinkModels(cLoc, f)
             
