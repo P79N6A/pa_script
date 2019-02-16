@@ -483,6 +483,10 @@ class DropBoxParser(object):
         self.__add_net_disk_file_record()
         self.__decode_recover_net_disk_file()
 
+    def _search_file_simple(self, file_name):
+        file_ = self.root.Search(file_name)
+        return next(iter(file_), None)
+
     def __search_cache_file(self, file_size):
         """
         根据file_size 找到相应的文件，不保证完全正确
@@ -497,7 +501,11 @@ class DropBoxParser(object):
             for f in Utils.list_dir(d_path):
                 f_path = os.path.join(d_path, f)
                 if f.startswith("original") and (Utils.calculate_file_size(f_path) == file_size):
-                    return f_path
+                    node = self._search_file_simple(f + '$')
+                    if node is not None:
+                        return node.AbsolutePath
+                    else:
+                        return None
 
     def __query_hash_code(self, file_path):
         """通过文件在服务器的路径找到文件的hash_code"""
