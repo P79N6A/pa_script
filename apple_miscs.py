@@ -155,32 +155,32 @@ def analyze_connections_from_plist(f, extractDeleted, extractSource):
     return pr
 
 def analyze_startup_time(node, extract_deleted, extract_source):
-    if node.Data is None:
+    if node is None:
         return
-    FORMAT = "ddd MMM d HH:mm:ss yyyy"
-    PATTERN = r"^(?:.*?)([0-9a-zA-Z :]*?) pid=.*?main: Starting Up$"
-    node.Data.seek(0)
-    if node.Deleted == DeletedState.Deleted and not extract_deleted:
-        return
-    data = node.Data.read()
+    _format = "%m/%d/%y %H:%M:%S.%f"
+    PATTERN = r"(.*?) pid=.*main: Starting Up.*"
+    ts_str = ts = None
     pr = ParserResults()
-    for match in re.finditer(PATTERN, data, re.MULTILINE):
-        ts_str = match.group(1) 
-        ts_str = ts_str.replace('  ', ' ')                
-        ts = DateTime.ParseExact(ts_str, FORMAT, CultureInfo.InvariantCulture)
-        ts = TimeStamp(ts)
-        if ts < TimeStamp.FromUnixTime(0):
-            continue
-
-        pe = PoweringEvent()
-        pe.Deleted = node.Deleted
-        pe.Event.Value = pe.PowerEventType.On
-        pe.Element.Value = pe.PowerElementType.Device
-        if extract_source:
-            pe.TimeStamp.Init(ts, node.Data.GetSubRange(match.start(1), len(ts_str)))
-        else:
-            pe.TimeStamp.Value = ts
-        pr.Models.Add(pe)
+    with open(node.PathWithMountPoint, "r") as f:
+        for line in f:
+            if line.find("main: Starting Up") != -1:
+                res = re.search(PATTERN, line)
+                if res is None:
+                    return
+                ts_str = res.groups(0)[0]            
+                try:
+                    ts = time.strptime(ts_str, _format)
+                    ts = TimeStamp.FromUnixTime(time.mktime(ts))
+                except:
+                    continue
+                if ts < TimeStamp.FromUnixTime(0):
+                    continue
+                pe = PoweringEvent()
+                pe.Deleted = node.Deleted
+                pe.Event.Value = pe.PowerEventType.On
+                pe.Element.Value = pe.PowerElementType.Device
+                pe.TimeStamp.Value = ts
+                pr.Models.Add(pe)
     pr.Build('开机记录')
     return pr
 
