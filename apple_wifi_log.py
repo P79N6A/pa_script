@@ -32,7 +32,7 @@ def analyze_wifilog(node, extractDeleted, extractSource):
     results = generate.get_models()
     if results:
         pr.Models.AddRange(results)
-    pr.Build("无线网络连接历史")
+    pr.Build("Wi-Fi日志")
     return pr
 
 

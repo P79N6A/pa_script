@@ -144,6 +144,7 @@ class Generate(object):
             wireless.SourceNode = self.node
             coord = Coordinate()
             wifi_location = Location()
+            wifi_location.SourceType = LocationSourceType.WifiLog
             wifi_location.SourceNode = self.node
             if row[0]:
                 wireless.IPAddress.Value = row[0]

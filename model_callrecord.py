@@ -293,13 +293,13 @@ class Generate(object):
         try:
             if isinstance(timestamp, (long, float, str)) and len(str(timestamp)) > 10:
                 timestamp = int(str(timestamp)[:10])
-            if isinstance(timestamp, int) and len(str(timestamp)) == 10:
+            if isinstance(timestamp, (Int64, long, int)) and len(str(timestamp)) == 10:
                 ts = TimeStamp.FromUnixTime(timestamp, False)
                 if not ts.IsValidForSmartphone():
-                    ts = None
+                    ts = TimeStamp.FromUnixTime(0, False)
                 return ts
         except:
-            return None
+            return TimeStamp.FromUnixTime(0, False)
 
     @staticmethod
     def _convert_deleted_status(deleted):
