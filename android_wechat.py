@@ -99,13 +99,13 @@ def get_build(node):
         return build
 
     if re.match(r'/data/user/\d+/com.tencent.mm', app_path) is not None:
-        build = '系统分身'
+        build = '微信(系统分身)'
 
-    if build != '系统分身':
-        build = '第三方分身'
+    if build != '微信(系统分身)':
+        build = '微信(第三方分身)'
         for k, v in THIRDBUILDPARTTERN.items():
             if re.match(v, app_path) is not None:
-                build = k
+                build = '微信({name})'.format(name=k)
                 break
 
     count = g_app_build.get(app_path, 0)
