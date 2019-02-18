@@ -23,7 +23,9 @@ import model_map
 
 from model_im import Account, GenerateModel
 
-VERSION_VALUE_DB = 1
+VERSION_VALUE_DB = 2
+VERSION_KEY_DB = 'db'
+VERSION_KEY_APP = 'app'
 
 
 class Ticketing(object):
