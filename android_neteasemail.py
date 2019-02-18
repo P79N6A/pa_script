@@ -23,7 +23,7 @@ CONTENT_TYPE_TEXT = 2  # 纯文本
 MAIL_OUTBOX   = '3'      # 已发送
 MAIL_DRAFTBOX = '2'      # 草稿箱
 
-VERSION_APP_VALUE = 1
+VERSION_APP_VALUE = 2
 
 DEBUG = True
 DEBUG = False
@@ -76,6 +76,11 @@ class NeteaseMailParser(object):
         self.mail_folder = {}
         self.attach      = {}
         self.neg_primary_key = 1
+
+        if node.FileSystem.Name == 'data.tar':
+            self.rename_file_path = ['/storage/emulated', '/data/media'] 
+        else:
+            self.rename_file_path = None
 
     def parse(self):
 
@@ -325,7 +330,7 @@ class NeteaseMailParser(object):
             attach.owner_account_id         = self.cur_account_id
             attach.mail_id                  = rec['messageId'].Value
             attach.attachment_name          = rec['filename'].Value
-            attach.attachment_save_dir      = rec['localPath'].Value
+            attach.attachment_save_dir      = self._convert_nodepath(rec['localPath'].Value)
             attach.attachment_download_date = rec['downloadTime'].Value
             attach.attachment_size          = rec['size'].Value
             attach.mail_id                  = rec['messageId'].Value
@@ -339,6 +344,29 @@ class NeteaseMailParser(object):
             self.mm.db_commit()
         except:
             exc()
+
+    def _convert_nodepath(self, raw_path):
+        try:
+            if not raw_path:
+                return
+            if self.rename_file_path: 
+                # replace: '/storage/emulated', '/data/media'
+                raw_path = raw_path.replace(self.rename_file_path[0], self.rename_file_path[1])
+
+            fs = self.root.FileSystem
+            for prefix in ['', '/data', ]:
+                file_node = fs.GetByPath(prefix + raw_path)
+                if file_node and file_node.Type==NodeType.File:
+                    return file_node.AbsolutePath
+                invalid_path = re.search(r'[\\:*?"<>|\r\n]+', raw_path)
+                if invalid_path:
+                    return 
+                nodes = list(fs.Search(raw_path))
+                if nodes and nodes[0].Type == NodeType.File:
+                    return nodes[0].AbsolutePath
+        except:
+            exc()    
+            return raw_path
 
     @staticmethod
     def _convert_email_format(name_email):
