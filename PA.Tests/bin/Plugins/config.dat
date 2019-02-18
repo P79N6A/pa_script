@@ -532,7 +532,7 @@
           <integer>0</integer>
           <key>Patterns</key>
           <array>
-            <string>/Documents/session.dat$</string>
+            <string>/Library/Preferences/ctrip.com.plist$</string>
           </array>
           <key>Category</key>
           <string>Ctrip</string>
