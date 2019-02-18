@@ -1,4 +1,6 @@
 #coding=utf-8
+import operator
+
 __author__ = "sumeng"
 
 from PA_runtime import *
@@ -354,6 +356,60 @@ class Wechat(object):
             if xml.Attribute('sign'):
                 model.business_card_signature = xml.Attribute('sign').Value
         return content
+
+    def _parse_segment(self, story_comment, comment_row):
+        try:
+            sign_head_length = 0x0c
+
+            sender_length = comment_row[sign_head_length]
+            sender_start_index = sign_head_length + 0x01
+            sender_end_index = sign_head_length + sender_length
+            sender_id = comment_row[sender_start_index:(sender_end_index + 0x01)]
+
+            receiver_id_length = comment_row[(sender_end_index + 0x02)]
+            receiver_id_start_index = sender_end_index + 0x03
+            receiver_id_end_index = receiver_id_start_index + receiver_id_length
+            receiver_id = comment_row[receiver_id_start_index: receiver_id_end_index]
+
+            receiver_nickname_length = comment_row[(receiver_id_end_index + 0x01)]
+            receiver_nickname_start_index = receiver_id_end_index + 0x02
+            receiver_nickname_end_index = receiver_nickname_start_index + receiver_nickname_length
+            receiver_nickname = comment_row[receiver_nickname_start_index:receiver_nickname_end_index]
+
+            try:
+                comment_length = comment_row[receiver_nickname_end_index + 0x07]
+                comment_start_index = receiver_nickname_end_index + 0x08
+                comment_end_index = comment_start_index + comment_length
+                comment = comment_row[comment_start_index:comment_end_index]
+            except Exception as e:
+                comment = b''
+
+            story_comment.content = comment.decode(encoding="utf-8")
+            story_comment.sender_id = sender_id.decode(encoding="utf-8")
+            return True
+        except Exception as e:
+            return False
+
+    def _process_parse_story_comment(self, story, data):
+        if not data:
+            return
+        sign_length = 0x0c
+        length = len(data)
+        prefix = data[:sign_length]
+        index = 0x00
+        segment_index = []
+        while index < length:
+            compare_data = data[index:(index + sign_length)]
+            if operator.eq(compare_data, prefix):
+                segment_index.append(index)
+            index += 0x01
+        segment_data = [data[segment_index[i]:segment_index[i + 1]] for i in range(len(segment_index) - 1)]
+        story_comments_row = segment_data[1:]
+        for i in story_comments_row:
+            comment = story.create_comment()
+            parse_complete = self._parse_segment(comment, i)
+            if parse_complete:
+                yield comment
 
     @staticmethod
     def _db_record_get_value(record, column, default_value=None):
