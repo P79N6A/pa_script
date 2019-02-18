@@ -372,8 +372,8 @@ class Generate(object):
                     if media_type == "audio":
                         audio = MediaFile.AudioFile()
                         audio.FileName = self._db_reader_get_string_value(sr, 7)
-                        path = self._db_reader_get_string_value(sr, 1)
-                        audio.NodeOrUrl.Init(path)
+                        audio.Path = self._db_reader_get_string_value(sr, 1)
+                        #audio.NodeOrUrl.Init(path)
                         audio.Size = self._db_reader_get_int_value(sr, 2)
                         addTime = self._db_reader_get_int_value(sr, 3)
                         audio.AddTime = self._get_timestamp(addTime)
@@ -392,8 +392,8 @@ class Generate(object):
                     elif media_type == "image":
                         image = MediaFile.ImageFile()
                         image.FileName = self._db_reader_get_string_value(sr, 7)
-                        path = self._db_reader_get_string_value(sr, 1)
-                        image.NodeOrUrl.Init(path)
+                        image.Path = self._db_reader_get_string_value(sr, 1)
+                        #image.NodeOrUrl.Init(path)
                         image.Size = self._db_reader_get_int_value(sr, 2)
                         addTime = self._db_reader_get_int_value(sr, 3)
                         image.FileExtention = self._db_reader_get_string_value(sr, 5)
@@ -459,8 +459,8 @@ class Generate(object):
                     elif media_type == "video":
                         video = MediaFile.VideoFile()
                         video.FileName = self._db_reader_get_string_value(sr, 7)
-                        path = self._db_reader_get_string_value(sr, 1)
-                        video.NodeOrUrl.Init(path)
+                        video.Path = self._db_reader_get_string_value(sr, 1)
+                        #video.NodeOrUrl.Init(path)
                         video.Size = self._db_reader_get_int_value(sr, 2)
                         addTime = self._db_reader_get_int_value(sr, 3)
                         video.FileExtention = self._db_reader_get_string_value(sr, 5)
