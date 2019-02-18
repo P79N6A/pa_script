@@ -411,6 +411,9 @@ class Wechat(object):
             if parse_complete:
                 yield comment
 
+    def _parse_user_type_is_blocked(self, user_type):
+        return (user_type & 1<<3) != 0
+
     @staticmethod
     def _db_record_get_value(record, column, default_value=None):
         if not record[column].IsDBNull:
@@ -1104,15 +1107,6 @@ class Wechat(object):
                 model.Deleted = model_wechat.GenerateModel._convert_deleted_status(label.deleted)
                 model.AppUserAccount = self.user_account_model
                 model.Name = label.name
-                for user_id in label.users:
-                    friend = self.friend_models.get(user_id)
-                    if friend is not None:
-                        model.Friends.Add(friend)
-            elif label.type == model_wechat.CONTACT_LABEL_TYPE_BLOCKED:
-                model = BlockedList()
-                model.SourceFile = label.source
-                model.Deleted = model_wechat.GenerateModel._convert_deleted_status(label.deleted)
-                model.AppUserAccount = self.user_account_model
                 for user_id in label.users:
                     friend = self.friend_models.get(user_id)
                     if friend is not None:

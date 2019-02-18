@@ -1,9 +1,6 @@
 # -*- coding: utf-8 -*-
-
 __author__ = "sumeng"
 
-
-import operator
 from PA_runtime import *
 import clr
 clr.AddReference('System.Core')
@@ -35,6 +32,8 @@ GENDER_FEMALE = 2
 FRIEND_TYPE_NONE = 0  # 陌生人
 FRIEND_TYPE_FRIEND = 1  # 好友
 FRIEND_TYPE_OFFICIAL = 2  # 公众号
+FRIEND_TYPE_PROGRAM = 3  # 小程序
+FRIEND_TYPE_BLOCKED = 4  # 黑名单
 
 CHAT_TYPE_NONE = 0  # 未知聊天
 CHAT_TYPE_FRIEND = 1  # 好友聊天
@@ -92,8 +91,7 @@ DEAL_STATUS_SPLIT_BILL_UNDONE = 12  # 未收齐
 DEAL_STATUS_SPLIT_BILL_DONE = 13  # 已收齐
 
 CONTACT_LABEL_TYPE_GROUP = 1  # 通讯录分组
-CONTACT_LABEL_TYPE_BLOCKED = 2  # 黑名单
-CONTACT_LABEL_TYPE_EMERGENCY = 3  # 紧急联系人
+CONTACT_LABEL_TYPE_EMERGENCY = 2  # 紧急联系人
 
 VERSION_KEY_DB = 'db'
 VERSION_KEY_APP = 'app'
@@ -1917,16 +1915,6 @@ class GenerateModel(object):
                             if friend is not None:
                                 model.Friends.Add(friend)
                         self.add_model(model)
-                    elif cl_type == CONTACT_LABEL_TYPE_BLOCKED:
-                        model = BlockedList()
-                        model.SourceFile = source
-                        model.Deleted = self._convert_deleted_status(deleted)
-                        model.AppUserAccount = self.account_models.get(account_id)
-                        for user_id in users:
-                            friend = self.friend_models.get(self._get_user_key(account_id, user_id))
-                            if friend is not None:
-                                model.Friends.Add(friend)
-                        self.add_model(model)
                     elif cl_type == CONTACT_LABEL_TYPE_EMERGENCY:
                         model = EmergencyContacts()
                         model.SourceFile = source
@@ -1939,46 +1927,6 @@ class GenerateModel(object):
                         self.add_model(model)
 
                     
-                except Exception as e:
-                    if deleted == 0:
-                        TraceService.Trace(TraceLevel.Error, "model_wechat.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
-            self.push_models()
-        except Exception as e:
-            TraceService.Trace(TraceLevel.Error, "model_wechat.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
-
-    def _get_black_list_models(self):
-        if canceller.IsCancellationRequested:
-            return []
-        if not self._db_has_table('black_list'):
-            return []
-        models = []
-
-        sql = '''select account_id, user_id, source, deleted, repeated
-                 from black_list'''
-        try:
-            cmd = self.db.CreateCommand()
-            cmd.CommandText = sql
-            r = cmd.ExecuteReader()
-            while r.Read():
-                if canceller.IsCancellationRequested:
-                    break
-                deleted = 0
-                try:
-                    source = self._db_reader_get_string_value(r, 2)
-                    deleted = self._db_reader_get_int_value(r, 3, None)
-                    account_id = self._db_reader_get_string_value(r, 0)
-                    user_id = self._db_reader_get_string_value(r, 1)
-
-                    model = BlockedList()
-                    model.SourceFile = source
-                    model.Deleted = self._convert_deleted_status(deleted)
-                    model.AppUserAccount = self.account_models.get(account_id)
-                    for user_id in users:
-                        friend = self.friend_models.get(self._get_user_key(account_id, user_id))
-                        if friend is not None:
-                            model.Friends.Add(friend)
-
-                    self.add_model(model)
                 except Exception as e:
                     if deleted == 0:
                         TraceService.Trace(TraceLevel.Error, "model_wechat.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
@@ -2101,6 +2049,10 @@ class GenerateModel(object):
             return WeChat.FriendType.Friend
         elif friend_type == FRIEND_TYPE_OFFICIAL:
             return WeChat.FriendType.Official
+        elif friend_type == FRIEND_TYPE_PROGRAM:
+            return WeChat.FriendType.Program
+        elif friend_type == FRIEND_TYPE_BLOCKED:
+            return WeChat.FriendType.BlackList
         else:
             return WeChat.FriendType.None
 

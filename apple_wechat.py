@@ -40,7 +40,7 @@ import time
 # Patterns: '/DB/MM\.sqlite$'
 
 # app数据库版本
-VERSION_APP_VALUE = 1
+VERSION_APP_VALUE = 2
 
 def analyze_wechat(root, extract_deleted, extract_source):
     #print('%s apple_wechat() analyze_wechat root:%s' % (time.asctime(time.localtime(time.time())), root.AbsolutePath))
@@ -374,7 +374,10 @@ class WeChatParser(Wechat):
             if certification_flag != 0:
                 friend_type = model_wechat.FRIEND_TYPE_OFFICIAL
             elif contact_type % 2 == 1:
-                friend_type = model_wechat.FRIEND_TYPE_FRIEND
+                if self._parse_user_type_is_blocked(contact_type):
+                    friend_type = model_wechat.FRIEND_TYPE_BLOCKED
+                else:
+                    friend_type = model_wechat.FRIEND_TYPE_FRIEND
             friend = model_wechat.Friend()
             friend.deleted = deleted
             friend.source = source
