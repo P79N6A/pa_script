@@ -23,6 +23,10 @@ import sqlite3
 import re
 import traceback
 
+from mimetype_dic import dic1 as suffix2type, dic2 as type2suffix
+from PIL import Image
+from PIL.ExifTags import TAGS
+
 SQL_CREATE_TABLE_MEDIA = '''
     CREATE TABLE IF NOT EXISTS media(
         id INTEGER,
@@ -346,6 +350,149 @@ class Generate(object):
         self.db = None
         return models
 
+    def get_model_from_dir(self, node):
+        '''从给定目录获取媒体信息转成model'''
+        models = []
+        image_suffix = type2suffix['image']
+        video_suffix = type2suffix['video']
+        audio_suffix = type2suffix['audio']
+        for parent, dirnames, filenames in os.walk(node.PathWithMountPoint):
+            for filename in filenames:
+                suffix = re.sub('.*\.', '', filename)
+                #获取jpg图片的exif信息
+                if filename.endswith('jpg'):
+                    file = os.path.join(parent, filename)
+                    ret = self.get_exif_data(file)
+                    models.extend(self.get_exif_info(ret, node))
+                #获取其他类型图片信息
+                elif suffix in image_suffix:
+                    pass
+                #获取视频信息
+                elif suffix in video_suffix:
+                    pass
+                #获取音频信息
+                elif suffix in audio_suffix:
+                    pass
+        return models
+
+    def get_exif_data(self, fname):
+        '''获取图片metadata'''
+        ret = {}
+        try:
+            img = Image.open(fname)
+            if hasattr(img, '_getexif'):
+                exifinfo = img._getexif()
+                if exifinfo != None:
+                    for tag, value in exifinfo.items():
+                        decoded = TAGS.get(tag, tag)
+                        ret[decoded] = value
+                return ret
+        except:
+            return {}
+
+    def get_exif_info(self, ret, node):
+        '''获取媒体文件的exif信息'''
+        try:
+            if ret is {}:
+                return
+            model = []
+            image = MediaFile.ImageFile()
+            path = node.PathWithMountPoint
+            image.FileName = os.path.basename(path)
+            image.Path = node.AbsolutePath
+            image.Size = os.path.getsize(path)
+            addTime = os.path.getctime(path)
+            image.FileExtention = 'jpg'
+            image.MimeType = 'image'
+            image.AddTime = self._get_timestamp(addTime)
+            location = Base.Location(image)
+            coordinate = Base.Coordinate()
+            try:
+                latitude = None
+                longitude = None
+                if 'GPSInfo' in ret.keys():
+                    latitude = 0.0
+                    longitude = 0.0
+                    try:
+                        GPSInfo = ret['GPSInfo']
+                        latitudeFlag = GPSInfo[1]
+                        latitude = float(GPSInfo[2][0][0])/float(GPSInfo[2][0][1]) + float(GPSInfo[2][1][0])/float(GPSInfo[2][1][1])/float(60) + float(GPSInfo[2][2][0])/float(GPSInfo[2][2][1])/float(3600)
+                        longitudeFlag = GPSInfo[3]
+                        longitude = float(GPSInfo[4][0][0])/float(GPSInfo[4][0][1]) + float(GPSInfo[4][1][0])/float(GPSInfo[4][1][1])/float(60) + float(GPSInfo[4][2][0])/float(GPSInfo[4][2][1])/float(3600)
+                    except:
+                        pass
+                coordinate.Longitude = longitude
+                coordinate.Latitude = latitude
+                coordinate.Type = CoordinateType.Google if self.coordinate_type == COORDINATE_TYPE_GOOGLE else CoordinateType.GPS
+            except:
+                pass
+            location.Coordinate = coordinate
+            location.Time = image.AddTime
+            location.SourceType = LocationSourceType.Media
+            image.Location = location
+            modifyTime = os.path.getmtime(path)
+            image.ModifyTime = self._get_timestamp(modifyTime)
+            try:
+                width = None
+                height = None
+                if 'ExifImageWidth' in ret.keys() and 'ImageLength' in ret.keys():
+                    width = ret['ExifImageWidth']
+                    height = ret['ImageLength']
+                image.Height = height
+                image.Width = width
+            except:
+                pass
+            takenDate = os.path.getctime(path)
+            image.TakenDate = self._get_timestamp(takenDate)
+            if '42036' in ret:
+                image.Aperture = str(ret['42036'])
+            if 'Artist' in ret:
+                image.Artist = ret['Artist']
+            if 'ColorSpace' in ret:
+                ss = 'sRGB' if ret['ColorSpace'] == 1 else ret['ColorSpace']
+                image.ColorSpace = str(ss)
+            if 'ExifVersion' in ret:
+                image.ExifVersion = str(ret['ExifVersion'])
+            if 'ExposureProgram' in ret:
+                image.ExposureProgram = str(ret['ExposureProgram'])
+            if 'ExposureTime' in ret:
+                if len(ret['ExposureTime']) == 2:
+                    et = ret['ExposureTime']
+                    image.ExposureTime = str(int(et[0]/et[1]))
+            if 'FocalLength' in ret:
+                if len(ret['FocalLength']) == 2:
+                    fl = ret['FocalLength']
+                    image.FocalLength = str(int(fl[0]/fl[1]))
+            if 'ISOSpeedRatings' in ret:
+                image.ISO = str(ret['ISOSpeedRatings'])
+            if 'Make' in ret:
+                image.Make = ret['Make']
+            if 'Model' in ret:
+                image.Model = ret['Model']
+            if 'ExifImageWidth' in ret:
+                image.Resolution = str(ret['ExifImageWidth']) + '*' + str(ret['ExifImageHeight'])
+            if 'Software' in ret:
+                image.Software = ret['Software']
+            if 'XResolution' in ret:
+                if len(ret['XResolution']) == 2:
+                    xr = ret['XResolution']
+                    image.XResolution = str(int(xr[0]/xr[1]))
+                    if image.XResolution is not '' and image.XResolution is not None:
+                        image.XResolution = image.XResolution + ' dpi'
+            if 'YResolution' in ret:
+                if len(ret['YResolution']) == 2:
+                    yr = ret['YResolution']
+                    image.XResolution = str(int(yr[0]/yr[1]))
+                    if image.YResolution is not '' and image.YResolution is not None:
+                        image.YResolution = image.YResolution + ' dpi'
+            image.SourceFile = node.AbsolutePath
+            if location.Coordinate is not None:
+                model.append(location)
+            model.append(image)
+            return model
+        except:
+            return []
+
     def _get_model_media(self):
         model = []
         try:
@@ -373,6 +520,7 @@ class Generate(object):
                         audio = MediaFile.AudioFile()
                         audio.FileName = self._db_reader_get_string_value(sr, 7)
                         audio.Path = self._db_reader_get_string_value(sr, 1)
+                        #audio.NodeOrUrl.Init(path)
                         audio.Size = self._db_reader_get_int_value(sr, 2)
                         addTime = self._db_reader_get_int_value(sr, 3)
                         audio.AddTime = self._get_timestamp(addTime)
@@ -392,6 +540,7 @@ class Generate(object):
                         image = MediaFile.ImageFile()
                         image.FileName = self._db_reader_get_string_value(sr, 7)
                         image.Path = self._db_reader_get_string_value(sr, 1)
+                        #image.NodeOrUrl.Init(path)
                         image.Size = self._db_reader_get_int_value(sr, 2)
                         addTime = self._db_reader_get_int_value(sr, 3)
                         image.FileExtention = self._db_reader_get_string_value(sr, 5)
@@ -458,6 +607,7 @@ class Generate(object):
                         video = MediaFile.VideoFile()
                         video.FileName = self._db_reader_get_string_value(sr, 7)
                         video.Path = self._db_reader_get_string_value(sr, 1)
+                        #video.NodeOrUrl.Init(path)
                         video.Size = self._db_reader_get_int_value(sr, 2)
                         addTime = self._db_reader_get_int_value(sr, 3)
                         video.FileExtention = self._db_reader_get_string_value(sr, 5)
@@ -568,7 +718,7 @@ class Generate(object):
                         if date[0] is None:
                             continue
                         log = MediaFile.MediaLog()
-                        log.FilePath = self._db_reader_get_string_value(sr, 14)
+                        #log.FilePath = self._db_reader_get_string_value(sr, 14)
                         log.Operating = date[1]
                         log.OperatingTime = str(date[0])
                         model.append(log)
@@ -604,7 +754,7 @@ class Generate(object):
                         if date[0] is None:
                             continue
                         log = MediaFile.MediaLog()
-                        log.FilePath = self._db_reader_get_string_value(sr, 14)
+                        #log.FilePath = self._db_reader_get_string_value(sr, 14)
                         log.Operating = date[1]
                         log.OperatingTime = str(date[0])
                         model.append(log)
