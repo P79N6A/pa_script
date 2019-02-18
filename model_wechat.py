@@ -1095,6 +1095,7 @@ class GenerateModel(object):
         self.friend_models = {}
         self.chatroom_models = {}
         self.models = []
+        self.media_models = []
 
     def add_model(self, model):
         if model is not None:
@@ -1505,18 +1506,22 @@ class GenerateModel(object):
                     
                     if msg_type == MESSAGE_CONTENT_TYPE_IMAGE:
                         model.Content = Base.Content.ImageContent(model)
-                        model.Content.Value = Base.Media()
-                        model.Content.Value.Path = media_path
-                        model.Content.Value.ThumbnailPath = media_thum_path
+                        media_model = Base.MediaFile.ImageFile()
+                        media_model.Path = media_path
+                        model.Content.Value = media_model
+                        self.media_models.append(media_model)
                     elif msg_type == MESSAGE_CONTENT_TYPE_VOICE:
                         model.Content = Base.Content.VoiceContent(model)
-                        model.Content.Value = Base.Media()
-                        model.Content.Value.Path = media_path
+                        media_model = Base.MediaFile.AudioFile()
+                        media_model.Path = media_path
+                        model.Content.Value = media_model
+                        self.media_models.append(media_model)
                     elif msg_type == MESSAGE_CONTENT_TYPE_VIDEO:
                         model.Content = Base.Content.VideoContent(model)
-                        model.Content.Value = Base.Media()
-                        model.Content.Value.Path = media_path
-                        model.Content.Value.ThumbnailPath = media_thum_path
+                        media_model = Base.MediaFile.VideoFile()
+                        media_model.Path = media_path
+                        model.Content.Value = media_model
+                        self.media_models.append(media_model)
                     elif msg_type == MESSAGE_CONTENT_TYPE_CONTACT_CARD:
                         model.Content = Base.Content.BusinessCardContent(model)
                         model.Content.Value = WeChat.BusinessCard()
@@ -1673,18 +1678,21 @@ class GenerateModel(object):
                         images = image_path.split(',')
                         for image in images:
                             if image not in [None, '']:
-                                value = Base.Media()
-                                value.Path = image
-                                images_content.Values.Add(value)
+                                media_model = Base.MediaFile.ImageFile()
+                                media_model.Path = image
+                                images_content.Values.Add(media_model)
+                                self.media_models.append(media_model)
                         model.Contents.Add(images_content)
                     if video_path not in [None, '']:
                         videos = video_path.split(',')
                         for video in videos:
                             if video not in [None, '']:
                                 video_content = Base.Content.VideoContent(model)
-                                video_content.Value = Base.Media()
-                                video_content.Value.Path = video
+                                media_model = Base.MediaFile.VideoFile()
+                                media_model.Path = video
+                                video_content.Value = media_model
                                 model.Contents.Add(video_content)
+                                self.media_models.append(media_model)
                     if link_url not in [None, '']:
                         l_content = Base.Content.LinkContent(model)
                         l_content.Value = Base.Link()
@@ -1840,16 +1848,22 @@ class GenerateModel(object):
                     model.Sender = self.friend_models.get(self._get_user_key(account_id, sender_id))
                     if fav_type == FAV_TYPE_IMAGE:
                         model.Content = Base.Content.ImageContent(model)
-                        model.Content.Value = Base.Media()
-                        model.Content.Value.Path = media_path
+                        media_model = Base.MediaFile.ImageFile()
+                        media_model.Path = media_path
+                        model.Content.Value = media_model
+                        self.media_models.append(media_model)
                     elif fav_type == FAV_TYPE_VOICE:
                         model.Content = Base.Content.VoiceContent(model)
-                        model.Content.Value = Base.Media()
-                        model.Content.Value.Path = media_path
+                        media_model = Base.MediaFile.AudioFile()
+                        media_model.Path = media_path
+                        model.Content.Value = media_model
+                        self.media_models.append(media_model)
                     elif fav_type == FAV_TYPE_VIDEO:
                         model.Content = Base.Content.VideoContent(model)
-                        model.Content.Value = Base.Media()
-                        model.Content.Value.Path = media_path
+                        media_model = Base.MediaFile.VideoFile()
+                        media_model.Path = media_path
+                        model.Content.Value = media_model
+                        self.media_models.append(media_model)
                     elif fav_type == FAV_TYPE_LINK:
                         model.Content = Base.Content.LinkContent(model)
                         model.Content.Value = Base.Link()
