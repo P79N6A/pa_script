@@ -1,4 +1,6 @@
 #coding=utf-8
+import operator
+
 __author__ = "sumeng"
 
 from PA_runtime import *
@@ -66,6 +68,7 @@ class Wechat(object):
         self.user_account_model = None
         self.friend_models = {}
         self.chatroom_models = {}
+        self.media_models = []
 
     def _process_parse_message_deal(self, xml_element, model):
         if xml_element.Name.LocalName == 'msg':
@@ -354,6 +357,63 @@ class Wechat(object):
             if xml.Attribute('sign'):
                 model.business_card_signature = xml.Attribute('sign').Value
         return content
+
+    def _parse_segment(self, story_comment, comment_row):
+        try:
+            sign_head_length = 0x0c
+
+            sender_length = comment_row[sign_head_length]
+            sender_start_index = sign_head_length + 0x01
+            sender_end_index = sign_head_length + sender_length
+            sender_id = comment_row[sender_start_index:(sender_end_index + 0x01)]
+
+            receiver_id_length = comment_row[(sender_end_index + 0x02)]
+            receiver_id_start_index = sender_end_index + 0x03
+            receiver_id_end_index = receiver_id_start_index + receiver_id_length
+            receiver_id = comment_row[receiver_id_start_index: receiver_id_end_index]
+
+            receiver_nickname_length = comment_row[(receiver_id_end_index + 0x01)]
+            receiver_nickname_start_index = receiver_id_end_index + 0x02
+            receiver_nickname_end_index = receiver_nickname_start_index + receiver_nickname_length
+            receiver_nickname = comment_row[receiver_nickname_start_index:receiver_nickname_end_index]
+
+            try:
+                comment_length = comment_row[receiver_nickname_end_index + 0x07]
+                comment_start_index = receiver_nickname_end_index + 0x08
+                comment_end_index = comment_start_index + comment_length
+                comment = comment_row[comment_start_index:comment_end_index]
+            except Exception as e:
+                comment = b''
+
+            story_comment.content = comment.decode(encoding="utf-8")
+            story_comment.sender_id = sender_id.decode(encoding="utf-8")
+            return True
+        except Exception as e:
+            return False
+
+    def _process_parse_story_comment(self, story, data):
+        if not data:
+            return
+        sign_length = 0x0c
+        length = len(data)
+        prefix = data[:sign_length]
+        index = 0x00
+        segment_index = []
+        while index < length:
+            compare_data = data[index:(index + sign_length)]
+            if operator.eq(compare_data, prefix):
+                segment_index.append(index)
+            index += 0x01
+        segment_data = [data[segment_index[i]:segment_index[i + 1]] for i in range(len(segment_index) - 1)]
+        story_comments_row = segment_data[1:]
+        for i in story_comments_row:
+            comment = story.create_comment()
+            parse_complete = self._parse_segment(comment, i)
+            if parse_complete:
+                yield comment
+
+    def _parse_user_type_is_blocked(self, user_type):
+        return (user_type & 1<<3) != 0
 
     @staticmethod
     def _db_record_get_value(record, column, default_value=None):
@@ -815,18 +875,22 @@ class Wechat(object):
             
             if message.type == model_wechat.MESSAGE_CONTENT_TYPE_IMAGE:
                 model.Content = Base.Content.ImageContent(model)
-                model.Content.Value = Base.Media()
-                model.Content.Value.Path = message.media_path
-                model.Content.Value.ThumbnailPath = message.media_thum_path
+                media_model = Base.MediaFile.ImageFile()
+                media_model.Path = message.media_path
+                model.Content.Value = media_model
+                self.media_models.append(media_model)
             elif message.type == model_wechat.MESSAGE_CONTENT_TYPE_VOICE:
                 model.Content = Base.Content.VoiceContent(model)
-                model.Content.Value = Base.Media()
-                model.Content.Value.Path = message.media_path
+                media_model = Base.MediaFile.AudioFile()
+                media_model.Path = message.media_path
+                model.Content.Value = media_model
+                self.media_models.append(media_model)
             elif message.type == model_wechat.MESSAGE_CONTENT_TYPE_VIDEO:
                 model.Content = Base.Content.VideoContent(model)
-                model.Content.Value = Base.Media()
-                model.Content.Value.Path = message.media_path
-                model.Content.Value.ThumbnailPath = message.media_thum_path
+                media_model = Base.MediaFile.VideoFile()
+                media_model.Path = message.media_path
+                model.Content.Value = media_model
+                self.media_models.append(media_model)
             elif message.type == model_wechat.MESSAGE_CONTENT_TYPE_CONTACT_CARD:
                 model.Content = Base.Content.BusinessCardContent(model)
                 model.Content.Value = WeChat.BusinessCard()
@@ -907,18 +971,21 @@ class Wechat(object):
                 images = feed.image_path.split(',')
                 for image in images:
                     if image not in [None, '']:
-                        value = Base.Media()
-                        value.Path = image
-                        images_content.Values.Add(value)
+                        media_model = Base.MediaFile.ImageFile()
+                        media_model.Path = image
+                        images_content.Values.Add(media_model)
+                        self.media_models.append(media_model)
                 model.Contents.Add(images_content)
             if feed.video_path not in [None, '']:
                 videos = feed.video_path.split(',')
                 for video in videos:
                     if video not in [None, '']:
                         video_content = Base.Content.VideoContent(model)
-                        video_content.Value = Base.Media()
-                        video_content.Value.Path = video
+                        media_model = Base.MediaFile.VideoFile()
+                        media_model.Path = video
+                        video_content.Value = media_model
                         model.Contents.Add(video_content)
+                        self.media_models.append(media_model)
             if feed.link_url not in [None, '']:
                 link_content = Base.Content.LinkContent(model)
                 link_content.Value = Base.Link()
@@ -1004,16 +1071,22 @@ class Wechat(object):
             model.Sender = self.friend_models.get(favorite_item.sender_id)
             if favorite_item.type == model_wechat.FAV_TYPE_IMAGE:
                 model.Content = Base.Content.ImageContent(model)
-                model.Content.Value = Base.Media()
-                model.Content.Value.Path = favorite_item.media_path
+                media_model = Base.MediaFile.ImageFile()
+                media_model.Path = favorite_item.media_path
+                model.Content.Value = media_model
+                self.media_models.append(media_model)
             elif favorite_item.type == model_wechat.FAV_TYPE_VOICE:
                 model.Content = Base.Content.VoiceContent(model)
-                model.Content.Value = Base.Media()
-                model.Content.Value.Path = favorite_item.media_path
+                media_model = Base.MediaFile.AudioFile()
+                media_model.Path = favorite_item.media_path
+                model.Content.Value = media_model
+                self.media_models.append(media_model)
             elif favorite_item.type == model_wechat.FAV_TYPE_VIDEO:
                 model.Content = Base.Content.VideoContent(model)
-                model.Content.Value = Base.Media()
-                model.Content.Value.Path = favorite_item.media_path
+                media_model = Base.MediaFile.VideoFile()
+                media_model.Path = favorite_item.media_path
+                model.Content.Value = media_model
+                self.media_models.append(media_model)
             elif favorite_item.type == model_wechat.FAV_TYPE_LINK:
                 model.Content = Base.Content.LinkContent(model)
                 model.Content.Value = Base.Link()
@@ -1048,15 +1121,6 @@ class Wechat(object):
                 model.Deleted = model_wechat.GenerateModel._convert_deleted_status(label.deleted)
                 model.AppUserAccount = self.user_account_model
                 model.Name = label.name
-                for user_id in label.users:
-                    friend = self.friend_models.get(user_id)
-                    if friend is not None:
-                        model.Friends.Add(friend)
-            elif label.type == model_wechat.CONTACT_LABEL_TYPE_BLOCKED:
-                model = BlockedList()
-                model.SourceFile = label.source
-                model.Deleted = model_wechat.GenerateModel._convert_deleted_status(label.deleted)
-                model.AppUserAccount = self.user_account_model
                 for user_id in label.users:
                     friend = self.friend_models.get(user_id)
                     if friend is not None:

@@ -255,8 +255,11 @@
     <PackageReference Include="SQLite.CodeFirst">
       <Version>1.5.1.25</Version>
     </PackageReference>
-    <PackageReference Include="System.Data.SQLite">
-      <Version>1.0.109.1</Version>
+    <PackageReference Include="System.Data.SQLite.Core">
+      <Version>1.0.109.2</Version>
+    </PackageReference>
+    <PackageReference Include="System.Data.SQLite.EF6.Migrations">
+      <Version>1.0.106</Version>
     </PackageReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

@@ -89,7 +89,7 @@ class iphone_aps_parser(object):
             if 'AppNotificationTitle' in notification_dict.Children and not notification.Source.HasContent:    
                 source_application = [notification_dict['AppNotificationTitle'].Value,MemoryRange(notification_dict['AppNotificationTitle'].Source) \
                                         if self.extract_source else None]
-                notification.Source.Init(source_application[0] +" push notification",source_application[1])
+                notification.Subject.Init(source_application[0] +" push notification",source_application[1])
             if 'AppNotificationCreationDate' in notification_dict.Children and not notification.TimeStamp.HasContent: 
                 creation_date = [TimeStamp(notification_dict['AppNotificationCreationDate'].Value.Value.ToUniversalTime(),True), \
                                 MemoryRange(notification_dict['AppNotificationCreationDate'].Source) if self.extract_source else None]

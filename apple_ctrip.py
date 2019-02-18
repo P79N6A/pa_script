@@ -83,7 +83,7 @@ def convert_to_unixtime(timestamp):
 class Ctrip(object):
 
     def __init__(self, node, extract_Deleted, extract_Source):
-        self.root = node
+        self.root = node.Parent.Parent.Parent.GetByPath("Documents/ctrip_common.db")
         self.extractDeleted = extract_Deleted
         self.extractSource = extract_Source
         self.ctrip = model_ticketing.Ticketing()
