@@ -759,9 +759,9 @@ class WeChatParser(Wechat):
                         except Exception as e:
                             pass
                     if source_info.Element('realchatname'):
-                        fav_item.sender = source_info.Element('realchatname').Value
+                        fav_item.sender_id = source_info.Element('realchatname').Value
                     elif source_info.Element('fromusr'):
-                        fav_item.sender = source_info.Element('fromusr').Value
+                        fav_item.sender_id = source_info.Element('fromusr').Value
                 if xml.Element('desc'):
                     fav_item.content = xml.Element('desc').Value
             elif fav_type in [model_wechat.FAV_TYPE_IMAGE, model_wechat.FAV_TYPE_VOICE, model_wechat.FAV_TYPE_VIDEO, model_wechat.FAV_TYPE_VIDEO_2, model_wechat.FAV_TYPE_ATTACHMENT]:
@@ -775,9 +775,9 @@ class WeChatParser(Wechat):
                         except Exception as e:
                             pass
                     if source_info.Element('realchatname'):
-                        fav_item.sender = source_info.Element('realchatname').Value
+                        fav_item.sender_id = source_info.Element('realchatname').Value
                     elif source_info.Element('fromusr'):
-                        fav_item.sender = source_info.Element('fromusr').Value
+                        fav_item.sender_id = source_info.Element('fromusr').Value
                 if xml.Element('title'):
                     fav_item.content = xml.Element('title').Value
                 if xml.Element('datalist') and xml.Element('datalist').Element('dataitem'):
@@ -797,9 +797,9 @@ class WeChatParser(Wechat):
                         except Exception as e:
                             pass
                     if source_info.Element('realchatname'):
-                        fav_item.sender = source_info.Element('realchatname').Value
+                        fav_item.sender_id = source_info.Element('realchatname').Value
                     elif source_info.Element('fromusr'):
-                        fav_item.sender = source_info.Element('fromusr').Value
+                        fav_item.sender_id = source_info.Element('fromusr').Value
                     if source_info.Element('link'):
                         fav_item.link_url = source_info.Element('link').Value
                 if xml.Element('weburlitem'):
@@ -819,9 +819,9 @@ class WeChatParser(Wechat):
                         except Exception as e:
                             pass
                     if source_info.Element('realchatname'):
-                        fav_item.sender = source_info.Element('realchatname').Value
+                        fav_item.sender_id = source_info.Element('realchatname').Value
                     elif source_info.Element('fromusr'):
-                        fav_item.sender = source_info.Element('fromusr').Value
+                        fav_item.sender_id = source_info.Element('fromusr').Value
                 if xml.Element('locitem'):
                     latitude = 0
                     longitude = 0
@@ -861,9 +861,9 @@ class WeChatParser(Wechat):
                                 except Exception as e:
                                     pass
                             if source_info.Element('realchatname'):
-                                fav_item.sender = source_info.Element('realchatname').Value
+                                fav_item.sender_id = source_info.Element('realchatname').Value
                             elif source_info.Element('fromusr'):
-                                fav_item.sender = source_info.Element('fromusr').Value
+                                fav_item.sender_id = source_info.Element('fromusr').Value
                         if fav_item.type == model_wechat.FAV_TYPE_TEXT:
                             if item.Element('datadesc'):
                                 fav_item.content = item.Element('datadesc').Value
