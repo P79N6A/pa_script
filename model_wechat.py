@@ -1410,6 +1410,7 @@ class GenerateModel(object):
                     model.HeadPortraitPath = photo
                     model.Notice = notice
                     model.IsSave = is_saved != 0
+                    model.GroupOwner = self._get_chatroom_owner_model(account_id,user_id, sp_id, deleted)
                     model.Members.AddRange(self._get_chatroom_member_models(account_id, user_id, sp_id, deleted))
                     model.JoinTime = self._get_timestamp(join_time)
                     self.add_model(model)
@@ -1614,6 +1615,39 @@ class GenerateModel(object):
             if deleted == 0:
                 TraceService.Trace(TraceLevel.Error, "model_wechat.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
         return models
+
+    def _get_chatroom_owner_model(self, account_id, chatroom_id, sp_id, deleted):
+        if account_id in [None, ''] or chatroom_id in [None, '']:
+            return None
+        owner = None
+        if sp_id not in [None, 0]:
+            sql = '''select member_id, display_name
+                     from chatroom_member
+                     where account_id='{0}' and chatroom_id='{1}' and sp_id='{2}' '''.format(account_id, chatroom_id, sp_id)
+        else:
+            sql = '''select member_id, display_name
+                     from chatroom_member
+                     where account_id='{0}' and chatroom_id='{1}' '''.format(account_id, chatroom_id)
+        try:
+            cmd = self.db.CreateCommand()
+            cmd.CommandText = sql
+            r = cmd.ExecuteReader()
+            while r.Read():
+                if canceller.IsCancellationRequested:
+                    break
+                try:
+                    member_id = self._db_reader_get_string_value(r, 0)
+                    if member_id not in [None, '']:
+                        model = self.friend_models.get(self._get_user_key(account_id, member_id))
+                        if model is not None:
+                            owner = model
+                except Exception as e:
+                    if deleted == 0:
+                        TraceService.Trace(TraceLevel.Error, "model_wechat.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
+        except Exception as e:
+            if deleted == 0:
+                TraceService.Trace(TraceLevel.Error, "model_wechat.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
+        return owner
 
     def _get_feed_models(self):
         if canceller.IsCancellationRequested:

@@ -775,8 +775,10 @@ class Wechat(object):
                     model.HeadPortraitPath = photo
                     model.Notice = notice
                     model.IsSave = is_saved != 0
+                    model.GroupOwner = self.friend_models.get(owner_id, None)
                     if sp_id is not None:
-                        model.Members.AddRange(self.get_chatroom_member_models(db, account_id, user_id, sp_id, deleted))
+                        member_models = self.get_chatroom_member_models(db, account_id, user_id, sp_id, deleted)
+                        model.Members.AddRange(member_models)
                     model.JoinTime = model_wechat.GenerateModel._get_timestamp(join_time)
                     self.add_model(model)
 
