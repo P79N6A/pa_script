@@ -358,7 +358,7 @@ class Wechat(object):
                 model.business_card_signature = xml.Attribute('sign').Value
         return content
 
-    def _parse_segment(self, story_comment, comment_row):
+    def _parse_segment(self, comment_row):
         try:
             sign_head_length = 0x0c
 
@@ -385,13 +385,13 @@ class Wechat(object):
             except Exception as e:
                 comment = b''
 
-            story_comment.content = comment.decode(encoding="utf-8")
-            story_comment.sender_id = sender_id.decode(encoding="utf-8")
-            return True
+            content = comment.decode(encoding="utf-8")
+            sender_id = sender_id.decode(encoding="utf-8")
+            return content, sender_id
         except Exception as e:
-            return False
+            return None
 
-    def _process_parse_story_comment(self, story, data):
+    def _process_parse_story_comment(self, data):
         if not data:
             return
         sign_length = 0x0c
@@ -407,9 +407,8 @@ class Wechat(object):
         segment_data = [data[segment_index[i]:segment_index[i + 1]] for i in range(len(segment_index) - 1)]
         story_comments_row = segment_data[1:]
         for i in story_comments_row:
-            comment = story.create_comment()
-            parse_complete = self._parse_segment(comment, i)
-            if parse_complete:
+            comment = self._parse_segment(i)
+            if comment:
                 yield comment
 
     def _parse_user_type_is_blocked(self, user_type):
