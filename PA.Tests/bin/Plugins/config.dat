@@ -2028,7 +2028,29 @@
         </dict>
       </array>
     </dict>
-
+    <dict>
+      <key>Module</key>
+      <string>apple_360netdisk</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_YunPan360</string>
+          <key>RunnerType</key>
+          <integer>0</integer>
+          <key>Patterns</key>
+          <array>
+            <string>Library/Preferences/com.360.eyun.plist$</string>
+          </array>
+          <key>Category</key>
+          <string>Pan360</string>
+          <key>Name</key>
+          <string>360网盘(苹果)</string>
+          <key>Filter</key>
+          <string>应用>其他</string>
+        </dict>
+      </array>
+    </dict>
     <dict>
       <key>Module</key>
       <string>apple_tb</string>
