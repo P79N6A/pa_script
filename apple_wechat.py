@@ -328,8 +328,8 @@ class WeChatParser(Wechat):
         head = None
         if self.private_root is not None:
             user_hash = self._md5(username)
-            head_node = self.private_root.GetByPath(self.user_hash + '/HeadImg/0/{}/{}.pic_hd'.format(user_hash[:2], user_hash[2:]))
-            head_thum_node = self.private_root.GetByPath(self.user_hash + '/HeadImg/0/{}/{}.pic_compressed'.format(user_hash[:2], user_hash[2:]))
+            head_node = self.private_root.GetByPath('HeadImg/0/{}/{}.pic_hd'.format(user_hash[:2], user_hash[2:]))
+            head_thum_node = self.private_root.GetByPath('HeadImg/0/{}/{}.pic_compressed'.format(user_hash[:2], user_hash[2:]))
             if head_node is not None:
                 head = head_node.AbsolutePath
             elif head_thum_node is not None:
