@@ -420,7 +420,7 @@ SQL_CREATE_TABLE_STORY = '''
         sender_id TEXT,
         media_path TEXT,
         story_id INT,
-        timestamp TEXT,
+        timestamp INT,
         location_latitude REAL,
         location_longitude REAL,
         location_elevation REAL,
@@ -441,7 +441,7 @@ SQL_CREATE_TABLE_STORY_COMMENT = '''
         story_id INT,
         sender_id TEXT,
         content TEXT,
-        timestamp TEXT,
+        timestamp INT,
         source TEXT,
         deleted INT DEFAULT 0, 
         repeated INT DEFAULT 0)'''

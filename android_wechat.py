@@ -723,10 +723,11 @@ class WeChatParser(Wechat):
                     url = self._db_reader_get_string_value(reader, 8)
                     story.media_path = local_path if local_path is not None else url
                     story.timestamp = self._db_reader_get_int_value(reader, 2)
-                    for comment in self._process_parse_story_comment(bytearray(self._db_reader_get_blob_value(reader, 5))):
+                    for comment in self._process_parse_story_comment(self._db_reader_get_blob_value(reader, 5)):
                         story_comment = story.create_comment()
-                        story_comment.content = comment[0]
-                        story_comment.sender_id = comment[1]
+                        story_comment.content = str(comment.content)
+                        story_comment.sender_id = comment.sender_id
+                        story_comment.timestamp = comment.timestamp
                     story.insert_db(self.im)
                     story_model, story_timeline_model = self.get_story_model(story)
                     self.add_model(story_model)
