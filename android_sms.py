@@ -74,7 +74,7 @@ def analyze_mms(node, extract_deleted, extract_source):
 
         return base_analyze(AndroidMMSParser,
                             node,
-                            bcp_basic.BASIC_SMS_INFORMATION,
+                            bcp_basic.BASIC_MMS_INFORMATION,
                             VERSION_APP_VALUE,
                             bulid_name='彩信',
                             db_name='AndroidMMS')
