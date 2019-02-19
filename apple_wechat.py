@@ -921,9 +921,23 @@ class WeChatParser(Wechat):
         return True
 
     def _parse_user_fav_path(self, path):
-        if path.startswith('/var'):
-            return '/private' + path
-        return path
+        node = None
+        key = '/Documents/' + self.user_hash
+        index = path.find(key)
+        if index > 0:
+            p = path[index+len(key):]
+            node = self.root.GetByPath(p)
+        elif self.private_root is not None:
+            key = '/Library/WechatPrivate/' + self.user_hash
+            index = path.find(key)
+            if index > 0:
+                p = path[index+len(key):]
+                node = self.private_root.GetByPath(p)
+
+        if node is not None:
+            return node.AbsolutePath
+        else:
+            return None
 
     def _parse_user_search(self, node):
         if node is None:
