@@ -108,7 +108,7 @@ class AndroidUserDictParser(IosUserDictParser):
                 d.Locale = word.location
                 if self._is_base64(word.words):
                     decoded_words = base64.b64decode(word.words)
-                    d.Phrase = '{}({})'.format(word.words, decoded_words)
+                    d.Phrase = '{}(base64解码：{})'.format(word.words, decoded_words)
                 else:
                     d.Phrase = word.words
                 d.ShortCut = word.key
