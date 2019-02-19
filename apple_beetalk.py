@@ -355,6 +355,7 @@ class BeeTalkParser(model_im.IM, model_callrecord.MC):
                             location.latitude = latitude
                             location.longitude = longitude
                             location.address = location_name
+                            location.type = model_im.LOCATION_TYPE_GOOGLE
                             location.timestamp = message.send_time if message.send_time is not None else 0
                             location.deleted = sr[18]
                             location.source = self.node.AbsolutePath

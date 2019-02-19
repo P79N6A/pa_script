@@ -146,8 +146,8 @@ class IAroundParser(model_im.IM):
                     friend.photo = userinfo['ficon'] if 'ficon' in userinfo.keys() else None
                     if 'fgender' in userinfo.keys():
                         friend.gender = 1 if userinfo['fgender'] == '1' else 0
-                    lng = float(userinfo['flat'])/float(1000000)
-                    lat = float(userinfo['flng'])/float(1000000)
+                    lat = float(userinfo['flat'])/float(1000000)
+                    lng = float(userinfo['flng'])/float(1000000)
                     location = model_im.Location()
                     friend.location_id = location.location_id
                     location.latitude = lat
@@ -175,8 +175,8 @@ class IAroundParser(model_im.IM):
                     friend.photo = userinfo['icon'] if 'icon' in userinfo.keys() else None
                     if 'gender' in userinfo.keys():
                         friend.gender = 1 if userinfo['gender'] == 'm' else 0
-                    lng = float(userinfo['lat'])/float(1000000)
-                    lat = float(userinfo['lng'])/float(1000000)
+                    lat = float(userinfo['lat'])/float(1000000)
+                    lng = float(userinfo['lng'])/float(1000000)
                     location = model_im.Location()
                     friend.location_id = location.location_id
                     location.latitude = lat
@@ -411,8 +411,8 @@ class IAroundParser(model_im.IM):
                         loc = content['attachment'] if 'attachment' in content.keys() else None
                         if loc is not None:
                             loc = loc.split(',')
-                            longitude = float(loc[0])/1000000
-                            latitude = float(loc[1])/1000000
+                            latitude = float(loc[0])/1000000
+                            longitude = float(loc[1])/1000000
                         message.location_id = location.location_id
                         message.type = model_im.MESSAGE_CONTENT_TYPE_LOCATION
                         location.latitude = latitude
