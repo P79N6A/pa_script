@@ -133,18 +133,24 @@ class WeChatParser(Wechat):
                 TraceService.Trace(TraceLevel.Error, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
             self.set_progress(10)
             try:
-                #print('%s apple_wechat() parse contactlabel.list' % time.asctime(time.localtime(time.time())))
-                self._parse_user_contact_label(self.root.GetByPath('contactlabel.list'))
+                #print('%s apple_wechat() parse WeAppV011.db' % time.asctime(time.localtime(time.time())))
+                self._parse_user_app_db(self.root.GetByPath('/WeApp/DB/WeAppV011.db'))
             except Exception as e:
                 TraceService.Trace(TraceLevel.Error, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
             self.set_progress(11)
             try:
-                self._parse_pay_card()
+                #print('%s apple_wechat() parse contactlabel.list' % time.asctime(time.localtime(time.time())))
+                self._parse_user_contact_label(self.root.GetByPath('contactlabel.list'))
             except Exception as e:
                 TraceService.Trace(TraceLevel.Error, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
             self.set_progress(12)
             try:
-                print('%s apple_wechat() parse wc005_008.db' % time.asctime(time.localtime(time.time())))
+                self._parse_pay_card()
+            except Exception as e:
+                TraceService.Trace(TraceLevel.Error, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
+            self.set_progress(13)
+            try:
+                #print('%s apple_wechat() parse wc005_008.db' % time.asctime(time.localtime(time.time())))
                 self._parse_user_wc_db(self.root.GetByPath('/wc/wc005_008.db'))
             except Exception as e:
                 TraceService.Trace(TraceLevel.Error, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
@@ -1425,8 +1431,6 @@ class WeChatParser(Wechat):
                     TraceService.Trace(TraceLevel.Error, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
             self.im.db_commit()
             self.push_models()
-
-            self.get_chatroom_models(self.cache_db)
         return True
 
     def _parse_user_story_db_with_value(self, deleted, source, username, tid, media_item, comment_list, local_info, timestamp):
@@ -1452,3 +1456,71 @@ class WeChatParser(Wechat):
 
     def _parse_user_story_comments(self, comment_list):
         return []
+
+    def _parse_user_app_db(self, node):
+        if node is None:
+            return False
+        if canceller.IsCancellationRequested:
+            return False
+        try:
+            db = SQLiteParser.Database.FromNode(node, canceller)
+        except Exception as e:
+            TraceService.Trace(TraceLevel.Error, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
+            return False
+        if not db:
+            return False
+
+        if 'WeAppContactTable' in db.Tables:
+            ts = SQLiteParser.TableSignature('WeAppContactTable')
+            for rec in db.ReadTableRecords(ts, self.extract_deleted, False, ''):
+                if canceller.IsCancellationRequested:
+                    break
+                if rec is None:
+                    continue
+                try:
+                    username = self._db_record_get_string_value(rec, 'userName')
+                    if username in [None, '']:
+                        continue
+                    head = self._db_record_get_string_value(rec, 'brandIconURL')
+                    contact_pack = self._db_record_get_blob_value(rec, 'contactPack')
+                    
+                    deleted = 0 if rec.Deleted == DeletedState.Intact else 1
+                    self._parse_user_app_db_with_value(deleted, node.AbsolutePath, username, head, contact_pack)
+                except Exception as e:
+                    TraceService.Trace(TraceLevel.Error, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
+            self.im.db_commit()
+            self.push_models()
+        return True
+
+    def _parse_user_app_db_with_value(self, deleted, source, username, head, contact_pack):
+        nickname = self._process_parse_app_contact_pack(contact_pack)
+
+        friend = model_wechat.Friend()
+        friend.deleted = deleted
+        friend.source = source
+        friend.account_id = self.user_account.account_id
+        friend.friend_id = username
+        friend.nickname = nickname
+        friend.type = model_wechat.FRIEND_TYPE_PROGRAM
+        friend.photo = head
+        friend.insert_db(self.im)
+        model = self.get_friend_model(friend)
+        self.add_model(model)
+
+    @staticmethod
+    def _process_parse_app_contact_pack(blob):
+        nickname = ''
+        try:
+            index = 0
+            while index + 2 < len(blob):
+                flag = ord(blob[index])
+                size = ord(blob[index + 1])
+                if index + 2 + size > len(blob):
+                    break
+                content = blob[index + 2: index + 2 + size].decode('utf-8')
+                if flag == 0x12:  # nickname
+                    nickname = content
+                index += 2 + size
+        except Exception as e:
+            pass
+        return nickname
