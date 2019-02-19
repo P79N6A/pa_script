@@ -968,7 +968,6 @@ class WeChatParser(Wechat):
 
     def _parse_mm_db_contact(self, db, source):
         heads = {}
-        black_list = []
         tag_relation = {}
         if 'img_flag' in db.Tables:
             if canceller.IsCancellationRequested:
@@ -1013,8 +1012,6 @@ class WeChatParser(Wechat):
                     nickname = self._db_record_get_string_value(rec, 'nickname')
                     remark = self._db_record_get_string_value(rec, 'conRemark')
                     contact_type = self._db_record_get_int_value(rec, 'type')
-                    if self._is_blocked_usr(contact_type):
-                        black_list.append(username)
                     verify_flag = self._db_record_get_int_value(rec, 'verifyFlag')
                     lvbuff = self._db_record_get_blob_value_to_ba(rec, 'lvbuff')
                     signature, region, gender = Decryptor.parse_lvbuff(lvbuff)
@@ -1028,7 +1025,6 @@ class WeChatParser(Wechat):
                 except Exception as e:
                     pass
 
-            self._parse_mm_db_black_list(black_list, source)
             self._parse_mm_db_group(tag_relation, db, source)
 
             self.im.db_commit()
@@ -1049,11 +1045,17 @@ class WeChatParser(Wechat):
             chatroom.is_saved = contact_type % 2
             chatroom.insert_db(self.im)
         else:
+            # TODO 这块应该能合并
             friend_type = model_wechat.FRIEND_TYPE_NONE
             if verify_flag != 0:
                 friend_type = model_wechat.FRIEND_TYPE_OFFICIAL
             elif contact_type % 2 == 1:
-                friend_type = model_wechat.FRIEND_TYPE_FRIEND
+                if self._parse_user_type_is_blocked(contact_type):
+                    friend_type = model_wechat.FRIEND_TYPE_BLOCKED
+                else:
+                    friend_type = model_wechat.FRIEND_TYPE_FRIEND
+            elif contact_type == 0:
+                friend_type = model_wechat.FRIEND_TYPE_PROGRAM
             friend = model_wechat.Friend()
             friend.deleted = deleted
             friend.source = source
@@ -1190,25 +1192,6 @@ class WeChatParser(Wechat):
             model, tl_model = self.get_message_model(revoke_message)
             self.add_model(model)
             self.add_model(tl_model)
-
-    def _parse_mm_db_black_list(self, black_list, source):
-        if not black_list:
-            return
-        try:
-            contact_label = model_wechat.ContactLabel()
-            contact_label.account_id = self.user_account_model.Account
-            contact_label.source = source
-            contact_label.name = '黑名单'
-            contact_label.type = model_wechat.CONTACT_LABEL_TYPE_BLOCKED
-            contact_label.users = ",".join(black_list)
-            contact_label.insert_db(self.im)
-            contact_label_model = self.get_contact_label_model(contact_label)
-            if contact_label_model is not None:
-                self.add_model(contact_label_model)
-        except Exception as e:
-            print_error()
-        finally:
-            return True
 
     def _parse_mm_db_emergency(self, account_id, emergency, source):
         if (not emergency) or (emergency == ''):
