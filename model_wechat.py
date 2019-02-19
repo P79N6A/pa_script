@@ -1411,7 +1411,7 @@ class GenerateModel(object):
                     model.HeadPortraitPath = photo
                     model.Notice = notice
                     model.IsSave = is_saved != 0
-                    model.GroupOwner = self.friend_models.get(account_id, owner_id)
+                    model.GroupOwner = self.friend_models.get(self._get_user_key(account_id, owner_id))
                     model.Members.AddRange(self._get_chatroom_member_models(account_id, user_id, sp_id, deleted))
                     model.JoinTime = self._get_timestamp(join_time)
                     self.add_model(model)
