@@ -1155,3 +1155,48 @@ class Wechat(object):
         except Exception as e:
             #print(e)
             return None
+
+    def get_story_model(self, story):
+        try:
+            timeline_model = None
+            model = WeChat.Story()
+            model.SourceFile = story.source
+            model.Deleted = model_wechat.GenerateModel._convert_deleted_status(story.deleted)
+            model.AppUserAccount = self.user_account_model
+            model.Sender = self.friend_models.get(story.sender_id)
+            model.CreateTime = model_wechat.GenerateModel._get_timestamp(story.timestamp)
+            if story.media_path not in [None, '']:
+                video_content = Base.Content.VideoContent(model)
+                media_model = Base.MediaFile.VideoFile()
+                media_model.Path = story.media_path
+                video_content.Value = media_model
+                model.Contents.Add(video_content)
+                self.media_models.append(media_model)
+            if story.location_latitude != 0 or story.location_longitude != 0:
+                location_content = Base.Content.LocationContent(model)
+                location_content.Value = Base.Location()
+                location_content.Value.SourceType = LocationSourceType.App
+                location_content.Value.Time = model.CreateTime
+                location_content.Value.AddressName = story.location_address
+                location_content.Value.Coordinate = Base.Coordinate(story.location_longitude, story.location_latitude, model_wechat.GenerateModel._convert_location_type(story.location_type))
+                model.Contents.Add(location_content)
+                timeline_model = location_content
+            for comment in story.comments:
+                model.Comments.Add(self.get_story_comment_model(model, comment))
+            return model, timeline_model
+        except Exception as e:
+            print(e)
+            return None, None
+
+    def get_story_comment_model(self, story_model, story_comment):
+        try:
+            model = Base.Comment(story_model)
+            model.SourceFile = story_comment.source
+            model.Deleted = model_wechat.GenerateModel._convert_deleted_status(story_comment.deleted)
+            model.From = self.friend_models.get(story_comment.sender_id)
+            model.Content = story_comment.content
+            model.CreateTime = model_wechat.GenerateModel._get_timestamp(story_comment.timestamp)
+            return model
+        except Exception as e:
+            print(e)
+            return None

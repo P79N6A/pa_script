@@ -1147,6 +1147,8 @@ class GenerateModel(object):
         self.set_progress(90)
         #print('%s model_wechat() generate model favorite' % time.asctime(time.localtime(time.time())))
         self._get_favorite_models()
+        self.set_progress(95)
+        self._get_story_models()
         self.set_progress(100)
         #print('%s model_wechat() generate model end' % time.asctime(time.localtime(time.time())))
 
@@ -1409,7 +1411,7 @@ class GenerateModel(object):
                     model.HeadPortraitPath = photo
                     model.Notice = notice
                     model.IsSave = is_saved != 0
-                    model.GroupOwner = self._get_chatroom_owner_model(account_id,user_id, sp_id, deleted)
+                    model.GroupOwner = self.friend_models.get(account_id, owner_id)
                     model.Members.AddRange(self._get_chatroom_member_models(account_id, user_id, sp_id, deleted))
                     model.JoinTime = self._get_timestamp(join_time)
                     self.add_model(model)
@@ -1618,39 +1620,6 @@ class GenerateModel(object):
             if deleted == 0:
                 TraceService.Trace(TraceLevel.Error, "model_wechat.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
         return models
-
-    def _get_chatroom_owner_model(self, account_id, chatroom_id, sp_id, deleted):
-        if account_id in [None, ''] or chatroom_id in [None, '']:
-            return None
-        owner = None
-        if sp_id not in [None, 0]:
-            sql = '''select member_id, display_name
-                     from chatroom_member
-                     where account_id='{0}' and chatroom_id='{1}' and sp_id='{2}' '''.format(account_id, chatroom_id, sp_id)
-        else:
-            sql = '''select member_id, display_name
-                     from chatroom_member
-                     where account_id='{0}' and chatroom_id='{1}' '''.format(account_id, chatroom_id)
-        try:
-            cmd = self.db.CreateCommand()
-            cmd.CommandText = sql
-            r = cmd.ExecuteReader()
-            while r.Read():
-                if canceller.IsCancellationRequested:
-                    break
-                try:
-                    member_id = self._db_reader_get_string_value(r, 0)
-                    if member_id not in [None, '']:
-                        model = self.friend_models.get(self._get_user_key(account_id, member_id))
-                        if model is not None:
-                            owner = model
-                except Exception as e:
-                    if deleted == 0:
-                        TraceService.Trace(TraceLevel.Error, "model_wechat.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
-        except Exception as e:
-            if deleted == 0:
-                TraceService.Trace(TraceLevel.Error, "model_wechat.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
-        return owner
 
     def _get_feed_models(self):
         if canceller.IsCancellationRequested:
@@ -1964,7 +1933,7 @@ class GenerateModel(object):
                                 model.Friends.Add(friend)
                         self.add_model(model)
                     elif cl_type == CONTACT_LABEL_TYPE_EMERGENCY:
-                        model = EmergencyContacts()
+                        model = Base.EmergencyContacts()
                         model.SourceFile = source
                         model.Deleted = self._convert_deleted_status(deleted)
                         model.AppUserAccount = self.account_models.get(account_id)
@@ -2076,6 +2045,113 @@ class GenerateModel(object):
                         TraceService.Trace(TraceLevel.Error, "model_wechat.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
         except Exception as e:
             if feed_deleted == 0:
+                TraceService.Trace(TraceLevel.Error, "model_wechat.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
+        return models
+
+    def _get_story_models(self):
+        if canceller.IsCancellationRequested:
+            return []
+        if not self._db_has_table('story'):
+            return []
+        models = []
+
+        sql = '''select account_id, sender_id, media_path, story_id, timestamp, location_latitude, 
+                        location_longitude, location_elevation, location_address, location_type, 
+                        source, deleted, repeated
+                 from story'''
+        try:
+            cmd = self.db.CreateCommand()
+            cmd.CommandText = sql
+            r = cmd.ExecuteReader()
+            while r.Read():
+                if canceller.IsCancellationRequested:
+                    break
+                deleted = 0
+                try:
+                    source = self._db_reader_get_string_value(r, 10)
+                    deleted = self._db_reader_get_int_value(r, 11, None)
+                    account_id = self._db_reader_get_string_value(r, 0)
+                    sender_id = self._db_reader_get_string_value(r, 1)
+                    media_path = self._db_reader_get_string_value(r, 2)
+                    story_id = self._db_reader_get_int_value(r, 3)
+                    timestamp = self._db_reader_get_int_value(r, 4, None)
+
+                    location_latitude = self._db_reader_get_float_value(r, 5)
+                    location_longitude = self._db_reader_get_float_value(r, 6)
+                    location_elevation = self._db_reader_get_float_value(r, 7)
+                    location_address = self._db_reader_get_string_value(r, 8)
+                    location_type = self._db_reader_get_int_value(r, 9)
+
+                    model = WeChat.Story()
+                    model.SourceFile = source
+                    model.Deleted = self._convert_deleted_status(deleted)
+                    model.AppUserAccount = self.account_models.get(account_id)
+                    model.CreateTime = self._get_timestamp(timestamp)
+                    model.Sender = self.friend_models.get(self._get_user_key(account_id, sender_id))
+                    model.CreateTime = self._get_timestamp(timestamp)
+                    if media_path not in [None, '']:
+                        video_content = Base.Content.VideoContent(model)
+                        media_model = Base.MediaFile.VideoFile()
+                        media_model.Path = media_path
+                        video_content.Value = media_model
+                        model.Contents.Add(video_content)
+                        self.media_models.append(media_model)
+                    if location_latitude != 0 or location_longitude != 0:
+                        location_content = Base.Content.LocationContent(model)
+                        location_content.Value = Base.Location()
+                        location_content.Value.SourceType = LocationSourceType.App
+                        location_content.Value.Time = model.CreateTime
+                        location_content.Value.AddressName = location_address
+                        location_content.Value.Coordinate = Base.Coordinate(location_longitude, location_latitude, self._convert_location_type(location_type))
+                        model.Contents.Add(location_content)
+                        self.add_model(location_content)
+                    if story_id not in [None, 0]:
+                        model.Comments.AddRange(self._get_story_comment_models(model, story_id, deleted))
+                    self.add_model(model)
+                except Exception as e:
+                    if deleted == 0:
+                        TraceService.Trace(TraceLevel.Error, "model_wechat.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
+            self.push_models()
+        except Exception as e:
+            TraceService.Trace(TraceLevel.Error, "model_wechat.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
+
+    def _get_story_comment_models(self, story_model, story_id, story_deleted):
+        if canceller.IsCancellationRequested:
+            return []
+        if not self._db_has_table('story_comment'):
+            return []
+        models = []
+
+        sql = '''select sender_id, content, timestamp, source, deleted, repeated
+                 from story_comment
+                 where story_id = {} '''.format(story_id)
+        try:
+            cmd = self.db.CreateCommand()
+            cmd.CommandText = sql
+            r = cmd.ExecuteReader()
+            while r.Read():
+                if canceller.IsCancellationRequested:
+                    break
+                deleted = 0
+                try:
+                    source = self._db_reader_get_string_value(r, 3)
+                    deleted = self._db_reader_get_int_value(r, 4, None)
+                    sender_id = self._db_reader_get_string_value(r, 0)
+                    content = self._db_reader_get_string_value(r, 1)
+                    timestamp = self._db_reader_get_int_value(r, 2, None)
+                    
+                    model = Base.Comment(story_model)
+                    model.SourceFile = source
+                    model.Deleted = self._convert_deleted_status(deleted)
+                    model.From = self.friend_models.get(self._get_user_key(story_model.AppUserAccount.Account, sender_id))
+                    model.Content = content
+                    model.CreateTime = self._get_timestamp(timestamp)
+                    models.append(model)
+                except Exception as e:
+                    if deleted == 0:
+                        TraceService.Trace(TraceLevel.Error, "model_wechat.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
+        except Exception as e:
+            if story_deleted == 0:
                 TraceService.Trace(TraceLevel.Error, "model_wechat.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
         return models
 
