@@ -621,8 +621,10 @@ class WeChatParser(Wechat):
                     if len(urls) > 0:
                         if moment_type == MOMENT_TYPE_VIDEO:
                             feed.video_path = ','.join(str(u) for u in urls)
-                        else:
+                        elif moment_type == MOMENT_TYPE_IMAGE:
                             feed.image_path = ','.join(str(u) for u in urls)
+                        elif moment_type == MOMENT_TYPE_SHARED:
+                            feed.link_image = urls[0]
 
                 if moment_type in [MOMENT_TYPE_MUSIC, MOMENT_TYPE_SHARED]:
                     feed.link_url = self._bpreader_node_get_string_value(content_node, 'linkUrl', deleted = feed.deleted)
