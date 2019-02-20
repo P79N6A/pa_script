@@ -75,23 +75,27 @@ patt = re.compile(r'["\']*([a-zA-Z0-9@&+=)(.,_ -]+)["\']* *(?:<([a-zA-Z0-9@+=._-
 
 @parse_decorator
 def analyze_emails(mail_dir, extractDeleted, extractSource):
+    pr = ParserResults()
     try:
         res = []
-        pr = ParserResults()
         
         envelope_node = mail_dir.GetFirstNode("Envelope Index")
         if envelope_node is None:
             return pr
         protected_node = mail_dir.GetFirstNode("Protected Index")
+        
         if protected_node is not None:
             res = AppleEmailParser(mail_dir, envelope_node, protected_node).parse()
         else:
             res = AppleEmailParserOld(mail_dir, envelope_node, protected_node).parse()
-        
-        Export2db(mail_dir, res).parse()
-        pr.Models.AddRange(res)
+
+        if res:
+            Export2db(mail_dir, res).parse()
+            pr.Models.AddRange(res)
+        return pr
     except:
         exc()
+        return pr
 
 # 替代 quopri.decode
 def decode(input, output, header = 0):
