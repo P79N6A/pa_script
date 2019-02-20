@@ -251,7 +251,26 @@ class YouXinParser():
                         message.msg_id = str(uuid.uuid1()).replace('-', '')
                         message.type = self.parse_message_type(self._db_record_get_int_value(rec, 'extra_mime'))
                         message.content = self._db_record_get_string_value(rec, 'body')
-                        message.media_path = self.get_media_path(message.content, message.type)
+                        try:
+                            if type != model_im.MESSAGE_CONTENT_TYPE_TEXT and type != model_im.MESSAGE_CONTENT_TYPE_LOCATION:
+                                media_nodes = self.root.FileSystem.Search(os.path.basename(message.content) + '$')
+                                if len(list(media_nodes)) != 0:
+                                    for node in media_nodes:
+                                        message.content = None
+                                        message.media_path = node.AbsolutePath
+                                        if re.findall('image', message.media_path):
+                                            message.type = model_im.MESSAGE_CONTENT_TYPE_IMAGE
+                                        elif re.findall('audio', message.media_path):
+                                            message.type = model_im.MESSAGE_CONTENT_TYPE_VOICE
+                                        break
+                                else:
+                                    message.media_path = message.content
+                                    if re.findall('image', message.media_path):
+                                        message.type = model_im.MESSAGE_CONTENT_TYPE_IMAGE
+                                    elif re.findall('audio', message.media_path):
+                                        message.type = model_im.MESSAGE_CONTENT_TYPE_VOICE
+                        except:
+                            pass
                         message.send_time = int(self._db_record_get_string_value(rec, 'date')[0:10:])
                         if message.is_sender == model_im.MESSAGE_TYPE_SEND:
                             message.status = model_im.MESSAGE_STATUS_SENT if self._db_record_get_int_value(rec, 'status') == 1 else model_im.MESSAGE_STATUS_UNSENT

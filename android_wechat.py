@@ -367,6 +367,8 @@ class WeChatParser(Wechat):
         self.set_progress(30)
         self._parse_mm_db_message(db, source)
         self._parse_mm_db_bank_cards(db, source)
+        self._parse_mm_db_login_devices(db, source)
+        self.push_models()
 
     def _parse_fav_db(self, fav_db_path, source):
         db = None
@@ -723,9 +725,15 @@ class WeChatParser(Wechat):
                     url = self._db_reader_get_string_value(reader, 8)
                     story.media_path = local_path if local_path is not None else url
                     story.timestamp = self._db_reader_get_int_value(reader, 2)
-                    for comment in self._process_parse_story_comment(story, bytearray(self._db_reader_get_blob_value(reader, 5))):
-                        comment.insert_db(self.im)
+                    for comment in self._process_parse_story_comment(self._db_reader_get_blob_value(reader, 5)):
+                        story_comment = story.create_comment()
+                        story_comment.content = str(comment.content)
+                        story_comment.sender_id = comment.sender_id
+                        story_comment.timestamp = comment.timestamp
                     story.insert_db(self.im)
+                    story_model, story_timeline_model = self.get_story_model(story)
+                    self.add_model(story_model)
+                    self.add_model(story_timeline_model)
                 except Exception as e:
                     print_error()
             reader.Close()
@@ -968,7 +976,6 @@ class WeChatParser(Wechat):
 
     def _parse_mm_db_contact(self, db, source):
         heads = {}
-        black_list = []
         tag_relation = {}
         if 'img_flag' in db.Tables:
             if canceller.IsCancellationRequested:
@@ -1013,8 +1020,6 @@ class WeChatParser(Wechat):
                     nickname = self._db_record_get_string_value(rec, 'nickname')
                     remark = self._db_record_get_string_value(rec, 'conRemark')
                     contact_type = self._db_record_get_int_value(rec, 'type')
-                    if self._is_blocked_usr(contact_type):
-                        black_list.append(username)
                     verify_flag = self._db_record_get_int_value(rec, 'verifyFlag')
                     lvbuff = self._db_record_get_blob_value_to_ba(rec, 'lvbuff')
                     signature, region, gender = Decryptor.parse_lvbuff(lvbuff)
@@ -1028,7 +1033,6 @@ class WeChatParser(Wechat):
                 except Exception as e:
                     pass
 
-            self._parse_mm_db_black_list(black_list, source)
             self._parse_mm_db_group(tag_relation, db, source)
 
             self.im.db_commit()
@@ -1049,11 +1053,17 @@ class WeChatParser(Wechat):
             chatroom.is_saved = contact_type % 2
             chatroom.insert_db(self.im)
         else:
+            # TODO 这块应该能合并
             friend_type = model_wechat.FRIEND_TYPE_NONE
             if verify_flag != 0:
                 friend_type = model_wechat.FRIEND_TYPE_OFFICIAL
             elif contact_type % 2 == 1:
-                friend_type = model_wechat.FRIEND_TYPE_FRIEND
+                if self._parse_user_type_is_blocked(contact_type):
+                    friend_type = model_wechat.FRIEND_TYPE_BLOCKED
+                else:
+                    friend_type = model_wechat.FRIEND_TYPE_FRIEND
+            elif contact_type == 0:
+                friend_type = model_wechat.FRIEND_TYPE_PROGRAM
             friend = model_wechat.Friend()
             friend.deleted = deleted
             friend.source = source
@@ -1191,25 +1201,6 @@ class WeChatParser(Wechat):
             self.add_model(model)
             self.add_model(tl_model)
 
-    def _parse_mm_db_black_list(self, black_list, source):
-        if not black_list:
-            return
-        try:
-            contact_label = model_wechat.ContactLabel()
-            contact_label.account_id = self.user_account_model.Account
-            contact_label.source = source
-            contact_label.name = '黑名单'
-            contact_label.type = model_wechat.CONTACT_LABEL_TYPE_BLOCKED
-            contact_label.users = ",".join(black_list)
-            contact_label.insert_db(self.im)
-            contact_label_model = self.get_contact_label_model(contact_label)
-            if contact_label_model is not None:
-                self.add_model(contact_label_model)
-        except Exception as e:
-            print_error()
-        finally:
-            return True
-
     def _parse_mm_db_emergency(self, account_id, emergency, source):
         if (not emergency) or (emergency == ''):
             return
@@ -1282,6 +1273,33 @@ class WeChatParser(Wechat):
                     bank_card_model = self.get_contact_label_model(bank_card)
                     if bank_card_model is not None:
                         self.add_model(bank_card_model)
+                except Exception as e:
+                    print_error()
+
+    def _parse_mm_db_login_devices(self, db, source):
+        if 'SafeDeviceInfo' in db.Tables:
+            if canceller.IsCancellationRequested:
+                return
+            ts = SQLiteParser.TableSignature('SafeDeviceInfo')
+            SQLiteParser.Tools.AddSignatureToTable(ts, "name", SQLiteParser.FieldType.Text,
+                                                   SQLiteParser.FieldConstraints.NotNull)
+            SQLiteParser.Tools.AddSignatureToTable(ts, "createtime", SQLiteParser.FieldType.Int,
+                                                   SQLiteParser.FieldConstraints.NotNull)
+            for rec in db.ReadTableRecords(ts, self.extract_deleted, False, ''):
+                if canceller.IsCancellationRequested:
+                    break
+                try:
+                    device = model_wechat.LoginDevice()
+                    device.source = source
+                    device.name = self._db_record_get_string_value(rec, 'name')
+                    device.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
+                    device.account_id = self.user_account_model.Account
+                    device.type = self._db_record_get_string_value(rec, 'devicetype')
+                    device.last_time = self._db_record_get_int_value(rec, 'createtime')
+                    device.insert_db(self.im)
+                    device_model = self.get_login_device_model(device)
+                    if device_model is not None:
+                        self.add_model(device_model)
                 except Exception as e:
                     print_error()
 

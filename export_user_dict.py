@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+import base64
+
 __author__ = "TaoJianping"
 
 import clr
@@ -23,7 +25,7 @@ from System.Xml.Linq import *
 from PA.InfraLib.ModelsV2.Base import UserDictionary
 
 # CONST
-UserDict_VERSION = 1
+UserDict_VERSION = 2
 DEBUG = False
 
 
@@ -78,6 +80,22 @@ class IosUserDictParser(ParserBase):
 
 class AndroidUserDictParser(IosUserDictParser):
 
+    @staticmethod
+    def _is_base64(string):
+        try:
+            bs = base64.b64decode(string)
+            ss = base64.b64encode(bs)
+            if ss == string:
+                pattern = r'^([A-Za-z0-9+/]{4})*([A-Za-z0-9+/]{4}|[A-Za-z0-9+/]{3}=|[A-Za-z0-9+/]{2}==)$'
+                ans = re.match(pattern, string)
+                if ans is not None:
+                    return True
+                return False
+            else:
+                return False
+        except Exception, e:
+            return False
+
     def _main(self):
         """解析的逻辑主函数"""
         db = self.root
@@ -85,11 +103,19 @@ class AndroidUserDictParser(IosUserDictParser):
 
         models = []
         for word in AndroidWords.objects.all:
-            d = UserDictionary()
-            d.Locale = word.location
-            d.Phrase = word.words
-            d.ShortCut = word.key
-            models.append(d)
+            try:
+                d = UserDictionary()
+                d.Locale = word.location
+                if self._is_base64(word.words):
+                    decoded_words = base64.b64decode(word.words)
+                    d.Phrase = '{}(base64解码：{})'.format(word.words, decoded_words)
+                else:
+                    d.Phrase = word.words
+                d.ShortCut = word.key
+                models.append(d)
+            except Exception as e:
+                if DEBUG:
+                    print e
 
         return models
 

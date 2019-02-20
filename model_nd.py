@@ -291,7 +291,7 @@ class NDModel(object):
             if tp == 0:
                 self.set_model_value(fb.Type, Cloud.FileBasicType.None)
             elif tp == 1:
-                self.set_model_value(fb.Type, Cloud.FileBasiccType.Txt)
+                self.set_model_value(fb.Type, Cloud.FileBasicType.Txt)
             elif tp == 2:
                 self.set_model_value(fb.Type, Cloud.FileBasicType.Image)
             elif tp == 3:

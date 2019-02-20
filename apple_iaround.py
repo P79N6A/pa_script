@@ -228,8 +228,8 @@ class IAroundParser(model_im.IM):
                         location = model_im.Location()
                         loc = self._db_reader_get_string_value(sr, 4)
                         loc = loc.split(',')
-                        longitude = float(loc[0])/1000000
-                        latitude = float(loc[1])/1000000
+                        latitude = float(loc[0])/1000000
+                        longitude = float(loc[1])/1000000
                         message.location_id = location.location_id
                         message.type = model_im.MESSAGE_CONTENT_TYPE_LOCATION
                         location.latitude = latitude

@@ -206,7 +206,7 @@
           <key>Name</key>
           <string>手机百度(苹果)</string>
           <key>Filter</key>
-          <string>应用>其他</string>
+          <string>应用>浏览器</string>
         </dict>
         <dict>
           <key>EntryPoint</key>
@@ -729,7 +729,7 @@
           <key>Name</key>
           <string>DropBox(苹果)</string>
           <key>Filter</key>
-          <string>应用>其他</string>
+          <string>应用>网络共享</string>
         </dict>
       </array>
     </dict>
@@ -2024,11 +2024,33 @@
           <key>Name</key>
           <string>百度网盘(苹果)</string>
           <key>Filter</key>
-          <string>应用>其他</string>
+          <string>应用>网络共享</string>
         </dict>
       </array>
     </dict>
-
+    <dict>
+      <key>Module</key>
+      <string>apple_360netdisk</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_YunPan360</string>
+          <key>RunnerType</key>
+          <integer>0</integer>
+          <key>Patterns</key>
+          <array>
+            <string>Library/Preferences/com.360.eyun.plist$</string>
+          </array>
+          <key>Category</key>
+          <string>Pan360</string>
+          <key>Name</key>
+          <string>360网盘(苹果)</string>
+          <key>Filter</key>
+          <string>应用>网络共享</string>
+        </dict>
+      </array>
+    </dict>
     <dict>
       <key>Module</key>
       <string>apple_tb</string>
@@ -2479,7 +2501,7 @@
       </array>
     </dict>
 
-    <dict>
+    <!-- <dict>
       <key>Module</key>
       <string>android_sogoumap</string>
       <key>Runners</key>
@@ -2501,7 +2523,7 @@
           <string>应用>地图</string>
         </dict>
       </array>
-    </dict>
+    </dict> -->
 
     <dict>
       <key>Module</key>
@@ -3209,9 +3231,7 @@
           <integer>2</integer>
           <key>Patterns</key>
           <array>
-            <string>/com.android.providers.telephony/databases$</string>
-            <string>/sms.db$</string>
-            <string>/sms.vmsg</string>
+            <string>#</string>
           </array>
           <key>Category</key>
           <string>Messages</string>
@@ -3231,8 +3251,7 @@
           <integer>2</integer>
           <key>Patterns</key>
           <array>
-            <string>/com.android.providers.telephony/databases$</string>
-            <string>/sms.db$</string>
+            <string>#</string>
           </array>
           <key>Category</key>
           <string>Messages</string>
@@ -3653,7 +3672,31 @@
           <key>Name</key>
           <string>百度网盘(安卓)</string>
           <key>Filter</key>
-          <string>应用>其他</string>
+          <string>应用>网络共享</string>
+        </dict>
+      </array>
+    </dict>
+
+    <dict>
+      <key>Module</key>
+      <string>android_360netdisk</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_YunPan360</string>
+          <key>RunnerType</key>
+          <integer>2</integer>
+          <key>Patterns</key>
+          <array>
+            <string>com.qihoo.cloudisk$</string>
+          </array>
+          <key>Category</key>
+          <string>Pan360</string>
+          <key>Name</key>
+          <string>360安全网盘(安卓)</string>
+          <key>Filter</key>
+          <string>应用>网络共享</string>
         </dict>
       </array>
     </dict>

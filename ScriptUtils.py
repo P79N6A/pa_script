@@ -1122,8 +1122,9 @@ class DataModel(object):
     @classmethod
     def connect(cls, node):
         if not node:
-            raise Exception("数据库没有正确链接")
+            return False
         cls.objects = QueryObjects(node, cls)
+        return True if cls.objects.db else False
 
 
 # 因为只有单文件，没办法，只能放这里面了，不优雅，以后看看

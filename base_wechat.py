@@ -286,7 +286,7 @@ class Wechat(object):
                                 username = self._process_parse_message_system_xml_templete_link_name(link)
                             elif link.Attribute('name').Value == 'names':
                                 names = self._process_parse_message_system_xml_templete_link_name(link)
-                content = template.replace('\"$username$\"', username).replace('\"$names$\"', names)
+                content = template.replace('$username$', username).replace('$names$', names)
             elif xml.Element('editrevokecontent'):
                 revoke = xml.Element('editrevokecontent')
                 if revoke.Element('text'):
@@ -358,7 +358,7 @@ class Wechat(object):
                 model.business_card_signature = xml.Attribute('sign').Value
         return content
 
-    def _parse_segment(self, story_comment, comment_row):
+    def _parse_segment(self, comment_row):
         try:
             sign_head_length = 0x0c
 
@@ -385,13 +385,13 @@ class Wechat(object):
             except Exception as e:
                 comment = b''
 
-            story_comment.content = comment.decode(encoding="utf-8")
-            story_comment.sender_id = sender_id.decode(encoding="utf-8")
-            return True
+            content = comment.decode(encoding="utf-8")
+            sender_id = sender_id.decode(encoding="utf-8")
+            return content, sender_id
         except Exception as e:
-            return False
+            return None
 
-    def _process_parse_story_comment(self, story, data):
+    def _process_parse_story_comment(self, data):
         if not data:
             return
         sign_length = 0x0c
@@ -407,9 +407,8 @@ class Wechat(object):
         segment_data = [data[segment_index[i]:segment_index[i + 1]] for i in range(len(segment_index) - 1)]
         story_comments_row = segment_data[1:]
         for i in story_comments_row:
-            comment = story.create_comment()
-            parse_complete = self._parse_segment(comment, i)
-            if parse_complete:
+            comment = self._parse_segment(i)
+            if comment:
                 yield comment
 
     def _parse_user_type_is_blocked(self, user_type):
@@ -779,8 +778,10 @@ class Wechat(object):
                     model.HeadPortraitPath = photo
                     model.Notice = notice
                     model.IsSave = is_saved != 0
+                    model.GroupOwner = self.friend_models.get(owner_id, None)
                     if sp_id is not None:
-                        model.Members.AddRange(self.get_chatroom_member_models(db, account_id, user_id, sp_id, deleted))
+                        member_models = self.get_chatroom_member_models(db, account_id, user_id, sp_id, deleted)
+                        model.Members.AddRange(member_models)
                     model.JoinTime = model_wechat.GenerateModel._get_timestamp(join_time)
                     self.add_model(model)
 
@@ -1126,7 +1127,7 @@ class Wechat(object):
                     if friend is not None:
                         model.Friends.Add(friend)
             elif label.type == model_wechat.CONTACT_LABEL_TYPE_EMERGENCY:
-                model = EmergencyContacts()
+                model = Base.EmergencyContacts()
                 model.SourceFile = label.source
                 model.Deleted = model_wechat.GenerateModel._convert_deleted_status(label.deleted)
                 model.AppUserAccount = self.user_account_model
@@ -1152,4 +1153,49 @@ class Wechat(object):
             return model
         except Exception as e:
             #print(e)
+            return None
+
+    def get_story_model(self, story):
+        try:
+            timeline_model = None
+            model = WeChat.Story()
+            model.SourceFile = story.source
+            model.Deleted = model_wechat.GenerateModel._convert_deleted_status(story.deleted)
+            model.AppUserAccount = self.user_account_model
+            model.Sender = self.friend_models.get(story.sender_id)
+            model.CreateTime = model_wechat.GenerateModel._get_timestamp(story.timestamp)
+            if story.media_path not in [None, '']:
+                video_content = Base.Content.VideoContent(model)
+                media_model = Base.MediaFile.VideoFile()
+                media_model.Path = story.media_path
+                video_content.Value = media_model
+                model.Contents.Add(video_content)
+                self.media_models.append(media_model)
+            if story.location_latitude != 0 or story.location_longitude != 0:
+                location_content = Base.Content.LocationContent(model)
+                location_content.Value = Base.Location()
+                location_content.Value.SourceType = LocationSourceType.App
+                location_content.Value.Time = model.CreateTime
+                location_content.Value.AddressName = story.location_address
+                location_content.Value.Coordinate = Base.Coordinate(story.location_longitude, story.location_latitude, model_wechat.GenerateModel._convert_location_type(story.location_type))
+                model.Contents.Add(location_content)
+                timeline_model = location_content
+            for comment in story.comments:
+                model.Comments.Add(self.get_story_comment_model(model, comment))
+            return model, timeline_model
+        except Exception as e:
+            print(e)
+            return None, None
+
+    def get_story_comment_model(self, story_model, story_comment):
+        try:
+            model = Base.Comment(story_model)
+            model.SourceFile = story_comment.source
+            model.Deleted = model_wechat.GenerateModel._convert_deleted_status(story_comment.deleted)
+            model.From = self.friend_models.get(story_comment.sender_id)
+            model.Content = story_comment.content
+            model.CreateTime = model_wechat.GenerateModel._get_timestamp(story_comment.timestamp)
+            return model
+        except Exception as e:
+            print(e)
             return None
