@@ -264,7 +264,11 @@ class YouXinParser():
                                             message.type = model_im.MESSAGE_CONTENT_TYPE_VOICE
                                         break
                                 else:
-                                    message.type = model_im.MESSAGE_CONTENT_TYPE_TEXT
+                                    message.media_path = message.content
+                                    if re.findall('image', message.media_path):
+                                        message.type = model_im.MESSAGE_CONTENT_TYPE_IMAGE
+                                    elif re.findall('audio', message.media_path):
+                                        message.type = model_im.MESSAGE_CONTENT_TYPE_VOICE
                         except:
                             pass
                         message.send_time = int(self._db_record_get_string_value(rec, 'date')[0:10:])
