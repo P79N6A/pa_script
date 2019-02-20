@@ -286,7 +286,7 @@ class Wechat(object):
                                 username = self._process_parse_message_system_xml_templete_link_name(link)
                             elif link.Attribute('name').Value == 'names':
                                 names = self._process_parse_message_system_xml_templete_link_name(link)
-                content = template.replace('\"$username$\"', username).replace('\"$names$\"', names)
+                content = template.replace('$username$', username).replace('$names$', names)
             elif xml.Element('editrevokecontent'):
                 revoke = xml.Element('editrevokecontent')
                 if revoke.Element('text'):
@@ -1127,7 +1127,7 @@ class Wechat(object):
                     if friend is not None:
                         model.Friends.Add(friend)
             elif label.type == model_wechat.CONTACT_LABEL_TYPE_EMERGENCY:
-                model = EmergencyContacts()
+                model = Base.EmergencyContacts()
                 model.SourceFile = label.source
                 model.Deleted = model_wechat.GenerateModel._convert_deleted_status(label.deleted)
                 model.AppUserAccount = self.user_account_model

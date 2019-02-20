@@ -3231,9 +3231,7 @@
           <integer>2</integer>
           <key>Patterns</key>
           <array>
-            <string>/com.android.providers.telephony/databases$</string>
-            <string>/sms.db$</string>
-            <string>/sms.vmsg</string>
+            <string>#</string>
           </array>
           <key>Category</key>
           <string>Messages</string>
@@ -3253,8 +3251,7 @@
           <integer>2</integer>
           <key>Patterns</key>
           <array>
-            <string>/com.android.providers.telephony/databases$</string>
-            <string>/sms.db$</string>
+            <string>#</string>
           </array>
           <key>Category</key>
           <string>Messages</string>

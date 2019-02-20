@@ -21,7 +21,7 @@ VERSION_APP_VALUE = 1
 class SoundrecordParse(object):
     def __init__(self, node, extractDeleted, extractSource):
         self.node = node
-        self.extractDeleted = False
+        self.extractDeleted = extractDeleted
         self.extractSource = extractSource
         self.db = None
         self.ms = MS()
@@ -48,21 +48,13 @@ class SoundrecordParse(object):
                     records.record_duration = int((rec['duration'].Value)/1000) if rec['duration'].Value is not None else None
                 records.record_size = rec['file_size'].Value if 'file_size' in rec else None
                 records.record_url = rec['_data'].Value if '_data' in rec else None
+                media_nodes = self.node.FileSystem.Search(os.path.basename(records.record_url) + '$')
+                if len(list(media_nodes)) != 0:
+                    for node in media_nodes:
+                        records.record_url = node.AbsolutePath
+                        break
                 records.source = self.node.AbsolutePath
-                self.ms.db_insert_table_records(records)
-            self.ms.db_commit()
-            records = Records()
-            for rec in self.db.ReadTableDeletedRecords(ts, False):
-                canceller.ThrowIfCancellationRequested()
-                records.record_id = rec['_id'].Value if '_id' in rec else None
-                records.record_name = rec['title'].Value if 'title' in rec else None
-                records.record_create = rec['date_added'].Value if 'date_added' in rec else None
-                if 'duration' in rec:
-                    records.record_duration = int((rec['duration'].Value)/1000) if rec['duration'].Value is not None else None
-                records.record_size = rec['file_size'].Value if 'file_size' in rec else None
-                records.record_url = rec['_data'].Value if '_data' in rec else None
-                records.source = self.node.AbsolutePath
-                records.deleted = 1
+                records.deleted = rec.IsDeleted
                 self.ms.db_insert_table_records(records)
             self.ms.db_commit()
         except Exception as e:
@@ -83,7 +75,13 @@ class SoundrecordParse(object):
                 records.record_duration = rec['duration'].Value if 'duration' in rec else None
                 records.record_size = rec['file_size'].Value if 'file_size' in rec else None
                 records.record_url = rec['file_path'].Value if 'file_path' in rec else None
+                media_nodes = self.node.FileSystem.Search(os.path.basename(records.record_url) + '$')
+                if len(list(media_nodes)) != 0:
+                    for node in media_nodes:
+                        records.record_url = node.AbsolutePath
+                        break
                 records.source = self.node.AbsolutePath
+                records.deleted = rec.IsDeleted
                 self.ms.db_insert_table_records(records)
             self.ms.db_commit()
         except Exception as e:
@@ -105,7 +103,7 @@ class SoundrecordParse(object):
 def analyze_android_soundrecord(node, extractDeleted, extractSource):
     pr = ParserResults()
     pr.Models.AddRange(SoundrecordParse(node, extractDeleted, extractSource).parse())
-    pr.Build('SoundRecords')
+    pr.Build('录音')
     return pr
 
 def execute(node, extractDeleted):
