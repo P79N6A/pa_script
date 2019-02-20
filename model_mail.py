@@ -22,6 +22,10 @@ import sqlite3
 import System.Data.SQLite as SQLite
 import traceback
 
+MAIL_INBOX    = '收件箱'
+MAIL_OUTBOX   = '已发送'
+MAIL_DRAFT    = '草稿箱'
+MAIL_DELTED   = '已删除'
 
 SEND_STATUS_SENT = 1
 SEND_STATUS_UNSENT = 0
