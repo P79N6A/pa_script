@@ -367,6 +367,8 @@ class WeChatParser(Wechat):
         self.set_progress(30)
         self._parse_mm_db_message(db, source)
         self._parse_mm_db_bank_cards(db, source)
+        self._parse_mm_db_login_devices(db, source)
+        self.push_models()
 
     def _parse_fav_db(self, fav_db_path, source):
         db = None
@@ -1271,6 +1273,33 @@ class WeChatParser(Wechat):
                     bank_card_model = self.get_contact_label_model(bank_card)
                     if bank_card_model is not None:
                         self.add_model(bank_card_model)
+                except Exception as e:
+                    print_error()
+
+    def _parse_mm_db_login_devices(self, db, source):
+        if 'SafeDeviceInfo' in db.Tables:
+            if canceller.IsCancellationRequested:
+                return
+            ts = SQLiteParser.TableSignature('SafeDeviceInfo')
+            SQLiteParser.Tools.AddSignatureToTable(ts, "name", SQLiteParser.FieldType.Text,
+                                                   SQLiteParser.FieldConstraints.NotNull)
+            SQLiteParser.Tools.AddSignatureToTable(ts, "createtime", SQLiteParser.FieldType.Int,
+                                                   SQLiteParser.FieldConstraints.NotNull)
+            for rec in db.ReadTableRecords(ts, self.extract_deleted, False, ''):
+                if canceller.IsCancellationRequested:
+                    break
+                try:
+                    device = model_wechat.LoginDevice()
+                    device.source = source
+                    device.name = self._db_record_get_string_value(rec, 'name')
+                    device.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
+                    device.account_id = self.user_account_model.Account
+                    device.type = self._db_record_get_string_value(rec, 'devicetype')
+                    device.last_time = self._db_record_get_int_value(rec, 'createtime')
+                    device.insert_db(self.im)
+                    device_model = self.get_login_device_model(device)
+                    if device_model is not None:
+                        self.add_model(device_model)
                 except Exception as e:
                     print_error()
 
