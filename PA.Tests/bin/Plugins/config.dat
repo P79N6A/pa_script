@@ -2501,7 +2501,7 @@
       </array>
     </dict>
 
-    <dict>
+    <!-- <dict>
       <key>Module</key>
       <string>android_sogoumap</string>
       <key>Runners</key>
@@ -2523,7 +2523,7 @@
           <string>应用>地图</string>
         </dict>
       </array>
-    </dict>
+    </dict> -->
 
     <dict>
       <key>Module</key>
