@@ -717,7 +717,9 @@ class VMSG:
         Args:
             vmsg (node)
         '''
-        self._data = vmsg_node.Data.read().split('\r\n')
+        self._data = []
+        if vmsg_node and vmsg_node.Data:
+            self._data = vmsg_node.Data.read().splitlines()
             
     def dict_from_vmsg(self):
         res = []

@@ -16,17 +16,18 @@ import sqlite3
 import hashlib
 import bcp_basic
 import model_sms
-from ScriptUtils import DEBUG, CASE_NAME, exc, tp, base_analyze, BaseAndroidParser, parse_decorator
+from collections import OrderedDict
+from ScriptUtils import DEBUG, CASE_NAME, exc, tp, BaseAndroidParser, parse_decorator
 
 
-VERSION_APP_VALUE = 2
+VERSION_APP_VALUE = 3
 
 MSG_TYPE_ALL    = 0
 MSG_TYPE_INBOX  = 1
 MSG_TYPE_SENT   = 2
 MSG_TYPE_DRAFT  = 3
 MSG_TYPE_OUTBOX = 4
-MSG_TYPE_FAILED = 5   
+MSG_TYPE_FAILED = 5
 MSG_TYPE_QUEUED = 6
 
 # 彩信地址类型
@@ -38,54 +39,97 @@ PDUHEADERS_TO   = 151
 
 @parse_decorator
 def analyze_sms(node, extract_deleted, extract_source):
-    """ node: sms/sms.db$
-        android 小米 短信 (user_de/0/com.android.providers.telephony/databases$ - mmssms.db)
-    """    
-    node_path = node.AbsolutePath
-    _Parser = AndroidSMSParser
+    # 只返回最先匹配到的, 不重复
+    SMS_PATTERNS = OrderedDict([
+        (AndroidSMSParser, r'(?i)/com.android.providers.telephony/databases/mmssms\.db$'), 
+        (AndroidSMSParser_fs_logic, r'(?i)/sms/sms.db$'), 
+        (VMSGParser, r'(?i)/sms.vmsg'),                   # AutoBackup OPPO MEIZU
+        (AutoBackupHuaweiSMSParser, r'(?i)/sms.db'),      # AutoBackup HuaWei
+    ])
+    res = []
+    hit_nodes = []
+    pr = ParserResults()
+    BCP_TYPE = bcp_basic.BASIC_SMS_INFORMATION
+    db_name = 'AndroidSMS'
 
-    if node_path.endswith('/sms/sms.db'):
-        _Parser = AndroidSMSParser_fs_logic
-    elif node_path.endswith('/com.android.providers.telephony/databases'):
-        _Parser = AndroidSMSParser
-    elif node_path.endswith('/sms.vmsg'):
-        # OPPO MEIZU
-        _Parser = VMSGParser
-    elif node_path.endswith('/sms.db'):
-        _Parser = AutoBackupHuaweiSMSParser
+    if 'media' in node.AbsolutePath:
+        return pr
+    try:
+        for _parser, _pattern in SMS_PATTERNS.items():
+            _nodes = node.FileSystem.Search(_pattern)
+            if len(list(_nodes)) != 0:
+                hit_nodes = [_parser, _nodes]
+                break
+        if hit_nodes:            
+            progress.Start()
+        else:
+            progress.Skip()
+            return pr
 
-    return base_analyze(_Parser,
-                        node,
-                        bcp_basic.BASIC_SMS_INFORMATION,
-                        VERSION_APP_VALUE,
-                        bulid_name='短信',
-                        db_name='AndroidSMS') if _Parser else None
+        _parser = hit_nodes[0]
+        for node in hit_nodes[1]:
+            res.extend(_parser(node, db_name).parse(BCP_TYPE, VERSION_APP_VALUE))
+        if res:
+            pr.Models.AddRange(res)
+            pr.Build('短信')
+        return pr
+    except:
+        msg = '{} 解析新案例 <{}> 出错: {}'.format(db_name, CASE_NAME, traceback.format_exc())
+        TraceService.Trace(TraceLevel.Debug, msg)
+        return pr
+
 
 @parse_decorator
 def analyze_mms(node, extract_deleted, extract_source):
-    # node_path = node.AbsolutePath
-    try:
-        if node.AbsolutePath.endswith('/sms/sms.db'):
-            return 
-        if node.AbsolutePath.endswith('/sms.db'):
-            cur_db = SQLiteParser.Database.FromNode(node, canceller)
-            if 'pdu_tb' not in cur_db.Tables:
-                return 
+    MMS_PATTERNS = OrderedDict([
+        (AndroidMMSParser, r'(?i)/com.android.providers.telephony/databases/mmssms\.db$'), 
+        (AndroidMMSParser, r'(?i)/sms.db'),      # AutoBackup HuaWei
+    ])
+    res = []
+    hit_nodes = []
+    pr = ParserResults()
+    BCP_TYPE = bcp_basic.BASIC_MMS_INFORMATION
+    db_name = 'AndroidMMS'
 
-        return base_analyze(AndroidMMSParser,
-                            node,
-                            bcp_basic.BASIC_MMS_INFORMATION,
-                            VERSION_APP_VALUE,
-                            bulid_name='彩信',
-                            db_name='AndroidMMS')
+    if 'media' in node.AbsolutePath:
+        return pr
+    try:
+        for _parser, _pattern in MMS_PATTERNS.items():
+            _nodes = node.FileSystem.Search(_pattern)
+            if len(list(_nodes)) != 0:
+                hit_nodes.append([_parser, _nodes])
+
+        if hit_nodes:            
+            progress.Start()
+        else:
+            progress.Skip()
+            return pr
+
+        for _parser_nodes in hit_nodes:
+            _parser = _parser_nodes[0]
+            for node in _parser_nodes[1]:
+                if len(list(_nodes)) != 0:
+                    if node.AbsolutePath.endswith('/sms/sms.db'):
+                        continue
+                    if node.AbsolutePath.endswith('/sms.db'):
+                        cur_db = SQLiteParser.Database.FromNode(node, canceller)
+                        if 'pdu_tb' not in cur_db.Tables:
+                            continue                
+                    res.extend(_parser(node, db_name).parse(BCP_TYPE, VERSION_APP_VALUE))
+        if res:
+            pr.Models.AddRange(res)
+            pr.Build('彩信')
+        return pr
     except:
-        exc()
+        msg = '{} 解析新案例 <{}> 出错: {}'.format(db_name, CASE_NAME, traceback.format_exc())
+        TraceService.Trace(TraceLevel.Debug, msg)
+
 
 class AndroidSMSParser(BaseAndroidParser):
     def __init__(self, node, db_name):
         super(AndroidSMSParser, self).__init__(node, db_name)
         self.VERSION_VALUE_DB = model_sms.VERSION_VALUE_DB
-        self.root = node
+        self.root = node.Parent
         self.csm = model_sms.ModelSMS()
         self.Generate = model_sms.GenerateSMSModel
 
@@ -287,7 +331,8 @@ class AndroidMMSParser(AndroidSMSParser):
                 self.parse_part('part')
                 self.parse_mms('pdu', addr_dict)            
 
-        elif not self.root.AbsolutePath.endswith('sms/sms.db') and self.root.AbsolutePath.endswith('/sms.db'):
+        elif (not self.root.AbsolutePath.endswith('sms/sms.db') 
+              and self.root.AbsolutePath.endswith('/sms.db')):
             if self._read_db(node=self.root):
                 addr_dict = self.preparse_addr('addr_tb')
                 self.parse_part('part_tb')
@@ -470,11 +515,11 @@ class AndroidSMSParser_fs_logic(AndroidSMSParser):
     ''' 处理逻辑提取案例, 非 tar 包, sms/sms.db$ '''
     def __init__(self, node, db_name):
         super(AndroidSMSParser_fs_logic, self).__init__(node, db_name)
+        self.root = node
 
     def parse_main(self):
         ''' sms/sms.db '''
         self.pre_parse_calls()
-
         if self._read_db(node=self.root):
             self.parse_sms('SMS') 
 
@@ -542,6 +587,7 @@ class AndroidSMSParser_fs_logic(AndroidSMSParser):
 class VMSGParser(AndroidSMSParser):
     def __init__(self, node, db_name):
         super(VMSGParser, self).__init__(node, db_name)
+        self.root = node
 
     def parse_main(self):
         self.pre_parse_calls()
@@ -585,9 +631,9 @@ class VMSGParser(AndroidSMSParser):
 class AutoBackupHuaweiSMSParser(AndroidSMSParser):
     def __init__(self, node, db_name):
         super(AutoBackupHuaweiSMSParser, self).__init__(node, db_name)
+        self.root = node
 
     def parse_main(self):
-        ''' sms.db '''
         """ /sms.db - sms_tb no _id field
 
             FieldName	        SQLType	             	
@@ -613,7 +659,6 @@ class AutoBackupHuaweiSMSParser(AndroidSMSParser):
             status	                INTEGER
         """
         self.pre_parse_calls()
-
         if self._read_db(node=self.root) and 'sms_tb' in self.cur_db.Tables:
             self.parse_sms('sms_tb') 
 
