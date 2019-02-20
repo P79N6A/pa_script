@@ -23,18 +23,24 @@ import System.Data.SQLite as SQLite
 import traceback
 
 
-SEND_STATUS_SENT = 1
-SEND_STATUS_UNSENT = 0
-SEND_STATUS_READ = 1
-SEND_STATUS_UNREAD = 0
-
-RECEIVE_MAIL = 2
-
 VERSION_KEY_DB = 'db'
 VERSION_KEY_APP = 'app'
 
 #中间数据库版本
 VERSION_VALUE_DB = 2
+
+SEND_STATUS_SENT = 1
+SEND_STATUS_UNSENT = 0
+SEND_STATUS_READ = 1
+SEND_STATUS_UNREAD = 0
+
+MAIL_INBOX  = '收件箱'
+MAIL_OUTBOX = '已发送'
+MAIL_DRAFT  = '草稿箱'
+MAIL_DELTED = '已删除'
+
+RECEIVE_MAIL = 2
+
 
 '''
 字段说明（账户）
