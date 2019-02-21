@@ -39,7 +39,7 @@ PDUHEADERS_TO   = 151
 
 @parse_decorator
 def analyze_sms(node, extract_deleted, extract_source):
-    # 只返回最先匹配到的, 不重复
+    # 只返回最先匹配到的, 不重复匹配
     SMS_PATTERNS = OrderedDict([
         (AndroidSMSParser, r'(?i)/com.android.providers.telephony/databases/mmssms\.db$'), 
         (AndroidSMSParser_fs_logic, r'(?i)/sms/sms.db$'), 
@@ -51,9 +51,6 @@ def analyze_sms(node, extract_deleted, extract_source):
     pr = ParserResults()
     BCP_TYPE = bcp_basic.BASIC_SMS_INFORMATION
     db_name = 'AndroidSMS'
-
-    if 'media' in node.AbsolutePath:
-        return pr
     try:
         for _parser, _pattern in SMS_PATTERNS.items():
             _nodes = node.FileSystem.Search(_pattern)
@@ -68,31 +65,31 @@ def analyze_sms(node, extract_deleted, extract_source):
 
         _parser = hit_nodes[0]
         for node in hit_nodes[1]:
+            if 'media' in node.AbsolutePath:
+                continue
             res.extend(_parser(node, db_name).parse(BCP_TYPE, VERSION_APP_VALUE))
         if res:
             pr.Models.AddRange(res)
             pr.Build('短信')
-        return pr
     except:
-        msg = '{} 解析新案例 <{}> 出错: {}'.format(db_name, CASE_NAME, traceback.format_exc())
-        TraceService.Trace(TraceLevel.Debug, msg)
-        return pr
+        progress.Skip()
+        if DEBUG:
+            msg = '{} 解析新案例 <{}> 出错: {}'.format(db_name, CASE_NAME, traceback.format_exc())
+            TraceService.Trace(TraceLevel.Debug, msg)
+    return pr
 
 
 @parse_decorator
 def analyze_mms(node, extract_deleted, extract_source):
     MMS_PATTERNS = OrderedDict([
         (AndroidMMSParser, r'(?i)/com.android.providers.telephony/databases/mmssms\.db$'), 
-        (AndroidMMSParser, r'(?i)/sms.db'),      # AutoBackup HuaWei
+        (AndroidMMSParser, r'(?i)/sms.db'),  # AutoBackup HuaWei
     ])
     res = []
     hit_nodes = []
     pr = ParserResults()
     BCP_TYPE = bcp_basic.BASIC_MMS_INFORMATION
     db_name = 'AndroidMMS'
-
-    if 'media' in node.AbsolutePath:
-        return pr
     try:
         for _parser, _pattern in MMS_PATTERNS.items():
             _nodes = node.FileSystem.Search(_pattern)
@@ -119,10 +116,12 @@ def analyze_mms(node, extract_deleted, extract_source):
         if res:
             pr.Models.AddRange(res)
             pr.Build('彩信')
-        return pr
     except:
-        msg = '{} 解析新案例 <{}> 出错: {}'.format(db_name, CASE_NAME, traceback.format_exc())
-        TraceService.Trace(TraceLevel.Debug, msg)
+        progress.Skip()
+        if DEBUG:
+            msg = '{} 解析新案例 <{}> 出错: {}'.format(db_name, CASE_NAME, traceback.format_exc())
+            TraceService.Trace(TraceLevel.Debug, msg)
+    return pr
 
 
 class AndroidSMSParser(BaseAndroidParser):
