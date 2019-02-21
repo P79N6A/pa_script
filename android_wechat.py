@@ -55,7 +55,7 @@ THIRDBUILDPARTTERN = {
     '多开助手': r'/data/data/com.kzshuankia.rewq/virtual/data/user/\d+/com.tencent.mm'
 }
 
-DEBUG = True
+DEBUG = False
 
 
 def analyze_wechat(root, extract_deleted, extract_source):
