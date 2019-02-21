@@ -50,6 +50,7 @@ MESSAGE_CONTENT_TYPE_ATTACHMENT = 8  # 附件
 MESSAGE_CONTENT_TYPE_RED_ENVELPOE = 9  # 红包
 MESSAGE_CONTENT_TYPE_TRANSFER = 10  # 转账
 MESSAGE_CONTENT_TYPE_SPLIT_BILL = 11  # 群收款
+MESSAGE_CONTENT_TYPE_APPMESSAGE = 12
 MESSAGE_CONTENT_TYPE_SYSTEM = 99  # 系统
 
 # 收藏类型
@@ -1577,6 +1578,12 @@ class GenerateModel(object):
                         model.Content.Value.Remark = deal_remark
                         model.Content.Value.MoneyOfString = deal_money
                         model.Content.Value.Status = self._convert_deal_status(deal_status)
+                    elif msg_type == MESSAGE_CONTENT_TYPE_APPMESSAGE:
+                        model.Content = Base.Content.TemplateContent(model)
+                        title, content = content.split('#*#', 1)
+                        model.Content.Title = title
+                        model.Content.Content = content
+                        model.Content.SendTime = self._get_timestamp(timestamp)
                     else:
                         model.Content = Base.Content.TextContent(model)
                         model.Content.Value = content
@@ -1933,7 +1940,7 @@ class GenerateModel(object):
                                 model.Friends.Add(friend)
                         self.add_model(model)
                     elif cl_type == CONTACT_LABEL_TYPE_EMERGENCY:
-                        model = Base.EmergencyContacts()
+                        model = EmergencyContacts()
                         model.SourceFile = source
                         model.Deleted = self._convert_deleted_status(deleted)
                         model.AppUserAccount = self.account_models.get(account_id)

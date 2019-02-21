@@ -1335,6 +1335,8 @@ class WeChatParser(Wechat):
             content, revoke_content = self._process_parse_message_system_xml(content)
         elif msg_type == MSG_TYPE_LINK_SEMI:
             pass
+        elif msg_type == MSG_TYPE_APP_MESSAGE:
+            content = self._process_parse_message_app_message(content)
         else:  # MSG_TYPE_LINK
             self._process_parse_message_link(content, model)
 
@@ -1500,6 +1502,22 @@ class WeChatParser(Wechat):
                     model.link_from = appinfo.Element('appname').Value
             else:
                 pass
+
+    def _process_parse_message_app_message(self, row_content):
+        title_pattern = '<title><!\[CDATA\[(.+?)\]\]></title>'
+        content_pattern = '<des><!\[CDATA\[([\s\S]*)\]\]></des>'
+
+        title = ''
+        content = ''
+
+        ans = re.findall(title_pattern, row_content)
+        if ans:
+            title = ans[0]
+        ans = re.findall(content_pattern, row_content)
+        if ans:
+            content = ans[0]
+
+        return "#*#".join((title, content))
 
     def _search_file(self, file_name):
         """搜索函数"""
