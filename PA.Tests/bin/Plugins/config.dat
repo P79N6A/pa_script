@@ -2045,7 +2045,7 @@
           <key>Category</key>
           <string>Pan360</string>
           <key>Name</key>
-          <string>360网盘(苹果)</string>
+          <string>360安全云盘(苹果)</string>
           <key>Filter</key>
           <string>应用>网络共享</string>
         </dict>
@@ -3694,7 +3694,7 @@
           <key>Category</key>
           <string>Pan360</string>
           <key>Name</key>
-          <string>360安全网盘(安卓)</string>
+          <string>360安全云盘(安卓)</string>
           <key>Filter</key>
           <string>应用>网络共享</string>
         </dict>
