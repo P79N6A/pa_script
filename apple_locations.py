@@ -727,13 +727,13 @@ class FrequentLocationsParser(object):
                 reader = cmd.ExecuteReader()
                 while reader.Read():
                     try:
-                        loc = PA.InfraLib.ModelsV2.Base.Location()
+                        loc = Base.Location()
                         loc.SourceType = LocationSourceType.FrequentLocsOfWeek
                         create_time = str(GetBlob(reader,0))
                         loc.Time = self.str_to_timestamp(create_time)
                         latitude = GetFloat(reader, 5)
                         longitude = GetFloat(reader, 6)
-                        loc.Coordinate = PA.InfraLib.ModelsV2.Base.Coordinate(longitude,latitude,CoordinateType.GPS)
+                        loc.Coordinate = Base.Coordinate(longitude,latitude,CoordinateType.GPS)
                         results.append(loc)
                     except Exception as e:
                         TraceService.Trace(TraceLevel.Error,"{0}".format(e))
