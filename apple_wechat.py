@@ -1300,7 +1300,7 @@ class WeChatParser(Wechat):
                         content = ''
                         model.type = model_wechat.MESSAGE_CONTENT_TYPE_ATTACHMENT
                         if appmsg.Element('title'):
-                            model.content = appmsg.Element('title').Value
+                            content = appmsg.Element('title').Value
                         ext = ''
                         if appmsg.Element('appattach') and appmsg.Element('appattach').Element('fileext'):
                             ext = appmsg.Element('appattach').Element('fileext').Value
@@ -1311,7 +1311,7 @@ class WeChatParser(Wechat):
                             model.link_url = attach_node.AbsolutePath
                     elif msg_type == 17:  # 位置共享
                         if appmsg.Element('title'):
-                            model.content = appmsg.Element('title').Value
+                            content = appmsg.Element('title').Value
                             model.type = model_wechat.MESSAGE_CONTENT_TYPE_TEXT
                     else:
                         mmreader = appmsg.Element('mmreader')
