@@ -1080,6 +1080,7 @@ class Wechat(object):
         try:
             model = Base.FavoritesContent()
             model.Sender = self.friend_models.get(favorite_item.sender_id)
+            model.CreateTime = model_wechat.GenerateModel._get_timestamp(favorite_item.timestamp)
             if favorite_item.type == model_wechat.FAV_TYPE_IMAGE:
                 model.Content = Base.Content.ImageContent(model)
                 media_model = Base.MediaFile.ImageFile()
