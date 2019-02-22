@@ -265,6 +265,10 @@ class ICQParser(object):
                     message.send_time = self.__convert_timestamp(db_col.get_int64(4))
                     message.media_path = db_col.get_string(7)
                     message.sender_name = db_col.get_string(8)
+                    if message.talker_id.endswith('@chat.agent'):
+                        message.talker_type = model_im.CHAT_TYPE_GROUP
+                    else:
+                        message.talker_type = model_im.CHAT_TYPE_FRIEND
                     message.is_sender = 1 if message.account_id == message.sender_id else 0
 
                     if message.type in (
