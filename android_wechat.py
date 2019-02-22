@@ -164,6 +164,7 @@ class WeChatParser(Wechat):
         save_cache_path(bcp_wechat.CONTACT_ACCOUNT_TYPE_IM_WECHAT, self.cache_db, ds.OpenCachePath("tmp"))
 
         self.chatroom_owners = dict()
+        self._search_nodes = [self.root, self.root.FileSystem]
 
     def parse(self):
         if not self.is_valid_user_dir:
@@ -455,27 +456,29 @@ class WeChatParser(Wechat):
                     fav_item.content = xml.Element('desc').Value
             elif fav_type in [model_wechat.FAV_TYPE_IMAGE, model_wechat.FAV_TYPE_VOICE, model_wechat.FAV_TYPE_VIDEO,
                               model_wechat.FAV_TYPE_VIDEO_2, model_wechat.FAV_TYPE_ATTACHMENT]:
-                fav_item = model.create_item()
-                fav_item.type = fav_type
-                if xml.Element('source'):
-                    source_info = xml.Element('source')
-                    if source_info.Element('createtime'):
-                        try:
-                            fav_item.timestamp = int(source_info.Element('createtime').Value)
-                        except Exception as e:
-                            pass
-                    if source_info.Element('realchatname'):
-                        fav_item.sender = source_info.Element('realchatname').Value
-                    elif source_info.Element('fromusr'):
-                        fav_item.sender = source_info.Element('fromusr').Value
-                if xml.Element('title'):
-                    fav_item.content = xml.Element('title').Value
+
                 if xml.Element('datalist') and xml.Element('datalist').Element('dataitem'):
-                    item = xml.Element('datalist').Element('dataitem')
-                    if item.Element('sourcedatapath'):
-                        fav_item.media_path = self._parse_user_fav_path(item.Element('sourcedatapath').Value)
-                    elif item.Element('sourcethumbpath'):
-                        fav_item.media_path = self._parse_user_fav_path(item.Element('sourcedatapath').Value)
+                    items = xml.Element('datalist').Elements('dataitem')
+                    for item in items:
+                        fav_item = model.create_item()
+                        fav_item.type = fav_type
+                        if xml.Element('source'):
+                            source_info = xml.Element('source')
+                            if source_info.Element('createtime'):
+                                try:
+                                    fav_item.timestamp = int(source_info.Element('createtime').Value)
+                                except Exception as e:
+                                    pass
+                            if source_info.Element('realchatname'):
+                                fav_item.sender = source_info.Element('realchatname').Value
+                            elif source_info.Element('fromusr'):
+                                fav_item.sender = source_info.Element('fromusr').Value
+                        if xml.Element('title'):
+                            fav_item.content = xml.Element('title').Value
+                        data_id = item.Attribute('dataid').Value
+                        node = self._search_file(data_id)
+                        if node is not None:
+                            fav_item.media_path = node.AbsolutePath
             elif fav_type == model_wechat.FAV_TYPE_LINK:
                 fav_item = model.create_item()
                 fav_item.type = fav_type
@@ -1332,6 +1335,8 @@ class WeChatParser(Wechat):
             content, revoke_content = self._process_parse_message_system_xml(content)
         elif msg_type == MSG_TYPE_LINK_SEMI:
             pass
+        elif msg_type == MSG_TYPE_APP_MESSAGE:
+            content = self._process_parse_message_app_message(content)
         else:  # MSG_TYPE_LINK
             self._process_parse_message_link(content, model)
 
@@ -1497,6 +1502,35 @@ class WeChatParser(Wechat):
                     model.link_from = appinfo.Element('appname').Value
             else:
                 pass
+
+    def _process_parse_message_app_message(self, row_content):
+        title_pattern = '<title><!\[CDATA\[(.+?)\]\]></title>'
+        content_pattern = '<des><!\[CDATA\[([\s\S]*)\]\]></des>'
+
+        title = ''
+        content = ''
+
+        ans = re.findall(title_pattern, row_content)
+        if ans:
+            title = ans[0]
+        ans = re.findall(content_pattern, row_content)
+        if ans:
+            content = ans[0]
+
+        return "#*#".join((title, content))
+
+    def _search_file(self, file_name):
+        """搜索函数"""
+        search_nodes = self.extend_nodes + self._search_nodes
+
+        for node in search_nodes:
+            results = node.Search(file_name)
+            for result in results:
+                if os.path.isfile(result.PathWithMountPoint):
+                    if result.Parent not in self._search_nodes:
+                        self._search_nodes.insert(0, result.Parent)
+                    return result
+        return None
 
 
 class SnsParser:

@@ -35,6 +35,7 @@ import datetime
 import model_wechat
 
 # 消息类型
+MSG_TYPE_POSITION_SHARE = -1879048186
 MSG_TYPE_TEXT = 1
 MSG_TYPE_IMAGE = 3
 MSG_TYPE_VOICE = 34
@@ -50,6 +51,7 @@ MSG_TYPE_SYSTEM = 10000
 MSG_TYPE_SYSTEM_2 = 10002
 MSG_TYPE_SYSTEM_3 = 570425393  # xml
 MSG_TYPE_LINK_SEMI = 285212721  # semi_xml
+MSG_TYPE_APP_MESSAGE = 318767153
 
 # 朋友圈类型
 MOMENT_TYPE_IMAGE = 1  # 正常文字图片
@@ -286,7 +288,7 @@ class Wechat(object):
                                 username = self._process_parse_message_system_xml_templete_link_name(link)
                             elif link.Attribute('name').Value == 'names':
                                 names = self._process_parse_message_system_xml_templete_link_name(link)
-                content = template.replace('\"$username$\"', username).replace('\"$names$\"', names)
+                content = template.replace('$username$', username).replace('$names$', names)
             elif xml.Element('editrevokecontent'):
                 revoke = xml.Element('editrevokecontent')
                 if revoke.Element('text'):
@@ -555,6 +557,8 @@ class Wechat(object):
             return model_wechat.MESSAGE_CONTENT_TYPE_LOCATION
         elif msg_type in [MSG_TYPE_SYSTEM, MSG_TYPE_SYSTEM_2, MSG_TYPE_SYSTEM_3]:
             return model_wechat.MESSAGE_CONTENT_TYPE_SYSTEM
+        elif msg_type == MSG_TYPE_APP_MESSAGE:
+            return model_wechat.MESSAGE_CONTENT_TYPE_APPMESSAGE
         else:
             return model_wechat.MESSAGE_CONTENT_TYPE_LINK
 
@@ -944,6 +948,12 @@ class Wechat(object):
                 model.Content.Value.Remark = message.deal_remark
                 model.Content.Value.MoneyOfString = message.deal_money
                 model.Content.Value.Status = model_wechat.GenerateModel._convert_deal_status(message.deal_status)
+            elif message.type == model_wechat.MESSAGE_CONTENT_TYPE_APPMESSAGE:
+                model.Content = Base.Content.TemplateContent(model)
+                title, content = message.content.split('#*#', 1)
+                model.Content.Title = title
+                model.Content.Content = content
+                model.Content.SendTime = model_wechat.GenerateModel._get_timestamp(message.timestamp)
             else:
                 model.Content = Base.Content.TextContent(model)
                 model.Content.Value = message.content
@@ -1127,7 +1137,7 @@ class Wechat(object):
                     if friend is not None:
                         model.Friends.Add(friend)
             elif label.type == model_wechat.CONTACT_LABEL_TYPE_EMERGENCY:
-                model = EmergencyContacts()
+                model = Base.EmergencyContacts()
                 model.SourceFile = label.source
                 model.Deleted = model_wechat.GenerateModel._convert_deleted_status(label.deleted)
                 model.AppUserAccount = self.user_account_model
