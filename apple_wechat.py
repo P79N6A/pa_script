@@ -469,8 +469,7 @@ class WeChatParser(Wechat):
             else:
                 username = table[5:]
                 user_unknown = True
-            if username == 'newsapp':
-                pass
+
             user_hash = table[5:]
             ts = SQLiteParser.TableSignature(table)
             SQLiteParser.Tools.AddSignatureToTable(ts, "Message", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
@@ -787,11 +786,12 @@ class WeChatParser(Wechat):
                 if xml.Element('title'):
                     fav_item.content = xml.Element('title').Value
                 if xml.Element('datalist') and xml.Element('datalist').Element('dataitem'):
+                    ext = 'fav_dat'
                     item = xml.Element('datalist').Element('dataitem')
-                    if item.Element('sourcedatapath'):
-                        fav_item.media_path = self._parse_user_fav_path(item.Element('sourcedatapath').Value)
-                    elif item.Element('sourcethumbpath'):
-                        fav_item.media_path = self._parse_user_fav_path(item.Element('sourcedatapath').Value)
+                    if item.Element('datafmt'):
+                        ext = item.Element('datafmt').Value
+                    if item.Element('fullmd5'):
+                        fav_item.media_path = self._parse_user_fav_path(item.Element('fullmd5').Value, ext)
             elif fav_type == model_wechat.FAV_TYPE_LINK:
                 fav_item = model.create_item()
                 fav_item.type = fav_type
@@ -874,10 +874,11 @@ class WeChatParser(Wechat):
                             if item.Element('datadesc'):
                                 fav_item.content = item.Element('datadesc').Value
                         elif fav_item.type in [model_wechat.FAV_TYPE_IMAGE, model_wechat.FAV_TYPE_VOICE, model_wechat.FAV_TYPE_VIDEO, model_wechat.FAV_TYPE_VIDEO_2, model_wechat.FAV_TYPE_ATTACHMENT]:
-                            if item.Element('sourcedatapath'):
-                                fav_item.media_path = self._parse_user_fav_path(item.Element('sourcedatapath').Value)
-                            elif item.Element('sourcethumbpath'):
-                                fav_item.media_path = self._parse_user_fav_path(item.Element('sourcedatapath').Value)
+                            ext = 'fav_dat'
+                            if item.Element('datafmt'):
+                                ext = item.Element('datafmt').Value
+                            if item.Element('fullmd5'):
+                                fav_item.media_path = self._parse_user_fav_path(item.Element('fullmd5').Value, ext)
                         elif fav_item.type == model_wechat.FAV_TYPE_LINK:
                             if item.Element('dataitemsource'):
                                 source_info = item.Element('dataitemsource')
@@ -885,8 +886,8 @@ class WeChatParser(Wechat):
                                     fav_item.link_url = source_info.Element('link').Value
                             if item.Element('weburlitem') and item.Element('weburlitem').Element('pagetitle'):
                                 fav_item.link_title = item.Element('weburlitem').Element('pagetitle').Value
-                            if item.Element('sourcethumbpath'):
-                                fav_item.link_image = self._parse_user_fav_path(item.Element('sourcethumbpath').Value)
+                            if item.Element('thumbfullmd5'):
+                                fav_item.link_image = self._parse_user_fav_path(item.Element('thumbfullmd5').Value, 'fav_thumb')
                         elif fav_item.type == model_wechat.FAV_TYPE_LOCATION:
                             if item.Element('locitem'):
                                 latitude = 0
@@ -920,20 +921,8 @@ class WeChatParser(Wechat):
                 fav_item.content = xml_str
         return True
 
-    def _parse_user_fav_path(self, path):
-        node = None
-        key = '/Documents/' + self.user_hash
-        index = path.find(key)
-        if index > 0:
-            p = path[index+len(key):]
-            node = self.root.GetByPath(p)
-        elif self.private_root is not None:
-            key = '/Library/WechatPrivate/' + self.user_hash
-            index = path.find(key)
-            if index > 0:
-                p = path[index+len(key):]
-                node = self.private_root.GetByPath(p)
-
+    def _parse_user_fav_path(self, filename, ext):
+        node = self.private_root.GetByPath('Favorites/Data/{}/{}/{}.{}'.format(filename[:2], filename[-2:], filename, ext))
         if node is not None:
             return node.AbsolutePath
         else:

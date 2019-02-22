@@ -1940,7 +1940,7 @@ class GenerateModel(object):
                                 model.Friends.Add(friend)
                         self.add_model(model)
                     elif cl_type == CONTACT_LABEL_TYPE_EMERGENCY:
-                        model = EmergencyContacts()
+                        model = Base.EmergencyContacts()
                         model.SourceFile = source
                         model.Deleted = self._convert_deleted_status(deleted)
                         model.AppUserAccount = self.account_models.get(account_id)
