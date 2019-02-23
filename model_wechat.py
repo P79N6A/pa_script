@@ -1415,8 +1415,9 @@ class GenerateModel(object):
                     model.HeadPortraitPath = photo
                     model.Notice = notice
                     model.IsSave = is_saved != 0
-                    model.GroupOwner = self.friend_models.get(self._get_user_key(account_id, owner_id))
-                    model.Members.AddRange(self._get_chatroom_member_models(account_id, user_id, sp_id, deleted))
+                    member_models, owner_model = self._get_chatroom_member_models(account_id, user_id, sp_id, deleted, owner_id)
+                    model.GroupOwner = owner_model
+                    model.Members.AddRange(member_models)
                     model.JoinTime = self._get_timestamp(join_time)
                     self.add_model(model)
 
@@ -1513,25 +1514,35 @@ class GenerateModel(object):
                     
                     if msg_type == MESSAGE_CONTENT_TYPE_IMAGE:
                         model.Content = Base.Content.ImageContent(model)
-                        media_model = Base.MediaFile.ImageFile()
+                        media_model = Base.MediaFile.ImageFile(model)
                         media_model.Path = media_path
                         model.Content.Value = media_model
-                        ar.save_media_model(media_model)
-                        self.media_models.append(media_model)
+                        if is_valid_media_model_path(media_path):
+                            ar.save_media_model(media_model)
                     elif msg_type == MESSAGE_CONTENT_TYPE_VOICE:
                         model.Content = Base.Content.VoiceContent(model)
-                        media_model = Base.MediaFile.AudioFile()
+                        media_model = Base.MediaFile.AudioFile(model)
                         media_model.Path = media_path
                         model.Content.Value = media_model
-                        ar.save_media_model(media_model)
-                        self.media_models.append(media_model)
+                        if is_valid_media_model_path(media_path):
+                            ar.save_media_model(media_model)
                     elif msg_type == MESSAGE_CONTENT_TYPE_VIDEO:
                         model.Content = Base.Content.VideoContent(model)
-                        media_model = Base.MediaFile.VideoFile()
-                        media_model.Path = media_path
-                        model.Content.Value = media_model
-                        ar.save_media_model(media_model)
-                        self.media_models.append(media_model)
+                        if is_valid_media_model_path(media_path):
+                            media_model = Base.MediaFile.VideoFile(model)
+                            media_model.Path = media_path
+                            model.Content.Value = media_model
+                            ar.save_media_model(media_model)
+                        elif is_valid_media_model_path(media_thum_path):
+                            media_model = Base.MediaFile.VideoThumbnailFile(model)
+                            media_model.Path = media_path
+                            model.Content.Value = media_model
+                            ar.save_media_model(media_model)
+                        else:
+                            media_model = Base.MediaFile.VideoFile(model)
+                            media_model.Path = media_path
+                            model.Content.Value = media_model
+
                     elif msg_type == MESSAGE_CONTENT_TYPE_CONTACT_CARD:
                         model.Content = Base.Content.BusinessCardContent(model)
                         model.Content.Value = WeChat.BusinessCard()
@@ -1601,10 +1612,11 @@ class GenerateModel(object):
         except Exception as e:
             TraceService.Trace(TraceLevel.Error, "model_wechat.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
 
-    def _get_chatroom_member_models(self, account_id, chatroom_id, sp_id, deleted):
+    def _get_chatroom_member_models(self, account_id, chatroom_id, sp_id, deleted, owner_id):
         if account_id in [None, ''] or chatroom_id in [None, '']:
-            return []
+            return [], None
         models = []
+        owner_model = None
         if sp_id not in [None, 0]:
             sql = '''select member_id, display_name
                      from chatroom_member
@@ -1622,17 +1634,21 @@ class GenerateModel(object):
                     break
                 try:
                     member_id = self._db_reader_get_string_value(r, 0)
+                    display_name = self._db_reader_get_string_value(r, 1)
                     if member_id not in [None, '']:
-                        model = self.friend_models.get(self._get_user_key(account_id, member_id))
-                        if model is not None:
-                            models.append(model)
+                        model = GroupMember()
+                        model.User = self.friend_models.get(self._get_user_key(account_id, member_id))
+                        model.Nickname = display_name
+                        models.append(model)
+                        if member_id == owner_id:
+                            owner_model = model
                 except Exception as e:
                     if deleted == 0:
                         TraceService.Trace(TraceLevel.Error, "model_wechat.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
         except Exception as e:
             if deleted == 0:
                 TraceService.Trace(TraceLevel.Error, "model_wechat.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
-        return models
+        return models, owner_model
 
     def _get_feed_models(self):
         if canceller.IsCancellationRequested:
@@ -1697,8 +1713,9 @@ class GenerateModel(object):
                                 media_model = Base.MediaFile.ImageFile()
                                 media_model.Path = image
                                 images_content.Values.Add(media_model)
-                                ar.save_media_model(media_model)
-                                self.media_models.append(media_model)
+                                if is_valid_media_model_path(image):
+                                    ar.save_media_model(media_model)
+
                         model.Contents.Add(images_content)
                     if video_path not in [None, '']:
                         videos = video_path.split(',')
@@ -1709,8 +1726,9 @@ class GenerateModel(object):
                                 media_model.Path = video
                                 video_content.Value = media_model
                                 model.Contents.Add(video_content)
-                                ar.save_media_model(media_model)
-                                self.media_models.append(media_model)
+                                if is_valid_media_model_path(video):
+                                    ar.save_media_model(media_model)
+
                     if link_url not in [None, '']:
                         l_content = Base.Content.LinkContent(model)
                         l_content.Value = Base.Link()
@@ -1869,22 +1887,24 @@ class GenerateModel(object):
                         media_model = Base.MediaFile.ImageFile()
                         media_model.Path = media_path
                         model.Content.Value = media_model
-                        ar.save_media_model(media_model)
-                        self.media_models.append(media_model)
+                        if is_valid_media_model_path(media_path):
+                            ar.save_media_model(media_model)
+
                     elif fav_type == FAV_TYPE_VOICE:
                         model.Content = Base.Content.VoiceContent(model)
                         media_model = Base.MediaFile.AudioFile()
                         media_model.Path = media_path
                         model.Content.Value = media_model
-                        ar.save_media_model(media_model)
-                        self.media_models.append(media_model)
+                        if is_valid_media_model_path(media_path):
+                            ar.save_media_model(media_model)
+
                     elif fav_type == FAV_TYPE_VIDEO:
                         model.Content = Base.Content.VideoContent(model)
                         media_model = Base.MediaFile.VideoFile()
                         media_model.Path = media_path
                         model.Content.Value = media_model
-                        ar.save_media_model(media_model)
-                        self.media_models.append(media_model)
+                        if is_valid_media_model_path(media_path):
+                            ar.save_media_model(media_model)
                     elif fav_type == FAV_TYPE_LINK:
                         model.Content = Base.Content.LinkContent(model)
                         model.Content.Value = Base.Link()
@@ -2113,8 +2133,9 @@ class GenerateModel(object):
                         media_model.Path = media_path
                         video_content.Value = media_model
                         model.Contents.Add(video_content)
-                        ar.save_media_model(media_model)
-                        self.media_models.append(media_model)
+                        if is_valid_media_model_path(media_path):
+                            ar.save_media_model(media_model)
+
                     if location_latitude != 0 or location_longitude != 0:
                         location_content = Base.Content.LocationContent(model)
                         location_content.Value = Base.Location()
@@ -2285,3 +2306,7 @@ class GenerateModel(object):
     @staticmethod
     def _db_reader_get_float_value(reader, index, default_value=0):
         return reader.GetFloat(index) if not reader.IsDBNull(index) else default_value
+
+    @staticmethod
+    def is_valid_media_model_path(path):
+        return path not in [None, ''] and not path.startswith('http')
