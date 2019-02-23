@@ -20,6 +20,7 @@ using PA.Logic.Services;
 using iTunesBackup;
 using PA.iTunes.Android;
 using PA.InfraLib.Files;
+using SQLiteParser;
 
 namespace TestApp
 {
@@ -55,6 +56,9 @@ namespace TestApp
         protected override void ConfigureServiceLocator()
         {
             base.ConfigureServiceLocator();
+
+            Database db = new Database(@"H:\X\MM.sqlite");
+            var tables = db.Tables;
 
             A a = new A
             {
