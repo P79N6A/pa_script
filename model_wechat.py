@@ -1542,7 +1542,6 @@ class GenerateModel(object):
                             media_model = Base.MediaFile.VideoFile(model)
                             media_model.Path = media_path
                             model.Content.Value = media_model
-
                     elif msg_type == MESSAGE_CONTENT_TYPE_CONTACT_CARD:
                         model.Content = Base.Content.BusinessCardContent(model)
                         model.Content.Value = WeChat.BusinessCard()
@@ -1638,7 +1637,7 @@ class GenerateModel(object):
                     if member_id not in [None, '']:
                         model = GroupMember()
                         model.User = self.friend_models.get(self._get_user_key(account_id, member_id))
-                        model.Nickname = display_name
+                        model.NickName = display_name
                         models.append(model)
                         if member_id == owner_id:
                             owner_model = model
@@ -1715,7 +1714,6 @@ class GenerateModel(object):
                                 images_content.Values.Add(media_model)
                                 if is_valid_media_model_path(image):
                                     ar.save_media_model(media_model)
-
                         model.Contents.Add(images_content)
                     if video_path not in [None, '']:
                         videos = video_path.split(',')
@@ -1728,7 +1726,6 @@ class GenerateModel(object):
                                 model.Contents.Add(video_content)
                                 if is_valid_media_model_path(video):
                                     ar.save_media_model(media_model)
-
                     if link_url not in [None, '']:
                         l_content = Base.Content.LinkContent(model)
                         l_content.Value = Base.Link()
@@ -1889,7 +1886,6 @@ class GenerateModel(object):
                         model.Content.Value = media_model
                         if is_valid_media_model_path(media_path):
                             ar.save_media_model(media_model)
-
                     elif fav_type == FAV_TYPE_VOICE:
                         model.Content = Base.Content.VoiceContent(model)
                         media_model = Base.MediaFile.AudioFile()
@@ -1897,7 +1893,6 @@ class GenerateModel(object):
                         model.Content.Value = media_model
                         if is_valid_media_model_path(media_path):
                             ar.save_media_model(media_model)
-
                     elif fav_type == FAV_TYPE_VIDEO:
                         model.Content = Base.Content.VideoContent(model)
                         media_model = Base.MediaFile.VideoFile()
@@ -2135,7 +2130,6 @@ class GenerateModel(object):
                         model.Contents.Add(video_content)
                         if is_valid_media_model_path(media_path):
                             ar.save_media_model(media_model)
-
                     if location_latitude != 0 or location_longitude != 0:
                         location_content = Base.Content.LocationContent(model)
                         location_content.Value = Base.Location()
@@ -2307,6 +2301,6 @@ class GenerateModel(object):
     def _db_reader_get_float_value(reader, index, default_value=0):
         return reader.GetFloat(index) if not reader.IsDBNull(index) else default_value
 
-    @staticmethod
-    def is_valid_media_model_path(path):
-        return path not in [None, ''] and not path.startswith('http')
+
+def is_valid_media_model_path(path):
+    return path not in [None, ''] and not path.startswith('http')
