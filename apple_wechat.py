@@ -1177,30 +1177,42 @@ class WeChatParser(Wechat):
         if msg_type == MSG_TYPE_TEXT:
             pass
         elif msg_type == MSG_TYPE_IMAGE:
-            content = ''
-            img_path = user_node.AbsolutePath + '/Img/{0}/{1}.pic'.format(friend_hash, msg_local_id)
-            img_thum_path = user_node.AbsolutePath + '/Img/{0}/{1}.pic_thum'.format(friend_hash, msg_local_id)
+            content = '[图片]'
+            node = user_node.GetByPath('/Img/{0}/{1}.pic_hd'.format(friend_hash, msg_local_id))
+            if node is not None:
+                img_path = node.AbsolutePath
+            else:
+                node = user_node.GetByPath('/Img/{0}/{1}.pic'.format(friend_hash, msg_local_id))
+                if node is not None:
+                    img_path = node.AbsolutePath
+
+            node = user_node.GetByPath('/Img/{0}/{1}.pic_thum'.format(friend_hash, msg_local_id))
+            if node is not None:
+                img_thum_path = node.AbsolutePath
         elif msg_type == MSG_TYPE_VOICE:
-            content = ''
-            img_path = user_node.AbsolutePath + '/Audio/{0}/{1}.aud'.format(friend_hash, msg_local_id)
-        elif msg_type == MSG_TYPE_VIDEO or msg_type == MSG_TYPE_VIDEO_2:
-            content = ''
-            img_path = user_node.AbsolutePath + '/Video/{0}/{1}.mp4'.format(friend_hash, msg_local_id)
-            img_thum_path = user_node.AbsolutePath + '/Video/{0}/{1}.video_thum'.format(friend_hash, msg_local_id)
+            content = '[语音]'
+            node = user_node.GetByPath('/Audio/{0}/{1}.aud'.format(friend_hash, msg_local_id))
+            if node is not None:
+                img_path = node.AbsolutePath
+        elif msg_type in [MSG_TYPE_VIDEO, MSG_TYPE_VIDEO_2]:
+            content = '[视频]'
+            node = user_node.GetByPath('/Video/{0}/{1}.mp4'.format(friend_hash, msg_local_id))
+            if node is not None:
+                img_path = node.AbsolutePath
+            node = user_node.GetByPath('/Video/{0}/{1}.video_thum'.format(friend_hash, msg_local_id))
+            if node is not None:
+                img_thum_path = node.AbsolutePath
         elif msg_type == MSG_TYPE_LOCATION:
             content = self._process_parse_message_location(content, model)
             img_thum_path = user_node.AbsolutePath + '/Location/{0}/{1}.pic_thum'.format(friend_hash, msg_local_id)
         elif msg_type == MSG_TYPE_EMOJI:
-            content = self._process_parse_message_emoji(content, model)
-            if content is not None:
-                model.type = model_wechat.MESSAGE_CONTENT_TYPE_TEXT
+            content = '[表情]'
+            self._process_parse_message_emoji(content, model)
         elif msg_type == MSG_TYPE_CONTACT_CARD:
             content = self._process_parse_message_contact_card(content, model)
         elif msg_type == MSG_TYPE_VOIP:
-            model.type = model_wechat.MESSAGE_CONTENT_TYPE_TEXT
             content = self._process_parse_message_voip(content)
         elif msg_type == MSG_TYPE_VOIP_GROUP:
-            model.type = model_wechat.MESSAGE_CONTENT_TYPE_TEXT
             content = self._process_parse_message_voip_group(content)
         elif msg_type == MSG_TYPE_SYSTEM:
             pass
@@ -1233,7 +1245,7 @@ class WeChatParser(Wechat):
         return self._process_parse_friend_message(content, msg_type, msg_local_id, user_node, group_hash, model)
 
     def _process_parse_message_emoji(self, xml_str, model):
-        content = xml_str
+        model.media_path = None
         xml = None
         try:
             xml = XElement.Parse(xml_str)
@@ -1241,7 +1253,7 @@ class WeChatParser(Wechat):
             pass
         if xml and xml.Element('emoji'):
             emoji = xml.Element('emoji')
-            media_path = None
+            
             if emoji.Attribute('fromusername') and model.sender_id in [None, '']:
                 model.sender_id = emoji.Attribute('fromusername').Value
             if emoji.Attribute('md5') and self.private_root:
@@ -1249,15 +1261,11 @@ class WeChatParser(Wechat):
                 node = self.private_root.GetByPath('emoticonPIC/{}.pic'.format(hash))
                 thum_node = self.private_root.GetByPath('emoticonThumb/{}.pic.thumb'.format(hash))
                 if node is not None:
-                    media_path = node.AbsolutePath
+                    model.media_path = node.AbsolutePath
                 elif thum_node is not None:
-                    media_path = thum_node.AbsolutePath
-            if media_path is None and emoji.Attribute('cdnurl'):
-                media_path = emoji.Attribute('cdnurl').Value
-
-            if media_path not in [None, '']:
-                content = None
-        return content
+                    model.media_path = thum_node.AbsolutePath
+            if model.media_path is None and emoji.Attribute('cdnurl'):
+                 model.media_path = emoji.Attribute('cdnurl').Value
 
     def _process_parse_message_link(self, xml_str, model, msg_local_id, friend_hash):
         content = xml_str
