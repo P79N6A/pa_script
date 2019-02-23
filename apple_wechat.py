@@ -195,8 +195,48 @@ class WeChatParser(Wechat):
             self.im.db_commit()
             self.im.db_close()
             #print('%s apple_wechat() parse end' % time.asctime(time.localtime(time.time())))
+            try:
+                self.get_wechat_res()
+            except Exception as e:
+                print(e)
+            #print('%s apple_wechat() parse end' % time.asctime(time.localtime(time.time())))
         else:
-            model_wechat.GenerateModel(self.cache_db, self.build).get_models()
+            obj = model_wechat.GenerateModel(self.cache_db, self.build)
+            obj.get_models()
+            try:
+                self.get_wechat_res()
+            except Exception as e:
+                print(e)
+            
+
+    def get_wechat_res(self):
+        dicts = {}
+        img_node = self.root.GetByPath("Img")
+        audio_node = self.root.GetByPath("Audio")
+        video_node = self.root.GetByPath("Video")
+        opendata_node = self.root.GetByPath("OpenData")
+        fav_node = self.private_root.GetByPath("Favorites/Data")
+        # hi_node = self.private_root.GetByPath("HeadImg")
+        emot_node = self.private_root.GetByPath("emoticonThumb")
+        emop_node = self.private_root.GetByPath("emoticonPIC")
+        story_node = self.private_root.GetByPath("story/media_data")
+        model_wechat.ar.save_res_folder(img_node, "Image")
+        model_wechat.ar.save_res_folder(audio_node, "Audio")
+        model_wechat.ar.save_res_folder(video_node, "Video")
+        model_wechat.ar.save_res_folder(opendata_node, "Other")
+        model_wechat.ar.save_res_folder(fav_node, "Other")
+        model_wechat.ar.save_res_folder(emot_node, "Image")
+        model_wechat.ar.save_res_folder(emop_node, "Image")
+        model_wechat.ar.save_res_folder(story_node, "Video")
+        res = model_wechat.ar.parse()
+        pr = ParserResults()
+        pr.Categories = DescripCategories.Wechat
+        pr.Models.AddRange(res)
+        pr.Build(self.build)
+        ds.Add(pr)
+
+
+
 
     def get_user_hash(self):
         path = self.root.AbsolutePath

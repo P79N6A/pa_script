@@ -23,6 +23,9 @@ import os
 import sqlite3
 import time
 
+from ResourcesExp import AppResources
+ar = AppResources()
+
 VERSION_VALUE_DB = 7
 
 GENDER_NONE = 0
@@ -1513,18 +1516,21 @@ class GenerateModel(object):
                         media_model = Base.MediaFile.ImageFile()
                         media_model.Path = media_path
                         model.Content.Value = media_model
+                        ar.save_media_model(media_model)
                         self.media_models.append(media_model)
                     elif msg_type == MESSAGE_CONTENT_TYPE_VOICE:
                         model.Content = Base.Content.VoiceContent(model)
                         media_model = Base.MediaFile.AudioFile()
                         media_model.Path = media_path
                         model.Content.Value = media_model
+                        ar.save_media_model(media_model)
                         self.media_models.append(media_model)
                     elif msg_type == MESSAGE_CONTENT_TYPE_VIDEO:
                         model.Content = Base.Content.VideoContent(model)
                         media_model = Base.MediaFile.VideoFile()
                         media_model.Path = media_path
                         model.Content.Value = media_model
+                        ar.save_media_model(media_model)
                         self.media_models.append(media_model)
                     elif msg_type == MESSAGE_CONTENT_TYPE_CONTACT_CARD:
                         model.Content = Base.Content.BusinessCardContent(model)
@@ -1691,6 +1697,7 @@ class GenerateModel(object):
                                 media_model = Base.MediaFile.ImageFile()
                                 media_model.Path = image
                                 images_content.Values.Add(media_model)
+                                ar.save_media_model(media_model)
                                 self.media_models.append(media_model)
                         model.Contents.Add(images_content)
                     if video_path not in [None, '']:
@@ -1702,6 +1709,7 @@ class GenerateModel(object):
                                 media_model.Path = video
                                 video_content.Value = media_model
                                 model.Contents.Add(video_content)
+                                ar.save_media_model(media_model)
                                 self.media_models.append(media_model)
                     if link_url not in [None, '']:
                         l_content = Base.Content.LinkContent(model)
@@ -1861,18 +1869,21 @@ class GenerateModel(object):
                         media_model = Base.MediaFile.ImageFile()
                         media_model.Path = media_path
                         model.Content.Value = media_model
+                        ar.save_media_model(media_model)
                         self.media_models.append(media_model)
                     elif fav_type == FAV_TYPE_VOICE:
                         model.Content = Base.Content.VoiceContent(model)
                         media_model = Base.MediaFile.AudioFile()
                         media_model.Path = media_path
                         model.Content.Value = media_model
+                        ar.save_media_model(media_model)
                         self.media_models.append(media_model)
                     elif fav_type == FAV_TYPE_VIDEO:
                         model.Content = Base.Content.VideoContent(model)
                         media_model = Base.MediaFile.VideoFile()
                         media_model.Path = media_path
                         model.Content.Value = media_model
+                        ar.save_media_model(media_model)
                         self.media_models.append(media_model)
                     elif fav_type == FAV_TYPE_LINK:
                         model.Content = Base.Content.LinkContent(model)
@@ -2102,6 +2113,7 @@ class GenerateModel(object):
                         media_model.Path = media_path
                         video_content.Value = media_model
                         model.Contents.Add(video_content)
+                        ar.save_media_model(media_model)
                         self.media_models.append(media_model)
                     if location_latitude != 0 or location_longitude != 0:
                         location_content = Base.Content.LocationContent(model)
