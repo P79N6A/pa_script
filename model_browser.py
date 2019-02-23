@@ -577,9 +577,8 @@ class Generate(object):
                     bookmark.Title.Value = row[2]
                 if not IsDBNull(row[3]):
                     bookmark.Url.Value = row[3]
-                # TODO
-                # if not IsDBNull(row[5]):
-                #     bookmark.IsSynced.Value = row[5]
+                if not IsDBNull(row[5]):
+                    bookmark.IsSynced.Value = row[5]
                 if not IsDBNull(row[6]) and row[6] not in [None, '']:
                     bookmark.SourceFile.Value = row[6]
                 if not IsDBNull(row[7]):
@@ -655,7 +654,7 @@ class Generate(object):
                 if not IsDBNull(row[3]) and row[3]:
                     download.Uri.Value = self._get_uri(row[3])
                 elif not IsDBNull(row[1]) and row[1]:
-                    download.URL.Value = row[1]
+                    download.Uri.Value = self._get_uri(row[1])
                 if not IsDBNull(row[2]):
                     download.Filename.Value = row[2]  
                 if not IsDBNull(row[4]):

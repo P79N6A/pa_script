@@ -1310,8 +1310,11 @@ class WeChatParser(Wechat):
         content = msg
         revoke_content = None
 
-        if msg_type in [MSG_TYPE_TEXT, MSG_TYPE_EMOJI]:
+        if msg_type == MSG_TYPE_TEXT:
             pass
+        elif msg_type == MSG_TYPE_EMOJI:
+            content = '[Emoji]'
+            model.media_path = self._process_parse_message_emoji_img_path(img_path)
         elif msg_type == MSG_TYPE_IMAGE:
             content = '[图片]'
             model.media_path = self._process_parse_message_tranlate_img_path(img_path)
@@ -1358,6 +1361,24 @@ class WeChatParser(Wechat):
 
         model.sender_id = sender_id
         return self._process_parse_friend_message(content, msg_type, img_path, model)
+
+    def _process_parse_message_emoji_img_path(self, img_path):
+        media_path = None
+        if not img_path:
+            return media_path
+        # TODO: 待优化
+        # 这里暂时只是找每个用户节点下的emoji文件，并且做简单的搜索，因为还有表情包的文件夹，需测试数据提供知道规则
+        # 后期提速的优化方向：
+        #       1. 指定用户节点
+        #       2. 指定emoji的表情文件，都是可以的，和img_path是一样的
+        for node in self.extend_nodes:
+            emoji_dir = node.GetByPath('/emoji/')
+            if not emoji_dir:
+                continue
+            emoji = next(iter(emoji_dir.Search(img_path + '$')), None)
+            if emoji is not None:
+                media_path = emoji.AbsolutePath
+        return media_path
 
     def _process_parse_message_tranlate_img_path(self, img_path):
         media_path = None
