@@ -12,13 +12,7 @@ from PA.InfraLib.Utils import FileTypeChecker,FileDomain
 class AppResources(object):
     
     def __init__(self):
-        # if  len(node_list) == 0:
-        #     raise Exception("media_models or node_list is None")
         self.res_models = []
-        # if len(media_models) != 0:
-        #     self.media_models = media_models
-        #     self.path_list = self.return_model_index(self.media_models)
-        # else:
         self.path_list = {}
         self.media_models = []
         self.node_list = {}
