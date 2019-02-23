@@ -16,9 +16,9 @@ try:
 except Exception as e:
     print("debug", e)
 
-import model_eb
-import model_im
 from ScriptUtils import ParserBase, DataModel, Fields, TimeHelper, TaoUtils
+import model_im
+import model_eb
 import PA_runtime
 import System
 from PA_runtime import *
