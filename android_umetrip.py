@@ -2,8 +2,6 @@
 
 import clr
 
-from ScriptUtils import ModelCol, TaoUtils
-
 __author__ = "TaoJianping"
 
 clr.AddReference('System.Core')
@@ -20,7 +18,7 @@ except Exception as e:
 
 import model_eb
 import model_im
-from ScriptUtils import ParserBase, DataModel, Fields, TimeHelper
+from ScriptUtils import ParserBase, DataModel, Fields, TimeHelper, TaoUtils
 import PA_runtime
 import System
 from PA_runtime import *
