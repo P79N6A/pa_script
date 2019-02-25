@@ -65,7 +65,7 @@ class CallsParse(MC):
                 self.analyze_call_records_case2()
             #通用全盘案例
             elif re.findall('contacts2.db', self.node.AbsolutePath):
-                self.analyze_call_records_case3()
+                #self.analyze_call_records_case3()
                 nodes = self.node.FileSystem.Search('contacts2.db$')
                 for node in nodes:
                     self.node = node
