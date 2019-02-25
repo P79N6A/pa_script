@@ -124,7 +124,7 @@ class AndroidGmailParser(BaseAndroidParser):
             self.cur_account_email = account.account_email
 
             if self._read_db('databases/bigTopDataDB.'+str(account.account_id)):
-                tp('databases/bigTopDataDB.'+str(account.account_id))
+                #tp('databases/bigTopDataDB.'+str(account.account_id))
                 self.pre_parse_custom_mail_box('clusters')
                 MAIL_ITEMS = self._parse_mail_items('items')
                 MAIL_INFO = self._parse_mail_item_visibility('item_visibility')
@@ -320,7 +320,8 @@ class AndroidGmailParser(BaseAndroidParser):
 
     def _browser_record_from_gmail(self, _mail):
         _mail_content = _mail.mail_content
-        if not _mail_content:
+        if (_mail.mail_group == MAIL_INBOX and _mail.mail_read_status != MESSAGE_STATUS_READ 
+            or not _mail_content):
             return 
         _date = _mail.mail_sent_date
         _urls = []
@@ -336,7 +337,9 @@ class AndroidGmailParser(BaseAndroidParser):
             self.model_browser.db_insert_table_browserecords(browser_record)
 
         for _u in re.finditer(URL_PATTERN, _mail_content):
-            _save_to_br(_u.group(), _date)
+            if _u.group() not in _urls:
+                _urls.append(_u.group())
+                _save_to_br(_u.group(), _date)
         # for _ip in re.finditer(IP_PATTERN, _mail_content):
         #     _save_to_br(_ip.group(), _date)
 
