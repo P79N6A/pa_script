@@ -104,9 +104,10 @@ class AndroidGmailParser(BaseAndroidParser):
 
     def parse(self, BCP_TYPE, VERSION_APP_VALUE):
         models = super(AndroidGmailParser, self).parse(BCP_TYPE, VERSION_APP_VALUE)
+        self.model_browser.db_close()
         browser_models = model_browser.Generate(self.browser_cache_db).get_models()
-        res = models.extend(browser_models)
-        return res
+        models.extend(browser_models)
+        return models
 
     def parse_main(self):
         """ com.google.android.gm/databases
@@ -130,7 +131,6 @@ class AndroidGmailParser(BaseAndroidParser):
                 self._parse_mail_content('item_messages', MAIL_ITEMS, MAIL_INFO)
                 self.parse_attachment('item_message_attachments') 
                 # self.parse_contact('Contact.db', 'contact_table')
-        self.model_browser.db_close()
         
     def pre_parse_custom_mail_box(self, table_name):
         ''' 解析自定义标签
