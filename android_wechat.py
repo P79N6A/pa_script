@@ -12,6 +12,7 @@ try:
     clr.AddReference('bcp_wechat')
     clr.AddReference('base_wechat')
     clr.AddReference('tencent_struct')
+    clr.AddReference('ResourcesExp')
 except:
     pass
 del clr
@@ -38,6 +39,7 @@ import bcp_wechat
 from base_wechat import *
 import tencent_struct
 import time
+from ResourcesExp import AppResources
 
 # EnterPoint: analyze_wechat(root, extract_deleted, extract_source):
 # Patterns: '/MicroMsg/.+/EnMicroMsg.db$'
@@ -85,7 +87,7 @@ def analyze_wechat(root, extract_deleted, extract_source):
 
 def get_build(node):
     build = '微信'
-    if not node:
+    if node is not None:
         return build
 
     app_path = node.AbsolutePath
@@ -165,6 +167,7 @@ class WeChatParser(Wechat):
 
         self.chatroom_owners = dict()
         self._search_nodes = [self.root, self.root.FileSystem]
+        self.ar = AppResources()
 
     def parse(self):
         if not self.is_valid_user_dir:
@@ -230,9 +233,24 @@ class WeChatParser(Wechat):
                 self.im.db_insert_table_version(model_wechat.VERSION_KEY_APP, VERSION_APP_VALUE)
             self.im.db_commit()
             self.im.db_close()
+            try:
+                self.get_wechat_res(self.ar)
+            except Exception as e:
+                print(e)
             # print('%s android_wechat() parse end' % time.asctime(time.localtime(time.time())))
         else:
-            model_wechat.GenerateModel(self.cache_db, self.build).get_models()
+            self.extend_nodes = []
+            extend_nodes = self.root.FileSystem.Search('/Tencent/MicroMsg/{}$'.format(self.user_hash))
+            for extend_node in extend_nodes:
+                self.extend_nodes.append(extend_node)
+
+            obj = model_wechat.GenerateModel(self.cache_db, self.build)
+            obj.get_models()
+            try:
+                self.get_wechat_res(obj.ar)
+            except Exception as e:
+                print(e)
+
 
     def set_progress(self, value):
         progress.Value = value
@@ -1576,6 +1594,52 @@ class WeChatParser(Wechat):
             target_node = node.GetByPath('/favorite')
             fav = target_node.Search(file_name)
             return next(iter(fav), None)
+
+    def _search_media_nodes(self, dir_name):
+        ret_nodes = []
+        for node in self.extend_nodes:
+            target = node.GetByPath(dir_name)
+            if target is not None:
+                ret_nodes.append(target)
+        return ret_nodes
+
+    def _save_ar_nodes(self, ar, nodes, type_):
+        for n in nodes:
+            ar.save_res_folder(n, type_)
+
+    def get_wechat_res(self, ar):
+        # 收藏
+        fav_dir_nodes = self._search_media_nodes('/favorite')
+        self._save_ar_nodes(ar, fav_dir_nodes, 'Other')
+
+        # Emoji
+        emoji_dir_nodes = self._search_media_nodes('/emoji')
+        self._save_ar_nodes(ar, emoji_dir_nodes, 'Image')
+
+        # image
+        image_dir_nodes = self._search_media_nodes('/image')
+        image_2_dir_nodes = self._search_media_nodes('/image2')
+        self._save_ar_nodes(ar, image_dir_nodes, 'Image')
+        self._save_ar_nodes(ar, image_2_dir_nodes, 'Image')
+
+        # 消息 - video
+        message_videos_dir_nodes = self._search_media_nodes('/video')
+        self._save_ar_nodes(ar, message_videos_dir_nodes, 'Video')
+
+        # 消息 - 语音
+        message_voice_dir_nodes = self._search_media_nodes('/voice2')
+        self._save_ar_nodes(ar, message_voice_dir_nodes, 'Audio')
+
+        # story
+        story_dir_nodes = self._search_media_nodes('/story')
+        self._save_ar_nodes(ar, story_dir_nodes, 'Video')
+
+        res = ar.parse()
+        pr = ParserResults()
+        pr.Categories = DescripCategories.Wechat
+        pr.Models.AddRange(res)
+        pr.Build(self.build)
+        ds.Add(pr)
 
 
 class SnsParser:
