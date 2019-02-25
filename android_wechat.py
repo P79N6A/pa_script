@@ -167,7 +167,6 @@ class WeChatParser(Wechat):
 
         self.chatroom_owners = dict()
         self._search_nodes = [self.root, self.root.FileSystem]
-        self.ar = AppResources()
 
     def parse(self):
         if not self.is_valid_user_dir:
@@ -1385,18 +1384,7 @@ class WeChatParser(Wechat):
         emoji_dir = None
         if not img_path:
             return media_path
-        # TODO: 待优化
-        # 这里暂时只是找每个用户节点下的emoji文件，并且做简单的搜索，因为还有表情包的文件夹，需测试数据提供知道规则
-        # 后期提速的优化方向：
-        #       1. 指定用户节点
-        #       2. 指定emoji的表情文件，都是可以的，和img_path是一样的
-        # for node in self.extend_nodes:
-        #     emoji_dir = node.GetByPath('/emoji/')
-        #     if not emoji_dir:
-        #         continue
-        #     emoji = next(iter(emoji_dir.Search(img_path + '$')), None)
-        #     if emoji is not None:
-        #         media_path = emoji.AbsolutePath
+
         msg_content_pattern = r'<msg>[\s\S]*/msg>'
         res = re.findall(msg_content_pattern, msg_content)
         if res:

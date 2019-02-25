@@ -1103,6 +1103,10 @@ class GenerateModel(object):
         self.ar = AppResources()
         self.ar.set_thum_config("pic_thum","Image")
         self.ar.set_thum_config("video_thum","Video")
+        self.ar.set_thum_config("jpg", "Video")
+        self.ar.set_thum_config("thumb", "Video")
+        self.ar.set_thum_config("cover", "Video")
+        self.ar.set_thum_config("extern", "Video")
 
     def add_model(self, model):
         if model is not None:
