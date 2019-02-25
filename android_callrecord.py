@@ -66,6 +66,10 @@ class CallsParse(MC):
             #通用全盘案例
             elif re.findall('contacts2.db', self.node.AbsolutePath):
                 self.analyze_call_records_case3()
+                nodes = self.node.FileSystem.Search('contacts2.db$')
+                for node in nodes:
+                    self.node = node
+                    self.analyze_call_records_case3()
             self.db_insert_table_version(model_callrecord.VERSION_KEY_DB, model_callrecord.VERSION_VALUE_DB)
             self.db_insert_table_version(model_callrecord.VERSION_KEY_APP, VERSION_APP_VALUE)
             self.db_commit()
