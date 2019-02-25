@@ -169,7 +169,7 @@ class Generate(object):
             if row[5] is not None:
                 try:
                     hours = int(row[5])/3600
-                    minutes = (int(row[12])-hours*3600)/60
+                    minutes = (int(row[5])-hours*3600)/60
                     seconds = int(row[5])-hours*3600-minutes*60
                     r.Duration.Value = System.TimeSpan(hours, minutes, seconds)
                 except:

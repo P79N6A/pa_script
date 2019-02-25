@@ -535,9 +535,9 @@ class Generate(object):
                         audio.Album = self._db_reader_get_string_value(sr, 14)
                         audio.Artist = self._db_reader_get_string_value(sr, 13)
                         if not IsDBNull(sr[12]):
-                            hours = int(row[12])/3600
-                            minutes = (int(row[12])-hours*3600)/60
-                            seconds = int(row[12])-hours*3600-minutes*60
+                            hours = int(sr[12])/3600
+                            minutes = (int(sr[12])-hours*3600)/60
+                            seconds = int(sr[12])-hours*3600-minutes*60
                             audio.Duration.Value = System.TimeSpan(hours, minutes, seconds)
                     #image convert
                     elif media_type == "image":
@@ -638,9 +638,9 @@ class Generate(object):
                         video.TakenDate = self._get_timestamp(takenDate)
                         video.ModifyTime = self._get_timestamp(modifyTime)
                         if not IsDBNull(sr[12]):
-                            hours = int(row[12])/3600
-                            minutes = (int(row[12])-hours*3600)/60
-                            seconds = int(row[12])-hours*3600-minutes*60
+                            hours = int(sr[12])/3600
+                            minutes = (int(sr[12])-hours*3600)/60
+                            seconds = int(sr[12])-hours*3600-minutes*60
                             video.Duration.Value = System.TimeSpan(hours, minutes, seconds)
                         video.SourceFile = self._get_source_file(str(sr[31]))
                         video.Deleted = self._convert_deleted_status(sr[32])
