@@ -476,7 +476,7 @@ class WeChatParser(Wechat):
                         if xml.Element('title'):
                             fav_item.content = xml.Element('title').Value
                         data_id = item.Attribute('dataid').Value
-                        node = self._search_file(data_id)
+                        node = self._search_fav_file(data_id)
                         if node is not None:
                             fav_item.media_path = node.AbsolutePath
             elif fav_type == model_wechat.FAV_TYPE_LINK:
@@ -1314,7 +1314,7 @@ class WeChatParser(Wechat):
             pass
         elif msg_type == MSG_TYPE_EMOJI:
             content = '[Emoji]'
-            model.media_path = self._process_parse_message_emoji_img_path(img_path)
+            model.media_path = self._process_parse_message_emoji_img_path(msg, img_path)
         elif msg_type == MSG_TYPE_IMAGE:
             content = '[图片]'
             model.media_path = self._process_parse_message_tranlate_img_path(img_path)
@@ -1323,7 +1323,7 @@ class WeChatParser(Wechat):
             model.media_path = self._process_parse_message_tranlate_voice_path(img_path)
         elif msg_type in [MSG_TYPE_VIDEO, MSG_TYPE_VIDEO_2]:
             content = '[视频]'
-            model.media_path = self._process_parse_message_tranlate_video_path(img_path, model)
+            model.media_path, model.media_thum_path = self._process_parse_message_tranlate_video_path(img_path, model)
         elif msg_type == MSG_TYPE_LOCATION:
             content = self._process_parse_message_location(content, model)
         elif msg_type == MSG_TYPE_CONTACT_CARD:
@@ -1362,8 +1362,9 @@ class WeChatParser(Wechat):
         model.sender_id = sender_id
         return self._process_parse_friend_message(content, msg_type, img_path, model)
 
-    def _process_parse_message_emoji_img_path(self, img_path):
+    def _process_parse_message_emoji_img_path(self, msg_content, img_path):
         media_path = None
+        emoji_dir = None
         if not img_path:
             return media_path
         # TODO: 待优化
@@ -1371,13 +1372,29 @@ class WeChatParser(Wechat):
         # 后期提速的优化方向：
         #       1. 指定用户节点
         #       2. 指定emoji的表情文件，都是可以的，和img_path是一样的
-        for node in self.extend_nodes:
-            emoji_dir = node.GetByPath('/emoji/')
-            if not emoji_dir:
-                continue
-            emoji = next(iter(emoji_dir.Search(img_path + '$')), None)
-            if emoji is not None:
-                media_path = emoji.AbsolutePath
+        # for node in self.extend_nodes:
+        #     emoji_dir = node.GetByPath('/emoji/')
+        #     if not emoji_dir:
+        #         continue
+        #     emoji = next(iter(emoji_dir.Search(img_path + '$')), None)
+        #     if emoji is not None:
+        #         media_path = emoji.AbsolutePath
+        msg_content_pattern = r'<msg>[\s\S]*/msg>'
+        res = re.findall(msg_content_pattern, msg_content)
+        if res:
+            try:
+                xml = XElement.Parse(res[0])
+                emoji_dir = xml.Element('emoji').Attribute('productid').Value
+            except Exception as e:
+                print(e)
+        for extend_node in self.extend_nodes:
+            if emoji_dir:
+                path = '/emoji/{}/{}'.format(emoji_dir, img_path)
+            else:
+                path = '/emoji/{}'.format(img_path)
+            node = extend_node.GetByPath(path)
+            if node is not None:
+                media_path = node.AbsolutePath
         return media_path
 
     def _process_parse_message_tranlate_img_path(self, img_path):
@@ -1435,22 +1452,22 @@ class WeChatParser(Wechat):
 
     def _process_parse_message_tranlate_video_path(self, video_id, model):
         media_path = None
+        media_thumbnail_path = None
         for extend_node in self.extend_nodes:
             if canceller.IsCancellationRequested:
                 break
             node = extend_node.GetByPath('/video/{}.mp4'.format(video_id))
             if node is not None:
                 media_path = node.AbsolutePath
-                break
 
             node = extend_node.GetByPath('/video/{}.jpg'.format(video_id))
             if node is not None:
-                model.type = model_wechat.MESSAGE_CONTENT_TYPE_IMAGE
-                media_path = node.AbsolutePath
+                media_thumbnail_path = node.AbsolutePath
+
+            if any((media_thumbnail_path, media_path)):
                 break
-        if media_path is None:
-            media_path = '/no_video'
-        return media_path
+
+        return media_path, media_thumbnail_path
 
     def _process_parse_message_link(self, xml_str, model):
         xml = None
@@ -1552,6 +1569,13 @@ class WeChatParser(Wechat):
                         self._search_nodes.insert(0, result.Parent)
                     return result
         return None
+
+    def _search_fav_file(self, file_name):
+        """搜索函数"""
+        for node in self.extend_nodes:
+            target_node = node.GetByPath('/favorite')
+            fav = target_node.Search(file_name)
+            return next(iter(fav), None)
 
 
 class SnsParser:
