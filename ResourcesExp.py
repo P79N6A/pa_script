@@ -104,6 +104,10 @@ class AppResources(object):
 
     def _is_created(self, node, ntype):
         suffix = os.path.splitext(node.AbsolutePath)[-1][1:]
+        if not suffix and ntype == "Image":
+            if node.AbsolutePath.find("_") != -1:
+                index = node.AbsolutePath.find("_")
+                suffix = node.AbsolutePath[index+1:] 
         if node.AbsolutePath in self.path_list.keys():
             self.media_models.remove(self.path_list[node.AbsolutePath])
             return self.path_list[node.AbsolutePath]
