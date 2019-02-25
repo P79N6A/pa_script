@@ -78,6 +78,8 @@ class Wechat(object):
         self.ar.set_thum_config("thumb", "Video")
         self.ar.set_thum_config("cover", "Video")
         self.ar.set_thum_config("extern", "Video")
+        self.ar.set_thum_config("pic", "Video")
+
 
     def _process_parse_message_deal(self, xml_element, model):
         if xml_element.Name.LocalName == 'msg':
