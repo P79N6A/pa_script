@@ -536,7 +536,7 @@ class Generate(object):
                         audio.Artist = self._db_reader_get_string_value(sr, 13)
                         if not IsDBNull(sr[12]):
                             hours = int(row[12])/3600
-                            minutes = int(row[12])-hours*3600
+                            minutes = (int(row[12])-hours*3600)/60
                             seconds = int(row[12])-hours*3600-minutes*60
                             audio.Duration.Value = System.TimeSpan(hours, minutes, seconds)
                     #image convert
@@ -639,7 +639,7 @@ class Generate(object):
                         video.ModifyTime = self._get_timestamp(modifyTime)
                         if not IsDBNull(sr[12]):
                             hours = int(row[12])/3600
-                            minutes = int(row[12])-hours*3600
+                            minutes = (int(row[12])-hours*3600)/60
                             seconds = int(row[12])-hours*3600-minutes*60
                             video.Duration.Value = System.TimeSpan(hours, minutes, seconds)
                         video.SourceFile = self._get_source_file(str(sr[31]))
