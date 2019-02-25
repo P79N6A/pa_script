@@ -17,6 +17,9 @@ class AppResources(object):
         self.media_models = []
         self.node_list = {}
         self.media_path_set = set()
+        self.img_thum_suffix = set()
+        self.video_thum_suffix = set()
+
 
     def parse(self):
         if  len(self.node_list) == 0:
@@ -50,6 +53,12 @@ class AppResources(object):
         if node is not None:
             self.node_list[node] = ntype
 
+
+    def set_thum_config(self, thum, rtype):
+        if rtype == "Image":
+            self.img_thum_suffix.add(thum)
+        elif rtype == "Video":
+            self.video_thum_suffix.add(thum)
 
 
     def _get_all_files(self, node, all_files):
@@ -94,25 +103,38 @@ class AppResources(object):
 
 
     def _is_created(self, node, ntype):
+        suffix = os.path.splitext(node.AbsolutePath)[-1][1:]
         if node.AbsolutePath in self.path_list.keys():
             self.media_models.remove(self.path_list[node.AbsolutePath])
             return self.path_list[node.AbsolutePath]
         else:
             if ntype == "Image":
-                return MediaFile.ImageFile()
+                if suffix in self.img_thum_suffix:
+                    return MediaFile.ThumbnailFile()
+                else:
+                    return MediaFile.ImageFile()
             elif ntype == "Video":
-                return MediaFile.VideoFile()
+                if suffix in self.video_thum_suffix:
+                    return MediaFile.VideoThumbnailFile()
+                else:
+                    return MediaFile.VideoFile()
             elif ntype == "Audio":
                 return MediaFile.AudioFile()
             elif ntype == "Other":
                 checker = FileTypeChecker()
                 obj = checker.GetFileType(node.Data)  # 调用c#方法检查类型
                 if obj.Domain == FileDomain.Image:
-                    return MediaFile.ImageFile()
+                    if suffix in self.img_thum_suffix:
+                        return MediaFile.ThumbnailFile()
+                    else:
+                        return MediaFile.ImageFile()
                 elif obj.Domain == FileDomain.Audio:
                     return MediaFile.AudioFile()
                 elif obj.Domain == FileDomain.Video:
-                    return MediaFile.VideoFile()
+                    if suffix in self.video_thum_suffix:
+                        return MediaFile.VideoThumbnailFile()
+                    else:
+                        return MediaFile.VideoFile()
                 elif obj.Domain == FileDomain.Compress:
                     other = OtherFile.OtherFile()
                     other.Domain = FileDomain.Compress
