@@ -538,7 +538,7 @@ class Generate(object):
                             hours = int(sr[12])/3600
                             minutes = (int(sr[12])-hours*3600)/60
                             seconds = int(sr[12])-hours*3600-minutes*60
-                            audio.Duration.Value = System.TimeSpan(hours, minutes, seconds)
+                            audio.Duration = System.TimeSpan(hours, minutes, seconds)
                     #image convert
                     elif media_type == "image":
                         image = MediaFile.ImageFile()
@@ -641,7 +641,7 @@ class Generate(object):
                             hours = int(sr[12])/3600
                             minutes = (int(sr[12])-hours*3600)/60
                             seconds = int(sr[12])-hours*3600-minutes*60
-                            video.Duration.Value = System.TimeSpan(hours, minutes, seconds)
+                            video.Duration = System.TimeSpan(hours, minutes, seconds)
                         video.SourceFile = self._get_source_file(str(sr[31]))
                         video.Deleted = self._convert_deleted_status(sr[32])
                         #location = Base.Location(video)

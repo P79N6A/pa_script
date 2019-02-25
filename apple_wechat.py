@@ -35,6 +35,7 @@ import model_wechat
 import bcp_wechat
 from base_wechat import *
 import time
+
 # EnterPoint: analyze_wechat(root, extract_deleted, extract_source):
 # Patterns: '/DB/MM\.sqlite$'
 

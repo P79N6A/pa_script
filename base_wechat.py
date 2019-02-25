@@ -72,6 +72,8 @@ class Wechat(object):
         self.friend_models = {}
         self.chatroom_models = {}
         self.ar = AppResources()
+        self.ar.set_thum_config("pic_thum","Image")
+        self.ar.set_thum_config("video_thum","Video")
 
     def _process_parse_message_deal(self, xml_element, model):
         if xml_element.Name.LocalName == 'msg':

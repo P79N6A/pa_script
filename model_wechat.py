@@ -1101,6 +1101,8 @@ class GenerateModel(object):
         self.models = []
         self.media_models = []
         self.ar = AppResources()
+        self.ar.set_thum_config("pic_thum","Image")
+        self.ar.set_thum_config("video_thum","Video")
 
     def add_model(self, model):
         if model is not None:
@@ -1119,43 +1121,33 @@ class GenerateModel(object):
 
     def set_progress(self, value):
         progress.Value = value
-        #print('set_progress() %d' % value)
 
     def get_models(self):
         self.db = SQLite.SQLiteConnection('Data Source = {}'.format(self.cache_db))
         self.db.Open()
 
-        #print('%s model_wechat() generate model account' % time.asctime(time.localtime(time.time())))
         self._get_account_models()
         self.set_progress(2)
         self._get_login_device_models()
         self.set_progress(3)
         self._get_bank_card_models()
         self.set_progress(5)
-        #print('%s model_wechat() generate model friend' % time.asctime(time.localtime(time.time())))
         self._get_friend_models()
         self.set_progress(15)
-        #print('%s model_wechat() generate model group' % time.asctime(time.localtime(time.time())))
         self._get_group_models()
         self.set_progress(25)
-        #print('%s model_wechat() generate model contact label' % time.asctime(time.localtime(time.time())))
         self._get_contact_label_models()
         self.set_progress(26)
-        #print('%s model_wechat() generate model feed' % time.asctime(time.localtime(time.time())))
         self._get_feed_models()
         self.set_progress(45)
-        #print('%s model_wechat() generate model message' % time.asctime(time.localtime(time.time())))
         self._get_message_models()
         self.set_progress(85)
-        #print('%s model_wechat() generate model search' % time.asctime(time.localtime(time.time())))
         self._get_search_models()
         self.set_progress(90)
-        #print('%s model_wechat() generate model favorite' % time.asctime(time.localtime(time.time())))
         self._get_favorite_models()
         self.set_progress(95)
         self._get_story_models()
         self.set_progress(100)
-        #print('%s model_wechat() generate model end' % time.asctime(time.localtime(time.time())))
 
         self.db.Close()
 
