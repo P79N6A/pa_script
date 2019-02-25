@@ -33,9 +33,7 @@ import shutil
 import base64
 import datetime
 import model_wechat
-
 from ResourcesExp import AppResources
-ar = AppResources()
 
 # 消息类型
 MSG_TYPE_POSITION_SHARE = -1879048186
@@ -73,6 +71,7 @@ class Wechat(object):
         self.user_account_model = None
         self.friend_models = {}
         self.chatroom_models = {}
+        self.ar = AppResources()
 
     def _process_parse_message_deal(self, xml_element, model):
         if xml_element.Name.LocalName == 'msg':
@@ -890,26 +889,26 @@ class Wechat(object):
                 media_model.Path = message.media_path
                 model.Content.Value = media_model
                 if model_wechat.is_valid_media_model_path(message.media_path):
-                    ar.save_media_model(media_model)
+                    self.ar.save_media_model(media_model)
             elif message.type == model_wechat.MESSAGE_CONTENT_TYPE_VOICE:
                 model.Content = Base.Content.VoiceContent(model)
                 media_model = Base.MediaFile.AudioFile(model)
                 media_model.Path = message.media_path
                 model.Content.Value = media_model
                 if model_wechat.is_valid_media_model_path(message.media_path):
-                    ar.save_media_model(media_model)
+                    self.ar.save_media_model(media_model)
             elif message.type == model_wechat.MESSAGE_CONTENT_TYPE_VIDEO:
                 model.Content = Base.Content.VideoContent(model)
                 if model_wechat.is_valid_media_model_path(message.media_path):
                     media_model = Base.MediaFile.VideoFile(model)
                     media_model.Path = message.media_path
                     model.Content.Value = media_model
-                    ar.save_media_model(media_model)
+                    self.ar.save_media_model(media_model)
                 elif model_wechat.is_valid_media_model_path(message.media_thum_path):
                     media_model = Base.MediaFile.VideoThumbnailFile(model)
                     media_model.Path = message.media_thum_path
                     model.Content.Value = media_model
-                    ar.save_media_model(media_model)
+                    self.ar.save_media_model(media_model)
                 else:
                     media_model = Base.MediaFile.VideoFile(model)
                     media_model.Path = message.media_path
@@ -1004,7 +1003,7 @@ class Wechat(object):
                         media_model.Path = image
                         images_content.Values.Add(media_model)
                         if model_wechat.is_valid_media_model_path(image):
-                            ar.save_media_model(media_model)
+                            self.ar.save_media_model(media_model)
                 model.Contents.Add(images_content)
             if feed.video_path not in [None, '']:
                 videos = feed.video_path.split(',')
@@ -1016,7 +1015,7 @@ class Wechat(object):
                         video_content.Value = media_model
                         model.Contents.Add(video_content)
                         if model_wechat.is_valid_media_model_path(video):
-                            ar.save_media_model(media_model)
+                            self.ar.save_media_model(media_model)
             if feed.link_url not in [None, '']:
                 link_content = Base.Content.LinkContent(model)
                 link_content.Value = Base.Link()
@@ -1107,21 +1106,21 @@ class Wechat(object):
                 media_model.Path = favorite_item.media_path
                 model.Content.Value = media_model
                 if model_wechat.is_valid_media_model_path(favorite_item.media_path):
-                    ar.save_media_model(media_model)
+                    self.ar.save_media_model(media_model)
             elif favorite_item.type == model_wechat.FAV_TYPE_VOICE:
                 model.Content = Base.Content.VoiceContent(model)
                 media_model = Base.MediaFile.AudioFile(model)
                 media_model.Path = favorite_item.media_path
                 model.Content.Value = media_model
                 if model_wechat.is_valid_media_model_path(favorite_item.media_path):
-                    ar.save_media_model(media_model)
+                    self.ar.save_media_model(media_model)
             elif favorite_item.type == model_wechat.FAV_TYPE_VIDEO:
                 model.Content = Base.Content.VideoContent(model)
                 media_model = Base.MediaFile.VideoFile(model)
                 media_model.Path = favorite_item.media_path
                 model.Content.Value = media_model
                 if model_wechat.is_valid_media_model_path(favorite_item.media_path):
-                    ar.save_media_model(media_model)
+                    self.ar.save_media_model(media_model)
             elif favorite_item.type == model_wechat.FAV_TYPE_LINK:
                 model.Content = Base.Content.LinkContent(model)
                 model.Content.Value = Base.Link()
@@ -1130,7 +1129,7 @@ class Wechat(object):
                 model.Content.Value.Url = favorite_item.link_url
                 model.Content.Value.ImagePath = favorite_item.link_image
                 if model_wechat.is_valid_media_model_path(favorite_item.link_image):
-                    ar.save_media_model(media_model)
+                    self.ar.save_media_model(media_model)
             elif favorite_item.type == model_wechat.FAV_TYPE_LOCATION:
                 model.Content = Base.Content.LocationContent(model)
                 model.Content.Value = Base.Location()
@@ -1209,7 +1208,7 @@ class Wechat(object):
                 video_content.Value = media_model
                 model.Contents.Add(video_content)
                 if model_wechat.is_valid_media_model_path(story.media_path):
-                    ar.save_media_model(media_model)
+                    self.ar.save_media_model(media_model)
             if story.location_latitude != 0 or story.location_longitude != 0:
                 location_content = Base.Content.LocationContent(model)
                 location_content.Value = Base.Location()

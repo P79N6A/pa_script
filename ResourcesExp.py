@@ -16,7 +16,7 @@ class AppResources(object):
         self.path_list = {}
         self.media_models = []
         self.node_list = {}
-    
+        self.media_path_set = set()
 
     def parse(self):
         if  len(self.node_list) == 0:
@@ -33,7 +33,9 @@ class AppResources(object):
         """
         Save media models
         """
-        self.media_models.append(model)
+        if model.Path not in self.media_path_set:
+            self.media_models.append(model)
+            self.media_path_set.add(model.Path)
 
 
     def save_res_folder(self, node, ntype):

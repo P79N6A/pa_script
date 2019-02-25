@@ -41,10 +41,10 @@ PDUHEADERS_TO   = 151
 def analyze_sms(node, extract_deleted, extract_source):
     # 只返回最先匹配到的, 不重复匹配
     SMS_PATTERNS = OrderedDict([
-        (AndroidSMSParser, r'(?i)/com.android.providers.telephony/databases/mmssms\.db$'), 
-        (AndroidSMSParser_fs_logic, r'(?i)/sms/sms.db$'), 
-        (VMSGParser, r'(?i)/sms.vmsg'),                   # AutoBackup OPPO MEIZU
-        (AutoBackupHuaweiSMSParser, r'(?i)/sms.db'),      # AutoBackup HuaWei
+        (r'(?i)/com.android.providers.telephony/databases/mmssms\.db$',AndroidSMSParser), 
+        (r'(?i)/sms/sms.db$', AndroidSMSParser_fs_logic), 
+        (r'(?i)/sms.vmsg', VMSGParser),                   # AutoBackup OPPO MEIZU
+        (r'(?i)/sms.db', AutoBackupHuaweiSMSParser),      # AutoBackup HuaWei
     ])
     res = []
     hit_nodes = []
@@ -52,7 +52,7 @@ def analyze_sms(node, extract_deleted, extract_source):
     BCP_TYPE = bcp_basic.BASIC_SMS_INFORMATION
     db_name = 'AndroidSMS'
     try:
-        for _parser, _pattern in SMS_PATTERNS.items():
+        for _pattern, _parser in SMS_PATTERNS.items():
             _nodes = node.FileSystem.Search(_pattern)
             if len(list(_nodes)) != 0:
                 hit_nodes = [_parser, _nodes]
@@ -82,8 +82,8 @@ def analyze_sms(node, extract_deleted, extract_source):
 @parse_decorator
 def analyze_mms(node, extract_deleted, extract_source):
     MMS_PATTERNS = OrderedDict([
-        (AndroidMMSParser, r'(?i)/com.android.providers.telephony/databases/mmssms\.db$'), 
-        (AndroidMMSParser, r'(?i)/sms.db'),  # AutoBackup HuaWei
+        (r'(?i)com.android.providers.telephony/databases/mmssms\.db$', AndroidMMSParser), 
+        (r'(?i)/sms.db', AndroidMMSParser, ),  # AutoBackup HuaWei
     ])
     res = []
     hit_nodes = []
@@ -91,12 +91,12 @@ def analyze_mms(node, extract_deleted, extract_source):
     BCP_TYPE = bcp_basic.BASIC_MMS_INFORMATION
     db_name = 'AndroidMMS'
     try:
-        for _parser, _pattern in MMS_PATTERNS.items():
+        for _pattern, _parser in MMS_PATTERNS.items():
             _nodes = node.FileSystem.Search(_pattern)
             if len(list(_nodes)) != 0:
                 hit_nodes.append([_parser, _nodes])
 
-        if hit_nodes:            
+        if hit_nodes:
             progress.Start()
         else:
             progress.Skip()
@@ -105,14 +105,13 @@ def analyze_mms(node, extract_deleted, extract_source):
         for _parser_nodes in hit_nodes:
             _parser = _parser_nodes[0]
             for node in _parser_nodes[1]:
-                if len(list(_nodes)) != 0:
-                    if node.AbsolutePath.endswith('/sms/sms.db'):
-                        continue
-                    if node.AbsolutePath.endswith('/sms.db'):
-                        cur_db = SQLiteParser.Database.FromNode(node, canceller)
-                        if 'pdu_tb' not in cur_db.Tables:
-                            continue                
-                    res.extend(_parser(node, db_name).parse(BCP_TYPE, VERSION_APP_VALUE))
+                if node.AbsolutePath.endswith('/sms/sms.db'):
+                    continue
+                if node.AbsolutePath.endswith('/sms.db'):
+                    cur_db = SQLiteParser.Database.FromNode(node, canceller)
+                    if 'pdu_tb' not in cur_db.Tables:
+                        continue                
+                res.extend(_parser(node, db_name).parse(BCP_TYPE, VERSION_APP_VALUE))
         if res:
             pr.Models.AddRange(res)
             pr.Build('彩信')
