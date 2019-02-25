@@ -21,7 +21,10 @@ import bcp_browser
 
 
 # app数据库版本
-VERSION_APP_VALUE = 3
+VERSION_APP_VALUE = 4
+
+
+SEARCH_ENGINES = r'((?P<keyword1>.*?)( - Google 搜尋| - Google Search|- Google 搜索| - 百度| - 搜狗搜索|_360搜索| - 国内版 Bing)$)|(^网页搜索_(?P<keyword2>.*))|'
 
 
 @parse_decorator
@@ -183,10 +186,16 @@ class BaseChromeParser(model_browser.BaseBrowserParser):
                 browser_record.deleted     = 1 if rec.IsDeleted else rec['hidden'].Value
                 self.csm.db_insert_table_browserecords(browser_record)
 
-                if URLID_KEYWORD.has_key(rec['id'].Value):
+                # 补充 keyword_search_terms 表中漏掉的搜索关键字
+                if not URLID_KEYWORD.has_key(rec['id'].Value):
+                    _search_item = self._search_item_from_browser_record(rec['title'].Value)
+                else:
+                    _search_item = ''
+
+                if URLID_KEYWORD.has_key(rec['id'].Value) or _search_item:
                     search_history = model_browser.SearchHistory()
+                    search_history.name = _search_item if _search_item else URLID_KEYWORD.get(rec['id'].Value, None)
                     search_history.id        = rec['id'].Value
-                    search_history.name      = URLID_KEYWORD.get(rec['id'].Value, None)
                     search_history.url       = rec['url'].Value
                     search_history.datetime  = browser_record.datetime
                     search_history.owneruser = self.cur_account_name
@@ -196,6 +205,23 @@ class BaseChromeParser(model_browser.BaseBrowserParser):
             except:
                 exc()
         self.csm.db_commit()
+
+    def _search_item_from_browser_record(self, browser_title):
+        '''SEARCH_ENGINES = 
+            r'((?P<keyword1>.*?)( - Google 搜尋| - Google Search|- Google 搜索\
+            | - 百度| - 搜狗搜索|_360搜索| - 国内版 Bing)$)|(^网页搜索_(?P<keyword2>.*))|'
+        '''
+        try:
+            if browser_title and not IsDBNull(browser_title):
+                match_res = re.match(SEARCH_ENGINES, browser_title)
+                if match_res and (match_res.group('keyword1') or match_res.group('keyword2')):
+                    keyword1 = match_res.group('keyword1')
+                    keyword2 = match_res.group('keyword2')
+                    keyword = keyword1 if keyword1 else keyword2
+                    return keyword
+        except:
+            exc()
+            return ''
 
     def _parse_SearchHistory_keyword(self, table_name):
         ''' Default/History - keyword_search_terms
