@@ -198,7 +198,7 @@ class WeChatParser(Wechat):
             try:
                 self.get_wechat_res(self.ar)
             except Exception as e:
-                print(e)
+                TraceService.Trace(TraceLevel.Error, e)
             #print('%s apple_wechat() parse end' % time.asctime(time.localtime(time.time())))
         else:
             obj = model_wechat.GenerateModel(self.cache_db, self.build)
@@ -206,7 +206,7 @@ class WeChatParser(Wechat):
             try:
                 self.get_wechat_res(obj.ar)
             except Exception as e:
-                print(e)
+                TraceService.Trace(TraceLevel.Error, e)
             
 
     def get_wechat_res(self, ar):
