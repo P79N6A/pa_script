@@ -534,7 +534,11 @@ class Generate(object):
                         audio.ModifyTime = self._get_timestamp(modifyTime)
                         audio.Album = self._db_reader_get_string_value(sr, 14)
                         audio.Artist = self._db_reader_get_string_value(sr, 13)
-                        audio.duration = self._db_reader_get_int_value(sr, 12)
+                        if not IsDBNull(sr[12]):
+                            hours = int(sr[12])/3600
+                            minutes = (int(sr[12])-hours*3600)/60
+                            seconds = int(sr[12])-hours*3600-minutes*60
+                            audio.Duration = System.TimeSpan(hours, minutes, seconds)
                     #image convert
                     elif media_type == "image":
                         image = MediaFile.ImageFile()
@@ -634,7 +638,10 @@ class Generate(object):
                         video.TakenDate = self._get_timestamp(takenDate)
                         video.ModifyTime = self._get_timestamp(modifyTime)
                         if not IsDBNull(sr[12]):
-                            video.Duration = sr[12]
+                            hours = int(sr[12])/3600
+                            minutes = (int(sr[12])-hours*3600)/60
+                            seconds = int(sr[12])-hours*3600-minutes*60
+                            video.Duration = System.TimeSpan(hours, minutes, seconds)
                         video.SourceFile = self._get_source_file(str(sr[31]))
                         video.Deleted = self._convert_deleted_status(sr[32])
                         #location = Base.Location(video)

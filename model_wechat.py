@@ -24,7 +24,7 @@ import sqlite3
 import time
 
 from ResourcesExp import AppResources
-ar = AppResources()
+
 
 VERSION_VALUE_DB = 7
 
@@ -1100,6 +1100,14 @@ class GenerateModel(object):
         self.chatroom_models = {}
         self.models = []
         self.media_models = []
+        self.ar = AppResources()
+        self.ar.set_thum_config("pic_thum","Image")
+        self.ar.set_thum_config("video_thum","Video")
+        self.ar.set_thum_config("jpg", "Video")
+        self.ar.set_thum_config("thumb", "Video")
+        self.ar.set_thum_config("cover", "Video")
+        self.ar.set_thum_config("extern", "Video")
+        self.ar.set_thum_config("pic", "Video")
 
     def add_model(self, model):
         if model is not None:
@@ -1118,43 +1126,33 @@ class GenerateModel(object):
 
     def set_progress(self, value):
         progress.Value = value
-        #print('set_progress() %d' % value)
 
     def get_models(self):
         self.db = SQLite.SQLiteConnection('Data Source = {}'.format(self.cache_db))
         self.db.Open()
 
-        #print('%s model_wechat() generate model account' % time.asctime(time.localtime(time.time())))
         self._get_account_models()
         self.set_progress(2)
         self._get_login_device_models()
         self.set_progress(3)
         self._get_bank_card_models()
         self.set_progress(5)
-        #print('%s model_wechat() generate model friend' % time.asctime(time.localtime(time.time())))
         self._get_friend_models()
         self.set_progress(15)
-        #print('%s model_wechat() generate model group' % time.asctime(time.localtime(time.time())))
         self._get_group_models()
         self.set_progress(25)
-        #print('%s model_wechat() generate model contact label' % time.asctime(time.localtime(time.time())))
         self._get_contact_label_models()
         self.set_progress(26)
-        #print('%s model_wechat() generate model feed' % time.asctime(time.localtime(time.time())))
         self._get_feed_models()
         self.set_progress(45)
-        #print('%s model_wechat() generate model message' % time.asctime(time.localtime(time.time())))
         self._get_message_models()
         self.set_progress(85)
-        #print('%s model_wechat() generate model search' % time.asctime(time.localtime(time.time())))
         self._get_search_models()
         self.set_progress(90)
-        #print('%s model_wechat() generate model favorite' % time.asctime(time.localtime(time.time())))
         self._get_favorite_models()
         self.set_progress(95)
         self._get_story_models()
         self.set_progress(100)
-        #print('%s model_wechat() generate model end' % time.asctime(time.localtime(time.time())))
 
         self.db.Close()
 
@@ -1518,26 +1516,26 @@ class GenerateModel(object):
                         media_model.Path = media_path
                         model.Content.Value = media_model
                         if is_valid_media_model_path(media_path):
-                            ar.save_media_model(media_model)
+                            self.ar.save_media_model(media_model)
                     elif msg_type == MESSAGE_CONTENT_TYPE_VOICE:
                         model.Content = Base.Content.VoiceContent(model)
                         media_model = Base.MediaFile.AudioFile(model)
                         media_model.Path = media_path
                         model.Content.Value = media_model
                         if is_valid_media_model_path(media_path):
-                            ar.save_media_model(media_model)
+                            self.ar.save_media_model(media_model)
                     elif msg_type == MESSAGE_CONTENT_TYPE_VIDEO:
                         model.Content = Base.Content.VideoContent(model)
                         if is_valid_media_model_path(media_path):
                             media_model = Base.MediaFile.VideoFile(model)
                             media_model.Path = media_path
                             model.Content.Value = media_model
-                            ar.save_media_model(media_model)
+                            self.ar.save_media_model(media_model)
                         elif is_valid_media_model_path(media_thum_path):
                             media_model = Base.MediaFile.VideoThumbnailFile(model)
                             media_model.Path = media_path
                             model.Content.Value = media_model
-                            ar.save_media_model(media_model)
+                            self.ar.save_media_model(media_model)
                         else:
                             media_model = Base.MediaFile.VideoFile(model)
                             media_model.Path = media_path
@@ -1713,7 +1711,7 @@ class GenerateModel(object):
                                 media_model.Path = image
                                 images_content.Values.Add(media_model)
                                 if is_valid_media_model_path(image):
-                                    ar.save_media_model(media_model)
+                                    self.ar.save_media_model(media_model)
                         model.Contents.Add(images_content)
                     if video_path not in [None, '']:
                         videos = video_path.split(',')
@@ -1725,7 +1723,7 @@ class GenerateModel(object):
                                 video_content.Value = media_model
                                 model.Contents.Add(video_content)
                                 if is_valid_media_model_path(video):
-                                    ar.save_media_model(media_model)
+                                    self.ar.save_media_model(media_model)
                     if link_url not in [None, '']:
                         l_content = Base.Content.LinkContent(model)
                         l_content.Value = Base.Link()
@@ -1885,21 +1883,21 @@ class GenerateModel(object):
                         media_model.Path = media_path
                         model.Content.Value = media_model
                         if is_valid_media_model_path(media_path):
-                            ar.save_media_model(media_model)
+                            self.ar.save_media_model(media_model)
                     elif fav_type == FAV_TYPE_VOICE:
                         model.Content = Base.Content.VoiceContent(model)
                         media_model = Base.MediaFile.AudioFile()
                         media_model.Path = media_path
                         model.Content.Value = media_model
                         if is_valid_media_model_path(media_path):
-                            ar.save_media_model(media_model)
+                            self.ar.save_media_model(media_model)
                     elif fav_type == FAV_TYPE_VIDEO:
                         model.Content = Base.Content.VideoContent(model)
                         media_model = Base.MediaFile.VideoFile()
                         media_model.Path = media_path
                         model.Content.Value = media_model
                         if is_valid_media_model_path(media_path):
-                            ar.save_media_model(media_model)
+                            self.ar.save_media_model(media_model)
                     elif fav_type == FAV_TYPE_LINK:
                         model.Content = Base.Content.LinkContent(model)
                         model.Content.Value = Base.Link()
@@ -2129,7 +2127,7 @@ class GenerateModel(object):
                         video_content.Value = media_model
                         model.Contents.Add(video_content)
                         if is_valid_media_model_path(media_path):
-                            ar.save_media_model(media_model)
+                            self.ar.save_media_model(media_model)
                     if location_latitude != 0 or location_longitude != 0:
                         location_content = Base.Content.LocationContent(model)
                         location_content.Value = Base.Location()
