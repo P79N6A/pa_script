@@ -1530,13 +1530,15 @@ class GenerateModel(object):
                             self.ar.save_media_model(media_model)
                     elif msg_type == MESSAGE_CONTENT_TYPE_VIDEO:
                         model.Content = Base.Content.VideoContent(model)
-                        if is_valid_media_model_path(media_path):
+                        if media_path not in [None, '']:
                             media_model = Base.MediaFile.VideoFile(model)
                             media_model.Path = media_path
                             model.Content.Value = media_model
-                            self.ar.save_media_model(media_model)
+                            if is_valid_media_model_path(media_path):
+                                self.ar.save_media_model(media_model)
                         elif is_valid_media_model_path(media_thum_path):
                             media_model = Base.MediaFile.VideoThumbnailFile(model)
+                            media_model.Deleted = self._convert_deleted_status(1)
                             media_model.Path = media_path
                             model.Content.Value = media_model
                             self.ar.save_media_model(media_model)

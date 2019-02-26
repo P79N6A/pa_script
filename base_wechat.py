@@ -908,13 +908,15 @@ class Wechat(object):
                     self.ar.save_media_model(media_model)
             elif message.type == model_wechat.MESSAGE_CONTENT_TYPE_VIDEO:
                 model.Content = Base.Content.VideoContent(model)
-                if model_wechat.is_valid_media_model_path(message.media_path):
+                if message.media_path not in [None, '']:
                     media_model = Base.MediaFile.VideoFile(model)
                     media_model.Path = message.media_path
                     model.Content.Value = media_model
-                    self.ar.save_media_model(media_model)
+                    if model_wechat.is_valid_media_model_path(message.media_path):
+                        self.ar.save_media_model(media_model)
                 elif model_wechat.is_valid_media_model_path(message.media_thum_path):
                     media_model = Base.MediaFile.VideoThumbnailFile(model)
+                    media_model.Deleted = model_wechat.GenerateModel._convert_deleted_status(1)
                     media_model.Path = message.media_thum_path
                     model.Content.Value = media_model
                     self.ar.save_media_model(media_model)
