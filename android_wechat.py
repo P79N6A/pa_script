@@ -40,6 +40,7 @@ from base_wechat import *
 import tencent_struct
 import time
 from ResourcesExp import AppResources
+import gc
 
 # EnterPoint: analyze_wechat(root, extract_deleted, extract_source):
 # Patterns: '/MicroMsg/.+/EnMicroMsg.db$'
