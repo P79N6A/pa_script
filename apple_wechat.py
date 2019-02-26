@@ -58,9 +58,12 @@ def get_build(node):
     app_path = node.AbsolutePath
     if app_path in [None, '']:
         return build
-    info = ds.GetApplication(node.AbsolutePath)
-    if info and info.Name:
-        return info.Name.Value
+    try:
+        info = ds.GetApplication(node.AbsolutePath)
+        if info and info.Name:
+            return info.Name.Value
+    except Exception as e:
+        TraceService.Trace(TraceLevel.Error, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
     return build
 
 
@@ -479,7 +482,6 @@ class WeChatParser(Wechat):
             return False
 
         tables = {}
-        db_tables = []
         usernames = self.friend_models.keys() + self.chatroom_models.keys()
         for username in usernames:
             if canceller.IsCancellationRequested:

@@ -10,6 +10,7 @@ clr.AddReference('System.Xml.Linq')
 clr.AddReference('System.Data.SQLite')
 try:
     clr.AddReference('model_wechat')
+    clr.AddReference('ResourcesExp')
 except:
     pass
 del clr
