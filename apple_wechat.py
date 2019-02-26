@@ -10,6 +10,7 @@ try:
     clr.AddReference('model_wechat')
     clr.AddReference('bcp_wechat')
     clr.AddReference('base_wechat')
+    clr.AddReference('ResourcesExp')
 except:
     pass
 del clr
