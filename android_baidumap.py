@@ -15,12 +15,14 @@ import clr
 try:
     clr.AddReference('model_map_v2')
     clr.AddReference("MapUtil")
+    clr.AddReference("bcp_gis")
 except:
     pass
 del clr
 import model_map_v2 as model_map
 import traceback
 import MapUtil
+import bcp_gis
 import json
 
 
@@ -40,6 +42,9 @@ class baiduMapParser(object):
         self.get_navigation_record()
         self.get_fav_position()
         self.baidumap.db_close()
+
+        tmp_dir = ds.OpenCachePath("tmp")
+        PA_runtime.save_cache_path(bcp_gis.NETWORK_APP_MAP_BAIDU, db_path, tmp_dir)
 
         result = model_map.ExportModel(db_path).get_model()
         return result

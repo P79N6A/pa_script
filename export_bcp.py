@@ -40,7 +40,7 @@ def get_support_apps(caseDirs):
     lists = []
     if caseDirs:
         for case in caseDirs:
-            path = case + "\\caches\\tmp"
+            path = case + "\\tmp"
             if os.path.exists(path):
                 apps = [ f for f in os.listdir(path) if os.path.isfile(os.path.join(path,f))]
                 lists.append(apps)
@@ -50,8 +50,8 @@ def get_support_apps(caseDirs):
     return None
 
 def run(target_id, bcp_path, case_path, mountDir, software_type):
-    tmp_dir = case_path + "\\caches\\tmp\\"  
-    ts_path = case_path + "\\caches\\tmp"   # bcp数据库生成位置
+    tmp_dir = case_path + "\\tmp\\"  
+    ts_path = case_path + "\\tmp"   # bcp数据库生成位置
     software_path = tmp_dir + software_type
     if os.path.exists(software_path):
         ts_db = None

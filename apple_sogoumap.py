@@ -13,12 +13,14 @@ import clr
 try:
     clr.AddReference('model_map_v2')
     clr.AddReference("MapUtil")
+    clr.AddReference("bcp_gis")
 except:
     pass
 from PA_runtime import *
 import json
 import model_map_v2 as model_map
 import MapUtil
+import bcp_gis
 
 
 class SogouMap(object):
@@ -39,6 +41,9 @@ class SogouMap(object):
         # self.get_route_v1()
         self.sogouMap.db_close()
         
+        tmp_dir = ds.OpenCachePath("tmp")
+        PA_runtime.save_cache_path(bcp_gis.NETWORK_APP_MAP_SOGOU, db_path, tmp_dir)
+
         results = model_map.ExportModel(db_path).get_model()
         return results
 
