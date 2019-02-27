@@ -474,7 +474,7 @@ class QQParser(object):
                     msg.id = msgid
                     msg.type = MESSAGE_CONTENT_TYPE_TEXT
                     msg.content = content
-                    msg.send_time = sendtime
+                    msg.timestamp = sendtime
                     msg.talker_type = CHAT_TYPE_FRIEND				
                     self.im.db_insert_table_message(msg)
                 except:					
@@ -519,7 +519,7 @@ class QQParser(object):
                     msg.id = msgid
                     msg.type = MESSAGE_CONTENT_TYPE_TEXT
                     msg.content = content
-                    msg.send_time = sendtime
+                    msg.timestamp = sendtime
                     msg.talker_type = CHAT_TYPE_GROUP                    
                 except:					
                     pass
@@ -564,7 +564,7 @@ class QQParser(object):
                     msg.id = msgid
                     msg.type = MESSAGE_CONTENT_TYPE_TEXT
                     msg.content = content
-                    msg.send_time = sendtime
+                    msg.timestamp = sendtime
                     msg.talker_type = CHAT_TYPE_DISCUSSION                    
                 except:					
                     pass
@@ -933,7 +933,7 @@ class QQParser(object):
                     else:
                         msg.is_sender = 0
                     msg.msg_id = msgid
-                    msg.send_time = sendtime
+                    msg.timestamp = sendtime
                     msg.talker_type = CHAT_TYPE_DISCUSSION
                     if(bread == 0):
                         msg.status = MESSAGE_STATUS_UNREAD
@@ -1031,7 +1031,7 @@ class QQParser(object):
                     msg.deleted = 0
                     msg.repeated = 0
                     msg.msg_id = msgid
-                    msg.send_time = sendtime									
+                    msg.timestamp = sendtime									
                     msg.sender_id  = uin
                     msg.content = content	
                     types  = (MESSAGE_CONTENT_TYPE_TEXT,MESSAGE_CONTENT_TYPE_IMAGE,MESSAGE_CONTENT_TYPE_VOICE,
@@ -1112,7 +1112,7 @@ class QQParser(object):
                     msg.deleted = 0
                     msg.repeated = 0
                     msg.msg_id = msgid
-                    msg.send_time = sendtime
+                    msg.timestamp = sendtime
                     msg.sender_id =  uin
                     msg.content = content	
                     types  = (MESSAGE_CONTENT_TYPE_TEXT,MESSAGE_CONTENT_TYPE_IMAGE,MESSAGE_CONTENT_TYPE_VOICE,
@@ -1169,7 +1169,7 @@ class QQParser(object):
                 msg.type = MESSAGE_CONTENT_TYPE_TRANSFER
                 msg.deal_mode = DEAL_MODE_NONE
                 msg.deal_status =  DEAL_STATUS_TRANSFER_RECEIVED              
-            msg.deal_create_time = msg.send_time
+            msg.deal_create_time = msg.timestamp
         except:
             pass
         return 
@@ -1379,7 +1379,7 @@ class QQParser(object):
                         msg.status = MESSAGE_STATUS_READ					
                     msg.deleted = 1					
                     msg.msg_id = msgid
-                    msg.send_time = sendtime
+                    msg.timestamp = sendtime
                     msg.sender_id =  uin
                     msg.content = content	
                     types  = (MESSAGE_CONTENT_TYPE_TEXT,MESSAGE_CONTENT_TYPE_IMAGE,MESSAGE_CONTENT_TYPE_VOICE,
@@ -1459,7 +1459,7 @@ class QQParser(object):
                         msg.status = MESSAGE_STATUS_READ					
                     msg.deleted = 1					
                     msg.msg_id = msgid
-                    msg.send_time = sendtime									
+                    msg.timestamp = sendtime									
                     msg.content = content	
                     types  = (MESSAGE_CONTENT_TYPE_TEXT,MESSAGE_CONTENT_TYPE_IMAGE,MESSAGE_CONTENT_TYPE_VOICE,
                     MESSAGE_CONTENT_TYPE_ATTACHMENT,MESSAGE_CONTENT_TYPE_VIDEO,MESSAGE_CONTENT_TYPE_LOCATION)
@@ -1536,7 +1536,7 @@ class QQParser(object):
                 msg.sender_id =  uin         
                 msg.type = MESSAGE_CONTENT_TYPE_TEXT
                 msg.content = content
-                msg.send_time = sendtime
+                msg.timestamp = sendtime
                 msg.talker_type = CHAT_TYPE_FRIEND				
                 self.im.db_insert_table_message(msg)
             except:					
@@ -1586,7 +1586,7 @@ class QQParser(object):
                 msg.id = msgid
                 msg.type = MESSAGE_CONTENT_TYPE_TEXT
                 msg.content = content
-                msg.send_time = sendtime
+                msg.timestamp = sendtime
                 msg.talker_type = CHAT_TYPE_GROUP
                 self.im.db_insert_table_message(msg)
             except:					
@@ -1636,7 +1636,7 @@ class QQParser(object):
                 msg.id = msgid
                 msg.type = MESSAGE_CONTENT_TYPE_TEXT
                 msg.content = content
-                msg.send_time = sendtime
+                msg.timestamp = sendtime
                 msg.talker_type = CHAT_TYPE_GROUP
                 self.im.db_insert_table_message(msg)
             except:					
