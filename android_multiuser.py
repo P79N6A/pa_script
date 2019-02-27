@@ -95,7 +95,9 @@ def analyze_app_authtokens(node, extract_deleted, extract_source):
                         return
                     model = AuthToeknsOfAndroid()
                     key_value = KeyValueModel()
-                    key_value.Deleted = rec.Deleted
+                    if rec.Deleted == DeletedState.Deleted:
+                        model.Deleted = DeletedState.Deleted
+                        key_value.Deleted = DeletedState.Deleted
 
                     if "type" in rec and (not rec["type"].IsDBNull):
                         key_value.Key.Value = rec["type"].Value
