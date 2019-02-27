@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 
 from PA_runtime import *
 
@@ -35,7 +35,7 @@ CALL_RECORD_TYPE_ZHAPIAN   = 4    # 诈骗电话
 CALL_RECORD_TYPE_KUAIDI    = 5    # 快递送餐
 CALL_RECORD_TYPE_CHUZUCHE  = 6    # 出租车
 CALL_RECORD_TYPE_RINGOUT   = 7    # 响一声
-CALL_RECORD_TYPE_INSURANCE = 8   # 保险理财
+CALL_RECORD_TYPE_INSURANCE = 8    # 保险理财
 CALL_RECORD_TYPE_RECRUIT   = 9    # 招聘猎头
 
 
@@ -313,7 +313,7 @@ class Blacklist(Column):
         ) + super(Blacklist, self).get_values()
 
 class BlockedSms(Column):
-    def __init__(self):
+    def __init__(self):                                                                                                  
         super(BlockedSms, self).__init__()
         self.id = None
         self.content = None
@@ -328,15 +328,16 @@ class BlockedSms(Column):
             self.name, 
             self.phone_number,
             self.block_time
-        ) + super(Blacklist, self).get_values()
+        ) + super(BlockedSms, self).get_values()
 
 class Callrecord(Column):
+    ''' 陌生来电 '''
     def __init__(self):
         super(Callrecord, self).__init__()
         self._id          = None    # INTEGER
         self.phone_number = None    # TEXT
         self.date         = None    # INTEGER
-        self.call_type    = 0       # INTEGER
+        self.call_type    = 0       # INTEGER CALL_RECORD_TYPE
 
     def get_values(self):
         return (
