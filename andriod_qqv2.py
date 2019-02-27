@@ -9,9 +9,10 @@ clr.AddReference('System.Core')
 clr.AddReference('System.Xml.Linq')
 clr.AddReference('System.Data.SQLite')
 try:
-    #clr.AddReference('model_im')
+    clr.AddReference('model_qq')
     clr.AddReference('QQ_struct')
     clr.AddReference('bcp_im')
+    clr.AddReference('qq_pic_message_pb2')
 except:
     pass
 del clr

@@ -10,7 +10,7 @@ clr.AddReference('System.Core')
 clr.AddReference('System.Xml.Linq')
 clr.AddReference('System.Data.SQLite')
 try:
-    #clr.AddReference('model_im')
+    clr.AddReference('model_qq')
     clr.AddReference('bcp_im')
     clr.AddReference('QQFriendNickName')
 except:
