@@ -2586,8 +2586,7 @@
           <integer>2</integer>
           <key>Patterns</key>
           <array>
-            <string>/data/im.yixin$</string>
-            <string>/Apps/im.yixin$</string>
+            <string>/im.yixin$</string>
           </array>
           <key>Category</key>
           <string>YiXin</string>
@@ -2858,8 +2857,7 @@
           <integer>2</integer>
           <key>Patterns</key>
           <array>
-            <string>/data/com.tencent.mtt/databases/default_user.db$</string>
-            <string>/Apps/com.tencent.mtt/databases/default_user.db$</string>
+            <string>/com.tencent.mtt/databases/default_user.db$</string>
           </array>
           <key>Category</key>
           <string>QQBrowser</string>
@@ -3925,8 +3923,7 @@
           <integer>2</integer>
           <key>Patterns</key>
           <array>
-            <string>/data/net.iaround/databases/iaround_im.db$</string>
-            <string>/Apps/net.iaround/databases/iaround_im.db$</string>
+            <string>/net.iaround/databases/iaround_im.db$</string>
           </array>
           <key>Category</key>
           <string>iAround</string>
@@ -3980,6 +3977,30 @@
           <string>TencentSecure</string>
           <key>Name</key>
           <string>腾讯手机管家(安卓)</string>
+          <key>Filter</key>
+          <string>应用>安全</string>
+        </dict>
+      </array>
+    </dict>
+
+    <dict>
+      <key>Module</key>
+      <string>android_360mobilesafe</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_android_360mobilesafe</string>
+          <key>RunnerType</key>
+          <integer>2</integer>
+          <key>Patterns</key>
+          <array>
+            <string>com.qihoo360.mobilesafe/databases/mobilesafeguard.db$</string>
+          </array>
+          <key>Category</key>
+          <string>Tantan</string>
+          <key>Name</key>
+          <string>360安全卫士(安卓)</string>
           <key>Filter</key>
           <string>应用>安全</string>
         </dict>
