@@ -17,6 +17,7 @@ from System.Text import *
 import shutil
 import time
 import PA.InfraLib.ModelsV2.Base as Base
+from PA.InfraLib.ModelsV2.CommonEnum import CoordinateType
 
 def moveFileto(sourceDir,  targetDir): 
     shutil.copy(sourceDir,  targetDir)

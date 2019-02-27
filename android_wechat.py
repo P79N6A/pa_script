@@ -40,12 +40,13 @@ from base_wechat import *
 import tencent_struct
 import time
 from ResourcesExp import AppResources
+import gc
 
 # EnterPoint: analyze_wechat(root, extract_deleted, extract_source):
 # Patterns: '/MicroMsg/.+/EnMicroMsg.db$'
 
 # app数据库版本
-VERSION_APP_VALUE = 1
+VERSION_APP_VALUE = 2
 
 g_app_build = {}
 
@@ -60,32 +61,74 @@ THIRDBUILDPARTTERN = {
 DEBUG = False
 
 
-def analyze_wechat(root, extract_deleted, extract_source):
-    # print('%s android_wechat() analyze_wechat root:%s' % (time.asctime(time.localtime(time.time())), root.AbsolutePath))
+class AndroidAppDict(dict):
+    def __contains__(self, value):
+        pass
 
-    WeChatParser(root, extract_deleted, extract_source).parse()
+
+
+def analyze_wechat(root, extract_deleted, extract_source):
+    nodes = root.FileSystem.Search('/MicroMsg/.+/EnMicroMsg.db$')
+    if len(nodes) > 0:
+        progress.Start()
+        WeChatParser(process_nodes(nodes), extract_deleted, extract_source).process()
+    else:
+        progress.Skip()
+
     pr = ParserResults()
     pr.Categories = DescripCategories.Wechat
     return pr
 
 
-# def get_build(node):
-#     global g_app_build
-#     build = '微信'
-#     if node is None:
-#         return build
-#     app_path = node.AbsolutePath
-#     if app_path in [None, '']:
-#         return build
-#     if app_path not in g_app_build:
-#         g_app_build[app_path] = len(g_app_build) + 1
-#     count = g_app_build.get(app_path, 0)
-#     if count > 1:
-#         build += str(count)
-#     return build
+def process_nodes(nodes):
+    # node:  /app_path/Documents/{user_hash}/DB/MM.sqlite
+    ret = {}  # key: 节点名称  value: 节点对应的node数组
+    app_dict = {}  # key: app路径  value: 节点名称
+    app_tail = 1
+    for node in nodes:
+        try:
+            user_node = node.Parent  # 获取{user_hash}
+            try:
+                app_node = user_node.Parent.Parent  # 获取app_path
+            except Exception as e:
+                app_node = None  # 没有包含app_path，可能是直接拷贝{user_hash}目录
+
+            app_path = None
+            app_info = None
+            if app_node is not None and app_node.AbsolutePath != '/':  # 如果能获取到app_path，从ds里获取app路径对应的app信息
+                app_path = app_node.AbsolutePath
+                try:
+                    app_info = ds.GetApplication(app_node.AbsolutePath)
+                except Exception as e:
+                    pass
+            else:
+                app_path = user_node.AbsolutePath
+
+            if app_path in app_dict:
+                build = app_dict.get(app_path, '微信')
+            else:
+                build = None
+                if app_info and app_info.Name:
+                    build = app_info.Name.Value  # app_info里获取app名称
+                    if build in app_dict:  # app名称如果和app_dict里的冲突，使用微信+数字的模式命名节点
+                        build = None
+                if build in [None, '']:  # 没有获取到app名称，使用微信+数字的模式命名节点
+                    if app_tail < 2:
+                        build = '微信'
+                    else:
+                        build = '微信' + str(app_tail)
+                    app_tail += 1
+                app_dict[app_path] = build
+
+            value = ret.get(build, [])
+            value.append(node)
+            ret[build] = value
+        except Exception as e:
+            TraceService.Trace(TraceLevel.Error, "android_wechat.py Error: LINE {}".format(traceback.format_exc()))
+    return ret
 
 
-def get_build(node):
+def get_build(node, g_app_build):
     build = '微信'
     if node is not None:
         return build
@@ -147,13 +190,49 @@ def print_error():
 
 class WeChatParser(Wechat):
 
-    def __init__(self, node, extract_deleted, extract_source):
+    def __init__(self, node_dict, extract_deleted, extract_source):
         super(WeChatParser, self).__init__()
-        self.root = node.Parent.Parent.Parent
-        self.user_node = node.Parent
+        self.node_dict = node_dict
         self.extract_deleted = extract_deleted
         self.extract_source = extract_source
-        self.build = get_build(self.root)
+
+    def process(self):
+        for build in self.node_dict:
+            self.ar = AppResources()
+            self.ar.set_thum_config("jpg", "Video")
+            self.ar.set_thum_config("thumb", "Video")
+            self.ar.set_thum_config("cover", "Video")
+            self.ar.set_thum_config("extern", "Video")
+            self.ar.set_thum_config("pic", "Video")
+
+            nodes = self.node_dict.get(build, [])
+            for node in nodes:
+                self.parse_user_node(node, build)
+                gc.collect()
+
+            pr = ParserResults()
+            pr.Categories = DescripCategories.Wechat
+            pr.Models.AddRange(self.ar.parse())
+            pr.Build(build)
+            ds.Add(pr)
+            
+            self.set_progress(100)
+            self.ar = None
+
+    def parse_user_node(self, node, build):
+        self.user_node = node.Parent
+        try:
+            self.root = self.user_node.Parent.Parent
+        except Exception as e:
+            self.root = None
+        self.build = build
+
+        self.im = model_wechat.IM()
+        self.models = []
+        self.user_account = None
+        self.user_account_model = None
+        self.friend_models = {}
+        self.chatroom_models = {}
 
         self.is_valid_user_dir = self._is_valid_user_dir()
         self.uin = self._get_uin()
@@ -166,9 +245,7 @@ class WeChatParser(Wechat):
         save_cache_path(bcp_wechat.CONTACT_ACCOUNT_TYPE_IM_WECHAT, self.cache_db, ds.OpenCachePath("tmp"))
 
         self.chatroom_owners = dict()
-        self._search_nodes = [self.root, self.root.FileSystem]
 
-    def parse(self):
         if not self.is_valid_user_dir:
             return []
         if not self._can_decrypt(self.uin, self.user_hash):
@@ -232,10 +309,7 @@ class WeChatParser(Wechat):
                 self.im.db_insert_table_version(model_wechat.VERSION_KEY_APP, VERSION_APP_VALUE)
             self.im.db_commit()
             self.im.db_close()
-            try:
-                self.get_wechat_res(self.ar)
-            except Exception as e:
-                print(e)
+
             # print('%s android_wechat() parse end' % time.asctime(time.localtime(time.time())))
         else:
             self.extend_nodes = []
@@ -243,21 +317,29 @@ class WeChatParser(Wechat):
             for extend_node in extend_nodes:
                 self.extend_nodes.append(extend_node)
 
-            obj = model_wechat.GenerateModel(self.cache_db, self.build)
-            obj.get_models()
-            try:
-                self.get_wechat_res(obj.ar)
-            except Exception as e:
-                print(e)
+            model_wechat.GenerateModel(self.cache_db, self.build, self.ar).get_models()
 
+        try:
+            self.get_wechat_res(self.ar)
+        except Exception as e:
+            print(e)
+
+        self.im = None
+        self.build = None
+        self.models = None
+        self.user_account = None
+        self.user_account_model = None
+        self.friend_models = None
+        self.chatroom_models = None
+        self.user_node = None
+        self.app_node = None
+        self.user_hash = None
+        self.private_user_node = None
+        self.cache_path = None
 
     def set_progress(self, value):
         progress.Value = value
         # print('set_progress() %d' % value)
-
-    def get_models_from_cache_db(self):
-        models = model_wechat.GenerateModel(self.cache_db, get_build(self.root)).get_models()
-        return models
 
     def _is_valid_user_dir(self):
         if self.root is None or self.user_node is None:
@@ -1622,12 +1704,12 @@ class WeChatParser(Wechat):
         story_dir_nodes = self._search_media_nodes('/story')
         self._save_ar_nodes(ar, story_dir_nodes, 'Video')
 
-        res = ar.parse()
-        pr = ParserResults()
-        pr.Categories = DescripCategories.Wechat
-        pr.Models.AddRange(res)
-        pr.Build(self.build)
-        ds.Add(pr)
+        # res = ar.parse()
+        # pr = ParserResults()
+        # pr.Categories = DescripCategories.Wechat
+        # pr.Models.AddRange(res)
+        # pr.Build(self.build)
+        # ds.Add(pr)
 
 
 class SnsParser:

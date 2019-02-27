@@ -1636,7 +1636,7 @@
           <integer>0</integer>
           <key>Patterns</key>
           <array>
-            <string>/DB/MM\.sqlite$</string>
+            <string>#</string>
           </array>
           <key>Category</key>
           <string>Wechat</string>
@@ -2441,7 +2441,7 @@
           <integer>2</integer>
           <key>Patterns</key>
           <array>
-            <string>/MicroMsg/.+/EnMicroMsg.db$</string>
+            <string>#</string>
           </array>
           <key>Category</key>
           <string>Wechat</string>
@@ -3823,7 +3823,47 @@
         </dict>
       </array>
     </dict>
-
+	
+	<dict>
+      <key>Module</key>
+      <string>android_multiuser</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_multi_user</string>
+          <key>RunnerType</key>
+          <integer>2</integer>
+          <key>Patterns</key>
+          <array>
+            <string>/data/system/users$</string>
+          </array>
+          <key>Category</key>
+          <string>SystemUser</string>
+          <key>Name</key>
+          <string>系统账户(安卓)</string>
+          <key>Filter</key>
+          <string>基础数据</string>
+        </dict>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_app_authtokens</string>
+          <key>RunnerType</key>
+          <integer>2</integer>
+          <key>Patterns</key>
+          <array>
+            <string>/data/system_ce$</string>
+          </array>
+          <key>Category</key>
+          <string>KeyChains</string>
+          <key>Name</key>
+          <string>密码(安卓)</string>
+          <key>Filter</key>
+          <string>基础数据</string>
+        </dict>
+      </array>
+    </dict>
+	
     <dict>
       <key>Module</key>
       <string>android_line</string>
@@ -3922,5 +3962,29 @@
       </array>
     </dict>
 
+    <dict>
+      <key>Module</key>
+      <string>android_tencentsecure</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_tcsecure</string>
+          <key>RunnerType</key>
+          <integer>2</integer>
+          <key>Patterns</key>
+          <array>
+            <string>com.tencent.qqpimsecure/databases/qqsecure.db$</string>
+          </array>
+          <key>Category</key>
+          <string>TencentSecure</string>
+          <key>Name</key>
+          <string>腾讯手机管家(安卓)</string>
+          <key>Filter</key>
+          <string>应用>安全</string>
+        </dict>
+      </array>
+    </dict>
+    
   </array>
 </plist>
