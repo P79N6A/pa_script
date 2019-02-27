@@ -142,12 +142,8 @@ def decode_apps(extract_deleted, extract_source, installed_apps):
             
             continue
         if app_id in installed_apps:
-            prog = progress.GetSubProgress(categories.ToString())
-            if prog == None:
-                prog = TaskProgress(categories.ToString(),categories)
-                progress.AddSubTask(prog)
+            prog = progress["SCRIPT",categories.ToString()]
             prog.Reset()
-            prog.Report(1,'正在分析{0}'.format(descrip))        
             try:
                 app = installed_apps[app_id]
                 node = app.AppFileSysNode
@@ -166,8 +162,7 @@ def decode_apps(extract_deleted, extract_source, installed_apps):
                 ds.Add(parser_results)
             except:
                 traceback.print_exc()
-            prog.Report(100,'分析{0}完成'.format(descrip))
-            prog.Done()
+            prog.Finish(True)
     return results
 
 def decode_nodes(fs, extract_deleted, extract_source, installed_apps):
@@ -210,12 +205,8 @@ def decode_nodes(fs, extract_deleted, extract_source, installed_apps):
         nodes = Enumerable.ToList[Node](nodes) #这是c#的泛型List<T>
         if nodes.Count > 0:
             firstTime = True
-            prog = progress.GetSubProgress(categories.ToString())
-            if prog == None:
-                prog = TaskProgress(categories.ToString(),categories)
-                progress.AddSubTask(prog)
+            prog = progress["SCRIPT",categories.ToString()]
             prog.Reset()
-            prog.Report(1,'正在分析{0}'.format(descrip))        
             for node in list(nodes):
                 if firstTime == True:
                     TraceService.Trace(TraceLevel.Info, "[FS:{0}]正在解析{1}".format(fs.Name, descrip))
@@ -233,8 +224,7 @@ def decode_nodes(fs, extract_deleted, extract_source, installed_apps):
                 except:
                     traceback.print_exc()
                     TraceService.Trace(TraceLevel.Error, "解析出错: {0}".format(descrip))
-            prog.Report(100,'分析{0}完成'.format(descrip))
-            prog.Done()
+            prog.Finish(True)
     return results
 
 def run(ds,extract_deleted,progress,canceller): 
