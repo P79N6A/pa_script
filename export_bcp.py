@@ -96,7 +96,7 @@ def run(target_id, bcp_path, case_path, mountDir, software_type):
                         bcp = model_eb.EBBCP(bcp_path, mountDir, path, ts_db, target_id, software_type)
                         bcp.generate_bcp()
                         bcp_path_list.append(ts_db)
-                    except:
+                    except Exception as e:
                         print(e)
                 return bcp_path_list
 
