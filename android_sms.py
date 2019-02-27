@@ -39,12 +39,13 @@ PDUHEADERS_TO   = 151
 
 @parse_decorator
 def analyze_sms(node, extract_deleted, extract_source):
-    # 只返回最先匹配到的, 不重复匹配
+    # 首先匹配 icing_mmssms, 然后剩下的只返回最先匹配到的, 不重复匹配
     SMS_PATTERNS = OrderedDict([
-        (AndroidSMSParser, r'(?i)/com.android.providers.telephony/databases/mmssms\.db$'), 
-        (AndroidSMSParser_fs_logic, r'(?i)/sms/sms.db$'), 
-        (VMSGParser, r'(?i)/sms.vmsg'),                   # AutoBackup OPPO MEIZU
-        (AutoBackupHuaweiSMSParser, r'(?i)/sms.db'),      # AutoBackup HuaWei
+        (r'(?i)/com.google.android.gms/databases/icing_mmssms\.db$', AndroidIcingParser),
+        (r'(?i)/com.android.providers.telephony/databases/mmssms\.db$', AndroidSMSParser), 
+        (r'(?i)/sms/sms.db$', AndroidSMSParserFsLogic), 
+        (r'(?i)/sms.vmsg', VMSGParser),                   # AutoBackup OPPO MEIZU
+        (r'(?i)/sms.db', AutoBackupHuaweiSMSParser),      # AutoBackup HuaWei
     ])
     res = []
     hit_nodes = []
@@ -52,22 +53,27 @@ def analyze_sms(node, extract_deleted, extract_source):
     BCP_TYPE = bcp_basic.BASIC_SMS_INFORMATION
     db_name = 'AndroidSMS'
     try:
-        for _parser, _pattern in SMS_PATTERNS.items():
+
+        for _pattern, _parser in SMS_PATTERNS.items():
             _nodes = node.FileSystem.Search(_pattern)
             if len(list(_nodes)) != 0:
-                hit_nodes = [_parser, _nodes]
-                break
-        if hit_nodes:            
+                hit_nodes.append((_parser, _nodes))
+                if _parser != AndroidIcingParser:
+                    break
+
+        if hit_nodes:
             progress.Start()
         else:
             progress.Skip()
             return pr
 
-        _parser = hit_nodes[0]
-        for node in hit_nodes[1]:
-            if 'media' in node.AbsolutePath:
-                continue
-            res.extend(_parser(node, db_name).parse(BCP_TYPE, VERSION_APP_VALUE))
+        for _parser_nodes in hit_nodes:
+            _parser = _parser_nodes[0]
+            for node in _parser_nodes[1]:
+                if 'media' in node.AbsolutePath:
+                    continue
+                res.extend(_parser(node, db_name).parse(BCP_TYPE, VERSION_APP_VALUE))
+
         if res:
             pr.Models.AddRange(res)
             pr.Build('短信')
@@ -82,8 +88,8 @@ def analyze_sms(node, extract_deleted, extract_source):
 @parse_decorator
 def analyze_mms(node, extract_deleted, extract_source):
     MMS_PATTERNS = OrderedDict([
-        (AndroidMMSParser, r'(?i)/com.android.providers.telephony/databases/mmssms\.db$'), 
-        (AndroidMMSParser, r'(?i)/sms.db'),  # AutoBackup HuaWei
+        (r'(?i)com.android.providers.telephony/databases/mmssms\.db$', AndroidMMSParser), 
+        (r'(?i)/sms.db', AndroidMMSParser, ),  # AutoBackup HuaWei
     ])
     res = []
     hit_nodes = []
@@ -91,12 +97,12 @@ def analyze_mms(node, extract_deleted, extract_source):
     BCP_TYPE = bcp_basic.BASIC_MMS_INFORMATION
     db_name = 'AndroidMMS'
     try:
-        for _parser, _pattern in MMS_PATTERNS.items():
+        for _pattern, _parser in MMS_PATTERNS.items():
             _nodes = node.FileSystem.Search(_pattern)
             if len(list(_nodes)) != 0:
                 hit_nodes.append([_parser, _nodes])
 
-        if hit_nodes:            
+        if hit_nodes:
             progress.Start()
         else:
             progress.Skip()
@@ -105,14 +111,13 @@ def analyze_mms(node, extract_deleted, extract_source):
         for _parser_nodes in hit_nodes:
             _parser = _parser_nodes[0]
             for node in _parser_nodes[1]:
-                if len(list(_nodes)) != 0:
-                    if node.AbsolutePath.endswith('/sms/sms.db'):
-                        continue
-                    if node.AbsolutePath.endswith('/sms.db'):
-                        cur_db = SQLiteParser.Database.FromNode(node, canceller)
-                        if 'pdu_tb' not in cur_db.Tables:
-                            continue                
-                    res.extend(_parser(node, db_name).parse(BCP_TYPE, VERSION_APP_VALUE))
+                if node.AbsolutePath.endswith('/sms/sms.db'):
+                    continue
+                if node.AbsolutePath.endswith('/sms.db'):
+                    cur_db = SQLiteParser.Database.FromNode(node, canceller)
+                    if 'pdu_tb' not in cur_db.Tables:
+                        continue                
+                res.extend(_parser(node, db_name).parse(BCP_TYPE, VERSION_APP_VALUE))
         if res:
             pr.Models.AddRange(res)
             pr.Build('彩信')
@@ -136,7 +141,6 @@ class AndroidSMSParser(BaseAndroidParser):
         self.sim_phonenumber = {}
 
     def parse_main(self):
-
         self.pre_parse_calls()
         if self._read_db('mmssms.db'):
             if 'sim_cards' in self.cur_db.Tables:
@@ -510,10 +514,10 @@ class AndroidMMSParser(AndroidSMSParser):
             exc()    
 
 
-class AndroidSMSParser_fs_logic(AndroidSMSParser):
+class AndroidSMSParserFsLogic(AndroidSMSParser):
     ''' 处理逻辑提取案例, 非 tar 包, sms/sms.db$ '''
     def __init__(self, node, db_name):
-        super(AndroidSMSParser_fs_logic, self).__init__(node, db_name)
+        super(AndroidSMSParserFsLogic, self).__init__(node, db_name)
         self.root = node
 
     def parse_main(self):
@@ -661,3 +665,136 @@ class AutoBackupHuaweiSMSParser(AndroidSMSParser):
         if self._read_db(node=self.root) and 'sms_tb' in self.cur_db.Tables:
             self.parse_sms('sms_tb') 
 
+
+class AndroidIcingParser(AndroidSMSParser):
+    def __init__(self, node, db_name):
+        super(AndroidIcingParser, self).__init__(node, db_name)
+        self.root = node
+        self.csm = model_sms.ModelSMS()
+        self.Generate = model_sms.GenerateSMSModel
+
+        self.csm_mms = model_sms.ModelMMS()
+        self.mms_cache_db = self.cache_db.replace('.db', '_mms.db')
+        self.csm_mms.db_create(self.mms_cache_db)
+
+    def parse(self, BCP_TYPE, VERSION_APP_VALUE):
+        models = super(AndroidIcingParser, self).parse(BCP_TYPE, VERSION_APP_VALUE)
+        self.csm_mms.db_close()
+        browser_models = model_sms.GenerateMMSModel(self.mms_cache_db).get_models()
+        models.extend(browser_models)
+        return models        
+
+    def parse_main(self):
+        self.pre_parse_calls()
+        if self._read_db(node=self.root):
+            self.parse_icing('mmssms')
+        
+    def parse_icing(self, table_name):
+        '''com.google.android.gms/databases/icing_mmssms.db
+
+            FieldName	SQLType     	
+            _id	            INTEGER
+            msg_type	    TEXT
+            uri	            TEXT
+            type	        INTEGER
+            thread_id	    INTEGER
+            address	        TEXT
+            date	        INTEGER
+            subject	        TEXT
+            body	        TEXT
+            score	        INTEGER
+            content_type	TEXT
+            media_uri	    TEXT
+            read	        INTEGER
+        '''
+        _sms_list = []
+        for rec in self._read_table(table_name):
+            try:
+                pk_name = '_id'
+                if (self._is_empty(rec, 'type', 'body') or
+                    self._is_duplicate(rec, pk_name)):
+                    continue
+
+                if rec['msg_type'].Value == 'sms':
+                    self._parse_icing_sms(rec)
+                elif rec['msg_type'].Value == 'mms':
+                    self._parse_icing_mms(rec)
+            except:
+                exc()
+        self.csm.db_commit()
+        self.csm_mms.db_commit()
+
+    def _parse_icing_sms(self, rec):
+        sms = model_sms.SMS()
+        # content://sms/7
+        # sms_id = rec['uri'].Value.replace('content://sms/', '')                
+        sms.sim_id  = rec['_id'].Value if rec.ContainsKey('_id') else None
+        sms.deleted = rec['deleted'].Value if rec.ContainsKey('deleted') else 0
+        sms.smsc    = rec['service_center'].Value if rec.ContainsKey('service_center') else None
+        sms._id            = rec['_id'].Value
+        # sms.read_status    = rec['read'].Value
+        sms.type           = rec['type'].Value    # MSG_TYPE
+        sms.subject        = rec['subject'].Value 
+        sms.body           = rec['body'].Value
+        sms.send_time      = rec['date'].Value
+        sms.delivered_date = rec['date'].Value if sms.type in [MSG_TYPE_INBOX, MSG_TYPE_SENT] else None
+        sms.is_sender = 1 if sms.type in (MSG_TYPE_SENT, MSG_TYPE_OUTBOX, MSG_TYPE_DRAFT) else 0
+        if sms.is_sender == 1:  # 发
+            sms.sender_phonenumber = self.sim_phonenumber.get(sms.sim_id, None) if sms.sim_id else None
+            sms.sender_name        = self._get_contacts(sms.sender_phonenumber)
+            sms.recv_phonenumber   = rec['address'].Value
+            sms.recv_name          = self._get_contacts(sms.recv_phonenumber)
+        else:                   # 收
+            sms.sender_phonenumber = rec['address'].Value
+            sms.sender_name        = self._get_contacts(sms.sender_phonenumber)
+            sms.recv_phonenumber   = self.sim_phonenumber.get(sms.sim_id, None) if sms.sim_id else None
+            sms.recv_name          = self._get_contacts(sms.recv_phonenumber)
+
+        sms.deleted = 1 if rec.IsDeleted or sms.deleted else 0         
+        sms.source = self.cur_db_source
+        self.csm.db_insert_table_sms(sms)        
+
+    def _parse_icing_mms(self, rec):
+        ''' FieldName	SQLType     	
+            _id	            INTEGER
+            msg_type	    TEXT
+            uri	            TEXT
+            type	        INTEGER
+            thread_id	    INTEGER
+            address	        TEXT
+            date	        INTEGER
+            subject	        TEXT
+            body	        TEXT
+            score	        INTEGER
+            content_type	TEXT
+            media_uri	    TEXT
+            read	        INTEGER
+        '''
+        try:
+            mms = model_sms.SMS()
+            mms.is_mms         = 1
+            mms._id            = rec['_id'].Value
+            mms.subject        = rec['subject'].Value
+            mms.read_status    = rec['read'].Value
+            # mms.body           = rec['body'].Value
+            mms.send_time      = rec['date'].Value
+            mms.delivered_date = rec['date'].Value if mms.type in [MSG_TYPE_INBOX, MSG_TYPE_SENT] else None
+            mms.type           = rec['type'].Value        # MSG_TYPE
+            mms.is_sender      = 1 if mms.type in (MSG_TYPE_SENT, MSG_TYPE_OUTBOX) else 0
+
+            if mms.is_sender == 1:  # 发
+                mms.sender_phonenumber = self.sim_phonenumber.get(mms.sim_id, None) if mms.sim_id else None
+                mms.sender_name        = self._get_contacts(mms.sender_phonenumber)
+                mms.recv_phonenumber   = rec['address'].Value
+                mms.recv_name          = self._get_contacts(mms.recv_phonenumber)
+            else:                   # 收
+                mms.sender_phonenumber = rec['address'].Value
+                mms.sender_name        = self._get_contacts(mms.sender_phonenumber)
+                mms.recv_phonenumber   = self.sim_phonenumber.get(mms.sim_id, None) if mms.sim_id else None
+                mms.recv_name          = self._get_contacts(mms.recv_phonenumber)
+
+            mms.deleted = 1 if rec.IsDeleted else 0
+            mms.source  = self.cur_db_source
+            self.csm_mms.db_insert_table_mms(mms)
+        except:
+            exc()

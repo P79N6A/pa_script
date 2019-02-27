@@ -10,6 +10,7 @@ clr.AddReference('System.Xml.Linq')
 clr.AddReference('System.Data.SQLite')
 try:
     clr.AddReference('model_wechat')
+    clr.AddReference('ResourcesExp')
 except:
     pass
 del clr
@@ -33,6 +34,7 @@ import shutil
 import base64
 import datetime
 import model_wechat
+from ResourcesExp import AppResources
 
 # 消息类型
 MSG_TYPE_POSITION_SHARE = -1879048186
@@ -64,13 +66,21 @@ MOMENT_TYPE_VIDEO = 15  # 视频
 
 class Wechat(object):
     def __init__(self):
-        self.im = model_wechat.IM()
-        self.build = '微信'
-        self.models = []
-        self.user_account_model = None
-        self.friend_models = {}
-        self.chatroom_models = {}
-        self.media_models = []
+        pass
+        #self.im = model_wechat.IM()
+        #self.build = '微信'
+        #self.models = []
+        #self.user_account_model = None
+        #self.friend_models = {}
+        #self.chatroom_models = {}
+        #self.ar = AppResources()
+        #self.ar.set_thum_config("pic_thum", "Image")
+        #self.ar.set_thum_config("video_thum", "Video")
+        #self.ar.set_thum_config("jpg", "Video")
+        #self.ar.set_thum_config("thumb", "Video")
+        #self.ar.set_thum_config("cover", "Video")
+        #self.ar.set_thum_config("extern", "Video")
+        #self.ar.set_thum_config("pic", "Video")
 
     def _process_parse_message_deal(self, xml_element, model):
         if xml_element.Name.LocalName == 'msg':
@@ -782,10 +792,9 @@ class Wechat(object):
                     model.HeadPortraitPath = photo
                     model.Notice = notice
                     model.IsSave = is_saved != 0
-                    model.GroupOwner = self.friend_models.get(owner_id, None)
-                    if sp_id is not None:
-                        member_models = self.get_chatroom_member_models(db, account_id, user_id, sp_id, deleted)
-                        model.Members.AddRange(member_models)
+                    member_models, owner_model = self.get_chatroom_member_models(db, account_id, user_id, sp_id, deleted, owner_id)
+                    model.GroupOwner = owner_model
+                    model.Members.AddRange(member_models)
                     model.JoinTime = model_wechat.GenerateModel._get_timestamp(join_time)
                     self.add_model(model)
 
@@ -801,8 +810,9 @@ class Wechat(object):
         self.push_models()
         db.Close()
 
-    def get_chatroom_member_models(self, db,  account_id, chatroom_id, sp_id, deleted):
+    def get_chatroom_member_models(self, db,  account_id, chatroom_id, sp_id, deleted, owner_id):
         models = []
+        owner_model = None
         if sp_id not in [None, 0]:
             sql = '''select member_id, display_name
                      from chatroom_member
@@ -820,17 +830,21 @@ class Wechat(object):
                     break
                 try:
                     member_id = self._db_reader_get_string_value(r, 0)
+                    display_name = self._db_reader_get_string_value(r, 1)
                     if member_id not in [None, '']:
-                        model = self.friend_models.get(member_id)
-                        if model is not None:
-                            models.append(model)
+                        model = GroupMember()
+                        model.User = self.friend_models.get(member_id)
+                        model.NickName = display_name
+                        models.append(model)
+                        if member_id == owner_id:
+                            owner_model = model
                 except Exception as e:
                     if deleted == 0:
                         TraceService.Trace(TraceLevel.Error, "base_wechat.py Error: LINE {}".format(traceback.format_exc()))
         except Exception as e:
             if deleted == 0:
                 TraceService.Trace(TraceLevel.Error, "base_wechat.py Error: LINE {}".format(traceback.format_exc()))
-        return models
+        return models, owner_model
 
     def get_chatroom_model(self, chatroom):
         try:
@@ -880,22 +894,36 @@ class Wechat(object):
             
             if message.type == model_wechat.MESSAGE_CONTENT_TYPE_IMAGE:
                 model.Content = Base.Content.ImageContent(model)
-                media_model = Base.MediaFile.ImageFile()
+                media_model = Base.MediaFile.ImageFile(model)
                 media_model.Path = message.media_path
                 model.Content.Value = media_model
-                self.media_models.append(media_model)
+                if model_wechat.is_valid_media_model_path(message.media_path):
+                    self.ar.save_media_model(media_model)
             elif message.type == model_wechat.MESSAGE_CONTENT_TYPE_VOICE:
                 model.Content = Base.Content.VoiceContent(model)
-                media_model = Base.MediaFile.AudioFile()
+                media_model = Base.MediaFile.AudioFile(model)
                 media_model.Path = message.media_path
                 model.Content.Value = media_model
-                self.media_models.append(media_model)
+                if model_wechat.is_valid_media_model_path(message.media_path):
+                    self.ar.save_media_model(media_model)
             elif message.type == model_wechat.MESSAGE_CONTENT_TYPE_VIDEO:
                 model.Content = Base.Content.VideoContent(model)
-                media_model = Base.MediaFile.VideoFile()
-                media_model.Path = message.media_path
-                model.Content.Value = media_model
-                self.media_models.append(media_model)
+                if message.media_path not in [None, '']:
+                    media_model = Base.MediaFile.VideoFile(model)
+                    media_model.Path = message.media_path
+                    model.Content.Value = media_model
+                    if model_wechat.is_valid_media_model_path(message.media_path):
+                        self.ar.save_media_model(media_model)
+                elif model_wechat.is_valid_media_model_path(message.media_thum_path):
+                    media_model = Base.MediaFile.VideoThumbnailFile(model)
+                    media_model.Deleted = model_wechat.GenerateModel._convert_deleted_status(1)
+                    media_model.Path = message.media_thum_path
+                    model.Content.Value = media_model
+                    self.ar.save_media_model(media_model)
+                else:
+                    media_model = Base.MediaFile.VideoFile(model)
+                    media_model.Path = message.media_path
+                    model.Content.Value = media_model
             elif message.type == model_wechat.MESSAGE_CONTENT_TYPE_CONTACT_CARD:
                 model.Content = Base.Content.BusinessCardContent(model)
                 model.Content.Value = WeChat.BusinessCard()
@@ -982,21 +1010,23 @@ class Wechat(object):
                 images = feed.image_path.split(',')
                 for image in images:
                     if image not in [None, '']:
-                        media_model = Base.MediaFile.ImageFile()
+                        media_model = Base.MediaFile.ImageFile(model)
                         media_model.Path = image
                         images_content.Values.Add(media_model)
-                        self.media_models.append(media_model)
+                        if model_wechat.is_valid_media_model_path(image):
+                            self.ar.save_media_model(media_model)
                 model.Contents.Add(images_content)
             if feed.video_path not in [None, '']:
                 videos = feed.video_path.split(',')
                 for video in videos:
                     if video not in [None, '']:
                         video_content = Base.Content.VideoContent(model)
-                        media_model = Base.MediaFile.VideoFile()
+                        media_model = Base.MediaFile.VideoFile(model)
                         media_model.Path = video
                         video_content.Value = media_model
                         model.Contents.Add(video_content)
-                        self.media_models.append(media_model)
+                        if model_wechat.is_valid_media_model_path(video):
+                            self.ar.save_media_model(media_model)
             if feed.link_url not in [None, '']:
                 link_content = Base.Content.LinkContent(model)
                 link_content.Value = Base.Link()
@@ -1080,24 +1110,28 @@ class Wechat(object):
         try:
             model = Base.FavoritesContent()
             model.Sender = self.friend_models.get(favorite_item.sender_id)
+            model.CreateTime = model_wechat.GenerateModel._get_timestamp(favorite_item.timestamp)
             if favorite_item.type == model_wechat.FAV_TYPE_IMAGE:
                 model.Content = Base.Content.ImageContent(model)
-                media_model = Base.MediaFile.ImageFile()
+                media_model = Base.MediaFile.ImageFile(model)
                 media_model.Path = favorite_item.media_path
                 model.Content.Value = media_model
-                self.media_models.append(media_model)
+                if model_wechat.is_valid_media_model_path(favorite_item.media_path):
+                    self.ar.save_media_model(media_model)
             elif favorite_item.type == model_wechat.FAV_TYPE_VOICE:
                 model.Content = Base.Content.VoiceContent(model)
-                media_model = Base.MediaFile.AudioFile()
+                media_model = Base.MediaFile.AudioFile(model)
                 media_model.Path = favorite_item.media_path
                 model.Content.Value = media_model
-                self.media_models.append(media_model)
+                if model_wechat.is_valid_media_model_path(favorite_item.media_path):
+                    self.ar.save_media_model(media_model)
             elif favorite_item.type == model_wechat.FAV_TYPE_VIDEO:
                 model.Content = Base.Content.VideoContent(model)
-                media_model = Base.MediaFile.VideoFile()
+                media_model = Base.MediaFile.VideoFile(model)
                 media_model.Path = favorite_item.media_path
                 model.Content.Value = media_model
-                self.media_models.append(media_model)
+                if model_wechat.is_valid_media_model_path(favorite_item.media_path):
+                    self.ar.save_media_model(media_model)
             elif favorite_item.type == model_wechat.FAV_TYPE_LINK:
                 model.Content = Base.Content.LinkContent(model)
                 model.Content.Value = Base.Link()
@@ -1105,6 +1139,8 @@ class Wechat(object):
                 model.Content.Value.Description = favorite_item.link_content
                 model.Content.Value.Url = favorite_item.link_url
                 model.Content.Value.ImagePath = favorite_item.link_image
+                if model_wechat.is_valid_media_model_path(favorite_item.link_image):
+                    self.ar.save_media_model(media_model)
             elif favorite_item.type == model_wechat.FAV_TYPE_LOCATION:
                 model.Content = Base.Content.LocationContent(model)
                 model.Content.Value = Base.Location()
@@ -1115,6 +1151,8 @@ class Wechat(object):
             elif favorite_item.type == model_wechat.FAV_TYPE_ATTACHMENT:
                 model.Content = Base.Content.AttachmentContent(model)
                 model.Content.Value = Base.Attachment()
+                model.Content.Value.FileName = favorite_item.content
+                model.Content.Value.Path = favorite_item.media_path
             else:
                 model.Content = Base.Content.TextContent(model)
                 model.Content.Value = favorite_item.content
@@ -1180,7 +1218,8 @@ class Wechat(object):
                 media_model.Path = story.media_path
                 video_content.Value = media_model
                 model.Contents.Add(video_content)
-                self.media_models.append(media_model)
+                if model_wechat.is_valid_media_model_path(story.media_path):
+                    self.ar.save_media_model(media_model)
             if story.location_latitude != 0 or story.location_longitude != 0:
                 location_content = Base.Content.LocationContent(model)
                 location_content.Value = Base.Location()

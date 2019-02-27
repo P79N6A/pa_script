@@ -273,8 +273,9 @@ class ContactParser(model_contact.MC):
                     contacts.address = self._verify_dict(value, "address")
                     contacts.notes = self._verify_dict(value, "note")
                     raw_contact = self._verify_dict(self.raw_contact, key)
-                    contacts.times_contacted = raw_contact[0]
-                    contacts.last_time_contact = raw_contact[1]
+                    if raw_contact is not None:
+                        contacts.times_contacted = raw_contact[0]
+                        contacts.last_time_contact = raw_contact[1]
                     contacts.source = self.node.AbsolutePath
                     contacts.deleted = self._verify_dict(value, "deleted")
                     self.db_insert_table_call_contacts(contacts)
@@ -323,6 +324,10 @@ class ContactParser(model_contact.MC):
             elif re.findall("address", mimetype):
                 if data1 is not None:
                     data["address"] = data1
+            #telegram
+            elif re.findall("telegram", mimetype):
+                if data1 is not None:
+                    data["phone"] = data1
             return data
         except:
             return {}

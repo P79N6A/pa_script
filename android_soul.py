@@ -10,7 +10,7 @@ clr.AddReference('System.Data.SQLite')
 try:
     clr.AddReference('model_im')
     clr.AddReference('bcp_im')
-    clr.AddReference('tao')
+    clr.AddReference('ScriptUtils')
 except Exception:
     pass
 
@@ -18,7 +18,7 @@ del clr
 
 import model_im
 import PA_runtime
-from tao import ModelCol, RecoverTableHelper, TaoUtils, ParserBase, TimeHelper, FieldType, FieldConstraints, BaseModel
+from ScriptUtils import TaoUtils, ParserBase, TimeHelper, FieldType, FieldConstraints, BaseModel
 import System
 from PA_runtime import *
 from System.Data.SQLite import *
@@ -27,8 +27,8 @@ from System.Xml.XPath import Extensions as XPathExtensions
 from PA.InfraLib.Extensions import PlistHelper
 
 # CONST
-Soul_VERSION = 1
-DEBUG = True
+Soul_VERSION = 2
+DEBUG = False
 
 
 class SoulParser(ParserBase):

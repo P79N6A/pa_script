@@ -1,4 +1,5 @@
 ﻿#coding=utf-8
+
 import hashlib
 import quopri
 import email 
@@ -31,20 +32,20 @@ from ScriptUtils import DEBUG, CASE_NAME, exc, tp, parse_decorator, print_run_ti
 VERSION_APP_VALUE = 3
 
 APPLE_MAIL_BOX_CONVERT_DICT = {
-    '收件箱'                   : model_mail.MAIL_INBOX,
-    'Inbox'                   : model_mail.MAIL_INBOX,
-    'INBOX'                   : model_mail.MAIL_INBOX,
-    'OUTBOX'                  : '发件箱',
-    '发件箱'                   : '发件箱',
-    '已发送'                   : model_mail.MAIL_OUTBOX,
-    'Sent Messages'           : model_mail.MAIL_OUTBOX,
-    'Sent'                    : model_mail.MAIL_OUTBOX,
-    'SENT'                    : model_mail.MAIL_OUTBOX,
-    '草稿箱'                   : model_mail.MAIL_DRAFT,
-    'Drafts'                  : model_mail.MAIL_DRAFT,
-    '已删除'                   : model_mail.MAIL_DELTED,
-    'Deleted Messages'        : model_mail.MAIL_DELTED,
-    'Spam'                    : '垃圾邮件',
+    '收件箱'           : model_mail.MAIL_INBOX,
+    'Inbox'           : model_mail.MAIL_INBOX,
+    'INBOX'           : model_mail.MAIL_INBOX,
+    'OUTBOX'          : '发件箱',
+    '发件箱'           : '发件箱',
+    '已发送'           : model_mail.MAIL_OUTBOX,
+    'Sent Messages'   : model_mail.MAIL_OUTBOX,
+    'Sent'            : model_mail.MAIL_OUTBOX,
+    'SENT'            : model_mail.MAIL_OUTBOX,
+    '草稿箱'           : model_mail.MAIL_DRAFT,
+    'Drafts'          : model_mail.MAIL_DRAFT,
+    '已删除'           : model_mail.MAIL_DELTED,
+    'Deleted Messages': model_mail.MAIL_DELTED,
+    'Spam'            : '垃圾邮件',
 }
 
 APPLE_MAIL_READ_STATUS = {
@@ -76,9 +77,8 @@ patt = re.compile(r'["\']*([a-zA-Z0-9@&+=)(.,_ -]+)["\']* *(?:<([a-zA-Z0-9@+=._-
 @parse_decorator
 def analyze_emails(mail_dir, extractDeleted, extractSource):
     pr = ParserResults()
+    res = []
     try:
-        res = []
-        
         envelope_node = mail_dir.GetFirstNode("Envelope Index")
         if envelope_node is None:
             return pr
@@ -94,7 +94,8 @@ def analyze_emails(mail_dir, extractDeleted, extractSource):
             pr.Models.AddRange(res)
         return pr
     except:
-        exc()
+        msg = 'Apple_mails 解析新案例 <{}> 出错: {}'.format(CASE_NAME, traceback.format_exc())
+        TraceService.Trace(TraceLevel.Debug, msg)
         return pr
 
 # 替代 quopri.decode
@@ -139,6 +140,47 @@ def decode(input, output, header = 0):
 
 quopri.decode = decode
 
+def collapse_rfc2231_value(value, errors='replace',
+                           fallback_charset='us-ascii'):
+    if isinstance(value, tuple):
+        rawval = Uri.UnescapeDataString(value[2])
+        charset = value[0] or 'us-ascii'
+        try:
+            return unicode(rawval, charset, errors)
+        except LookupError:
+            # XXX charset is unknown to Python.
+            return unicode(rawval, fallback_charset, errors)
+    elif isinstance(value, str) and value.startswith('=?') and value.endswith('?='):
+        parts = []
+        for word in value.split():
+            try:
+                charset, encoding, data = word[2:-2].split('?')
+            except ValueError:
+                continue
+            if encoding == 'Q':
+                rawval = Uri.UnescapeDataString(data)
+            elif encoding == 'B':
+                rawval = data.decode('base64')
+            try:
+                parts.append(unicode(rawval, charset, errors))
+            except (LookupError, AttributeError):
+                # XXX charset is unknown to Python.
+                parts.append(unicode(rawval, fallback_charset, errors))
+        return "".join(parts)
+    else:
+        return Uri.UnescapeDataString(value)
+
+# 替代 email.message.get_filename
+def get_filename(self, failobj=None):
+    missing = object()
+    filename = self.get_param('filename', missing, 'content-disposition')
+    if filename is missing:
+        filename = self.get_param('name', missing, 'content-type')
+    if filename is missing:
+        return failobj
+    return collapse_rfc2231_value(filename).strip()
+
+
 class AppleEmailParser(object):
     def __init__(self, node, envelope_node, protected_node):
         self.root = node
@@ -162,7 +204,7 @@ class AppleEmailParser(object):
         message_data = self._parse_ptb_message_data('message_data')
         results = self._parse_ptb_message('messages', results, messages)
 
-        # Envelope Index 
+        # Envelope Index     
         mailboxes = self._parse_mailboxes('mailboxes')
         part_records = self._parse_etb_message_data('message_data')
         results = self._parse_etb_message_deleted('messages_deleted', results)
@@ -982,43 +1024,3 @@ class Export2db(object):
         except:
             exc()
             return 0   
-
-def collapse_rfc2231_value(value, errors='replace',
-                           fallback_charset='us-ascii'):
-    if isinstance(value, tuple):
-        rawval = Uri.UnescapeDataString(value[2])
-        charset = value[0] or 'us-ascii'
-        try:
-            return unicode(rawval, charset, errors)
-        except LookupError:
-            # XXX charset is unknown to Python.
-            return unicode(rawval, fallback_charset, errors)
-    elif isinstance(value, str) and value.startswith('=?') and value.endswith('?='):
-        parts = []
-        for word in value.split():
-            try:
-                charset, encoding, data = word[2:-2].split('?')
-            except ValueError:
-                continue
-            if encoding == 'Q':
-                rawval = Uri.UnescapeDataString(data)
-            elif encoding == 'B':
-                rawval = data.decode('base64')
-            try:
-                parts.append(unicode(rawval, charset, errors))
-            except (LookupError, AttributeError):
-                # XXX charset is unknown to Python.
-                parts.append(unicode(rawval, fallback_charset, errors))
-        return "".join(parts)
-    else:
-        return Uri.UnescapeDataString(value)
-
-# 替代 email.message.get_filename
-def get_filename(self, failobj=None):
-    missing = object()
-    filename = self.get_param('filename', missing, 'content-disposition')
-    if filename is missing:
-        filename = self.get_param('name', missing, 'content-type')
-    if filename is missing:
-        return failobj
-    return collapse_rfc2231_value(filename).strip()

@@ -20,9 +20,22 @@ using PA.Logic.Services;
 using iTunesBackup;
 using PA.iTunes.Android;
 using PA.InfraLib.Files;
+using SQLiteParser;
 
 namespace TestApp
 {
+    class A
+    {
+        public int Age { get; set; }
+        public string Name { get; set; }
+    }
+
+    struct B
+    {
+        public A FieldA { get; set; }
+        public int Age { get; set; }
+    }
+
     class Bootstrapper : UnityBootstrapper
     {
         protected override DependencyObject CreateShell()
@@ -44,6 +57,33 @@ namespace TestApp
         {
             base.ConfigureServiceLocator();
 
+            Database db = new Database(@"H:\X\MM.sqlite");
+            var tables = db.Tables;
+
+            A a = new A
+            {
+                Age = 100,
+                Name = "chen"
+            };
+            B b1 = new B
+            {
+                FieldA = a,
+                Age = 100,
+            };
+
+            a.Age = 103;
+
+            B b2 = new B
+            {
+                FieldA = a,
+                Age = 100,
+            };
+
+            bool ok = b1.Equals(b2);
+            Dictionary<B, string> dict = new Dictionary<B, string>();
+            dict[b1] = "Hello!";
+            dict[b2] = "Wolrd!";
+
             PA.InfraLib.Services.Registor.RegAllServices(Container);
             PA.Logic.Services.Registor.RegAllServices(Container);
 
@@ -55,13 +95,10 @@ namespace TestApp
             //3.测试
             //4.
             //这个路径改成你们电脑上的实际案例路径,支持多镜像案例(比如安卓的全盘包括data.img和external_data.img)
-            string casePath = @"F:\cases\iPhone 8 plus_11.0_3986700581859246_full\iPhone 8 plus_11.0_3986700581859246_full(2)\Manifest.PGFD";
+            string casePath = @"I:\Cases\HUAWEI NXT-AL10__201811201125_逻辑镜像(Root)\Manifest.PGFD";
             var importer = new CaseImportService();
             var pack = CasePackage.FromPath(casePath);
 
-            //MemoryRange range = MemoryRange.CreateFromFile(@"K:\lg");
-            //MemoryNode node = new MemoryNode("lg", range);
-            //EncryptedUserdataStream.GetEncryptionVariables(node);
 
             //演示如何从厂商备份构建
             //var pack = importer.FromExtenalEnvidence(@"H:\X\backup.ab", ImportType.AndroidBackup); //从*.ab文件构建

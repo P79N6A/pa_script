@@ -11,6 +11,7 @@ import clr
 try:
     clr.AddReference('System.Xml.Linq')
     clr.AddReference('model_mail')
+    clr.AddReference('model_browser')
     clr.AddReference('bcp_mail')
     clr.AddReference('ScriptUtils')
 except:
@@ -19,6 +20,7 @@ del clr
 
 import bcp_mail
 import model_mail 
+import model_browser 
 from System.Xml.Linq import XElement
 from ScriptUtils import CASE_NAME, exc, tp, DEBUG, base_analyze, parse_decorator, BaseParser, ProtobufDecoder, BaseAndroidParser
 
@@ -94,31 +96,42 @@ class AndroidGmailParser(BaseAndroidParser):
         self.root = node.Parent.Parent
         self.Generate = model_mail.Generate
         self.csm = model_mail.MM()
-        self.accounts    = {}
+        self.accounts = {}
+
+        self.browser_cache_db = self.cache_db.replace('.db', '_browser.db')
+        self.model_browser = model_browser.MB()
+        self.model_browser.db_create(self.browser_cache_db)
+
+    def parse(self, BCP_TYPE, VERSION_APP_VALUE):
+        models = super(AndroidGmailParser, self).parse(BCP_TYPE, VERSION_APP_VALUE)
+        self.model_browser.db_close()
+        browser_models = model_browser.Generate(self.browser_cache_db).get_models()
+        models.extend(browser_models)
+        return models
 
     def parse_main(self):
         """ com.google.android.gm/databases
 
-                bigTopDataDB.816998789
+                bigTopDataDB.816998789-
 
                 816998789
 
                 com.google.android.gm/shared_prefs/pangux01@gmail.com.xml
-        """           
+        """
         accounts = self.parse_account('shared_prefs')     
         for account in accounts:
             self.cur_account_id = account.account_id
             self.cur_account_email = account.account_email
 
             if self._read_db('databases/bigTopDataDB.'+str(account.account_id)):
-                tp('databases/bigTopDataDB.'+str(account.account_id))
+                #tp('databases/bigTopDataDB.'+str(account.account_id))
                 self.pre_parse_custom_mail_box('clusters')
                 MAIL_ITEMS = self._parse_mail_items('items')
                 MAIL_INFO = self._parse_mail_item_visibility('item_visibility')
                 self._parse_mail_content('item_messages', MAIL_ITEMS, MAIL_INFO)
                 self.parse_attachment('item_message_attachments') 
                 # self.parse_contact('Contact.db', 'contact_table')
-
+        
     def pre_parse_custom_mail_box(self, table_name):
         ''' 解析自定义标签
 
@@ -226,7 +239,6 @@ class AndroidGmailParser(BaseAndroidParser):
                 if (self._is_empty(rec, 'zipped_message_proto', 'items_row_id') or 
                     self._is_duplicate(rec, 'row_id')):
                     continue 
-                
                 mail = model_mail.Mail()              
                 mail.mail_id          = rec['row_id'].Value
                 #if mail.mail_id not in [76]:
@@ -299,11 +311,37 @@ class AndroidGmailParser(BaseAndroidParser):
                         mail_content = hex_str.read_before(CONTENT_ENDS).decode('utf8', 'ignore')
                         end_idx = mail_content.rfind('0a'.decode('hex'))
                         mail.mail_content = mail_content[: end_idx]
+                        self._browser_record_from_gmail(mail)
                 self.csm.db_insert_table_mail(mail)
             except:
                 exc()
         self.csm.db_commit()
+        self.model_browser.db_commit()
 
+    def _browser_record_from_gmail(self, _mail):
+        _mail_content = _mail.mail_content
+        if (_mail.mail_group == MAIL_INBOX and _mail.mail_read_status != MESSAGE_STATUS_READ 
+            or not _mail_content):
+            return 
+        _date = _mail.mail_sent_date
+        _urls = []
+        URL_PATTERN = r'(http|ftp|https)://([a-zA-Z0-9\._-]+\.[a-zA-Z]{2,6}|[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3})(:[0-9]{1,4})*(/[a-zA-Z0-9\&%_\./-~-]*)?'
+        # IP_PATTERN = r'(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])'
+
+        def _save_to_br(_url_name, _date):
+            browser_record = model_browser.Browserecord()
+            browser_record.url      = _url_name
+            browser_record.datetime = _date
+            browser_record.source   = _mail.source
+            browser_record.deleted  = _mail.deleted
+            self.model_browser.db_insert_table_browserecords(browser_record)
+
+        for _u in re.finditer(URL_PATTERN, _mail_content):
+            if _u.group() not in _urls:
+                _urls.append(_u.group())
+                _save_to_br(_u.group(), _date)
+        # for _ip in re.finditer(IP_PATTERN, _mail_content):
+        #     _save_to_br(_ip.group(), _date)
 
     def _get_mail_address_name(self, mail_address_name_str):
         '''parse email address and name

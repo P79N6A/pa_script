@@ -22,7 +22,6 @@ import sqlite3
 import System.Data.SQLite as SQLite
 import traceback
 
-
 VERSION_KEY_DB = 'db'
 VERSION_KEY_APP = 'app'
 
