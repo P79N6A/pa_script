@@ -10,6 +10,7 @@ try:
     clr.AddReference('bcp_basic')
     clr.AddReference('model_eb')
     clr.AddReference('bcp_other')
+    clr.AddReference('bcp_wechat')
 except:
     pass
 del clr
