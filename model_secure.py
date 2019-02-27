@@ -17,6 +17,9 @@ import time
 
 import System.Data.SQLite as SQLite
 import PA.InfraLib.ModelsV2.Base.Call as Call
+import PA.InfraLib.ModelsV2.Base.Contact as Contact
+import PA.InfraLib.ModelsV2.CommonEnum.CallType as CallType
+
 from ScriptUtils import CASE_NAME, exc, tp, DEBUG
 
 
@@ -415,7 +418,7 @@ class GenerateModel(object):
                     bssid = self._db_reader_get_string_value(r, 2)     
                     first_time = self._get_timestamp(self._db_reader_get_int_value(r, 3))
                     last_time = self._get_timestamp(self._db_reader_get_int_value(r, 4) )
-                    source = self._db_reader_get_int_value(r, 5)    
+                    source = self._db_reader_get_string_value(r, 5)    
                     deleted = self._db_reader_get_int_value(r, 6)   
 
                     keychain = Generic.Keychain()
@@ -424,7 +427,7 @@ class GenerateModel(object):
                     keychain.SSID.Value = ssid
                     keychain.BSSID.Value = bssid
                     if last_time:
-                        keychain.TimeStamp.Value = last_time 
+                        keychain.EditTime.Value = last_time 
 
                     if source:
                         keychain.SourceFile = source
@@ -479,13 +482,18 @@ class GenerateModel(object):
 
     @staticmethod
     def _db_reader_get_string_value(reader, index, default_value=''):
-        return reader.GetString(index) if not reader.IsDBNull(index) else default_value
+        try:
+            return reader.GetString(index) if not reader.IsDBNull(index) else default_value
+        except:
+            tp(index, reader[index], type(reader[index]))
+            exc()
 
     @staticmethod
     def _db_reader_get_int_value(reader, index, default_value=0):
         try:
             return reader.GetInt64(index) if not reader.IsDBNull(index) else default_value
         except:
+            tp(index, reader[index], type(reader[index]))
             exc()
 
     @staticmethod
