@@ -22,6 +22,7 @@ import json
 import model_map_v2 as model_map
 import MapUtil
 import bcp_gis
+import PA_runtime
 
 
 class TencentMap(object):

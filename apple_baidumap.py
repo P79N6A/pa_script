@@ -25,6 +25,7 @@ import traceback
 import MapUtil
 import bcp_gis
 import json
+import PA_runtime
 
 
 class baiduMapParser(object):

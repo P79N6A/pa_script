@@ -11,6 +11,7 @@ __maintainer__ = 'Xu Tao'
 
 
 from PA_runtime import *
+import PA_runtime
 import clr
 try:
     clr.AddReference('model_map_v2')
