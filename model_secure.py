@@ -25,13 +25,52 @@ VERSION_VALUE_DB = 1
 VERSION_KEY_DB = 'db'
 VERSION_KEY_APP = 'app'
 
-CALL_RECORD_TYPE_SAORAO   = 1    # 故意骚扰
-CALL_RECORD_TYPE_GUANGGAO = 2    # 广告推销
-CALL_RECORD_TYPE_ZHONGJIE = 3    # 房产中介
-CALL_RECORD_TYPE_ZHAPIAN  = 4    # 诈骗电话
-CALL_RECORD_TYPE_KUAIDI   = 5    # 快递送餐
-CALL_RECORD_TYPE_CHUZUCHE = 6    # 出租车
+CALL_RECORD_TYPE_SAORAO    = 1    # 故意骚扰
+CALL_RECORD_TYPE_GUANGGAO  = 2    # 广告推销
+CALL_RECORD_TYPE_ZHONGJIE  = 3    # 房产中介
+CALL_RECORD_TYPE_ZHAPIAN   = 4    # 诈骗电话
+CALL_RECORD_TYPE_KUAIDI    = 5    # 快递送餐
+CALL_RECORD_TYPE_CHUZUCHE  = 6    # 出租车
+CALL_RECORD_TYPE_RINGOUT   = 7    # 响一声
+CALL_RECORD_TYPE_INSURANCE = 8   # 保险理财
+CALL_RECORD_TYPE_RECRUIT   = 9    # 招聘猎头
 
+
+
+SQL_CREATE_TABLE_BLACKLIST = '''
+    create table if not exists blacklist(
+        id               INTEGER,
+        name             TEXT,
+        phone_number     TEXT,
+        add_date         INTEGER,
+        source           TEXT,
+        deleted          INTEGER  DEFAULT 0,
+        repeated         INTEGER DEFAULT 0
+    )'''
+
+SQL_INSERT_TABLE_BLACKLIST = '''
+    insert into blacklist(
+        id, name, phone_number, add_date,
+        source, deleted, repeated)
+    values(?, ?, ?, ?, ?, ?, ?)'''
+
+SQL_CREATE_TABLE_BLOCKEDSMS = '''
+    create table if not exists blocked_sms(
+        id              INTEGER,
+        content         TEXT,
+        name            TEXT,
+        phone_number    TEXT,
+        block_time      INTEGER,
+        source          TEXT,
+        deleted         INTEGER DEFAULT 0,
+        repeated        INTEGER DEFAULT 0
+    )'''
+
+SQL_INSERT_TABLE_BLOCKEDSMS = '''
+    insert into blocked_sms(
+        id, content, name, phone_number,
+        block_time, source, deleted, repeated)
+    values(?, ?, ?, ?, ?, ?, ?, ?)'''
 
 SQL_CREATE_TABLE_CALLRECORD = '''
     create table if not exists callrecord(
@@ -204,6 +243,39 @@ class Column(object):
     def get_values(self):
         return self.source, self.deleted, self.repeated
 
+class Blacklist(Column):
+    def __init__(self):
+        super(Blacklist, self).__init__()
+        self.id  = None
+        self.name = None
+        self.phone_number = None
+        self.add_date = None
+
+    def get_values(self):
+        return (
+            self.id, 
+            self.name, 
+            self.phone_number, 
+            self.add_date
+        ) + super(Blacklist, self).get_values()
+
+class BlockedSms(Column):
+    def __init__(self):
+        super(BlockedSms, self).__init__()
+        self.id = None
+        self.content = None
+        self.name = None
+        self.phone_number = None
+        self.block_time = None
+
+    def get_values(self):
+        return (
+            self.id, 
+            self.content, 
+            self.name, 
+            self.phone_number,
+            self.block_time
+        ) + super(Blacklist, self).get_values()
 
 class Callrecord(Column):
     def __init__(self):
