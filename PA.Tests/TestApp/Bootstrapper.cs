@@ -21,6 +21,8 @@ using iTunesBackup;
 using PA.iTunes.Android;
 using PA.InfraLib.Files;
 using SQLiteParser;
+using System.Linq;
+using SQLiteParser.Signatures;
 
 namespace TestApp
 {
@@ -56,33 +58,23 @@ namespace TestApp
         protected override void ConfigureServiceLocator()
         {
             base.ConfigureServiceLocator();
+            string xs = "\0\0\0\0\0";
+            bool empty = xs.All(c=>c=='\0');
 
-            Database db = new Database(@"H:\X\MM.sqlite");
+            Database db = new Database(@"I:\Cases\iPhone 6_11.1.2_133217541373990_full\sms.db ");
             var tables = db.Tables;
-
-            A a = new A
+            var ts = new TableSignature("message");
+            ts.Add("guid", SQLiteParser.Signatures.SignatureFactory.GetFieldSignature(SQLiteParser.FieldType.Text,FieldConstraints.NotNull));
+            ts.Add("text", SQLiteParser.Signatures.SignatureFactory.GetFieldSignature(SQLiteParser.FieldType.Text));
+            var rs = db.ReadTableDeletedRecords(ts, true);
+            var deletes = rs.Where(r => r.Deleted == DeletedState.Deleted).ToList();
+            foreach(var r in rs)
             {
-                Age = 100,
-                Name = "chen"
-            };
-            B b1 = new B
-            {
-                FieldA = a,
-                Age = 100,
-            };
+                TraceService.Trace(TraceLevel.Info, $"{r["text"]?.Value}:{r.Deleted}");
+            }
+            
+            
 
-            a.Age = 103;
-
-            B b2 = new B
-            {
-                FieldA = a,
-                Age = 100,
-            };
-
-            bool ok = b1.Equals(b2);
-            Dictionary<B, string> dict = new Dictionary<B, string>();
-            dict[b1] = "Hello!";
-            dict[b2] = "Wolrd!";
 
             PA.InfraLib.Services.Registor.RegAllServices(Container);
             PA.Logic.Services.Registor.RegAllServices(Container);
