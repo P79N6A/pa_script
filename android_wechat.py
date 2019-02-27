@@ -1704,12 +1704,12 @@ class WeChatParser(Wechat):
         story_dir_nodes = self._search_media_nodes('/story')
         self._save_ar_nodes(ar, story_dir_nodes, 'Video')
 
-        res = ar.parse()
-        pr = ParserResults()
-        pr.Categories = DescripCategories.Wechat
-        pr.Models.AddRange(res)
-        pr.Build(self.build)
-        ds.Add(pr)
+        # res = ar.parse()
+        # pr = ParserResults()
+        # pr.Categories = DescripCategories.Wechat
+        # pr.Models.AddRange(res)
+        # pr.Build(self.build)
+        # ds.Add(pr)
 
 
 class SnsParser:
