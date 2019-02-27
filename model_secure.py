@@ -39,6 +39,26 @@ CALL_RECORD_TYPE_INSURANCE = 8   # 保险理财
 CALL_RECORD_TYPE_RECRUIT   = 9    # 招聘猎头
 
 
+SQL_CREATE_TABLE_ACCOUNT = '''
+    create table if not exists account(
+        account_id      INTEGER,
+        nickname        TEXT,
+        username        TEXT,
+        password        TEXT,
+        photo           TEXT,
+        telephone       TEXT,
+        address         TEXT,
+        source          TEXT,
+        deleted         INTEGER DEFAULT 0,
+        repeated        INTEGER DEFAULT 0
+    )'''
+
+SQL_INSERT_TABLE_ACCOUNT = '''
+    insert into account(
+        account_id, nickname ,username,
+        password, photo, telephone, address,
+        source, deleted, repeated)
+    values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
 
 SQL_CREATE_TABLE_BLACKLIST = '''
     create table if not exists blacklist(
@@ -175,6 +195,12 @@ class SM(object):
 
     def db_create_table(self):
         if self.db_cmd is not None:
+            self.db_cmd.CommandText = SQL_CREATE_TABLE_ACCOUNT
+            self.db_cmd.ExecuteNonQuery()
+            self.db_cmd.CommandText = SQL_CREATE_TABLE_BLACKLIST
+            self.db_cmd.ExecuteNonQuery()
+            self.db_cmd.CommandText = SQL_CREATE_TABLE_BLOCKEDSMS
+            self.db_cmd.ExecuteNonQuery()
             self.db_cmd.CommandText = SQL_CREATE_TABLE_CALLRECORD
             self.db_cmd.ExecuteNonQuery()
             self.db_cmd.CommandText = SQL_CREATE_TABLE_WIFI_SIGNAL
@@ -191,6 +217,15 @@ class SM(object):
                 param.Value = value
                 self.db_cmd.Parameters.Add(param)
             self.db_cmd.ExecuteNonQuery()
+
+    def db_insert_table_account(self, column):
+        self.db_insert_table(SQL_INSERT_TABLE_ACCOUNT, column.get_values())
+
+    def db_insert_table_blacklist(self, column):
+        self.db_insert_table(SQL_INSERT_TABLE_BLACKLIST, column.get_values())
+
+    def db_insert_table_blockedsms(self, column):
+        self.db_insert_table(SQL_INSERT_TABLE_BLOCKEDSMS, column.get_values())
 
     def db_insert_table_callrecord(self, column):
         self.db_insert_table(SQL_INSERT_TABLE_CALLRECORD, column.get_values())
@@ -245,6 +280,21 @@ class Column(object):
 
     def get_values(self):
         return self.source, self.deleted, self.repeated
+
+class Account(Column):
+    def __init__(self):
+        super(Account, self).__init__()
+        self.account_id = None  # 账户ID[TEXT]
+        self.nickname = None  # 昵称[TEXT]
+        self.username = None  # 用户名[TEXT]
+        self.password = None  # 密码[TEXT]
+        self.photo = None  # 头像[TEXT]
+        self.telephone = None  # 电话[TEXT]
+        self.address = None  # 地址[TEXT]
+
+    def get_values(self):
+        return (self.account_id, self.nickname, self.username, self.password, 
+        self.photo, self.telephone, self.address) + super(Account, self).get_values()
 
 class Blacklist(Column):
     def __init__(self):
