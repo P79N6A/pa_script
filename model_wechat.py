@@ -1096,7 +1096,7 @@ class StoryComment(Column):
 
 
 class GenerateModel(object):
-    def __init__(self, cache_db, build='微信'):
+    def __init__(self, cache_db, build, ar):
         self.cache_db = cache_db
         self.build = build
         self.account_models = {}
@@ -1104,14 +1104,7 @@ class GenerateModel(object):
         self.chatroom_models = {}
         self.models = []
         self.media_models = []
-        self.ar = AppResources()
-        self.ar.set_thum_config("pic_thum","Image")
-        self.ar.set_thum_config("video_thum","Video")
-        self.ar.set_thum_config("jpg", "Video")
-        self.ar.set_thum_config("thumb", "Video")
-        self.ar.set_thum_config("cover", "Video")
-        self.ar.set_thum_config("extern", "Video")
-        self.ar.set_thum_config("pic", "Video")
+        self.ar = ar
 
     def add_model(self, model):
         if model is not None:
@@ -1156,7 +1149,7 @@ class GenerateModel(object):
         self._get_favorite_models()
         self.set_progress(95)
         self._get_story_models()
-        self.set_progress(100)
+        self.set_progress(99)
 
         self.db.Close()
 

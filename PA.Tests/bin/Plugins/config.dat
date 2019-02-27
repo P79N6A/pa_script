@@ -1636,7 +1636,7 @@
           <integer>0</integer>
           <key>Patterns</key>
           <array>
-            <string>/DB/MM\.sqlite$</string>
+            <string>#</string>
           </array>
           <key>Category</key>
           <string>Wechat</string>
@@ -2441,7 +2441,7 @@
           <integer>2</integer>
           <key>Patterns</key>
           <array>
-            <string>/MicroMsg/.+/EnMicroMsg.db$</string>
+            <string>#</string>
           </array>
           <key>Category</key>
           <string>Wechat</string>

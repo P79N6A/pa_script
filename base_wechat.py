@@ -66,21 +66,21 @@ MOMENT_TYPE_VIDEO = 15  # 视频
 
 class Wechat(object):
     def __init__(self):
-        self.im = model_wechat.IM()
-        self.build = '微信'
-        self.models = []
-        self.user_account_model = None
-        self.friend_models = {}
-        self.chatroom_models = {}
-        self.ar = AppResources()
-        self.ar.set_thum_config("pic_thum", "Image")
-        self.ar.set_thum_config("video_thum", "Video")
-        self.ar.set_thum_config("jpg", "Video")
-        self.ar.set_thum_config("thumb", "Video")
-        self.ar.set_thum_config("cover", "Video")
-        self.ar.set_thum_config("extern", "Video")
-        self.ar.set_thum_config("pic", "Video")
-
+        pass
+        #self.im = model_wechat.IM()
+        #self.build = '微信'
+        #self.models = []
+        #self.user_account_model = None
+        #self.friend_models = {}
+        #self.chatroom_models = {}
+        #self.ar = AppResources()
+        #self.ar.set_thum_config("pic_thum", "Image")
+        #self.ar.set_thum_config("video_thum", "Video")
+        #self.ar.set_thum_config("jpg", "Video")
+        #self.ar.set_thum_config("thumb", "Video")
+        #self.ar.set_thum_config("cover", "Video")
+        #self.ar.set_thum_config("extern", "Video")
+        #self.ar.set_thum_config("pic", "Video")
 
     def _process_parse_message_deal(self, xml_element, model):
         if xml_element.Name.LocalName == 'msg':
