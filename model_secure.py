@@ -376,7 +376,6 @@ class GenerateModel(object):
   
     def get_models(self):
         models = []
-
         self.db = SQLite.SQLiteConnection('Data Source = {}'.format(self.cache_db))
         self.db.Open()
 
@@ -418,16 +417,13 @@ class GenerateModel(object):
                     if date:
                         c.StartTime = date
                     c.Type = CallType.Incoming
-
                     party = Contact()
                     party.PhoneNumbers.Add(phone_number)
                     c.FromSet.Add(party)
-
                     if source:
                         c.SourceFile = source
                     if deleted:
                         c.Deleted = self._convert_deleted_status(deleted)                    
-
                     models.append(c)
                 except:
                     exc()
@@ -435,10 +431,7 @@ class GenerateModel(object):
             return models                    
         except:
             exc()
-
-        if self.push_models(models):
-            models = []
-        return models
+            return models
 
     def _get_wifi_signal_models(self):
         if not self._db_has_table('wifi_signal'):
@@ -471,31 +464,24 @@ class GenerateModel(object):
                     source = self._db_reader_get_string_value(r, 5)    
                     deleted = self._db_reader_get_int_value(r, 6)   
 
-                    keychain = Generic.Keychain()
-                    keychain.Type.Value = KeychainType.WIFI
-
-                    keychain.SSID.Value = ssid
-                    keychain.BSSID.Value = bssid
-                    if last_time:
-                        keychain.EditTime.Value = last_time 
-
+                    wireless = WirelessConnection()
+                    wireless.SSId.Value = ssid
+                    wireless.BSSId.Value = bssid
+                    if last_time:                    
+                        wireless.TimeStamp.Value = last_time
+                    wireless.WirelessType.Value = WirelessType.Wifi
                     if source:
-                        keychain.SourceFile = source
+                        wireless.SourceFile = source
                     if deleted:
-                        keychain.Deleted = self._convert_deleted_status(deleted)                    
-                    models.append(keychain)
-
+                        wireless.Deleted = self._convert_deleted_status(deleted)
+                    models.append(wireless)
                 except:
                     exc()
             r.Close()
             return models                    
         except:
             exc()
-
-        if self.push_models(models):
-            models = []
-        return models
-
+            return models
 
     def _db_has_table(self, table_name):
         try:
