@@ -15,6 +15,7 @@ try:
     clr.AddReference('model_map_v2')
     clr.AddReference("MapUtil")
     clr.AddReference('System.Data.SQLite')
+    clr.AddReference("bcp_gis")
 except:
     pass
 from PA_runtime import *
@@ -25,6 +26,7 @@ import model_map_v2 as model_map
 import System.Data.SQLite as SQLite
 import json
 import MapUtil
+import bcp_gis
 import os
 from PA.InfraLib.ModelsV2 import *
 
@@ -57,6 +59,9 @@ class gaodeMap(object):
         self.get_route_history(account_list)
 
         self.gaodemap.db_close()
+
+        tmp_dir = ds.OpenCachePath("tmp")
+        PA_runtime.save_cache_path(bcp_gis.NETWORK_APP_MAP_GAODE, db_path, tmp_dir)
 
         results = model_map.ExportModel(db_path).get_model()
         return results

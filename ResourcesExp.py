@@ -18,6 +18,7 @@ class AppResources(object):
         self.node_list = {}
         self.media_path_set = set()
         self.img_thum_suffix = set()
+        self.checker = FileTypeChecker()
         self.video_thum_suffix = set()
 
 
@@ -125,8 +126,7 @@ class AppResources(object):
             elif ntype == "Audio":
                 return MediaFile.AudioFile()
             elif ntype == "Other":
-                checker = FileTypeChecker()
-                obj = checker.GetFileType(node.Data)  # 调用c#方法检查类型
+                obj = self.checker.GetFileType(node.Data)  # 调用c#方法检查类型
                 if obj.Domain == FileDomain.Image:
                     if suffix in self.img_thum_suffix:
                         return MediaFile.ThumbnailFile()
