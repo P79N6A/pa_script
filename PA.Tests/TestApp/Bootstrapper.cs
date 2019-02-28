@@ -61,12 +61,11 @@ namespace TestApp
             string xs = "\0\0\0\0\0";
             bool empty = xs.All(c=>c=='\0');
 
-            Database db = new Database(@"I:\Cases\iPhone 6_11.1.2_133217541373990_full\sms.db ");
+            Database db = new Database(@"F:\AddressBook.sqlitedb");
             var tables = db.Tables;
-            var ts = new TableSignature("message");
-            ts.Add("guid", SQLiteParser.Signatures.SignatureFactory.GetFieldSignature(SQLiteParser.FieldType.Text,FieldConstraints.NotNull));
-            ts.Add("text", SQLiteParser.Signatures.SignatureFactory.GetFieldSignature(SQLiteParser.FieldType.Text));
-            var rs = db.ReadTableDeletedRecords(ts, true);
+            var ts = new TableSignature("ABPerson");
+
+            var rs = db.ReadTableRecords(ts,true);
             var deletes = rs.Where(r => r.Deleted == DeletedState.Deleted).ToList();
             foreach(var r in rs)
             {
