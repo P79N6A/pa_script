@@ -436,7 +436,7 @@ class WhatsApp(object):
                 except Exception as e:
                     pass
         except Exception as e:
-            print(e)
+            TraceService.Trace(TraceLevel.Error,e)
         if conn != None:
             conn.Close()
         self.whatsapp.db_commit()
@@ -552,7 +552,7 @@ class WhatsApp(object):
                 except Exception as e:
                     pass
         except Exception as e:
-            print(e)
+            TraceService.Trace(TraceLevel.Error,e)
         if conn != None:
             conn.Close()
         self.whatsapp.db_commit()
@@ -633,7 +633,7 @@ class WhatsApp(object):
                 except Exception as e:
                     pass
         except Exception as e:
-            peint(e)
+            TraceService.Trace(TraceLevel.Error,e)
         if conn != None:
             conn.Close()
         self.whatsapp.db_commit()
@@ -661,7 +661,7 @@ class WhatsApp(object):
                 elif rec[1].find("net") != -1:
                     friends.append(rec[1])
         except Exception as e:
-            pass
+            TraceService.Trace(TraceLevel.Error,e)
         return friends, groups
 
     def get_recover_friends(self):
