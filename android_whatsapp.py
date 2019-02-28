@@ -627,7 +627,7 @@ class WhatsApp(object):
                     feed.send_time = int(str(GetInt64(reader, 4))[:-3])
 
                 except Exception as e:
-                    print(e)
+                    TraceService.Trace(TraceLevel.Error,e)
                 try:
                     self.whatsapp.db_insert_table_feed(feed)
                 except Exception as e:
