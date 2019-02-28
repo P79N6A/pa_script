@@ -80,6 +80,7 @@ def process_nodes(nodes):
             else:
                 app_path = user_node.AbsolutePath
 
+            build = None
             if app_path in app_dict:
                 build = app_dict.get(app_path, '微信')
             else:
