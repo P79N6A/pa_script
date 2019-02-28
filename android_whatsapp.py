@@ -436,7 +436,7 @@ class WhatsApp(object):
                 except Exception as e:
                     pass
         except Exception as e:
-            TraceService.Trace(TraceLevel.Error,e)
+            TraceService.Trace(TraceLevel.Error,"{0}".format(e))
         if conn != None:
             conn.Close()
         self.whatsapp.db_commit()
@@ -552,7 +552,7 @@ class WhatsApp(object):
                 except Exception as e:
                     pass
         except Exception as e:
-            TraceService.Trace(TraceLevel.Error,e)
+            TraceService.Trace(TraceLevel.Error,"{0}".format(e))
         if conn != None:
             conn.Close()
         self.whatsapp.db_commit()
@@ -627,13 +627,13 @@ class WhatsApp(object):
                     feed.send_time = int(str(GetInt64(reader, 4))[:-3])
 
                 except Exception as e:
-                    TraceService.Trace(TraceLevel.Error,e)
+                    TraceService.Trace(TraceLevel.Error,"{0}".format(e))
                 try:
                     self.whatsapp.db_insert_table_feed(feed)
                 except Exception as e:
                     pass
         except Exception as e:
-            TraceService.Trace(TraceLevel.Error,e)
+            TraceService.Trace(TraceLevel.Error,"{0}".format(e))
         if conn != None:
             conn.Close()
         self.whatsapp.db_commit()
@@ -661,7 +661,7 @@ class WhatsApp(object):
                 elif rec[1].find("net") != -1:
                     friends.append(rec[1])
         except Exception as e:
-            TraceService.Trace(TraceLevel.Error,e)
+            TraceService.Trace(TraceLevel.Error,"{0}".format(e))
         return friends, groups
 
     def get_recover_friends(self):
