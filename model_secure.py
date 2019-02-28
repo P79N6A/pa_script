@@ -19,24 +19,37 @@ import System.Data.SQLite as SQLite
 import PA.InfraLib.ModelsV2.Base.Call as Call
 import PA.InfraLib.ModelsV2.Base.Contact as Contact
 import PA.InfraLib.ModelsV2.CommonEnum.CallType as CallType
+import PA.InfraLib.ModelsV2.Secure.CallBlockingType as CallBlockingType
+import PA.InfraLib.ModelsV2.Secure.CallBlocking as CallBlocking
 
 from ScriptUtils import CASE_NAME, exc, tp, DEBUG
-
 
 
 VERSION_VALUE_DB = 1
 VERSION_KEY_DB = 'db'
 VERSION_KEY_APP = 'app'
 
-CALL_RECORD_TYPE_SAORAO    = 1    # 故意骚扰
-CALL_RECORD_TYPE_GUANGGAO  = 2    # 广告推销
-CALL_RECORD_TYPE_ZHONGJIE  = 3    # 房产中介
-CALL_RECORD_TYPE_ZHAPIAN   = 4    # 诈骗电话
-CALL_RECORD_TYPE_KUAIDI    = 5    # 快递送餐
-CALL_RECORD_TYPE_CHUZUCHE  = 6    # 出租车
-CALL_RECORD_TYPE_RINGOUT   = 7    # 响一声
-CALL_RECORD_TYPE_INSURANCE = 8    # 保险理财
-CALL_RECORD_TYPE_RECRUIT   = 9    # 招聘猎头
+CALL_RECORD_TYPE_AD           = 1    # 广告推销
+CALL_RECORD_TYPE_DEFRAUD      = 2    # 诈骗电话
+CALL_RECORD_TYPE_EXPRESS      = 3    # 快递送餐
+CALL_RECORD_TYPE_HARASS       = 4    # 故意骚扰
+CALL_RECORD_TYPE_INSURANCE    = 5    # 保险理财
+CALL_RECORD_TYPE_INTERMEDIARY = 6    # 房产中介
+CALL_RECORD_TYPE_RECRIT       = 7    # 招聘猎头
+CALL_RECORD_TYPE_RINGOUT      = 8    # 响一声
+CALL_RECORD_TYPE_TEXI         = 9    # 出租车
+
+CALLBLOCK_TYPE_CONVERTER = {
+    1 : CallBlockingType.Advertisement,
+    2 : CallBlockingType.Defraud,
+    3 : CallBlockingType.Express,
+    4 : CallBlockingType.Harass,
+    5 : CallBlockingType.Insurance,
+    6 : CallBlockingType.Intermediary,
+    7 : CallBlockingType.Recruit,
+    8 : CallBlockingType.Ringout,
+    9 : CallBlockingType.Texi,
+}
 
 
 SQL_CREATE_TABLE_ACCOUNT = '''
@@ -409,18 +422,17 @@ class GenerateModel(object):
                 deleted = 0
                 try:
                     phone_number = self._db_reader_get_string_value(r, 1)
-                    date =  self._get_timestamp(self._db_reader_get_int_value(r, 2))
+                    date = self._get_timestamp(self._db_reader_get_int_value(r, 2))
                     call_type = self._db_reader_get_int_value (r, 3)
                     source = self._db_reader_get_string_value(r, 4)
                     deleted = self._db_reader_get_int_value(r, 5, None)
 
-                    c = Call()
+                    c = CallBlocking()
                     if date:
-                        c.StartTime = date
-                    c.Type = CallType.Incoming
-                    party = Contact()
-                    party.PhoneNumbers.Add(phone_number)
-                    c.FromSet.Add(party)
+                        c.BlockTime = date
+                    if call_type in CALLBLOCK_TYPE_CONVERTER:                                      
+                        c.Type = CALLBLOCK_TYPE_CONVERTER[call_type]
+                    c.PhoneNumber = phone_number
                     if source:
                         c.SourceFile = source
                     if deleted:
