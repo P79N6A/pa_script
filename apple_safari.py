@@ -440,7 +440,7 @@ class Export2db(object):
         self.mb = model_browser.MB()
         self.results_model = results_model
         self.cachepath = ds.OpenCachePath("Safari")
-        hash_str = hashlib.md5(node.AbsolutePath).hexdigest()
+        hash_str = hashlib.md5(node.AbsolutePath.encode('utf8')).hexdigest()
         self.cache_db = self.cachepath + '\\{}.db'.format(hash_str)
 
         self.bookmark_id = 0

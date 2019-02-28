@@ -73,7 +73,7 @@ class EmailParser(object):
 
         self.mm = MM()
         self.cachepath = ds.OpenCachePath("AndroidEmail")
-        hash_str = hashlib.md5(node.AbsolutePath).hexdigest()[8:-8]
+        hash_str = hashlib.md5(node.AbsolutePath.encode('utf8')).hexdigest()[8:-8]
 
         self.cache_db = self.cachepath + '\\a_email_{}.db'.format(hash_str)
 

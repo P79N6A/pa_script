@@ -899,7 +899,7 @@ class Export2db(object):
         self.mm = model_mail.MM()
         self.results_model = results_model
         self.cachepath = ds.OpenCachePath("AppleEmail")
-        hash_str = hashlib.md5(node.AbsolutePath).hexdigest()[8:-8]
+        hash_str = hashlib.md5(node.AbsolutePath.encode('utf8')).hexdigest()[8:-8]
         self.cache_db = self.cachepath + '\\apple_email_{}.db'.format(hash_str)
 
         self.account_list = {}            

@@ -64,7 +64,7 @@ class NeteaseMailParser(object):
         self.mm = model_mail.MM()        
         self.cachepath = ds.OpenCachePath("NeteaseMasterMail")
 
-        hash_str = hashlib.md5(node.AbsolutePath).hexdigest()
+        hash_str = hashlib.md5(node.AbsolutePath.encode('utf8')).hexdigest()
         self.cache_db = self.cachepath + '\\{}.db'.format(hash_str)
 
         self.accounts = {}

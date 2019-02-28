@@ -87,7 +87,7 @@ class LineParser(object):
         self.im = model_im.IM()        
         self.cachepath = ds.OpenCachePath("LINE")
 
-        hash_str = hashlib.md5(node.AbsolutePath).hexdigest()[8:-8]
+        hash_str = hashlib.md5(node.AbsolutePath.encode('utf8')).hexdigest()[8:-8]
         self.cache_db = self.cachepath + '\\a_line_{}.db'.format(hash_str)
         # search profile, sticker
         self.media_node = None
@@ -349,7 +349,7 @@ class LineParser(object):
             if canceller.IsCancellationRequested:
                 return
             if self._is_empty(rec, 'chat_id'):
-                continue      
+                continue 
             chat_id = rec['chat_id'].Value  
             if chat_id.startswith('u') and rec['type'].Value == 1: #  好友聊天
                 msg_type = model_im.CHAT_TYPE_FRIEND
