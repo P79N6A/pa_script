@@ -71,7 +71,7 @@ class LineParser(object):
         self.im = model_im.IM()        
         self.cachepath = ds.OpenCachePath('LINE_LITE')
 
-        hash_str = hashlib.md5(node.AbsolutePath).hexdigest()[8:-8]
+        hash_str = hashlib.md5(node.AbsolutePath.encode('utf8')).hexdigest()[8:-8]
         self.cache_db = self.cachepath + '\\a_linelite_{}.db'.format(hash_str)
 
         self.profile_node_4_search = self.root.FileSystem
@@ -492,8 +492,6 @@ class LineParser(object):
                     res['attach_file_path'] = match_res.group(4)
                 except:
                     pass
-
-
         return res
 
     def _get_msg_pattern(self, blob_data):

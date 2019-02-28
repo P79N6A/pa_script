@@ -1,4 +1,4 @@
-#coding=utf-8
+﻿#coding=utf-8
 
 import clr
 try:
@@ -67,7 +67,7 @@ class YiXinParser():
         self.cache_path = ds.OpenCachePath('YiXin')
         if not os.path.exists(self.cache_path):
             os.makedirs(self.cache_path)
-        hash_str = hashlib.md5(node.AbsolutePath).hexdigest()[8:-8]
+        hash_str = hashlib.md5(node.AbsolutePath.encode('utf8')).hexdigest()[8:-8]
         self.cache_db = os.path.join(self.cache_path, 'a_line_{}.db'.format(hash_str))
         
         self.media_node = None

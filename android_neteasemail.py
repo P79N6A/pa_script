@@ -1,44 +1,34 @@
 # coding=utf-8
 __author__ = 'YangLiyuan'
 
-import traceback
-import re
-import hashlib
-
+from PA_runtime import *
 import clr
 try:
     clr.AddReference('model_mail')
     clr.AddReference('bcp_mail')
+    clr.AddReference('ScriptUtils')
 except:
     pass
 del clr
-from model_mail import *
+
+import traceback
+import re
+import hashlib
+
 import bcp_mail
+from model_mail import *
+from ScriptUtils import DEBUG, CASE_NAME, exc, tp, parse_decorator
 
 
 # 邮件内容类型
-CONTENT_TYPE_HTML = 1  # HTML 格式
-CONTENT_TYPE_TEXT = 2  # 纯文本
+CONTENT_TYPE_HTML = 1    # HTML 格式
+CONTENT_TYPE_TEXT = 2    # 纯文本
 # 邮件类型
 MAIL_OUTBOX   = '3'      # 已发送
 MAIL_DRAFTBOX = '2'      # 草稿箱
 
 VERSION_APP_VALUE = 2
 
-DEBUG = True
-DEBUG = False
-
-CASE_NAME = ds.ProjectState.ProjectDir.Name
-
-def exc(e=''):
-    ''' Exception output '''
-    try:
-        if DEBUG:
-            py_name = os.path.basename(__file__)
-            msg = 'DEBUG {} case:<{}> :'.format(py_name, CASE_NAME)
-            TraceService.Trace(TraceLevel.Warning, (msg+'{}{}').format(traceback.format_exc(), e))
-    except:
-        pass       
         
 def analyze_neteasemail(node, extract_deleted, extract_source):
     """
@@ -69,7 +59,7 @@ class NeteaseMailParser(object):
 
         self.mm = MM()
         self.cachepath = ds.OpenCachePath("NeteaseMasterMail")
-        hash_str = hashlib.md5(node.AbsolutePath).hexdigest()
+        hash_str = hashlib.md5(node.AbsolutePath.encode('utf8')).hexdigest()
         self.cache_db = self.cachepath + '\\{}.db'.format(hash_str)
 
         self.accounts    = {}

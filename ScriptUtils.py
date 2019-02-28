@@ -1251,7 +1251,7 @@ class BaseParser(object):
         self.extract_source = False
         self.csm = None
         self.Generate = None
-        hash_str = hashlib.md5(node.AbsolutePath).hexdigest()[8:-8]
+        hash_str = hashlib.md5(node.AbsolutePath.encode('utf8')).hexdigest()[8:-8]
         self.cachepath = ds.OpenCachePath(db_name)
         self.cache_db = self.cachepath + '\\{}_{}.db'.format(db_name, hash_str)
         self.VERSION_KEY_DB = 'db'
@@ -1384,10 +1384,11 @@ class BaseParser(object):
 
     def _is_duplicate(self, rec=None, pk_name='', pk_value=None):
         ''' filter duplicate record
+            基于`ReadTableRecords`是先把正常的遍历完(无序)之后再读删除的
 
         Args:
-            rec (record): 
-            pk_names (tuple(str, )): 
+            rec (record)
+            pk_names (tuple(str, ))
 
         Returns:
             bool: rec[pk_name].Value in self._pk_list
@@ -1428,7 +1429,7 @@ class BaseParser(object):
             return True
 
     def _is_contains(self, rec, *keys):
-        return False  not in [rec.ContainsKey(key) for key in keys]
+        return False not in [rec.ContainsKey(key) for key in keys]
 
     @staticmethod
     def _is_url(rec, *args):
@@ -1501,6 +1502,7 @@ class BaseParser(object):
             
         Args:
             format_time (str)
+            
         Returns:
             (int/float): timastamp e.g. 1534318040.0
         '''
@@ -1516,6 +1518,7 @@ class BaseParser(object):
         except:
             exc()
             return 0               
+
 
 
 class BaseAndroidParser(BaseParser):
@@ -1563,7 +1566,7 @@ class ProtobufDecoder(object):
 
     def read_move(self, length=1):
         '''read and move idx 
-            length (int, optional): Defaults to 1. [description]
+           length (int, optional): Defaults to 1. [description]
         
         Returns:
             data (str): 
@@ -1636,3 +1639,4 @@ class ProtobufDecoder(object):
         '''
         end = self.find(identify)
         return self.read_move(end - self.idx)
+

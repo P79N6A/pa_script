@@ -43,7 +43,7 @@ class SIMParser(object):
 
         self.m_sim = Model_SIM()
         self.cachepath = ds.OpenCachePath("AppleSIM")
-        hash_str = hashlib.md5(node.AbsolutePath).hexdigest()
+        hash_str = hashlib.md5(node.AbsolutePath.enncode('utf8')).hexdigest()
         self.cache_db = self.cachepath + "\\{}.db".format(hash_str)
         
     def parse(self):

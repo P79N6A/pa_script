@@ -679,8 +679,9 @@ class Wechat(object):
             return None
 
     def set_progress(self, value):
-        progress.Value = value
-        print('set_progress() %d' % value)
+        if self.progress is not None and value != self.progress.Value:
+            self.progress.Value = value
+            print('set_progress() %d' % value)
 
     def add_model(self, model):
         if model is not None:
