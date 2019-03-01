@@ -1061,6 +1061,22 @@
           <key>Filter</key>
           <string>应用>社交</string>
         </dict>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_blued_other</string>
+          <key>RunnerType</key>
+          <integer>0</integer>
+          <key>Patterns</key>
+          <array>
+            <string>/Documents/LoginDB.sqlite$</string>
+          </array>
+          <key>Category</key>
+          <string>Blued</string>
+          <key>Name</key>
+          <string>Blued(苹果)</string>
+          <key>Filter</key>
+          <string>应用>社交</string>
+        </dict>
       </array>
     </dict>
     <dict>
