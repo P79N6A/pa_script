@@ -53,7 +53,7 @@ class Taobao(object):
         self.extract_source = extract_source
         self.extract_deleted = extract_deleted
         self.cache = ds.OpenCachePath('taobao')
-        self.hash = unity_c37r.md5(node.PathWithMountPoint)
+        self.hash = unity_c37r.md5(node.PathWithMountPoint.encode('utf-8'))
         self.eb = model_eb.EB(self.cache + '/{}'.format(self.hash), TB_VERSION, u'淘宝')
         self.im = self.eb.im
         self.need_parse = self.eb.need_parse
@@ -743,6 +743,23 @@ class Taobao(object):
                 continue
         self.eb.db_commit()
 
+    def add_master_account_to_db(self):
+        node = self.node.GetByPath('Documents/TBSUserInfo/TBSettingsUserInfo.json')
+        if node is None:
+            return
+        p = PlistHelper.ReadPlist(node)
+        if p is not None:
+            try:
+                a = model_im.Account()
+                a.account_id = p['userId'].ToString()
+                a.nickname = a.username = p['userNick'].ToString()
+                # a.photo = 'https://' + p['userLogo'].ToString()
+                self.im.db_insert_table_account(a)
+                self.im.db_commit()
+            except:
+                traceback.print_exc()
+                return
+
 def judge_node(node):
     root = node.Parent.Parent.Parent
     sub_node = root.GetByPath('Documents')
@@ -760,11 +777,14 @@ def parse_tb(root, extract_source, extract_deleted):
         t = Taobao(root, extract_source, extract_deleted)
         if t.need_parse:
             t.search()
-            for a in t.account:
-                t.parse(a)
-                t.parse_search(a)
-                t.parse_prefer_file_cache()
-                t.parse_shop_cart()
+            if t.account:
+                for a in t.account:
+                    t.parse(a)
+                    t.parse_search(a)
+                    t.parse_prefer_file_cache()
+                    t.parse_shop_cart()
+            else:
+                t.add_master_account_to_db()
             t.eb.db_insert_table_version(model_eb.EB_VERSION_KEY, model_eb.EB_VERSION_VALUE)
             t.eb.db_insert_table_version(model_eb.EB_APP_VERSION_KEY, TB_VERSION)
             t.eb.db_commit()

@@ -1234,7 +1234,7 @@ class BaseParser(object):
             _is_empty
             _is_duplicate
                     
-        Instances need to be implemented : 
+        Instances need to be implemented: 
             attribute:
                 self.root
                 self.csm        # c sharp model 
@@ -1251,7 +1251,7 @@ class BaseParser(object):
         self.extract_source = False
         self.csm = None
         self.Generate = None
-        hash_str = hashlib.md5(node.AbsolutePath.encode('utf8')).hexdigest()[8:-8]
+        hash_str = hashlib.md5(node.AbsolutePath.encode('utf8', 'ignore')).hexdigest()[8:-8]
         self.cachepath = ds.OpenCachePath(db_name)
         self.cache_db = self.cachepath + '\\{}_{}.db'.format(db_name, hash_str)
         self.VERSION_KEY_DB = 'db'

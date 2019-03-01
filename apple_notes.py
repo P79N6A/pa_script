@@ -111,6 +111,9 @@ def analyze_notes(node, extractDeleted, extractSource):
             except:
                 pass
         pr.Models.Add(res)
+    ress = analyze_notestore(node, extractDeleted)
+    for res in ress:
+        pr.Models.Add(res)
     pr.Build('备忘录')
     return pr
 
@@ -169,5 +172,48 @@ def analyze_old_notes(node, extractDeleted, extractSource):
             if extractSource:
                 res.Modification.Source = MemoryRange(record['modification_date'].Source)
         pr.Models.Add(res)
+    ress = analyze_notestore(node)
+    for res in ress:
+        pr.Models.Add(res)
     pr.Build('备忘录')
     return pr
+
+def analyze_notestore(node, extractDeleted):
+    try:
+        notestore_node = node.FileSystem.Search('/group.com.apple.notes/NoteStore.sqlite$')
+        if len(list(notestore_node)) == 0:
+            return
+        db = SQLiteParser.Database.FromNode(notestore_node[0])
+        if db is None:
+            return
+        ts = SQLiteParser.TableSignature('ZICCLOUDSYNCINGOBJECT')
+        ress = []
+        for record in db.ReadTableRecords(ts, extractDeleted, True):
+            try:
+                res = Note()
+                res.Deleted = record.Deleted
+                if not IsDBNull(record['ZNESTEDTITLEFORSORTING'].Value):
+                    res.Title.Value = record['ZNESTEDTITLEFORSORTING'].Value
+                else:
+                    res.Title.Value = ''
+                if not IsDBNull(record['ZTITLE1'].Value):
+                    res.Body.Value = record['ZTITLE1'].Value
+                else:
+                    res.Body.Value = ''
+                if not IsDBNull(record['ZCREATIONDATE1'].Value):
+                    try:
+                        res.Creation.Value = TimeStamp(epoch.AddSeconds(record['ZCREATIONDATE1'].Value), True)
+                    except:
+                        pass
+                if not IsDBNull(record['ZMODIFICATIONDATE1'].Value):
+                    try:
+                        res.Modification.Value = TimeStamp(epoch.AddSeconds(record['ZMODIFICATIONDATE1'].Value), True)
+                    except:
+                        pass
+                if not res.Body.Value == '':
+                    ress.append(res)
+            except:
+                pass
+        return ress
+    except Exception as e:
+        print(e)
