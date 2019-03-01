@@ -225,6 +225,8 @@ class UmetripParser(ParserBase):
         if not search_log_by_code:
             return
         file_data = PlistHelper.ReadPlist(search_log_by_code)
+        if file_data is None:
+            return
         for d in file_data:
             try:
                 search = model_im.Search()
