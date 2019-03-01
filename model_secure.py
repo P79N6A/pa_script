@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 
 from PA_runtime import *
 
@@ -7,7 +7,7 @@ try:
     clr.AddReference('System.Data.SQLite')
     clr.AddReference('ScriptUtils')
 except:
-    pass    
+    pass
 del clr
 
 import os
@@ -17,12 +17,13 @@ import time
 
 import System.Data.SQLite as SQLite
 import PA.InfraLib.ModelsV2.Base.Call as Call
+import PA.InfraLib.ModelsV2.Secure as Secure
 import PA.InfraLib.ModelsV2.Base.Contact as Contact
 import PA.InfraLib.ModelsV2.CommonEnum.CallType as CallType
 import PA.InfraLib.ModelsV2.Secure.CallBlockingType as CallBlockingType
 import PA.InfraLib.ModelsV2.Secure.CallBlocking as CallBlocking
-
 from ScriptUtils import CASE_NAME, exc, tp, DEBUG
+
 
 
 VERSION_VALUE_DB = 1
@@ -50,7 +51,6 @@ CALLBLOCK_TYPE_CONVERTER = {
     8 : CallBlockingType.Ringout,
     9 : CallBlockingType.Texi,
 }
-
 
 SQL_CREATE_TABLE_ACCOUNT = '''
     create table if not exists account(
@@ -248,7 +248,7 @@ class SM(object):
 
     def db_insert_table_version(self, key, version):
         self.db_insert_table(SQL_INSERT_TABLE_VERSION, (key, version))
-
+    
     '''
     版本检测分为两部分
     如果中间数据库结构改变，会修改db_version
@@ -326,7 +326,7 @@ class Blacklist(Column):
         ) + super(Blacklist, self).get_values()
 
 class BlockedSms(Column):
-    def __init__(self):                                                                                                  
+    def __init__(self):
         super(BlockedSms, self).__init__()
         self.id = None
         self.content = None
@@ -390,14 +390,58 @@ class GenerateModel(object):
   
     def get_models(self):
         models = []
+
         self.db = SQLite.SQLiteConnection('Data Source = {}'.format(self.cache_db))
         self.db.Open()
-
+        self.db_cmd = SQLite.SQLiteCommand(self.db)
+        models.extend(self._get_blacklist_models())
+        models.extend(self._get_blockedsms_models())
         models.extend(self._get_callrecord_models())
         models.extend(self._get_wifi_signal_models())
 
         self.db.Close()
         return models
+
+    def _get_blacklist_models(self):
+        model = []
+        sql = '''select distinct * from blacklist'''
+        try:
+            self.db_cmd.CommandText = sql
+            sr = self.db_cmd.ExecuteReader()
+            while(sr.Read()):
+                blacklist = Secure.BlockedList()
+                blacklist.CreateTime = self._get_timestamp(sr[3])
+                blacklist.Name = self._db_reader_get_string_value(sr, 1)
+                blacklist.PhoneNumber = self._db_reader_get_string_value(sr, 2)
+                blacklist.SourceFile = self._get_source_file(str(sr[4]))
+                blacklist.Deleted = self._convert_deleted_status(sr[5])
+                model.append(blacklist)
+            sr.Close()
+            return model
+        except Exception as e:
+            print(e)
+            exc()
+
+    def _get_blockedsms_models(self):
+        model = []
+        sql = '''select distinct * from blocked_sms'''
+        try:
+            self.db_cmd.CommandText = sql
+            sr = self.db_cmd.ExecuteReader()
+            while(sr.Read()):
+                sms_block = Secure.SMSBlocking()
+                sms_block.BlockTime = self._get_timestamp(sr[4])
+                sms_block.Content = self._db_reader_get_string_value(sr, 1)
+                sms_block.Name = self._db_reader_get_string_value(sr, 2)
+                sms_block.PhoneNumber = self._db_reader_get_string_value(sr, 3)
+                sms_block.SourceFile = self._get_source_file(str(sr[5]))
+                sms_block.Deleted = self._convert_deleted_status(sr[6])
+                model.append(sms_block)
+            sr.Close()
+            return model
+        except Exception as e:
+            print(e)
+            exc()
 
     def _get_callrecord_models(self):
         if not self._db_has_table('callrecord'):
@@ -511,6 +555,12 @@ class GenerateModel(object):
             return False
 
     @staticmethod
+    def _get_source_file(source_file):
+        if isinstance(source_file, str):
+            return source_file.replace('/', '\\')
+        return source_file
+
+    @staticmethod
     def _convert_deleted_status(deleted):
         if deleted is None:
             return DeletedState.Unknown
@@ -520,14 +570,15 @@ class GenerateModel(object):
     @staticmethod
     def _get_timestamp(timestamp):
         try:
-            if len(str(timestamp)) >= 10:
+            if isinstance(timestamp, (long, float, str)) and len(str(timestamp)) > 10:
                 timestamp = int(str(timestamp)[:10])
+            if isinstance(timestamp, (Int64, long, int)) and len(str(timestamp)) == 10:
                 ts = TimeStamp.FromUnixTime(timestamp, False)
-                if ts.IsValidForSmartphone():
-                    return ts
-            return False
+                if not ts.IsValidForSmartphone():
+                    ts = TimeStamp.FromUnixTime(0, False)
+                return ts
         except:
-            return False
+            return TimeStamp.FromUnixTime(0, False)
 
     @staticmethod
     def _db_reader_get_string_value(reader, index, default_value=''):
