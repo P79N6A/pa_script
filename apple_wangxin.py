@@ -56,12 +56,22 @@ class WangxinParser():
                 self.friends = None
                 self.chatrooms = None
                 self.chatroom_members = None
+            if not user_list:
+                self._add_master_account()
             self.im.db_insert_table_version(model_im.VERSION_KEY_DB, model_im.VERSION_VALUE_DB)
             self.im.db_insert_table_version(model_im.VERSION_KEY_APP, VERSION_APP_VALUE)
             self.im.db_commit()
             self.im.db_close()
         models = self.get_models_from_cache_db()
         return models
+
+    def _add_master_account(self):
+        plist = PlistHelper.ReadPlist(self.root)
+        account = model_im.Account()
+        account.source = self.root.AbsolutePath
+        account.account_id = account.nickname = account.username = plist['WXLogUtils_lastUsernick'].ToString()
+        self.im.db_insert_table_account(account)
+        self.im.db_commit()
 
     def get_models_from_cache_db(self):
         models = model_im.GenerateModel(self.cache_db).get_models()
