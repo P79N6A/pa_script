@@ -400,11 +400,14 @@ class Blued(object):
 
 def analyze_blued(node, extract_Deleted, extract_Source):
     pr = ParserResults()
-    results = Blued(node, extract_Deleted, extract_Source).parse()
-    if results:
-        pr.Models.AddRange(results)
-        pr.Build("Blued")
-    return pr
+    if node.Name == "group.blued.share.plist":
+        results = Blued(node, extract_Deleted, extract_Source).parse()
+        if results:
+            pr.Models.AddRange(results)
+            pr.Build("Blued")
+        return pr
+    elif node.Name == "LoginDB.sqlite":
+        analyze_blued_other(node, extract_Deleted, extract_Source)
 
 
 def analyze_blued_other(node, extract_Deleted, extract_Source):
