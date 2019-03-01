@@ -55,7 +55,10 @@ class MediaParse(object):
         if self.mm.need_parse(self.db_cache, VERSION_APP_VALUE):
             self.mm.db_create(self.db_cache)
             if re.findall('/com.android.providers.media/databases/internal.db$', self.node.AbsolutePath):
-                self.dcim_node = self.node.FileSystem.Search('media/0/DCIM$')[0]
+                self.dcim_node = self.node.FileSystem.Search('/DCIM$')
+                if len(self.dcim_node) == 0:
+                    return
+                self.dcim_node = self.dcim_node[0]
                 self.nodes = [self.node, self.node.Parent.GetByPath('/external.db')]
                 self.analyze_media_with_db()
                 self.analyze_thumbnails_with_db()

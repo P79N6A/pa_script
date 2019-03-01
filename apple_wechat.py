@@ -80,6 +80,7 @@ def process_nodes(nodes):
             else:
                 app_path = user_node.AbsolutePath
 
+            build = None
             if app_path in app_dict:
                 build = app_dict.get(app_path, '微信')
             else:
@@ -129,9 +130,9 @@ class WeChatParser(Wechat):
     def process(self):
         for build in self.node_dict:
             # 每个app创建一个资源节点
-            self.ar = AppResources()
-            self.ar.set_thum_config("pic_thum", "Image")
-            self.ar.set_thum_config("video_thum", "Video")
+            self.ar = AppResources(progress['APP', build]['MEDIA', '多媒体'])
+            self.ar.set_thum_config('pic_thum', 'Image')
+            self.ar.set_thum_config('video_thum', 'Video')
 
             nodes = self.node_dict.get(build, [])
             for node in nodes:

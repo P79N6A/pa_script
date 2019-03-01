@@ -835,6 +835,9 @@ class Wechat(object):
                     if member_id not in [None, '']:
                         model = GroupMember()
                         model.User = self.friend_models.get(member_id)
+                        if model.User is not None:
+                            model.SourceFile = model.User.SourceFile
+                            model.Deleted = model.User.Deleted
                         model.NickName = display_name
                         models.append(model)
                         if member_id == owner_id:

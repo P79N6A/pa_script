@@ -1644,6 +1644,9 @@ class GenerateModel(object):
                     if member_id not in [None, '']:
                         model = GroupMember()
                         model.User = self.friend_models.get(self._get_user_key(account_id, member_id))
+                        if model.User is not None:
+                            model.SourceFile = model.User.SourceFile
+                            model.Deleted = model.User.Deleted
                         model.NickName = display_name
                         models.append(model)
                         if member_id == owner_id:
