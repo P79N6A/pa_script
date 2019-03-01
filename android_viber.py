@@ -43,7 +43,7 @@ class ViberParser(model_im.IM, model_callrecord.MC):
         self.account_name = '未知联系人'
         fs = self.node.FileSystem
         media_folder = fs.Search('/media/0/Android/data/com.viber.voip')
-        media_folder1 = list(media_folder)[0] if media_folder is not None else None
+        media_folder1 = list(media_folder)[0] if len(media_folder) != 0 else None
         media_folder2 = self.node.Parent.Parent
         self.media_folders = [media_folder1, media_folder2]
 
