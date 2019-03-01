@@ -1105,6 +1105,7 @@ class GenerateModel(object):
         self.models = []
         self.media_models = []
         self.ar = ar
+        self.progresses = {}
 
     def add_model(self, model):
         if model is not None:
@@ -1121,8 +1122,13 @@ class GenerateModel(object):
             ds.Add(pr)
             self.models = []
 
-    def set_progress(self, value):
-        progress.Value = value
+    def set_progress(self, value, account_id=None):
+        if account_id is not None:
+            if account_id in self.progresses:
+                self.progresses.get(account_id).Value = value
+        else:
+            for pg in self.progresses.values():
+                pg.Value = value
 
     def get_models(self):
         self.db = SQLite.SQLiteConnection('Data Source = {}'.format(self.cache_db))
@@ -1149,7 +1155,9 @@ class GenerateModel(object):
         self._get_favorite_models()
         self.set_progress(95)
         self._get_story_models()
-        self.set_progress(99)
+        self.set_progress(100)
+        for pg in self.progresses.values():
+            pg.Finish(True)
 
         self.db.Close()
 
@@ -1204,6 +1212,8 @@ class GenerateModel(object):
 
                     if deleted == 0 or account_id not in self.account_models:
                         self.account_models[account_id] = model
+                        self.progresses[account_id] = progress['APP', self.build]['ACCOUNT', account_id, model]
+                        self.progresses[account_id].Start()
 
                     if deleted == 0 or self._get_user_key(account_id, account_id) not in self.friend_models:
                         friend = WeChat.Friend()
@@ -1634,6 +1644,9 @@ class GenerateModel(object):
                     if member_id not in [None, '']:
                         model = GroupMember()
                         model.User = self.friend_models.get(self._get_user_key(account_id, member_id))
+                        if model.User is not None:
+                            model.SourceFile = model.User.SourceFile
+                            model.Deleted = model.User.Deleted
                         model.NickName = display_name
                         models.append(model)
                         if member_id == owner_id:
