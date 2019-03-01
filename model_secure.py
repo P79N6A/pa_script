@@ -73,6 +73,24 @@ SQL_INSERT_TABLE_ACCOUNT = '''
         source, deleted, repeated)
     values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
 
+SQL_CREATE_TABLE_CHARGE = '''
+    create table if not exists charge(
+        id              INTEGER,
+        begin_time      INTEGER,
+        end_time        INTEGER,
+        begin_level     TEXT,
+        endlevel        TEXT,
+        source          TEXT,
+        deleted         INTEGER,
+        repeated        INTEGER
+    )'''
+
+SQL_INSERT_TABLE_CHARGE = '''
+    insert into charge(
+        id, begin_time, end_time, begin_level,
+        endlevel, source, deleted, repeated)
+    values(?, ?, ?, ?, ?, ?, ?, ?)'''
+
 SQL_CREATE_TABLE_BLACKLIST = '''
     create table if not exists blacklist(
         id               INTEGER,
@@ -309,6 +327,19 @@ class Account(Column):
         return (self.account_id, self.nickname, self.username, self.password, 
         self.photo, self.telephone, self.address) + super(Account, self).get_values()
 
+class Charge(Column):
+    def __init__(self):
+        super(Charge, self).__init__()
+        self.id          = None
+        self.begin_time  = None
+        self.end_time    = None
+        self.begin_level = None
+        self.endlevel    = None
+
+    def get_values(self):
+        return (self.id, self.begin_time, self.end_time, self.begin_level,
+                self.endlevel) + super(Charge, self).get_values()
+
 class Blacklist(Column):
     def __init__(self):
         super(Blacklist, self).__init__()
@@ -398,7 +429,6 @@ class GenerateModel(object):
         models.extend(self._get_blockedsms_models())
         models.extend(self._get_callrecord_models())
         models.extend(self._get_wifi_signal_models())
-
         self.db.Close()
         return models
 
@@ -570,9 +600,9 @@ class GenerateModel(object):
     @staticmethod
     def _get_timestamp(timestamp):
         try:
-            if isinstance(timestamp, (long, float, str)) and len(str(timestamp)) > 10:
+            if isinstance(timestamp, (Int64, long, float, str)) and len(str(timestamp)) > 10:
                 timestamp = int(str(timestamp)[:10])
-            if isinstance(timestamp, (Int64, long, int)) and len(str(timestamp)) == 10:
+            if isinstance(timestamp, (Int64, long, int, str)) and len(str(timestamp)) == 10:
                 ts = TimeStamp.FromUnixTime(timestamp, False)
                 if not ts.IsValidForSmartphone():
                     ts = TimeStamp.FromUnixTime(0, False)

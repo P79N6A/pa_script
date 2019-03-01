@@ -32,7 +32,6 @@ class QihooMobileSecureParser(model_secure.SM):
     def __init__(self, node, extract_deleted, extract_source):
         self.node = node
         self.extractDeleted = extract_deleted
-        self.db = None
         self.cachepath = ds.OpenCachePath("350安全卫士")
         md5_db = hashlib.md5()
         db_name = self.node.AbsolutePath
@@ -78,9 +77,12 @@ class QihooMobileSecureParser(model_secure.SM):
             if db is None:
                 return
             ts = SQLiteParser.TableSignature('blacklist')
+            ts.Add("phone_number", SQLiteParser.Signatures.SignatureFactory.GetFieldSignature(SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull))
             data = {}
             for rec in db.ReadTableRecords(ts, self.extractDeleted, True):
                 try:
+                    if rec.IsDeleted:
+                        continue
                     id = self._db_record_get_int_value(rec, '_id')
                     contact_name = self._db_record_get_string_value(rec, 'contact_name')
                     phone_number = self._db_record_get_string_value(rec, 'phone_number')
@@ -105,9 +107,13 @@ class QihooMobileSecureParser(model_secure.SM):
             if db is None:
                 return
             ts = SQLiteParser.TableSignature('blocksystem')
+            ts.Add("block_msg", SQLiteParser.Signatures.SignatureFactory.GetFieldSignature(SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull))
+            ts.Add("number", SQLiteParser.Signatures.SignatureFactory.GetFieldSignature(SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull))
             data = {}
             for rec in db.ReadTableRecords(ts, self.extractDeleted, True):
                 try:
+                    if rec.IsDeleted:
+                        continue
                     id = self._db_record_get_int_value(rec, '_id')
                     block_msg = self._db_record_get_string_value(rec, 'block_msg')
                     phone_number = self._db_record_get_string_value(rec, 'number')
@@ -138,23 +144,23 @@ class QihooMobileSecureParser(model_secure.SM):
                     address = self._db_record_get_string_value(rec, 'address')
                     marker_type = self._db_record_get_string_value(rec, 'marker_type_name')
                     if re.findall('骚扰', marker_type):
-                        marker_type = model_secure.CALL_RECORD_TYPE_SAORAO
+                        marker_type = model_secure.CALL_RECORD_TYPE_HARASS
                     elif re.findall('广告', marker_type):
-                        marker_type = model_secure.CALL_RECORD_TYPE_GUANGGAO
+                        marker_type = model_secure.CALL_RECORD_TYPE_AD
                     elif re.findall('中介', marker_type):
-                        marker_type = model_secure.CALL_RECORD_TYPE_ZHONGJIE
+                        marker_type = model_secure.CALL_RECORD_TYPE_INTERMEDIARY
                     elif re.findall('诈骗', marker_type):
-                        marker_type = model_secure.CALL_RECORD_TYPE_ZHAPIAN
+                        marker_type = model_secure.CALL_RECORD_TYPE_DEFRAUD
                     elif re.findall('快递', marker_type):
-                        marker_type = model_secure.CALL_RECORD_TYPE_KUAIDI
+                        marker_type = model_secure.CALL_RECORD_TYPE_EXPRESS
                     elif re.findall('出租车', marker_type):
-                        marker_type = model_secure.CALL_RECORD_TYPE_CHUZUCHE
+                        marker_type = model_secure.CALL_RECORD_TYPE_TEXI
                     elif re.findall('响一声', marker_type):
                         marker_type = model_secure.CALL_RECORD_TYPE_RINGOUT
                     elif re.findall('保险', marker_type):
                         marker_type = model_secure.CALL_RECORD_TYPE_INSURANCE
                     elif re.findall('招聘', marker_type):
-                        marker_type = model_secure.CALL_RECORD_TYPE_RECRUIT
+                        marker_type = model_secure.CALL_RECORD_TYPE_RECRIT
                     if address not in self.mark2type:
                         self.mark2type[address] = marker_type
                 except:
@@ -169,9 +175,12 @@ class QihooMobileSecureParser(model_secure.SM):
             if db is None:
                 return
             ts = SQLiteParser.TableSignature('call_history')
+            ts.Add("address", SQLiteParser.Signatures.SignatureFactory.GetFieldSignature(SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull))
             data = {}
             for rec in db.ReadTableRecords(ts, self.extractDeleted, True):
                 try:
+                    if rec.IsDeleted:
+                        continue
                     id = self._db_record_get_int_value(rec, '_id')
                     phone_number = self._db_record_get_string_value(rec, 'address')
                     block_date = self._db_record_get_int_value(rec, 'date')
@@ -182,7 +191,8 @@ class QihooMobileSecureParser(model_secure.SM):
                     call.call_type = self.mark2type[phone_number] if phone_number in self.mark2type else 0
                     call.source = self.node.AbsolutePath
                     call.deleted = rec.IsDeleted
-                    self.db_insert_table_callrecord(call)
+                    if call.phone_number is not '':
+                        self.db_insert_table_callrecord(call)
                 except:
                     traceback.print_exc()
             self.db_commit()
