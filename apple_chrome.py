@@ -34,7 +34,7 @@ def analyze_chrome(node, extract_deleted, extract_source):
                         node, 
                         bcp_browser.NETWORK_APP_CHROME, 
                         VERSION_APP_VALUE,
-                        bulid_name='Chrome浏览器',
+                        build_name='Chrome浏览器',
                         db_name='Chrome_i')
 
 

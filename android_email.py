@@ -38,7 +38,7 @@ def analyze_email(node, read_delete, extract_source):
                         node, 
                         bcp_mail.MAIL_TOOL_TYPE_PHONE, 
                         VERSION_APP_VALUE,
-                        bulid_name='系统邮箱',
+                        build_name='系统邮箱',
                         db_name='AndroidEmail')
 
 

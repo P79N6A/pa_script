@@ -29,7 +29,7 @@ def analyze_tcsecure(node, extract_deleted, extract_source):
                         node, 
                         bcp_im.CONTACT_ACCOUNT_TYPE_IM_OTHER, 
                         VERSION_APP_VALUE,
-                        bulid_name='腾讯手机管家',
+                        build_name='腾讯手机管家',
                         db_name='TCSecure_A')
 
 
