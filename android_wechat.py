@@ -1856,7 +1856,7 @@ class Decryptor:
                                        "android_wechat.py Error: LINE {}".format(traceback.format_exc()))
                     return False
 
-        size = src_node.Size
+        #size = src_node.Size
         src_node.Data.seek(0)
         first_page = src_node.read(1024)
 
@@ -1886,15 +1886,31 @@ class Decryptor:
         de.write(content)
         de.write(iv)
 
-        for _ in range(1, size // 1024):
-            if canceller.IsCancellationRequested:
+        # 增大缓存
+        buffer_size = 1024 * 1024
+        while True:
+            buffer = src_node.read(buffer_size)
+            size = len(buffer)
+            for i in range(0, size // 1024):
+                content = buffer[i * 1024: (i + 1) * 1024]
+                iv = content[1008: 1024]
+                de.write(Decryptor.aes_decrypt(final_key,
+                                               Convert.FromBase64String(base64.b64encode(iv)),
+                                               Convert.FromBase64String(base64.b64encode(content[:1008]))))
+                de.write(iv)
+
+            if size < buffer_size:
                 break
-            content = src_node.read(1024)
-            iv = content[1008: 1024]
-            de.write(Decryptor.aes_decrypt(final_key,
-                                           Convert.FromBase64String(base64.b64encode(iv)),
-                                           Convert.FromBase64String(base64.b64encode(content[:1008]))))
-            de.write(iv)
+
+        #for _ in range(1, size // 1024 * 16):
+        #    if canceller.IsCancellationRequested:
+        #        break
+        #    content = src_node.read(1024)
+        #    iv = content[1008: 1024]
+        #    de.write(Decryptor.aes_decrypt(final_key,
+        #                                   Convert.FromBase64String(base64.b64encode(iv)),
+        #                                   Convert.FromBase64String(base64.b64encode(content[:1008]))))
+        #    de.write(iv)
         de.close()
 
         Decryptor.db_fix_header(dst_db_path)

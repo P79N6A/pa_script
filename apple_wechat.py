@@ -129,6 +129,9 @@ class WeChatParser(Wechat):
 
     def process(self):
         for build in self.node_dict:
+            prog = progress['APP', build]
+            prog.Start()
+
             # 每个app创建一个资源节点
             self.ar = AppResources(progress['APP', build]['MEDIA', '多媒体'])
             self.ar.set_thum_config('pic_thum', 'Image')
@@ -146,6 +149,7 @@ class WeChatParser(Wechat):
             ds.Add(pr)
             
             self.ar = None
+            prog.Finish(True)
 
     def parse_user_node(self, node, build):
         self.im = model_wechat.IM()
