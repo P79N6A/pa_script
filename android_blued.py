@@ -113,6 +113,8 @@ class Blued(object):
                     return
                 account = model_im.Account()
                 account.source = node.AbsolutePath
+                if rec.Deleted == DeletedState.Deleted:
+                    account.deleted = 1
                 if "`uid`" in rec and (not rec["`uid`"].IsDBNull):
                     account.account_id = rec["`uid`"].Value
                 if "`passwordSha`" in rec and (not rec["`passwordSha`"].IsDBNull):
@@ -150,6 +152,8 @@ class Blued(object):
                 if "`sessionType`" in rec and rec["`sessionType`"].Value == 3:
                     group = model_im.Chatroom()
                     group.source = node.AbsolutePath
+                    if rec.Deleted == DeletedState.Deleted:
+                        group.deleted = 1
                     group.type = 1
                     if "`loadName`" in rec and (not rec["`loadName`"].IsDBNull):
                         group.account_id = rec["`loadName`"].Value
