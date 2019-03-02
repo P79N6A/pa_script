@@ -27,6 +27,7 @@ class AppResources(object):
     def parse(self):
         if self.prog:
             self.prog.Start()
+            self.prog.Value = 0
         if  len(self.node_list) == 0:
             if self.prog:
                 self.prog.Skip()
@@ -85,8 +86,6 @@ class AppResources(object):
 
 
     def progress_search(self, node):
-        if self.prog:
-            self.prog.Value = 0
         res_lists = self._get_all_files(node, [])
         if len(res_lists) == 0:
             return
