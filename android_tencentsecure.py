@@ -29,7 +29,7 @@ def analyze_tcsecure(node, extract_deleted, extract_source):
                         node, 
                         bcp_im.CONTACT_ACCOUNT_TYPE_IM_OTHER, 
                         VERSION_APP_VALUE,
-                        bulid_name='腾讯手机管家',
+                        build_name='腾讯手机管家',
                         db_name='TCSecure_A')
 
 
@@ -41,8 +41,8 @@ class AndroidTencentSecureParser(BaseParser):
             !fea_tunnel_en.db
             
             qqsecure.db
-                wx_favorite         
-                tb_software_info        
+                wx_favorite
+                tb_software_info
                 recent_iden
                 wifi_signal_table
 
@@ -73,7 +73,8 @@ class AndroidTencentSecureParser(BaseParser):
         '''
         for rec in self._read_table(table_name):
             try:
-                if self._is_email_format(rec, 'ssid', 'bssid'):
+                if (self._is_empty(rec, 'ssid', 'bssid')
+                    or rec['bssid'].Value.count(':') != 5):
                     continue
                 wifi = model_secure.WifiSignal()
                 wifi.ssid = rec['ssid'].Value
@@ -97,6 +98,9 @@ class AndroidTencentSecureParser(BaseParser):
         for rec in self._read_table(table_name):
             try:
                 cr = model_secure.Callrecord()
+                if (self._is_empty(rec, 'phone_number')
+                    or self._is_duplicate(rec, 'id')):
+                    continue            
                 cr.id = rec['id'].Value
                 cr.phone_number = rec['phone_number'].Value
                 # cr.date

@@ -84,12 +84,38 @@ class Blued(object):
         self.main()
         self.blued.db_close()
 
-        # tmp_dir = ds.OpenCachePath("tmp")
-        # PA_runtime.save_cache_path("05005", db_path, tmp_dir)
+        tmp_dir = ds.OpenCachePath("tmp")
+        PA_runtime.save_cache_path("05005", db_path, tmp_dir)
         im_models = model_im.GenerateModel(db_path).get_models()
         # map_models = model_map.Genetate(db_path).get_models()
         results = []
-        results.extend(im_models)
+        if results:
+            results.extend(im_models)
+        # results.extend(map_models)
+        return results
+    
+
+    def other_parse(self):
+        db_path = model_map.md5(self.cache, self.root.AbsolutePath)
+        self.blued.db_create(db_path)
+        self.get_account(self.root)
+        node_lists = self.root.Parent.Children
+        if len(node_lists) == 0:
+            return
+        for node in node_lists:
+            if node.Name.endswith("DB.sqlite"):
+                account_id = node.Name.replace("DB.sqlite","")
+                self.get_groups_friends(node, account_id)
+                self.get_messages(node, account_id)
+        self.blued.db_close()
+
+        tmp_dir = ds.OpenCachePath("tmp")
+        PA_runtime.save_cache_path("05005", db_path, tmp_dir)
+        im_models = model_im.GenerateModel(db_path).get_models()
+        # map_models = model_map.Genetate(db_path).get_models()
+        results = []
+        if results:
+            results.extend(im_models)
         # results.extend(map_models)
         return results
 
@@ -374,7 +400,19 @@ class Blued(object):
 
 def analyze_blued(node, extract_Deleted, extract_Source):
     pr = ParserResults()
-    results = Blued(node, extract_Deleted, extract_Source).parse()
+    if node.Name == "group.blued.share.plist":
+        results = Blued(node, extract_Deleted, extract_Source).parse()
+        if results:
+            pr.Models.AddRange(results)
+            pr.Build("Blued")
+        return pr
+    elif node.Name == "LoginDB.sqlite":
+        analyze_blued_other(node, extract_Deleted, extract_Source)
+
+
+def analyze_blued_other(node, extract_Deleted, extract_Source):
+    pr = ParserResults()
+    results = Blued(node, extract_Deleted, extract_Source).other_parse()
     if results:
         pr.Models.AddRange(results)
         pr.Build("Blued")

@@ -11,7 +11,7 @@ from PA.InfraLib.Utils import FileTypeChecker,FileDomain
 
 class AppResources(object):
     
-    def __init__(self):
+    def __init__(self, sub_progress=None):
         self.res_models = []
         self.path_list = {}
         self.media_models = []
@@ -20,16 +20,26 @@ class AppResources(object):
         self.img_thum_suffix = set()
         self.checker = FileTypeChecker()
         self.video_thum_suffix = set()
-
+        self.prog = sub_progress
+        self.prog_value = 0
+        self.step_value = None
 
     def parse(self):
+        if self.prog:
+            self.prog.Start()
+            self.prog.Value = 0
         if  len(self.node_list) == 0:
+            if self.prog:
+                self.prog.Skip()
             raise Exception("No multimedia resource directory was passed in")
+        self.step_value = 100 / len(self.node_list)
         if len(self.media_models) != 0:
             self.path_list = self.return_model_index(self.media_models)
-
         map(self.progress_search, self.node_list.keys())
         self.res_models.extend(self.media_models)
+        if self.prog:
+            self.prog.Value = 100
+            self.prog.Finish(True)
         return self.res_models
 
     
@@ -101,6 +111,7 @@ class AppResources(object):
                     model.Path = res.AbsolutePath
                 
                 self.res_models.append(model)
+        self._set_progess_value()
 
 
     def _is_created(self, node, ntype):
@@ -296,3 +307,13 @@ class AppResources(object):
                 return ts
         except:
             return TimeStamp.FromUnixTime(0, False)
+
+    def _set_progess_value(self):
+        if self.prog is not None:
+            if self.prog_value > 100:
+                self.prog_value = 100
+                self.prog.Value = self.prog_value
+                return
+            self.prog_value += self.step_value
+            self.prog.Value = self.prog_value
+            print('多媒体子进度当前为: %d' % self.prog.Value)

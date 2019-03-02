@@ -1053,6 +1053,7 @@
           <key>Patterns</key>
           <array>
             <string>/Library/Preferences/group.blued.share.plist$</string>
+            <string>/Documents/LoginDB.sqlite$</string>
           </array>
           <key>Category</key>
           <string>Blued</string>

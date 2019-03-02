@@ -1197,14 +1197,14 @@ def parse_decorator(func):
 
 ######### Base Class #########
 
-def base_analyze(Parser, node, BCP_TYPE, VERSION_APP_VALUE, bulid_name, db_name):
+def base_analyze(Parser, node, BCP_TYPE, VERSION_APP_VALUE, build_name, db_name):
     '''
     Args:
         Parser (Parser):
         node (node): 
         BCP_TYPE: 
         VERSION_APP_VALUE (int): VERSION_APP_VALUE
-        bulid_name (str): pr.build
+        build_name (str): pr.build
         db_name (str): 中间数据库名称
     Returns:
         pr
@@ -1220,7 +1220,7 @@ def base_analyze(Parser, node, BCP_TYPE, VERSION_APP_VALUE, bulid_name, db_name)
         TraceService.Trace(TraceLevel.Debug, msg)
     if res:
         pr.Models.AddRange(res)
-        pr.Build(bulid_name)
+        pr.Build(build_name)
     return pr
 
 

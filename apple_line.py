@@ -31,7 +31,7 @@ def analyze_line(node, extract_deleted, extract_source):
                         node, 
                         bcp_im.CONTACT_ACCOUNT_TYPE_IM_LINE, 
                         VERSION_APP_VALUE,
-                        bulid_name='LINE',
+                        build_name='LINE',
                         db_name='LINE_i')
 
 
