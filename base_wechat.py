@@ -11,6 +11,7 @@ clr.AddReference('System.Data.SQLite')
 try:
     clr.AddReference('model_wechat')
     clr.AddReference('ResourcesExp')
+    clr.AddReference('ScriptUtils')
 except:
     pass
 del clr
@@ -34,7 +35,9 @@ import shutil
 import base64
 import datetime
 import model_wechat
+
 from ResourcesExp import AppResources
+from ScriptUtils import SemiXmlParser
 
 # 消息类型
 MSG_TYPE_POSITION_SHARE = -1879048186
@@ -555,7 +558,7 @@ class Wechat(object):
 
     @staticmethod
     def _convert_msg_type(msg_type):
-        if msg_type in [MSG_TYPE_TEXT, MSG_TYPE_LINK_SEMI, MSG_TYPE_VOIP, MSG_TYPE_VOIP_GROUP]:
+        if msg_type in [MSG_TYPE_TEXT, MSG_TYPE_VOIP, MSG_TYPE_VOIP_GROUP]:
             return model_wechat.MESSAGE_CONTENT_TYPE_TEXT
         elif msg_type in [MSG_TYPE_IMAGE, MSG_TYPE_EMOJI]:
             return model_wechat.MESSAGE_CONTENT_TYPE_IMAGE
@@ -569,6 +572,8 @@ class Wechat(object):
             return model_wechat.MESSAGE_CONTENT_TYPE_SYSTEM
         elif msg_type == MSG_TYPE_APP_MESSAGE:
             return model_wechat.MESSAGE_CONTENT_TYPE_APPMESSAGE
+        elif msg_type == MSG_TYPE_LINK_SEMI:
+            return model_wechat.MESSAGE_CONTENT_TYPE_SEMI_XML
         else:
             return model_wechat.MESSAGE_CONTENT_TYPE_LINK
 
@@ -679,8 +684,9 @@ class Wechat(object):
             return None
 
     def set_progress(self, value):
-        progress.Value = value
-        print('set_progress() %d' % value)
+        if self.progress is not None and value != self.progress.Value:
+            self.progress.Value = value
+            print('set_progress() %d' % value)
 
     def add_model(self, model):
         if model is not None:
@@ -834,6 +840,9 @@ class Wechat(object):
                     if member_id not in [None, '']:
                         model = GroupMember()
                         model.User = self.friend_models.get(member_id)
+                        if model.User is not None:
+                            model.SourceFile = model.User.SourceFile
+                            model.Deleted = model.User.Deleted
                         model.NickName = display_name
                         models.append(model)
                         if member_id == owner_id:
@@ -982,6 +991,18 @@ class Wechat(object):
                 model.Content.Title = title
                 model.Content.Content = content
                 model.Content.SendTime = model_wechat.GenerateModel._get_timestamp(message.timestamp)
+            elif message.type == model_wechat.MESSAGE_CONTENT_TYPE_SEMI_XML:
+                model.Content = Base.Content.LinkSetContent(model)
+                parser = SemiXmlParser()
+                parser.parse(message.content.encode('utf-8'))
+                items = parser.export_items()
+                for item in items:
+                    link = Base.Link()
+                    link.Title = getattr(item.get('title'), 'value', None)
+                    link.Description = getattr(item.get('digest'), 'value', None)
+                    link.Url = getattr(item.get('url'), 'value', None)
+                    link.ImagePath = getattr(item.get('cover'), 'value', None)
+                    model.Content.Values.Add(link)
             else:
                 model.Content = Base.Content.TextContent(model)
                 model.Content.Value = message.content

@@ -497,7 +497,8 @@ class GenerateWechatBcp(object):
         src_path = (self.mount_path + src_file).replace('/', '\\')
         if not os.path.exists(src_path):
             return None
-        dst_path = os.path.join(self.cache_path, self._md5(src_file), os.path.basename(src_file))
+        hash = self._md5(src_file)
+        dst_path = os.path.join(self.cache_path, hash[0:2], hash[2:4], os.path.basename(src_file))
         if os.path.exists(dst_path):
             return os.path.relpath(dst_path, self.bcp_path)
         dst_dir = os.path.dirname(dst_path)

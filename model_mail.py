@@ -6,6 +6,7 @@ try:
     clr.AddReference('System.Core')
     clr.AddReference('System.Xml.Linq')
     clr.AddReference('System.Data.SQLite')
+    clr.AddReference('ScriptUtils')
 except:
     pass
 del clr
@@ -16,11 +17,14 @@ from System.Xml.Linq import *
 from System.Linq import Enumerable
 from System.Xml.XPath import Extensions as XPathExtensions
 
-import os
+import quopri
+import base64
 import System
 import sqlite3
 import System.Data.SQLite as SQLite
 import traceback
+from ScriptUtils import DEBUG, CASE_NAME, exc, tp
+
 
 VERSION_KEY_DB = 'db'
 VERSION_KEY_APP = 'app'
@@ -852,3 +856,27 @@ class Generate(object):
             return zero_ts
         except:
             return zero_ts
+
+
+class MailUtils(object):
+
+    @staticmethod
+    def encoded_mailaddress_name(encoded_words):
+        ''' "=?UTF-8?B?572R5piT5Lil6YCJ?=" -> 网易邮件中心''' 
+        try:
+            encoded_word_regex = r'=\?{1}(.+)\?{1}([B|Q])\?{1}(.+)\?{1}='
+            re_m = re.match(encoded_word_regex, encoded_words)
+            if re_m is None:
+                return encoded_words
+            charset, encoding, encoded_text = re_m.groups()
+            if encoding == 'B':
+                byte_string = base64.b64decode(encoded_text)
+            elif encoding == 'Q':
+                byte_string = quopri.decodestring(encoded_text)
+            else:
+                tp(encoded_words)
+                return encoded_words
+            return byte_string.decode(charset)   
+        except:
+            exc()
+            return encoded_words

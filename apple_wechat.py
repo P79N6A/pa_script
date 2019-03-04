@@ -47,6 +47,7 @@ def analyze_wechat(root, extract_deleted, extract_source):
     if len(nodes) > 0:
         progress.Start()
         WeChatParser(process_nodes(nodes), extract_deleted, extract_source).process()
+        progress.Finish(True)
     else:
         progress.Skip()
 
@@ -79,6 +80,7 @@ def process_nodes(nodes):
             else:
                 app_path = user_node.AbsolutePath
 
+            build = None
             if app_path in app_dict:
                 build = app_dict.get(app_path, '微信')
             else:
@@ -127,9 +129,13 @@ class WeChatParser(Wechat):
 
     def process(self):
         for build in self.node_dict:
-            self.ar = AppResources()
-            self.ar.set_thum_config("pic_thum", "Image")
-            self.ar.set_thum_config("video_thum", "Video")
+            prog = progress['APP', build]
+            prog.Start()
+
+            # 每个app创建一个资源节点
+            self.ar = AppResources(progress['APP', build]['MEDIA', '多媒体'])
+            self.ar.set_thum_config('pic_thum', 'Image')
+            self.ar.set_thum_config('video_thum', 'Video')
 
             nodes = self.node_dict.get(build, [])
             for node in nodes:
@@ -142,8 +148,8 @@ class WeChatParser(Wechat):
             pr.Build(build)
             ds.Add(pr)
             
-            self.set_progress(100)
             self.ar = None
+            prog.Finish(True)
 
     def parse_user_node(self, node, build):
         self.im = model_wechat.IM()
@@ -153,6 +159,7 @@ class WeChatParser(Wechat):
         self.user_account_model = None
         self.friend_models = {}
         self.chatroom_models = {}
+        self.progress = None
 
         self.user_node = node.Parent.Parent
         try:
@@ -185,7 +192,9 @@ class WeChatParser(Wechat):
                 self.im.db_commit()
             self.user_account_model = self.get_account_model(self.user_account)
             self.add_model(self.user_account_model)
-            
+            self.progress = progress['APP', self.build]['ACCOUNT', self.user_account.account_id, self.user_account_model]
+            self.progress.Start()
+
             #add self to friend
             if self.user_account is not None:
                 model = WeChat.Friend()
@@ -277,6 +286,8 @@ class WeChatParser(Wechat):
             self.im.db_commit()
             self.im.db_close()
             #print('%s apple_wechat() parse end' % time.asctime(time.localtime(time.time())))
+            self.set_progress(100)
+            self.progress.Finish(True)
         else:
             model_wechat.GenerateModel(self.cache_db, self.build, self.ar).get_models()
 

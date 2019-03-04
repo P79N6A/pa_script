@@ -439,7 +439,6 @@
       </array>
     </dict>
 
-
     <!--苹果插件从这里开始,安卓插件请见下面-->
     <!--要个性化自定义运行某些插件,请按此文件的格式建立config.debug.dat文件,调试版的程序程序会优先读取config.debug.dat文件-->
     <dict>
@@ -1053,6 +1052,7 @@
           <key>Patterns</key>
           <array>
             <string>/Library/Preferences/group.blued.share.plist$</string>
+            <string>/Documents/LoginDB.sqlite$</string>
           </array>
           <key>Category</key>
           <string>Blued</string>
@@ -1831,7 +1831,7 @@
           <key>Category</key>
           <string>NeteaseMail</string>
           <key>Name</key>
-          <string>网易邮箱(苹果)</string>
+          <string>网易邮箱大师(苹果)</string>
           <key>Filter</key>
           <string>应用>邮箱</string>
         </dict>
@@ -2401,6 +2401,29 @@
           <string>探探(苹果)</string>
           <key>Filter</key>
           <string>应用>社交</string>
+        </dict>
+      </array>
+    </dict>
+    <dict>
+      <key>Module</key>
+      <string>apple_360mobilesafe</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_apple_360mobilesafe</string>
+          <key>RunnerType</key>
+          <integer>0</integer>
+          <key>Patterns</key>
+          <array>
+            <string>/Library/IFData.sqlite$</string>
+          </array>
+          <key>Category</key>
+          <string>Safe360</string>
+          <key>Name</key>
+          <string>360手机卫士(苹果)</string>
+          <key>Filter</key>
+          <string>应用>安全</string>
         </dict>
       </array>
     </dict>
@@ -3030,6 +3053,7 @@
             <string>/contacts/contacts.db$</string>
             <string>/contact.db$</string>
             <string>/contact.vcf$</string>
+            <string>/contact$</string>
           </array>
           <key>Category</key>
           <string>Contacts</string>
@@ -3058,6 +3082,7 @@
             <string>/calls/callinfo.db$</string>
             <string>^/calllog.db$</string>
             <string>/callrecord_backup.xml$</string>
+            <string>/call$</string>
           </array>
           <key>Category</key>
           <string>Calls</string>
@@ -3185,7 +3210,7 @@
           <key>Category</key>
           <string>NeteaseMail</string>
           <key>Name</key>
-          <string>网易邮箱(安卓)</string>
+          <string>网易邮箱大师(安卓)</string>
           <key>Filter</key>
           <string>应用>邮箱</string>
         </dict>
@@ -3998,7 +4023,7 @@
             <string>com.qihoo360.mobilesafe/databases/mobilesafeguard.db$</string>
           </array>
           <key>Category</key>
-          <string>Tantan</string>
+          <string>Safe360</string>
           <key>Name</key>
           <string>360安全卫士(安卓)</string>
           <key>Filter</key>

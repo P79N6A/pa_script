@@ -107,7 +107,7 @@ def analyze_app_authtokens(node, extract_deleted, extract_source):
                         model.Tokens.Add(key_value)
                         results.append(model)    
                 except Exception as e:
-                    TraceService.Trace(TraceLevel.Error,e)
+                    TraceService.Trace(TraceLevel.Error,"{0}".format(e))
     if results:
         pr.Models.AddRange(results)
         pr.Build("密码")

@@ -61,17 +61,12 @@ THIRDBUILDPARTTERN = {
 DEBUG = False
 
 
-class AndroidAppDict(dict):
-    def __contains__(self, value):
-        pass
-
-
-
 def analyze_wechat(root, extract_deleted, extract_source):
     nodes = root.FileSystem.Search('/MicroMsg/.+/EnMicroMsg.db$')
     if len(nodes) > 0:
         progress.Start()
         WeChatParser(process_nodes(nodes), extract_deleted, extract_source).process()
+        progress.Finish(True)
     else:
         progress.Skip()
 
@@ -81,7 +76,6 @@ def analyze_wechat(root, extract_deleted, extract_source):
 
 
 def process_nodes(nodes):
-    # node:  /app_path/Documents/{user_hash}/DB/MM.sqlite
     ret = {}  # key: 节点名称  value: 节点对应的node数组
     app_dict = {}  # key: app路径  value: 节点名称
     app_tail = 1
@@ -113,11 +107,11 @@ def process_nodes(nodes):
                     if build in app_dict:  # app名称如果和app_dict里的冲突，使用微信+数字的模式命名节点
                         build = None
                 if build in [None, '']:  # 没有获取到app名称，使用微信+数字的模式命名节点
-                    if app_tail < 2:
-                        build = '微信'
-                    else:
-                        build = '微信' + str(app_tail)
-                    app_tail += 1
+                    build = get_build(app_path)
+                    if build == '微信(第三方分身)':
+                        if app_tail >= 2:
+                            build = build[:-1] + str(app_tail) + ']'
+                        app_tail += 1
                 app_dict[app_path] = build
 
             value = ret.get(build, [])
@@ -128,17 +122,10 @@ def process_nodes(nodes):
     return ret
 
 
-def get_build(node, g_app_build):
+def get_build(app_path):
     build = '微信'
-    if node is not None:
-        return build
-
-    app_path = node.AbsolutePath
     if not app_path:
         return build
-
-    if app_path not in g_app_build:
-        g_app_build[app_path] = len(g_app_build) + 1
 
     if app_path == r'/data/data/com.tencent.mm':
         return build
@@ -153,9 +140,6 @@ def get_build(node, g_app_build):
                 build = '微信({name})'.format(name=k)
                 break
 
-    count = g_app_build.get(app_path, 0)
-    if count > 1:
-        build += str(count)
     return build
 
 
@@ -198,7 +182,9 @@ class WeChatParser(Wechat):
 
     def process(self):
         for build in self.node_dict:
-            self.ar = AppResources()
+            prog = progress['APP', build]
+            prog.Start()
+            self.ar = AppResources(progress['APP', build]['MEDIA', '多媒体'])
             self.ar.set_thum_config("jpg", "Video")
             self.ar.set_thum_config("thumb", "Video")
             self.ar.set_thum_config("cover", "Video")
@@ -215,8 +201,8 @@ class WeChatParser(Wechat):
             pr.Models.AddRange(self.ar.parse())
             pr.Build(build)
             ds.Add(pr)
-            
-            self.set_progress(100)
+
+            prog.Finish(True)
             self.ar = None
 
     def parse_user_node(self, node, build):
@@ -245,6 +231,7 @@ class WeChatParser(Wechat):
         save_cache_path(bcp_wechat.CONTACT_ACCOUNT_TYPE_IM_WECHAT, self.cache_db, ds.OpenCachePath("tmp"))
 
         self.chatroom_owners = dict()
+        self.progress = None
 
         if not self.is_valid_user_dir:
             return []
@@ -269,7 +256,6 @@ class WeChatParser(Wechat):
                 # print('%s android_wechat() decrypt EnMicroMsg.db' % time.asctime(time.localtime(time.time())))
                 if Decryptor.decrypt(node, self._get_db_key(self.imei, self.uin), mm_db_path):
                     # print('%s android_wechat() parse MicroMsg.db' % time.asctime(time.localtime(time.time())))
-                    self.set_progress(15)
                     self._parse_mm_db(mm_db_path, node.AbsolutePath)
             except Exception as e:
                 TraceService.Trace(TraceLevel.Error, "android_wechat.py Error: LINE {}".format(traceback.format_exc()))
@@ -309,7 +295,8 @@ class WeChatParser(Wechat):
                 self.im.db_insert_table_version(model_wechat.VERSION_KEY_APP, VERSION_APP_VALUE)
             self.im.db_commit()
             self.im.db_close()
-
+            self.set_progress(100)
+            self.progress.Finish(True)
             # print('%s android_wechat() parse end' % time.asctime(time.localtime(time.time())))
         else:
             self.extend_nodes = []
@@ -322,7 +309,7 @@ class WeChatParser(Wechat):
         try:
             self.get_wechat_res(self.ar)
         except Exception as e:
-            print(e)
+            print_error()
 
         self.im = None
         self.build = None
@@ -336,10 +323,6 @@ class WeChatParser(Wechat):
         self.user_hash = None
         self.private_user_node = None
         self.cache_path = None
-
-    def set_progress(self, value):
-        progress.Value = value
-        # print('set_progress() %d' % value)
 
     def _is_valid_user_dir(self):
         if self.root is None or self.user_node is None:
@@ -459,7 +442,9 @@ class WeChatParser(Wechat):
             return
 
         self._parse_mm_db_user_info(db, source)
-        self.set_progress(16)
+        self.progress = progress['APP', self.build]['ACCOUNT', self.user_account_model.Account, self.user_account_model]
+        self.progress.Start()
+        self.set_progress(15)
         self._parse_mm_db_chatroom_member(db, source)
         self._parse_mm_db_contact(db, source)
         self.set_progress(25)
@@ -1164,7 +1149,7 @@ class WeChatParser(Wechat):
                     friend_type = model_wechat.FRIEND_TYPE_BLOCKED
                 else:
                     friend_type = model_wechat.FRIEND_TYPE_FRIEND
-            elif contact_type == 0:
+            elif username.endswith('@app') is True:
                 friend_type = model_wechat.FRIEND_TYPE_PROGRAM
             friend = model_wechat.Friend()
             friend.deleted = deleted
@@ -1296,7 +1281,7 @@ class WeChatParser(Wechat):
             revoke_message.msg_id = message.msg_id
             revoke_message.timestamp = message.timestamp
             revoke_message.type = model_wechat.MESSAGE_CONTENT_TYPE_TEXT
-            revoke_message.sender_id = self.user_account.account_id
+            revoke_message.sender_id = self.user_account_model.Account
             revoke_message.content = revoke_content
             revoke_message.insert_db(self.im)
             model, tl_model = self.get_message_model(revoke_message)
@@ -1874,7 +1859,7 @@ class Decryptor:
                                        "android_wechat.py Error: LINE {}".format(traceback.format_exc()))
                     return False
 
-        size = src_node.Size
+        #size = src_node.Size
         src_node.Data.seek(0)
         first_page = src_node.read(1024)
 
@@ -1904,15 +1889,31 @@ class Decryptor:
         de.write(content)
         de.write(iv)
 
-        for _ in range(1, size // 1024):
-            if canceller.IsCancellationRequested:
+        # 增大缓存
+        buffer_size = 1024 * 1024
+        while True:
+            buffer = src_node.read(buffer_size)
+            size = len(buffer)
+            for i in range(0, size // 1024):
+                content = buffer[i * 1024: (i + 1) * 1024]
+                iv = content[1008: 1024]
+                de.write(Decryptor.aes_decrypt(final_key,
+                                               Convert.FromBase64String(base64.b64encode(iv)),
+                                               Convert.FromBase64String(base64.b64encode(content[:1008]))))
+                de.write(iv)
+
+            if size < buffer_size:
                 break
-            content = src_node.read(1024)
-            iv = content[1008: 1024]
-            de.write(Decryptor.aes_decrypt(final_key,
-                                           Convert.FromBase64String(base64.b64encode(iv)),
-                                           Convert.FromBase64String(base64.b64encode(content[:1008]))))
-            de.write(iv)
+
+        #for _ in range(1, size // 1024 * 16):
+        #    if canceller.IsCancellationRequested:
+        #        break
+        #    content = src_node.read(1024)
+        #    iv = content[1008: 1024]
+        #    de.write(Decryptor.aes_decrypt(final_key,
+        #                                   Convert.FromBase64String(base64.b64encode(iv)),
+        #                                   Convert.FromBase64String(base64.b64encode(content[:1008]))))
+        #    de.write(iv)
         de.close()
 
         Decryptor.db_fix_header(dst_db_path)

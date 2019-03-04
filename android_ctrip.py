@@ -496,9 +496,12 @@ class Ctrip(object):
         models = []
         im_results = model_im.GenerateModel(db_path).get_models()
         ticket_results = model_map.Genetate(db_path).get_models()
-        models.extend(im_results)
-        models.extend(ticket_results)
-        models.extend(cookies_list)
+        if im_results:
+            models.extend(im_results)
+        if ticket_results:
+            models.extend(ticket_results)
+        if cookies_list:
+            models.extend(cookies_list)
         return models
 
 

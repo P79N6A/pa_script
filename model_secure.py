@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 
 from PA_runtime import *
 
@@ -7,7 +7,7 @@ try:
     clr.AddReference('System.Data.SQLite')
     clr.AddReference('ScriptUtils')
 except:
-    pass    
+    pass
 del clr
 
 import os
@@ -17,9 +17,11 @@ import time
 
 import System.Data.SQLite as SQLite
 import PA.InfraLib.ModelsV2.Base.Call as Call
+import PA.InfraLib.ModelsV2.Secure as Secure
 import PA.InfraLib.ModelsV2.Base.Contact as Contact
 import PA.InfraLib.ModelsV2.CommonEnum.CallType as CallType
-
+import PA.InfraLib.ModelsV2.Secure.CallBlockingType as CallBlockingType
+import PA.InfraLib.ModelsV2.Secure.CallBlocking as CallBlocking
 from ScriptUtils import CASE_NAME, exc, tp, DEBUG
 
 
@@ -28,16 +30,27 @@ VERSION_VALUE_DB = 1
 VERSION_KEY_DB = 'db'
 VERSION_KEY_APP = 'app'
 
-CALL_RECORD_TYPE_SAORAO    = 1    # 故意骚扰
-CALL_RECORD_TYPE_GUANGGAO  = 2    # 广告推销
-CALL_RECORD_TYPE_ZHONGJIE  = 3    # 房产中介
-CALL_RECORD_TYPE_ZHAPIAN   = 4    # 诈骗电话
-CALL_RECORD_TYPE_KUAIDI    = 5    # 快递送餐
-CALL_RECORD_TYPE_CHUZUCHE  = 6    # 出租车
-CALL_RECORD_TYPE_RINGOUT   = 7    # 响一声
-CALL_RECORD_TYPE_INSURANCE = 8    # 保险理财
-CALL_RECORD_TYPE_RECRUIT   = 9    # 招聘猎头
+CALL_RECORD_TYPE_AD           = 1    # 广告推销
+CALL_RECORD_TYPE_DEFRAUD      = 2    # 诈骗电话
+CALL_RECORD_TYPE_EXPRESS      = 3    # 快递送餐
+CALL_RECORD_TYPE_HARASS       = 4    # 故意骚扰
+CALL_RECORD_TYPE_INSURANCE    = 5    # 保险理财
+CALL_RECORD_TYPE_INTERMEDIARY = 6    # 房产中介
+CALL_RECORD_TYPE_RECRIT       = 7    # 招聘猎头
+CALL_RECORD_TYPE_RINGOUT      = 8    # 响一声
+CALL_RECORD_TYPE_TEXI         = 9    # 出租车
 
+CALLBLOCK_TYPE_CONVERTER = {
+    1 : CallBlockingType.Advertisement,
+    2 : CallBlockingType.Defraud,
+    3 : CallBlockingType.Express,
+    4 : CallBlockingType.Harass,
+    5 : CallBlockingType.Insurance,
+    6 : CallBlockingType.Intermediary,
+    7 : CallBlockingType.Recruit,
+    8 : CallBlockingType.Ringout,
+    9 : CallBlockingType.Texi,
+}
 
 SQL_CREATE_TABLE_ACCOUNT = '''
     create table if not exists account(
@@ -59,6 +72,24 @@ SQL_INSERT_TABLE_ACCOUNT = '''
         password, photo, telephone, address,
         source, deleted, repeated)
     values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
+
+SQL_CREATE_TABLE_CHARGE = '''
+    create table if not exists charge(
+        id              INTEGER,
+        begin_time      INTEGER,
+        end_time        INTEGER,
+        begin_level     TEXT,
+        end_level        TEXT,
+        source          TEXT,
+        deleted         INTEGER,
+        repeated        INTEGER
+    )'''
+
+SQL_INSERT_TABLE_CHARGE = '''
+    insert into charge(
+        id, begin_time, end_time, begin_level,
+        end_level, source, deleted, repeated)
+    values(?, ?, ?, ?, ?, ?, ?, ?)'''
 
 SQL_CREATE_TABLE_BLACKLIST = '''
     create table if not exists blacklist(
@@ -197,6 +228,8 @@ class SM(object):
         if self.db_cmd is not None:
             self.db_cmd.CommandText = SQL_CREATE_TABLE_ACCOUNT
             self.db_cmd.ExecuteNonQuery()
+            self.db_cmd.CommandText = SQL_CREATE_TABLE_CHARGE
+            self.db_cmd.ExecuteNonQuery()
             self.db_cmd.CommandText = SQL_CREATE_TABLE_BLACKLIST
             self.db_cmd.ExecuteNonQuery()
             self.db_cmd.CommandText = SQL_CREATE_TABLE_BLOCKEDSMS
@@ -221,6 +254,9 @@ class SM(object):
     def db_insert_table_account(self, column):
         self.db_insert_table(SQL_INSERT_TABLE_ACCOUNT, column.get_values())
 
+    def db_insert_table_charge(self, column):
+        self.db_insert_table(SQL_INSERT_TABLE_CHARGE, column.get_values())
+
     def db_insert_table_blacklist(self, column):
         self.db_insert_table(SQL_INSERT_TABLE_BLACKLIST, column.get_values())
 
@@ -235,7 +271,7 @@ class SM(object):
 
     def db_insert_table_version(self, key, version):
         self.db_insert_table(SQL_INSERT_TABLE_VERSION, (key, version))
-
+    
     '''
     版本检测分为两部分
     如果中间数据库结构改变，会修改db_version
@@ -296,6 +332,19 @@ class Account(Column):
         return (self.account_id, self.nickname, self.username, self.password, 
         self.photo, self.telephone, self.address) + super(Account, self).get_values()
 
+class Charge(Column):
+    def __init__(self):
+        super(Charge, self).__init__()
+        self.id          = None
+        self.begin_time  = None
+        self.end_time    = None
+        self.begin_level = None
+        self.end_level    = None
+
+    def get_values(self):
+        return (self.id, self.begin_time, self.end_time, self.begin_level,
+                self.end_level) + super(Charge, self).get_values()
+
 class Blacklist(Column):
     def __init__(self):
         super(Blacklist, self).__init__()
@@ -313,7 +362,7 @@ class Blacklist(Column):
         ) + super(Blacklist, self).get_values()
 
 class BlockedSms(Column):
-    def __init__(self):                                                                                                  
+    def __init__(self):
         super(BlockedSms, self).__init__()
         self.id = None
         self.content = None
@@ -377,14 +426,80 @@ class GenerateModel(object):
   
     def get_models(self):
         models = []
+
         self.db = SQLite.SQLiteConnection('Data Source = {}'.format(self.cache_db))
         self.db.Open()
-
+        self.db_cmd = SQLite.SQLiteCommand(self.db)
+        models.extend(self._get_charge_models())
+        models.extend(self._get_blacklist_models())
+        models.extend(self._get_blockedsms_models())
         models.extend(self._get_callrecord_models())
         models.extend(self._get_wifi_signal_models())
-
         self.db.Close()
         return models
+
+    def _get_charge_models(self):
+        model = []
+        sql = '''select distinct * from charge'''
+        try:
+            self.db_cmd.CommandText = sql
+            sr = self.db_cmd.ExecuteReader()
+            while(sr.Read()):
+                charge = Secure.ChargeLog()
+                charge.BeginTime = self._get_timestamp(sr[1])
+                charge.EndTime = self._get_timestamp(sr[2])
+                begin_level = float(sr[3])
+                end_level = float(sr[4])
+                charge.BeginLevel = str(begin_level*100) + '%'
+                charge.EndLevel = str(end_level*100) + '%'
+                charge.SourceFile = self._get_source_file(str(sr[5]))
+                charge.Deleted = self._convert_deleted_status(sr[6])
+                model.append(charge)
+            sr.Close()
+            return model
+        except Exception as e:
+            print(e)
+            exc()
+
+    def _get_blacklist_models(self):
+        model = []
+        sql = '''select distinct * from blacklist'''
+        try:
+            self.db_cmd.CommandText = sql
+            sr = self.db_cmd.ExecuteReader()
+            while(sr.Read()):
+                blacklist = Secure.BlockedList()
+                blacklist.CreateTime = self._get_timestamp(sr[3])
+                blacklist.Name = self._db_reader_get_string_value(sr, 1)
+                blacklist.PhoneNumber = self._db_reader_get_string_value(sr, 2)
+                blacklist.SourceFile = self._get_source_file(str(sr[4]))
+                blacklist.Deleted = self._convert_deleted_status(sr[5])
+                model.append(blacklist)
+            sr.Close()
+            return model
+        except Exception as e:
+            exc()
+
+    def _get_blockedsms_models(self):
+        model = []
+        sql = '''select distinct * from blocked_sms'''
+        try:
+            self.db_cmd.CommandText = sql
+            sr = self.db_cmd.ExecuteReader()
+            while(sr.Read()):
+                sms_block = Secure.SMSBlocking()
+                sms_block.BlockTime = self._get_timestamp(sr[4])
+                sms_block.Content = self._db_reader_get_string_value(sr, 1)
+                sms_block.Name = self._db_reader_get_string_value(sr, 2)
+                sms_block.PhoneNumber = self._db_reader_get_string_value(sr, 3)
+                sms_block.SourceFile = self._get_source_file(str(sr[5]))
+                sms_block.Deleted = self._convert_deleted_status(sr[6])
+                model.append(sms_block)
+            sr.Close()
+            return model
+        except Exception as e:
+            print(e)
+            exc()
 
     def _get_callrecord_models(self):
         if not self._db_has_table('callrecord'):
@@ -409,18 +524,17 @@ class GenerateModel(object):
                 deleted = 0
                 try:
                     phone_number = self._db_reader_get_string_value(r, 1)
-                    date =  self._get_timestamp(self._db_reader_get_int_value(r, 2))
+                    date = self._get_timestamp(self._db_reader_get_int_value(r, 2))
                     call_type = self._db_reader_get_int_value (r, 3)
                     source = self._db_reader_get_string_value(r, 4)
                     deleted = self._db_reader_get_int_value(r, 5, None)
 
-                    c = Call()
+                    c = CallBlocking()
                     if date:
-                        c.StartTime = date
-                    c.Type = CallType.Incoming
-                    party = Contact()
-                    party.PhoneNumbers.Add(phone_number)
-                    c.FromSet.Add(party)
+                        c.BlockTime = date
+                    if call_type in CALLBLOCK_TYPE_CONVERTER:                                      
+                        c.Type = CALLBLOCK_TYPE_CONVERTER[call_type]
+                    c.PhoneNumber = phone_number
                     if source:
                         c.SourceFile = source
                     if deleted:
@@ -499,6 +613,12 @@ class GenerateModel(object):
             return False
 
     @staticmethod
+    def _get_source_file(source_file):
+        if isinstance(source_file, str):
+            return source_file.replace('/', '\\')
+        return source_file
+
+    @staticmethod
     def _convert_deleted_status(deleted):
         if deleted is None:
             return DeletedState.Unknown
@@ -508,14 +628,15 @@ class GenerateModel(object):
     @staticmethod
     def _get_timestamp(timestamp):
         try:
-            if len(str(timestamp)) >= 10:
+            if isinstance(timestamp, (Int64, long, float, str)) and len(str(timestamp)) > 10:
                 timestamp = int(str(timestamp)[:10])
+            if isinstance(timestamp, (Int64, long, int, str)) and len(str(timestamp)) == 10:
                 ts = TimeStamp.FromUnixTime(timestamp, False)
-                if ts.IsValidForSmartphone():
-                    return ts
-            return False
+                if not ts.IsValidForSmartphone():
+                    ts = TimeStamp.FromUnixTime(0, False)
+                return ts
         except:
-            return False
+            return TimeStamp.FromUnixTime(0, False)
 
     @staticmethod
     def _db_reader_get_string_value(reader, index, default_value=''):

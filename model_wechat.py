@@ -8,6 +8,7 @@ clr.AddReference('System.Xml.Linq')
 clr.AddReference('System.Data.SQLite')
 try:
     clr.AddReference('ResourcesExp')
+    clr.AddReference('ScriptUtils')
 except:
     pass
 del clr
@@ -28,7 +29,7 @@ import sqlite3
 import time
 
 from ResourcesExp import AppResources
-
+from ScriptUtils import SemiXmlParser
 
 VERSION_VALUE_DB = 7
 
@@ -58,6 +59,7 @@ MESSAGE_CONTENT_TYPE_RED_ENVELPOE = 9  # 红包
 MESSAGE_CONTENT_TYPE_TRANSFER = 10  # 转账
 MESSAGE_CONTENT_TYPE_SPLIT_BILL = 11  # 群收款
 MESSAGE_CONTENT_TYPE_APPMESSAGE = 12
+MESSAGE_CONTENT_TYPE_SEMI_XML = 13
 MESSAGE_CONTENT_TYPE_SYSTEM = 99  # 系统
 
 # 收藏类型
@@ -1105,6 +1107,7 @@ class GenerateModel(object):
         self.models = []
         self.media_models = []
         self.ar = ar
+        self.progresses = {}
 
     def add_model(self, model):
         if model is not None:
@@ -1121,8 +1124,13 @@ class GenerateModel(object):
             ds.Add(pr)
             self.models = []
 
-    def set_progress(self, value):
-        progress.Value = value
+    def set_progress(self, value, account_id=None):
+        if account_id is not None:
+            if account_id in self.progresses:
+                self.progresses.get(account_id).Value = value
+        else:
+            for pg in self.progresses.values():
+                pg.Value = value
 
     def get_models(self):
         self.db = SQLite.SQLiteConnection('Data Source = {}'.format(self.cache_db))
@@ -1149,7 +1157,9 @@ class GenerateModel(object):
         self._get_favorite_models()
         self.set_progress(95)
         self._get_story_models()
-        self.set_progress(99)
+        self.set_progress(100)
+        for pg in self.progresses.values():
+            pg.Finish(True)
 
         self.db.Close()
 
@@ -1204,6 +1214,8 @@ class GenerateModel(object):
 
                     if deleted == 0 or account_id not in self.account_models:
                         self.account_models[account_id] = model
+                        self.progresses[account_id] = progress['APP', self.build]['ACCOUNT', account_id, model]
+                        self.progresses[account_id].Start()
 
                     if deleted == 0 or self._get_user_key(account_id, account_id) not in self.friend_models:
                         friend = WeChat.Friend()
@@ -1597,6 +1609,18 @@ class GenerateModel(object):
                         model.Content.Title = title
                         model.Content.Content = content
                         model.Content.SendTime = self._get_timestamp(timestamp)
+                    elif msg_type == MESSAGE_CONTENT_TYPE_SEMI_XML:
+                        model.Content = Base.Content.LinkSetContent(model)
+                        parser = SemiXmlParser()
+                        parser.parse(content.encode('utf-8'))
+                        items = parser.export_items()
+                        for item in items:
+                            link = Base.Link()
+                            link.Title = getattr(item.get('title'), 'value', None)
+                            link.Description = getattr(item.get('digest'), 'value', None)
+                            link.Url = getattr(item.get('url'), 'value', None)
+                            link.ImagePath = getattr(item.get('cover'), 'value', None)
+                            model.Content.Values.Add(link)
                     else:
                         model.Content = Base.Content.TextContent(model)
                         model.Content.Value = content
@@ -1634,6 +1658,9 @@ class GenerateModel(object):
                     if member_id not in [None, '']:
                         model = GroupMember()
                         model.User = self.friend_models.get(self._get_user_key(account_id, member_id))
+                        if model.User is not None:
+                            model.SourceFile = model.User.SourceFile
+                            model.Deleted = model.User.Deleted
                         model.NickName = display_name
                         models.append(model)
                         if member_id == owner_id:

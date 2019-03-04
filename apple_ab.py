@@ -28,7 +28,6 @@ SQL_CREATE_TABLE_CONTACT = '''
     name TEXT,
     address TEXT,
     notes TEXT,
-    telegram TEXT,
     head_pic TEXT,
     source TEXT,
     deleted INTEGER,
@@ -37,8 +36,8 @@ SQL_CREATE_TABLE_CONTACT = '''
 
 SQL_INSERT_TABLE_CONTACT = '''
     INSERT INTO contacts(row_contact_id, mimetype_id, mail, company, title, last_time_contacted, last_time_modified, times_contacted,
-        phone_number, name, address, notes, telegram, head_pic, source, deleted, repeated)
-        VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
+        phone_number, name, address, notes, head_pic, source, deleted, repeated)
+        VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
 
 ToPhoneCategory = {
     '_$!<MOBILE>!$_': ContactCategory.Mobile,
@@ -447,7 +446,7 @@ def generate_mid_db(node, results):
         source = node.AbsolutePath
         deleted = 0 if result.Deleted == DeletedState.Intact else 1 if result.Deleted == DeletedState.Deleted else None
         repeated = 0
-        param = (id, None, None, None, None, time_contacted, time_modified, times_contacted, phone_number, name, addr, note, None, None, source, deleted, repeated)
+        param = (id, None, None, None, None, time_contacted, time_modified, times_contacted, phone_number, name, addr, note, None, source, deleted, repeated)
         db_insert_table(db_cache, SQL_INSERT_TABLE_CONTACT, param)
     db_cmd.Dispose()
     db_cache.Close()

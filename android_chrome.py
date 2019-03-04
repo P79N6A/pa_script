@@ -36,7 +36,7 @@ def analyze_chrome(node, extract_deleted, extract_source):
                         node, 
                         bcp_browser.NETWORK_APP_CHROME, 
                         VERSION_APP_VALUE,
-                        bulid_name='Chrome浏览器',
+                        build_name='Chrome浏览器',
                         db_name='Chrome_A')
 
 @parse_decorator
@@ -47,7 +47,7 @@ def analyze_samsung_browser(node, extract_deleted, extract_source):
                         node, 
                         bcp_browser.NETWORK_APP_OTHER, 
                         VERSION_APP_VALUE,
-                        bulid_name='三星浏览器',
+                        build_name='三星浏览器',
                         db_name='Samsung')
 
 @parse_decorator
@@ -58,7 +58,7 @@ def analyze_oppo_browser_chrome(node, extract_deleted, extract_source):
                         node, 
                         bcp_browser.NETWORK_APP_OPPO, 
                         VERSION_APP_VALUE,
-                        bulid_name='OPPO浏览器',
+                        build_name='OPPO浏览器',
                         db_name='OPPO')
 
 

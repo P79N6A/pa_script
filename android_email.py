@@ -1,4 +1,4 @@
-# coding=utf-8
+﻿# coding=utf-8
 __author__ = 'YangLiyuan'
 
 import os
@@ -6,20 +6,24 @@ import traceback
 import re
 import hashlib
 
+
 import PA_runtime
 from PA_runtime import *
 import clr
 try:
     clr.AddReference('model_mail')
     clr.AddReference('bcp_mail')
+    clr.AddReference('ScriptUtils')
 except:
     pass
 del clr
-from model_mail import *
 import bcp_mail
+import model_mail
+from model_mail import MailUtils
+from ScriptUtils import DEBUG, CASE_NAME, exc, tp, BaseAndroidParser, parse_decorator, base_analyze
 
 
-VERSION_APP_VALUE = 1
+VERSION_APP_VALUE = 2
 
 MESSAGE_STATUS_DEFAULT = 0
 MESSAGE_STATUS_UNSENT  = 1
@@ -27,79 +31,28 @@ MESSAGE_STATUS_SENT    = 2
 MESSAGE_STATUS_UNREAD  = 3
 MESSAGE_STATUS_READ    = 4
 
-DEBUG = True
-DEBUG = False
 
-CASE_NAME = ds.ProjectState.ProjectDir.Name
-
-def exc(e=''):
-    ''' Exception output '''
-    try:
-        if DEBUG:
-            py_name = os.path.basename(__file__)
-            msg = 'DEBUG {} case:<{}> :'.format(py_name, CASE_NAME)
-            TraceService.Trace(TraceLevel.Warning, (msg+'{}{}').format(traceback.format_exc(), e))
-    except:
-        pass   
-        
-def test_p(*e):
-    ''' Highlight print in test environments vs console '''
-    if DEBUG:
-        TraceService.Trace(TraceLevel.Warning, "{}".format(e))
-    else:
-        pass
-
-def analyze_email(node, extract_deleted, extract_source):
-    """ android 邮件 华为 """
-    res = []
-    pr = ParserResults()
-    try:
-        res = EmailParser(node, extract_deleted, extract_source).parse()
-    except:
-        TraceService.Trace(TraceLevel.Debug, 
-                           'android_email.py 解析新案例 "{}" 出错: {}'.format(CASE_NAME, traceback.format_exc()))
-    if res:
-        pr.Models.AddRange(res)
-        pr.Build('系统邮箱')
-    return pr
+@parse_decorator
+def analyze_email(node, read_delete, extract_source):
+    return base_analyze(AndroidEmailParser, 
+                        node, 
+                        bcp_mail.MAIL_TOOL_TYPE_PHONE, 
+                        VERSION_APP_VALUE,
+                        build_name='系统邮箱',
+                        db_name='AndroidEmail')
 
 
-class EmailParser(object):
-    def __init__(self, node, extract_deleted, extract_source):
-
-        self.root = node
-        self.extract_deleted = extract_deleted
-        self.extract_source = extract_source
-
-        self.mm = MM()
-        self.cachepath = ds.OpenCachePath("AndroidEmail")
-        hash_str = hashlib.md5(node.AbsolutePath).hexdigest()[8:-8]
-
-        self.cache_db = self.cachepath + '\\a_email_{}.db'.format(hash_str)
+class AndroidEmailParser(BaseAndroidParser):
+    def __init__(self, node, db_name):
+        super(AndroidEmailParser, self).__init__(node, db_name)
+        self.root = node.Parent
+        self.csm = model_mail.MM()
+        self.Generate = model_mail.Generate
+        self.VERSION_VALUE_DB = model_mail.VERSION_VALUE_DB
 
         self.accounts    = {}
         self.mail_folder = {}
         self.neg_primary_key = 1
-
-    def parse(self):
-     
-        if DEBUG or self.mm.need_parse(self.cache_db, VERSION_APP_VALUE):
-            if not self._read_db('EmailProvider.db'):
-                return []
-            self.mm.db_create(self.cache_db) 
-            
-            self.parse_main()
-
-            if not canceller.IsCancellationRequested:
-                self.mm.db_insert_table_version(VERSION_KEY_DB, VERSION_VALUE_DB)
-                self.mm.db_insert_table_version(VERSION_KEY_APP, VERSION_APP_VALUE)
-                self.mm.db_commit()
-            self.mm.db_close()
-
-        tmp_dir = ds.OpenCachePath('tmp')
-        PA_runtime.save_cache_path(bcp_mail.MAIL_TOOL_TYPE_PHONE, self.cache_db, tmp_dir)
-        models = Generate(self.cache_db).get_models()
-        return models
 
     def parse_main(self):
         """ android 邮件   
@@ -218,14 +171,14 @@ class EmailParser(object):
 
         if not self._read_db(db_path):
             return
-        for rec in self._read_table(table_name, extract_deleted=False):
+        for rec in self._read_table(table_name, read_delete=False):
             if canceller.IsCancellationRequested:
                 return
             if not self._is_email_format(rec, 'emailAddress'):
                 continue
             if self._is_duplicate(rec, '_id'):
                 continue                    
-            account = Account()
+            account = model_mail.Account()
             account.account_id    = rec['_id'].Value
             account.account_alias = rec['displayName'].Value
             account.account_email = rec['emailAddress'].Value
@@ -237,10 +190,10 @@ class EmailParser(object):
                 'name' : account.account_alias,
             }
             try:
-                self.mm.db_insert_table_account(account)
+                self.csm.db_insert_table_account(account)
             except:
                 exc()
-        self.mm.db_commit()
+        self.csm.db_commit()
 
     def parse_mail(self, db_path, table_name):
         """ EmailProvider - Message 
@@ -294,16 +247,16 @@ class EmailParser(object):
                     continue
                 if self._is_duplicate(rec, 'timeStamp'):
                     continue                    
-                mail = Mail()
+                mail = model_mail.Mail()
                 mail.mail_id          = self.convert_primary_key(rec['_id'].Value)
                 mail.owner_account_id = rec['accountKey'].Value
                 mail.mail_group       = self.mail_folder.get(rec['mailboxKey'].Value, None)
                 mail.mail_subject     = rec['subject'].Value
                 mail.mail_abstract    = rec['snippet'].Value
-                mail.mail_from        = rec['fromList'].Value
-                mail.mail_to          = rec['toList'].Value
-                mail.mail_cc          = rec['ccList'].Value
-                mail.mail_bcc         = rec['bccList'].Value
+                mail.mail_from        = self._convert_email(rec['fromList'].Value)
+                mail.mail_to          = self._convert_email(rec['toList'].Value)
+                mail.mail_cc          = self._convert_email(rec['ccList'].Value)
+                mail.mail_bcc         = self._convert_email(rec['bccList'].Value)
                 mail.mail_read_status = rec['flagRead'].Value
                 mail.mail_sent_date   = rec['timeStamp'].Value
                 try: 
@@ -316,9 +269,9 @@ class EmailParser(object):
                     mail.mail_send_status = 0
                 mail.source  = self.cur_db_source
                 mail.deleted = 1 if rec.IsDeleted else 0               
-                self.mm.db_insert_table_mail(mail)
+                self.csm.db_insert_table_mail(mail)
 
-            self.mm.db_commit()
+            self.csm.db_commit()
 
             self.parse_email_body('EmailProviderBody.db', 'Body')            
         except:
@@ -356,10 +309,10 @@ class EmailParser(object):
                 mailId = rec['messageKey'].Value
                 mailContent = rec['htmlContent'].Value
                 try:
-                    self.mm.db_update(SQL_UPDATE_EMAIL_CONTENT, (mailContent, mailId))
+                    self.csm.db_update(SQL_UPDATE_EMAIL_CONTENT, (mailContent, mailId))
                 except:
                     exc()
-            self.mm.db_commit()
+            self.csm.db_commit()
         except:
             exc()
 
@@ -397,7 +350,7 @@ class EmailParser(object):
                 return
             if self._is_empty(rec, 'fileName', 'size') or self._is_duplicate(rec, '_id'):
                 continue
-            attach = Attachment()
+            attach = model_mail.Attachment()
             attach.attachment_id       = rec['_id'].Value
             attach.mail_id             = rec['messageKey'].Value
             attach.owner_account_id    = rec['accountKey'].Value
@@ -412,10 +365,10 @@ class EmailParser(object):
                 pass
             attach.source                   = self.cur_db_source
             try:
-                self.mm.db_insert_table_attachment(attach)
+                self.csm.db_insert_table_attachment(attach)
             except:
                 exc()
-        self.mm.db_commit()
+        self.csm.db_commit()
 
     def parse_contact(self, db_path, table_name):
         """
@@ -449,7 +402,7 @@ class EmailParser(object):
             for rec in self._read_table(table_name):
                 if self._is_empty(rec, 'name', 'email') or self._is_duplicate(rec, '_id'):
                     continue
-                contact = Contact()
+                contact = model_mail.Contact()
                 contact.contact_id          = rec['_id'].Value
                 contact.owner_account_id    = self._get_account_id(rec['myemail'].Value)
                 contact.contact_alias       = rec['name'].Value
@@ -458,10 +411,10 @@ class EmailParser(object):
                 contact.source              = self.cur_db_source
                 contact.deleted             = 1 if rec.IsDeleted else 0               
                 try:
-                    self.mm.db_insert_table_contact(contact)
+                    self.csm.db_insert_table_contact(contact)
                 except:
                     exc()
-            self.mm.db_commit()
+            self.csm.db_commit()
         except:
             pass
             # exc()
@@ -469,68 +422,31 @@ class EmailParser(object):
     @staticmethod
     def _convert_email(eml):
         """
-        pangu_x01 <pangu_x01@163.com>, pangu_x02 <pangu_x02@163.com>
-        pangu_x01@163.com pangu_x01 pangu_x02@163.com pangu_x02
+        :eml: (str) pangu_x01 <pangu_x01@163.com>, pangu_x02 <pangu_x02@163.com>
+        :rtype: pangu_x01@163.com pangu_x01 pangu_x02@163.com pangu_x02
         """
         if not eml:
             return None
         try:
             res = ''
+            _name = ''
+            _email = ''           
             for i in eml.split(', '):
-                name  = i.split(' ')[0]
-                email = i.split(' ')[1][1:-1]
-                res += ' ' + email + ' ' + name
+                _name_address = i.split(' ')
+                if len(_name_address) == 2:
+                    _name  = MailUtils.encoded_mailaddress_name(_name_address[0])
+                    _email = _name_address[1][1:-1]
+                elif '@' in _name_address[0]:
+                    _email = _name_address[0]
+                else:
+                    tp(_name_address)
+                    _name = _name_address[0]
+                res += ' ' + _email + ' ' + _name
             return res.lstrip()
         except:
+            exc()
+            tp(eml)
             return None
-
-    def _read_db(self, db_path):
-        """ 读取手机数据库
-
-        :type db_path: str
-        :rtype: bool                              
-        """
-        node = self.root.GetByPath(db_path)
-        self.cur_db = SQLiteParser.Database.FromNode(node, canceller)
-        if self.cur_db is None:
-            return False
-        self.cur_db_source = node.AbsolutePath
-        return True
-
-    def _read_table(self, table_name, extract_deleted=None):
-        ''' 读取手机数据库 - 表
-
-        :type table_name: str
-        :rtype: db.ReadTableRecords()                                       
-        '''
-        if extract_deleted == None:
-            extract_deleted = self.extract_deleted
-        self._PK_LIST = []
-        try:
-            tb = SQLiteParser.TableSignature(table_name)  
-            return self.cur_db.ReadTableRecords(tb, extract_deleted, True)
-        except:
-            exc()
-            return []
-
-    def _is_duplicate(self, rec, pk_name):
-        ''' filter duplicate record
-        
-        Args:
-            rec (record): 
-            pk_name (str): 
-        Returns:
-            bool: rec[pk_name].Value in self._PK_LIST
-        '''
-        try:
-            pk_value = rec[pk_name].Value
-            if IsDBNull(pk_value) or pk_value in self._PK_LIST:
-                return True
-            self._PK_LIST.append(pk_value)
-            return False
-        except:
-            exc()
-            return True            
 
     def _get_account_id(self, my_email):
         ''' return corresponding account_id by email
@@ -542,46 +458,6 @@ class EmailParser(object):
             if self.accounts[i]['email'] == my_email:
                 return i
         return None
-
-    @staticmethod
-    def _is_empty(rec, *args):
-        ''' 过滤 DBNull 空数据, 有一空值就跳过
-        
-        :type rec:   rec
-        :type *args: str
-        :rtype: bool
-        '''
-        try:
-            for i in args:
-                value = rec[i].Value
-                if IsDBNull(value) or value in ('', ' ', None, [], {}):
-                    return True
-                if isinstance(value, str) and re.search(r'[\x00-\x08\x0b-\x0c\x0e-\x1f]', str(value)):
-                    return True
-            return False
-        except:
-            exc()
-            return True   
-
-    @staticmethod
-    def _is_email_format(rec, key):
-        """ 匹配邮箱地址 
-
-        :type rec: type: <rec>
-        :type key: str
-        :rtype:    bool        
-        """
-        try:
-            if IsDBNull(rec[key].Value) or len(rec[key].Value.strip()) < 5:
-                return False
-            reg_str = r'^\w+([-+.]\w+)*@\w+([-.]\w+)*\.\w+([-.]\w+)*$'
-            match_obj = re.match(reg_str, rec[key].Value)
-            if match_obj is None:
-                return False      
-            return True      
-        except:
-            exc()
-            return False
 
     def convert_primary_key(self, mailId):
         if mailId == 0:
