@@ -46,7 +46,10 @@ def analyze_wechat(root, extract_deleted, extract_source):
     nodes = root.FileSystem.Search('/DB/MM\.sqlite$')
     if len(nodes) > 0:
         progress.Start()
-        WeChatParser(process_nodes(nodes), extract_deleted, extract_source).process()
+        try:
+            WeChatParser(process_nodes(nodes), extract_deleted, extract_source).process()
+        except Exception as e:
+            TraceService.Trace(TraceLevel.Error, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
         progress.Finish(True)
     else:
         progress.Skip()
@@ -246,36 +249,36 @@ class WeChatParser(Wechat):
             except Exception as e:
                 TraceService.Trace(TraceLevel.Error, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
             self.set_progress(35)
-            try:
-                #print('%s apple_wechat() parse MM.sqlite' % time.asctime(time.localtime(time.time())))
-                self._parse_user_mm_db(self.user_node.GetByPath('/DB/MM.sqlite'))
-            except Exception as e:
-                TraceService.Trace(TraceLevel.Error, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
-            self.set_progress(80)
-            try:
-                #print('%s apple_wechat() parse fts_message.db' % time.asctime(time.localtime(time.time())))
-                self._parse_user_fts_db(self.user_node.GetByPath('/fts/fts_message.db'))
-            except Exception as e:
-                TraceService.Trace(TraceLevel.Error, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
-            self.set_progress(90)
-            try:
-                #print('%s apple_wechat() parse story_main.db' % time.asctime(time.localtime(time.time())))
-                self._parse_user_story_db(self.user_node.GetByPath('/story/story_main.db'))
-            except Exception as e:
-                TraceService.Trace(TraceLevel.Error, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
-            self.set_progress(92)
             if self.private_user_node is not None:
                 try:
                     #print('%s apple_wechat() parse fav.db' % time.asctime(time.localtime(time.time())))
                     self._parse_user_fav_db(self.private_user_node.GetByPath('/Favorites/fav.db'))
                 except Exception as e:
                     TraceService.Trace(TraceLevel.Error, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
-                self.set_progress(98)
+                self.set_progress(41)
                 try:
                     #print('%s apple_wechat() parse wshistory.pb' % time.asctime(time.localtime(time.time())))
                     self._parse_user_search(self.private_user_node.GetByPath('/searchH5/cache/wshistory.pb'))
                 except Exception as e:
                     TraceService.Trace(TraceLevel.Error, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
+            self.set_progress(42)
+            try:
+                #print('%s apple_wechat() parse MM.sqlite' % time.asctime(time.localtime(time.time())))
+                self._parse_user_mm_db(self.user_node.GetByPath('/DB/MM.sqlite'), 42, 87)
+            except Exception as e:
+                TraceService.Trace(TraceLevel.Error, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
+            self.set_progress(87)
+            try:
+                #print('%s apple_wechat() parse fts_message.db' % time.asctime(time.localtime(time.time())))
+                self._parse_user_fts_db(self.user_node.GetByPath('/fts/fts_message.db'))
+            except Exception as e:
+                TraceService.Trace(TraceLevel.Error, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
+            self.set_progress(97)
+            try:
+                #print('%s apple_wechat() parse story_main.db' % time.asctime(time.localtime(time.time())))
+                self._parse_user_story_db(self.user_node.GetByPath('/story/story_main.db'))
+            except Exception as e:
+                TraceService.Trace(TraceLevel.Error, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
             self.set_progress(99)
             self.im.db_create_index()
             # 数据库填充完毕，请将中间数据库版本和app数据库版本插入数据库，用来检测app是否需要重新解析
@@ -548,7 +551,7 @@ class WeChatParser(Wechat):
 
         return True
 
-    def _parse_user_mm_db(self, node):
+    def _parse_user_mm_db(self, node, progress_start, progress_end):
         if not node:
             return False
         if canceller.IsCancellationRequested:
@@ -571,7 +574,7 @@ class WeChatParser(Wechat):
             return False
         if not db:
             return False
-        self.set_progress(36)
+        self.set_progress(progress_start+1)
 
         #db_tables = set()
         #ts = SQLiteParser.TableSignature('sqlite_master')
@@ -623,7 +626,7 @@ class WeChatParser(Wechat):
                     TraceService.Trace(TraceLevel.Error, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
             self.im.db_commit()
             self.push_models()
-            self.set_progress(36 + i * 100 / len(db.Tables) * (80 - 36) / 100)
+            self.set_progress(progress_start+1 + i * 100 / len(db.Tables) * (progress_end - progress_start+1) / 100)
         return True
 
     def _parse_user_mm_db_with_value(self, deleted, source, username, msg, msg_type, msg_local_id, is_sender, timestamp, user_hash, user_unknown):
