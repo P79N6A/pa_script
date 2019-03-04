@@ -49,6 +49,7 @@ class Radio(object):
         self.extract_Source = extract_Source
 
     def parse(self):
+        self.create_cache()
         models = []
         plist = NSHelpers.ReadPlist[NSDictionary](mainfest_path)
         if plist is None:
@@ -77,7 +78,40 @@ class Radio(object):
             pass
         elif "meizu" in phone_name:
             pass
+        self.close_cache()
         return models
+
+    def create_cache(self):
+        '''创建中间数据库'''
+        self.cd = bcp_connectdevice.ConnectDeviceBcp()
+        cachepath = ds.OpenCachePath("基站信息")
+        md5_db = hashlib.md5()
+        db_name = 'radio_log'
+        md5_db.update(db_name.encode(encoding = 'utf-8'))
+        self.db_path = cachepath + '\\' + md5_db.hexdigest().upper() + '.db'
+        self.cd.db_create(self.db_path)
+
+    def insert_cache(self, mcc, mnc, lac, ci, latitude, longitude):
+        '''插入数据'''
+        base = bcp_connectdevice.BasestationInfo()
+        base.MCC = mcc
+        base.MNC = mnc
+        base.LAC = lac
+        base.CellID = ci
+        base.LATITUDE = latitude
+        base.LONGITUDE = longitude
+        self.cd.db_insert_table_basestation_information(base)
+
+    def close_cache(self):
+        '''关闭数据库,导出bcp'''
+        try:
+            self.cd.db_commit()
+            self.cd.db_close()
+            #bcp entry
+            temp_dir = ds.OpenCachePath('tmp')
+            PA_runtime.save_cache_path(bcp_connectdevice.BASESTATION_INFORMATION, self.db_path, temp_dir)
+        except:
+            pass
         
     def parse_huawei_radio(self, radio_log, pattern):
         if radio_log is None:
@@ -107,6 +141,7 @@ class Radio(object):
                                     coord.Latitude.Value = latitude
                                     loc.Position.Value = coord
                                     models.append(loc)
+                                self.insert_cache(mcc,mnc,lac,ci,latitude,longitude)
                         except Exception as e:
                             pass
         return models
@@ -140,6 +175,7 @@ class Radio(object):
                                     coord.Latitude.Value = latitude
                                     loc.Position.Value = coord
                                     models.append(loc)
+                                self.insert_cache(mcc,mnc,lac,ci,latitude,longitude)
                         except Exception as e:
                             pass
         return models
@@ -172,6 +208,7 @@ class Radio(object):
                                     coord.Latitude.Value = latitude
                                     loc.Position.Value = coord
                                     models.append(loc)
+                                self.insert_cache(mcc,mnc,lac,ci,latitude,longitude)
                         except Exception as e:
                             pass
         return models
@@ -204,6 +241,7 @@ class Radio(object):
                                     coord.Latitude.Value = latitude
                                     loc.Position.Value = coord
                                     models.append(loc)
+                                self.insert_cache(mcc,mnc,lac,ci,latitude,longitude)
                         except Exception as e:
                             pass
         return models
