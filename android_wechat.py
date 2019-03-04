@@ -447,15 +447,16 @@ class WeChatParser(Wechat):
         self.progress = progress['APP', self.build]['ACCOUNT', self.user_account_model.Account, self.user_account_model]
         self.progress.Start()
         self.set_progress(15)
-        yield
         self._parse_mm_db_chatroom_member(db, source)
         self._parse_mm_db_contact(db, source)
         self.set_progress(25)
         self.get_chatroom_models(self.cache_db)
         self.set_progress(30)
-        self._parse_mm_db_message(db, source)
         self._parse_mm_db_bank_cards(db, source)
         self._parse_mm_db_login_devices(db, source)
+        self.push_models()
+        yield
+        self._parse_mm_db_message(db, source)
         self.push_models()
         yield
 
@@ -1634,7 +1635,7 @@ class WeChatParser(Wechat):
         ans = re.findall(content_pattern, row_content)
         if ans:
             content = ans[0].strip()
-        ans = re.findall(url_pattern, url)
+        ans = re.findall(url_pattern, row_content)
         if ans:
             url = ans[0].strip()
 
