@@ -3,9 +3,13 @@
 __author__ = "Xu Tao"
 
 import clr
-clr.AddReference("System")
-clr.AddReference("PNFA.Formats.NextStep")
-clr.AddReference('PNFA.InfraLib.Exts')
+try:
+    clr.AddReference("System")
+    clr.AddReference("PNFA.Formats.NextStep")
+    clr.AddReference('PNFA.InfraLib.Exts')
+    clr.AddReference('bcp_connectdevice')
+except:
+    pass
 del clr
 
 import System
@@ -16,7 +20,11 @@ import requests
 import json
 import re
 
+import bcp_connectdevice
+import hashlib
+
 from PA_runtime import *
+import PA_runtime
 
 '''
 herf: http://safe.it168.com/a2016/0913/2916/000002916475.shtml
