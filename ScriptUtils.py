@@ -1150,7 +1150,7 @@ class SemiXmlParser(object):
                 start_index += 0x01
 
     def parse(self, raw_data):
-        if isinstance(raw_data, bytearray):
+        if not isinstance(raw_data, bytearray):
             raw_data = bytearray(raw_data)
         data_length = len(raw_data)
 
@@ -1246,7 +1246,10 @@ class SemiXmlParser(object):
                 key = 'msg.appmsg.mmreader.category.item' + str(i)
             node = self.get_keys(key)
             if node is not None:
-                ret_nodes.append(node)
+                if key == 'msg.appmsg.mmreader.category.item':
+                    ret_nodes.insert(0, node)
+                else:
+                    ret_nodes.append(node)
         return ret_nodes
 
 
