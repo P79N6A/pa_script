@@ -182,6 +182,8 @@ class WeChatParser(Wechat):
 
     def process(self):
         for build in self.node_dict:
+            prog = progress['APP', build]
+            prog.Start()
             self.ar = AppResources(progress['APP', build]['MEDIA', '多媒体'])
             self.ar.set_thum_config("jpg", "Video")
             self.ar.set_thum_config("thumb", "Video")
@@ -199,7 +201,8 @@ class WeChatParser(Wechat):
             pr.Models.AddRange(self.ar.parse())
             pr.Build(build)
             ds.Add(pr)
-            
+
+            prog.Finish(True)
             self.ar = None
 
     def parse_user_node(self, node, build):
@@ -306,7 +309,7 @@ class WeChatParser(Wechat):
         try:
             self.get_wechat_res(self.ar)
         except Exception as e:
-            print(e)
+            print_error()
 
         self.im = None
         self.build = None
@@ -1146,7 +1149,7 @@ class WeChatParser(Wechat):
                     friend_type = model_wechat.FRIEND_TYPE_BLOCKED
                 else:
                     friend_type = model_wechat.FRIEND_TYPE_FRIEND
-            elif contact_type == 0:
+            elif username.endswith('@app') is True:
                 friend_type = model_wechat.FRIEND_TYPE_PROGRAM
             friend = model_wechat.Friend()
             friend.deleted = deleted
@@ -1856,7 +1859,7 @@ class Decryptor:
                                        "android_wechat.py Error: LINE {}".format(traceback.format_exc()))
                     return False
 
-        #size = src_node.Size
+        size = src_node.Size
         src_node.Data.seek(0)
         first_page = src_node.read(1024)
 
@@ -1886,31 +1889,15 @@ class Decryptor:
         de.write(content)
         de.write(iv)
 
-        # 增大缓存
-        buffer_size = 1024 * 1024
-        while True:
-            buffer = src_node.read(buffer_size)
-            size = len(buffer)
-            for i in range(0, size // 1024):
-                content = buffer[i * 1024: (i + 1) * 1024]
-                iv = content[1008: 1024]
-                de.write(Decryptor.aes_decrypt(final_key,
-                                               Convert.FromBase64String(base64.b64encode(iv)),
-                                               Convert.FromBase64String(base64.b64encode(content[:1008]))))
-                de.write(iv)
-
-            if size < buffer_size:
+        for _ in range(1, size // 1024):
+            if canceller.IsCancellationRequested:
                 break
-
-        #for _ in range(1, size // 1024 * 16):
-        #    if canceller.IsCancellationRequested:
-        #        break
-        #    content = src_node.read(1024)
-        #    iv = content[1008: 1024]
-        #    de.write(Decryptor.aes_decrypt(final_key,
-        #                                   Convert.FromBase64String(base64.b64encode(iv)),
-        #                                   Convert.FromBase64String(base64.b64encode(content[:1008]))))
-        #    de.write(iv)
+            content = src_node.read(1024)
+            iv = content[1008: 1024]
+            de.write(Decryptor.aes_decrypt(final_key,
+                                           Convert.FromBase64String(base64.b64encode(iv)),
+                                           Convert.FromBase64String(base64.b64encode(content[:1008]))))
+            de.write(iv)
         de.close()
 
         Decryptor.db_fix_header(dst_db_path)

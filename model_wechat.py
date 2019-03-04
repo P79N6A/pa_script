@@ -8,6 +8,7 @@ clr.AddReference('System.Xml.Linq')
 clr.AddReference('System.Data.SQLite')
 try:
     clr.AddReference('ResourcesExp')
+    clr.AddReference('ScriptUtils')
 except:
     pass
 del clr
@@ -28,7 +29,7 @@ import sqlite3
 import time
 
 from ResourcesExp import AppResources
-
+from ScriptUtils import SemiXmlParser
 
 VERSION_VALUE_DB = 7
 
@@ -58,6 +59,7 @@ MESSAGE_CONTENT_TYPE_RED_ENVELPOE = 9  # 红包
 MESSAGE_CONTENT_TYPE_TRANSFER = 10  # 转账
 MESSAGE_CONTENT_TYPE_SPLIT_BILL = 11  # 群收款
 MESSAGE_CONTENT_TYPE_APPMESSAGE = 12
+MESSAGE_CONTENT_TYPE_SEMI_XML = 13
 MESSAGE_CONTENT_TYPE_SYSTEM = 99  # 系统
 
 # 收藏类型
@@ -1607,6 +1609,18 @@ class GenerateModel(object):
                         model.Content.Title = title
                         model.Content.Content = content
                         model.Content.SendTime = self._get_timestamp(timestamp)
+                    elif msg_type == MESSAGE_CONTENT_TYPE_SEMI_XML:
+                        model.Content = Base.Content.LinkSetContent(model)
+                        parser = SemiXmlParser()
+                        parser.parse(content.encode('utf-8'))
+                        items = parser.export_items()
+                        for item in items:
+                            link = Base.Link()
+                            link.Title = getattr(item.get('title'), 'value', None)
+                            link.Description = getattr(item.get('digest'), 'value', None)
+                            link.Url = getattr(item.get('url'), 'value', None)
+                            link.ImagePath = getattr(item.get('cover'), 'value', None)
+                            model.Content.Values.Add(link)
                     else:
                         model.Content = Base.Content.TextContent(model)
                         model.Content.Value = content
