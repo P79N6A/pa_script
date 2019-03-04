@@ -398,7 +398,7 @@ class GenerateBcp(ConnectDeviceBcp):
             db_cmd = SQLite.SQLiteCommand(db)
             if db is None:
                 return
-            db_cmd.CommandText = '''select distinct * from base_station'''
+            db_cmd.CommandText = '''select distinct * from WA_MFORENSICS_080400'''
             sr = db_cmd.ExecuteReader()
             while (sr.Read()):
                 try:
