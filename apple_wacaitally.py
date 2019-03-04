@@ -15,7 +15,7 @@ import json
 import model_wacai
 from MapUtil import md5
 
-VERSION_APP_VALUE = 2
+VERSION_APP_VALUE = 1
 
 
 class WaCaiTally(object):
@@ -341,9 +341,9 @@ class WaCaiTally(object):
                             bill_record.amount = amount
                         if "recType" in record:
                             rectype = record["recType"]  # 1 支出 2 收入
-                            if rectype == "1":
+                            if rectype == 1:
                                 bill_record.bookType = 1
-                            elif rectype == "2":
+                            elif rectype == 2:
                                 bill_record.bookType = 2
                         if "attachments" in record:
                             if record["attachments"]:
@@ -363,9 +363,8 @@ class WaCaiTally(object):
                                 mids = []
                                 for item in record["members"]:
                                     try:
-                                        mem = json.loads(item)
-                                        if "memberId" in mem:
-                                            mids.append(mem["memberId"])
+                                        if "memberId" in item:
+                                            mids.append(item["memberId"])
                                     except:
                                         pass
                                 if len(mids) != 0:
