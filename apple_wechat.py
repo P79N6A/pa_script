@@ -647,7 +647,7 @@ class WeChatParser(Wechat):
             message.talker_type = model_wechat.CHAT_TYPE_FRIEND
             message.sender_id = self.user_account.account_id if is_sender else username
             if username == 'newsapp':
-                message.content = self._process_parse_message_tencent_news(msg)
+                message.content = self._process_parse_message_tencent_news(msg, message)
             else:
                 revoke_content = self._process_parse_friend_message(msg, msg_type, msg_local_id, self.user_node, user_hash, message)
 
@@ -1439,25 +1439,61 @@ class WeChatParser(Wechat):
                         attach_node = self.user_node.GetByPath('OpenData/{}/{}.{}'.format(friend_hash, msg_local_id, ext))
                         if attach_node is not None:
                             model.link_url = attach_node.AbsolutePath
+                    elif msg_type == 9:  # 提醒
+                        if appmsg.Element('des'):
+                            content = appmsg.Element('des').Value
+                            model.type = model_wechat.MESSAGE_CONTENT_TYPE_TEXT
                     elif msg_type == 17:  # 位置共享
                         if appmsg.Element('title'):
                             content = appmsg.Element('title').Value
                             model.type = model_wechat.MESSAGE_CONTENT_TYPE_TEXT
                     else:
                         mmreader = appmsg.Element('mmreader')
-                        if mmreader:
+                        if mmreader and mmreader.Element('category'):
                             content = ''
-                            category = mmreader.Element('category')
-                            if category and category.Element('item'):
-                                item = category.Element('item')
-                                if item.Element('title'):
-                                    model.link_title = item.Element('title').Value
-                                if item.Element('digest'):
-                                    model.link_content = item.Element('digest').Value
-                                if item.Element('url'):
-                                    model.link_url = item.Element('url').Value
-                                if item.Element('cover'):
-                                    model.link_image = item.Element('cover').Value
+                            count = 1
+                            if mmreader.Element('category').Attribute('count'):
+                                count = int(mmreader.Element('category').Attribute('count').Value)
+                            if count > 1:
+                                items = mmreader.Element('category').Elements('item')
+                                contents = []
+                                for item in items:
+                                    info = {}
+                                    if item.Element('title'):
+                                        info['title'] = item.Element('title').Value
+                                    if item.Element('digest'):
+                                        info['description'] = item.Element('digest').Value
+                                    if item.Element('url'):
+                                        info['url'] = item.Element('url').Value
+                                    if item.Element('cover'):
+                                        info['image'] = item.Element('cover').Value
+                                    if len(info) > 0:
+                                        contents.append(info)
+                                try:
+                                    content = json.dumps(contents, ensure_ascii=False)
+                                    model.type = model_wechat.MESSAGE_CONTENT_TYPE_LINK_SET
+                                except Exception as e:
+                                    item = mmreader.Element('category').Element('item')
+                                    if item is not None:
+                                        if item.Element('title'):
+                                            model.link_title = item.Element('title').Value
+                                        if item.Element('digest'):
+                                            model.link_content = item.Element('digest').Value
+                                        if item.Element('url'):
+                                            model.link_url = item.Element('url').Value
+                                        if item.Element('cover'):
+                                            model.link_image = item.Element('cover').Value
+                            elif count == 1:
+                                item = mmreader.Element('category').Element('item')
+                                if item is not None:
+                                    if item.Element('title'):
+                                        model.link_title = item.Element('title').Value
+                                    if item.Element('digest'):
+                                        model.link_content = item.Element('digest').Value
+                                    if item.Element('url'):
+                                        model.link_url = item.Element('url').Value
+                                    if item.Element('cover'):
+                                        model.link_image = item.Element('cover').Value
                         else:
                             content = ''
                             if appmsg.Element('title'):
@@ -1508,6 +1544,49 @@ class WeChatParser(Wechat):
                     model.link_image = appmsg.Element('thumburl').Value
             else:
                 pass
+        return content
+
+    def _process_parse_message_tencent_news(self, xml_str, model):
+        content = xml_str
+        news = []
+        xml = None
+        try:
+            xml = XElement.Parse(xml_str)
+        except Exception as e:
+            model.type = model_wechat.MESSAGE_CONTENT_TYPE_TEXT
+        if xml and xml.Name.LocalName == 'mmreader' and xml.Element('category'):
+            contents = []
+            items = xml.Element('category').Elements('newitem')
+            for item in items:
+                info = {}
+                if item.Element('title'):
+                    info['title'] = item.Element('title').Value
+                if item.Element('digest'):
+                    info['description'] = item.Element('digest').Value
+                if item.Element('url'):
+                    info['url'] = item.Element('url').Value
+                if item.Element('cover'):
+                    info['image'] = item.Element('cover').Value
+                if len(info) > 0:
+                    contents.append(info)
+            try:
+                content = json.dumps(contents, ensure_ascii=False)
+                model.type = model_wechat.MESSAGE_CONTENT_TYPE_LINK_SET
+            except Exception as e:
+                item = xml.Element('category').Element('newitem')
+                if item is not None:
+                    model.type = model_wechat.MESSAGE_CONTENT_TYPE_LINK
+                    content = ''
+                    if item.Element('title'):
+                        model.link_title = item.Element('title').Value
+                    if item.Element('digest'):
+                        model.link_content = item.Element('digest').Value
+                    if item.Element('url'):
+                        model.link_url = item.Element('url').Value
+                    if item.Element('cover'):
+                        model.link_image = item.Element('cover').Value
+                else:
+                    model.type = model_wechat.MESSAGE_CONTENT_TYPE_TEXT
         return content
 
     def _parse_pay_card(self):

@@ -60,6 +60,7 @@ MESSAGE_CONTENT_TYPE_TRANSFER = 10  # 转账
 MESSAGE_CONTENT_TYPE_SPLIT_BILL = 11  # 群收款
 MESSAGE_CONTENT_TYPE_APPMESSAGE = 12
 MESSAGE_CONTENT_TYPE_SEMI_XML = 13
+MESSAGE_CONTENT_TYPE_LINK_SET = 14  # 链接集合
 MESSAGE_CONTENT_TYPE_SYSTEM = 99  # 系统
 
 # 收藏类型
@@ -1620,6 +1621,20 @@ class GenerateModel(object):
                             link.Description = getattr(item.get('digest'), 'value', None)
                             link.Url = getattr(item.get('url'), 'value', None)
                             link.ImagePath = getattr(item.get('cover'), 'value', None)
+                            model.Content.Values.Add(link)
+                    elif msg_type == MESSAGE_CONTENT_TYPE_LINK_SET:
+                        model.Content = Base.Content.LinkSetContent(model)
+                        items = []
+                        try:
+                            items = json.loads(content)
+                        except Exception as e:
+                            pass
+                        for item in items:
+                            link = Base.Link()
+                            link.Title = item.get('title')
+                            link.Description = item.get('description')
+                            link.Url = item.get('url')
+                            link.ImagePath = item.get('image')
                             model.Content.Values.Add(link)
                     else:
                         model.Content = Base.Content.TextContent(model)
