@@ -490,7 +490,7 @@ class ExportModel(object):
                             keys = bookId+memberId
                             if keys in self.members:
                                 user = self.members[keys]
-                                bill_record.Member.Add(user)
+                                bill_record.Member = user
                     if mediaPath:
                         media_list = mediaPath.split(",")
                         for media in media_list:
