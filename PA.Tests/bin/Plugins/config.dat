@@ -2406,7 +2406,7 @@
     </dict>
     <dict>
       <key>Module</key>
-      <string>apple_360mobilesfe</string>
+      <string>apple_360mobilesafe</string>
       <key>Runners</key>
       <array>
         <dict>
