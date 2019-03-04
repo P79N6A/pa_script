@@ -256,7 +256,8 @@ class WeChatParser(Wechat):
                 # print('%s android_wechat() decrypt EnMicroMsg.db' % time.asctime(time.localtime(time.time())))
                 if Decryptor.decrypt(node, self._get_db_key(self.imei, self.uin), mm_db_path):
                     # print('%s android_wechat() parse MicroMsg.db' % time.asctime(time.localtime(time.time())))
-                    self._parse_mm_db(mm_db_path, node.AbsolutePath)
+                    mm_db_parser = self._parse_mm_db(mm_db_path, node.AbsolutePath)
+                    next(mm_db_parser)
             except Exception as e:
                 TraceService.Trace(TraceLevel.Error, "android_wechat.py Error: LINE {}".format(traceback.format_exc()))
             self.set_progress(65)
@@ -287,6 +288,7 @@ class WeChatParser(Wechat):
                 self._parse_story_db(self.user_node.GetByPath('/StoryMicroMsg.db'))
             except Exception as e:
                 TraceService.Trace(TraceLevel.Error, "android_wechat.py Error: LINE {}".format(traceback.format_exc()))
+            next(mm_db_parser)
             self.set_progress(99)
             self.im.db_create_index()
             # 数据库填充完毕，请将中间数据库版本和app数据库版本插入数据库，用来检测app是否需要重新解析
@@ -445,6 +447,7 @@ class WeChatParser(Wechat):
         self.progress = progress['APP', self.build]['ACCOUNT', self.user_account_model.Account, self.user_account_model]
         self.progress.Start()
         self.set_progress(15)
+        yield
         self._parse_mm_db_chatroom_member(db, source)
         self._parse_mm_db_contact(db, source)
         self.set_progress(25)
@@ -454,6 +457,7 @@ class WeChatParser(Wechat):
         self._parse_mm_db_bank_cards(db, source)
         self._parse_mm_db_login_devices(db, source)
         self.push_models()
+        yield
 
     def _parse_fav_db(self, fav_db_path, source):
         db = None
@@ -1614,34 +1618,27 @@ class WeChatParser(Wechat):
             else:
                 pass
 
+    # TODO: to optimize
     def _process_parse_message_app_message(self, row_content):
-        title_pattern = '<title><!\[CDATA\[(.+?)\]\]></title>'
-        content_pattern = '<des><!\[CDATA\[([\s\S]*)\]\]></des>'
+        title_pattern = r'<title><!\[CDATA\[(.+?)\]\]></title>'
+        content_pattern = r'<des><!\[CDATA\[([\s\S]*)\]\]></des>'
+        url_pattern = r'<url><!\[CDATA\[([\s\S]*?)\]\]></url>'
 
         title = ''
         content = ''
+        url = ''
 
         ans = re.findall(title_pattern, row_content)
         if ans:
-            title = ans[0]
+            title = ans[0].strip()
         ans = re.findall(content_pattern, row_content)
         if ans:
-            content = ans[0]
+            content = ans[0].strip()
+        ans = re.findall(url_pattern, url)
+        if ans:
+            url = ans[0].strip()
 
-        return "#*#".join((title, content))
-
-    def _search_file(self, file_name):
-        """搜索函数"""
-        search_nodes = self.extend_nodes + self._search_nodes
-
-        for node in search_nodes:
-            results = node.Search(file_name)
-            for result in results:
-                if os.path.isfile(result.PathWithMountPoint):
-                    if result.Parent not in self._search_nodes:
-                        self._search_nodes.insert(0, result.Parent)
-                    return result
-        return None
+        return "#*#".join((title, content, url))
 
     def _search_fav_file(self, file_name):
         """搜索函数"""
