@@ -987,9 +987,15 @@ class Wechat(object):
                 model.Content.Value.Status = model_wechat.GenerateModel._convert_deal_status(message.deal_status)
             elif message.type == model_wechat.MESSAGE_CONTENT_TYPE_APPMESSAGE:
                 model.Content = Base.Content.TemplateContent(model)
-                title, content = message.content.split('#*#', 1)
+                try:
+                    title, content, url = message.content.split('#*#', 2)
+                except Exception as e:
+                    print('debug', e)
+                    title = url = ''
+                    content = message.content
                 model.Content.Title = title
                 model.Content.Content = content
+                model.Content.InfoUrl = url
                 model.Content.SendTime = model_wechat.GenerateModel._get_timestamp(message.timestamp)
             elif message.type == model_wechat.MESSAGE_CONTENT_TYPE_SEMI_XML:
                 model.Content = Base.Content.LinkSetContent(model)

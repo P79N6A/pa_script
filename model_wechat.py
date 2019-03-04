@@ -1605,9 +1605,15 @@ class GenerateModel(object):
                         model.Content.Value.Status = self._convert_deal_status(deal_status)
                     elif msg_type == MESSAGE_CONTENT_TYPE_APPMESSAGE:
                         model.Content = Base.Content.TemplateContent(model)
-                        title, content = content.split('#*#', 1)
+                        try:
+                            title, content, url = content.split('#*#', 2)
+                        except Exception as e:
+                            print('debug', e)
+                            title = url = ''
+                            content = content
                         model.Content.Title = title
                         model.Content.Content = content
+                        model.Content.InfoUrl = url
                         model.Content.SendTime = self._get_timestamp(timestamp)
                     elif msg_type == MESSAGE_CONTENT_TYPE_SEMI_XML:
                         model.Content = Base.Content.LinkSetContent(model)
