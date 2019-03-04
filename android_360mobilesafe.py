@@ -32,7 +32,7 @@ class QihooMobileSecureParser(model_secure.SM):
     def __init__(self, node, extract_deleted, extract_source):
         self.node = node
         self.extractDeleted = extract_deleted
-        self.cachepath = ds.OpenCachePath("350安全卫士")
+        self.cachepath = ds.OpenCachePath("360手机卫士")
         md5_db = hashlib.md5()
         db_name = self.node.AbsolutePath
         md5_db.update(db_name.encode(encoding = 'utf-8'))
@@ -239,7 +239,7 @@ class QihooMobileSecureParser(model_secure.SM):
 def analyze_android_360mobilesafe(node, extractDeleted, extractSource):
     pr = ParserResults()
     pr.Models.AddRange(QihooMobileSecureParser(node, extractDeleted, extractSource).parse())
-    pr.Build('360安全卫士')
+    pr.Build('360手机卫士')
     return pr
 
 def execute(node, extractDeleted):
