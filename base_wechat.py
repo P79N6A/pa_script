@@ -992,6 +992,7 @@ class Wechat(object):
                     items = json.loads(message.content)
                 except Exception as e:
                     #print(e)
+                    pass
                 for item in items:
                     link = Base.Link()
                     link.Title = item.get('title')
