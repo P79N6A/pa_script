@@ -62,8 +62,9 @@ class AlipayParser():
         self.eb = model_eb.EB(self.cache + '/Alipay', VERSION_APP_VALUE, 'Alipay')
         self.im = self.eb.im
         self.need_parse = self.eb.need_parse
+        self.bcp_path = ds.OpenCachePath('tmp')
         if is_scripts:
-            nameValues.SafeAddValue('1290007', self.cache + '/Alipay')
+            PA_runtime.save_cache_path(model_eb.WA_CODE_ALIPAY, self.cache + '/Alipay', self.bcp_path)
 
     def parse(self):
         user_list = self.get_user_list()
