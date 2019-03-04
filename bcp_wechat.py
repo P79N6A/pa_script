@@ -278,120 +278,133 @@ class GenerateWechatBcp(object):
             TraceService.Trace(TraceLevel.Error, "bcp_wechat.py Error: LINE {}".format(traceback.format_exc()))
         self.im.db_commit()
 
-    def _generate_message(self):
-        if canceller.IsCancellationRequested:
-            return []
-        if not db_has_table(self.db, 'message'):
-            return []
-        sql = '''select account_id, talker_id, talker_type, sender_id, timestamp, msg_id, type, content, media_path, 
-                        media_thum_path, status, is_recall, location_latitude, location_longitude, location_elevation, location_address, 
-                        location_type, deal_money, deal_description, deal_remark, deal_status, deal_mode, deal_create_time, 
-                        deal_expire_time, link_url, link_title, link_content, link_image, link_from, business_card_username, 
-                        business_card_nickname, business_card_gender, business_card_photo, business_card_region, business_card_signature, 
-                        source, deleted, repeated
-                 from message '''
+    def _db_get_message_tables(self):
+        tables = []
         try:
+            sql = r"select name from sqlite_master where type='table' and name like 'message%' "
             cmd = self.db.CreateCommand()
             cmd.CommandText = sql
             r = cmd.ExecuteReader()
             while r.Read():
-                if canceller.IsCancellationRequested:
-                    break
-                deleted = 0
-                try:
-                    source = db_reader_get_string_value(r, 35)
-                    deleted = db_reader_get_int_value(r, 36, None)
-                    account_id = db_reader_get_string_value(r, 0)
-                    talker_id = db_reader_get_string_value(r, 1)
-                    talker_type = db_reader_get_int_value(r, 2)
-                    sender_id = db_reader_get_string_value(r, 3)
-                    timestamp = db_reader_get_int_value(r, 4, None)
-                    msg_id = db_reader_get_string_value(r, 5)
-                    msg_type = db_reader_get_int_value(r, 6)
-                    content = db_reader_get_string_value(r, 7)
-                    media_path = db_reader_get_string_value(r, 8)
-                    media_thum_path = db_reader_get_string_value(r, 9)
-                    is_recall = db_reader_get_int_value(r, 11)
-                    
-                    location_latitude = db_reader_get_float_value(r, 12)
-                    location_longitude = db_reader_get_float_value(r, 13)
-                    location_elevation = db_reader_get_float_value(r, 14)
-                    location_address = db_reader_get_string_value(r, 15)
-                    location_type = db_reader_get_int_value(r, 16)
-                    
-                    deal_money = db_reader_get_string_value(r, 17)
-                    deal_description = db_reader_get_string_value(r, 18)
-                    deal_remark = db_reader_get_string_value(r, 19)
-                    deal_status = db_reader_get_int_value(r, 20)
-                    deal_mode = db_reader_get_int_value(r, 21)
-                    deal_create_time = db_reader_get_int_value(r, 22)
-                    deal_expire_time = db_reader_get_int_value(r, 23)
-
-                    link_url = db_reader_get_string_value(r, 24)
-                    link_title = db_reader_get_string_value(r, 25)
-                    link_content = db_reader_get_string_value(r, 26)
-                    link_image = db_reader_get_string_value(r, 27)
-                    link_from = db_reader_get_string_value(r, 28)
-
-                    business_card_username = db_reader_get_string_value(r, 29)
-                    business_card_nickname = db_reader_get_string_value(r, 30)
-                    business_card_gender = db_reader_get_int_value(r, 31)
-                    business_card_photo = db_reader_get_string_value(r, 32)
-                    business_card_region = db_reader_get_string_value(r, 33)
-                    business_card_signature = db_reader_get_string_value(r, 34)
-
-                    bcp_media_path = None
-                    if msg_type in [model_wechat.MESSAGE_CONTENT_TYPE_IMAGE, model_wechat.MESSAGE_CONTENT_TYPE_VOICE, model_wechat.MESSAGE_CONTENT_TYPE_VIDEO]:
-                        if media_path not in [None, ''] and (not media_path.startswith('http')):
-                            bcp_media_path = self._copy_file_to_bcp_folder(media_path)
-                    if talker_id.endswith("@chatroom"):
-                        message = GroupMessage(self.collect_target_id, self.contact_account_type, account_id, None)
-                        message.delete_status = self._convert_delete_status(deleted)
-                        message.group_num = talker_id
-                        message.group_name = self.chatrooms.get(self._get_user_key(account_id, talker_id), {}).get('nickname')
-                        message.friend_id = sender_id
-                        message.friend_nickname = self.friends.get(self._get_user_key(account_id, sender_id), {}).get('nickname')
-                        if bcp_media_path is None:
-                            message.content = content
-                        else:
-                            message.content = bcp_media_path
-                        message.mail_send_time = timestamp
-                        message.local_action = self._convert_local_action(account_id == sender_id)
-                        message.talk_id = msg_id
-                        message.media_type = self._convert_media_type(msg_type)
-                        if msg_type == model_wechat.MESSAGE_CONTENT_TYPE_LOCATION:
-                            message.company_address = location_address
-                            message.longitude = location_longitude
-                            message.latitude = location_latitude
-                            message.above_sealevel = location_elevation
-                        self.im.db_insert_table_group_message(message)
-                    else:
-                        message = FriendMessage(self.collect_target_id, self.contact_account_type, account_id, None)
-                        message.delete_status = self._convert_delete_status(deleted)
-                        message.regis_nickname = None  # 昵称
-                        message.friend_id = talker_id
-                        message.friend_nickname = self.friends.get(self._get_user_key(account_id, talker_id), {}).get('nickname')
-                        if bcp_media_path is None:
-                            message.content = content
-                        else:
-                            message.content = bcp_media_path
-                        message.mail_send_time = timestamp
-                        message.local_action = self._convert_local_action(account_id == sender_id)
-                        message.talk_id = msg_id
-                        message.media_type = self._convert_media_type(msg_type)
-                        if msg_type == model_im.MESSAGE_CONTENT_TYPE_LOCATION:
-                            message.company_address = location_address
-                            message.longitude = location_longitude
-                            message.latitude = location_latitude
-                            message.above_sealevel = location_elevation
-                        self.im.db_insert_table_friend_message(message)
-
-                except Exception as e:
-                    if deleted == 0:
-                        TraceService.Trace(TraceLevel.Error, "bcp_wechat.py Error: LINE {}".format(traceback.format_exc()))
+                tables.append(self._db_reader_get_string_value(r, 0))
         except Exception as e:
-            TraceService.Trace(TraceLevel.Error, "bcp_wechat.py Error: LINE {}".format(traceback.format_exc()))
-        self.im.db_commit()
+            TraceService.Trace(TraceLevel.Error, "model_wechat.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
+        return tables
+
+    def _generate_message(self):
+        if canceller.IsCancellationRequested:
+            return []
+        tables = self._db_get_message_tables()
+        for table in tables:
+            sql = '''select account_id, talker_id, talker_type, sender_id, timestamp, msg_id, type, content, media_path, 
+                            media_thum_path, status, is_recall, location_latitude, location_longitude, location_elevation, location_address, 
+                            location_type, deal_money, deal_description, deal_remark, deal_status, deal_mode, deal_create_time, 
+                            deal_expire_time, link_url, link_title, link_content, link_image, link_from, business_card_username, 
+                            business_card_nickname, business_card_gender, business_card_photo, business_card_region, business_card_signature, 
+                            source, deleted, repeated
+                     from {} '''.format(table)
+            try:
+                cmd = self.db.CreateCommand()
+                cmd.CommandText = sql
+                r = cmd.ExecuteReader()
+                while r.Read():
+                    if canceller.IsCancellationRequested:
+                        break
+                    deleted = 0
+                    try:
+                        source = db_reader_get_string_value(r, 35)
+                        deleted = db_reader_get_int_value(r, 36, None)
+                        account_id = db_reader_get_string_value(r, 0)
+                        talker_id = db_reader_get_string_value(r, 1)
+                        talker_type = db_reader_get_int_value(r, 2)
+                        sender_id = db_reader_get_string_value(r, 3)
+                        timestamp = db_reader_get_int_value(r, 4, None)
+                        msg_id = db_reader_get_string_value(r, 5)
+                        msg_type = db_reader_get_int_value(r, 6)
+                        content = db_reader_get_string_value(r, 7)
+                        media_path = db_reader_get_string_value(r, 8)
+                        media_thum_path = db_reader_get_string_value(r, 9)
+                        is_recall = db_reader_get_int_value(r, 11)
+                    
+                        location_latitude = db_reader_get_float_value(r, 12)
+                        location_longitude = db_reader_get_float_value(r, 13)
+                        location_elevation = db_reader_get_float_value(r, 14)
+                        location_address = db_reader_get_string_value(r, 15)
+                        location_type = db_reader_get_int_value(r, 16)
+                    
+                        deal_money = db_reader_get_string_value(r, 17)
+                        deal_description = db_reader_get_string_value(r, 18)
+                        deal_remark = db_reader_get_string_value(r, 19)
+                        deal_status = db_reader_get_int_value(r, 20)
+                        deal_mode = db_reader_get_int_value(r, 21)
+                        deal_create_time = db_reader_get_int_value(r, 22)
+                        deal_expire_time = db_reader_get_int_value(r, 23)
+
+                        link_url = db_reader_get_string_value(r, 24)
+                        link_title = db_reader_get_string_value(r, 25)
+                        link_content = db_reader_get_string_value(r, 26)
+                        link_image = db_reader_get_string_value(r, 27)
+                        link_from = db_reader_get_string_value(r, 28)
+
+                        business_card_username = db_reader_get_string_value(r, 29)
+                        business_card_nickname = db_reader_get_string_value(r, 30)
+                        business_card_gender = db_reader_get_int_value(r, 31)
+                        business_card_photo = db_reader_get_string_value(r, 32)
+                        business_card_region = db_reader_get_string_value(r, 33)
+                        business_card_signature = db_reader_get_string_value(r, 34)
+
+                        bcp_media_path = None
+                        if msg_type in [model_wechat.MESSAGE_CONTENT_TYPE_IMAGE, model_wechat.MESSAGE_CONTENT_TYPE_VOICE, model_wechat.MESSAGE_CONTENT_TYPE_VIDEO]:
+                            if media_path not in [None, ''] and (not media_path.startswith('http')):
+                                bcp_media_path = self._copy_file_to_bcp_folder(media_path)
+                        if talker_id.endswith("@chatroom"):
+                            message = GroupMessage(self.collect_target_id, self.contact_account_type, account_id, None)
+                            message.delete_status = self._convert_delete_status(deleted)
+                            message.group_num = talker_id
+                            message.group_name = self.chatrooms.get(self._get_user_key(account_id, talker_id), {}).get('nickname')
+                            message.friend_id = sender_id
+                            message.friend_nickname = self.friends.get(self._get_user_key(account_id, sender_id), {}).get('nickname')
+                            if bcp_media_path is None:
+                                message.content = content
+                            else:
+                                message.content = bcp_media_path
+                            message.mail_send_time = timestamp
+                            message.local_action = self._convert_local_action(account_id == sender_id)
+                            message.talk_id = msg_id
+                            message.media_type = self._convert_media_type(msg_type)
+                            if msg_type == model_wechat.MESSAGE_CONTENT_TYPE_LOCATION:
+                                message.company_address = location_address
+                                message.longitude = location_longitude
+                                message.latitude = location_latitude
+                                message.above_sealevel = location_elevation
+                            self.im.db_insert_table_group_message(message)
+                        else:
+                            message = FriendMessage(self.collect_target_id, self.contact_account_type, account_id, None)
+                            message.delete_status = self._convert_delete_status(deleted)
+                            message.regis_nickname = None  # 昵称
+                            message.friend_id = talker_id
+                            message.friend_nickname = self.friends.get(self._get_user_key(account_id, talker_id), {}).get('nickname')
+                            if bcp_media_path is None:
+                                message.content = content
+                            else:
+                                message.content = bcp_media_path
+                            message.mail_send_time = timestamp
+                            message.local_action = self._convert_local_action(account_id == sender_id)
+                            message.talk_id = msg_id
+                            message.media_type = self._convert_media_type(msg_type)
+                            if msg_type == model_im.MESSAGE_CONTENT_TYPE_LOCATION:
+                                message.company_address = location_address
+                                message.longitude = location_longitude
+                                message.latitude = location_latitude
+                                message.above_sealevel = location_elevation
+                            self.im.db_insert_table_friend_message(message)
+
+                    except Exception as e:
+                        if deleted == 0:
+                            TraceService.Trace(TraceLevel.Error, "bcp_wechat.py Error: LINE {}".format(traceback.format_exc()))
+            except Exception as e:
+                TraceService.Trace(TraceLevel.Error, "bcp_wechat.py Error: LINE {}".format(traceback.format_exc()))
+            self.im.db_commit()
 
     def _generate_feed(self):
         if canceller.IsCancellationRequested:
