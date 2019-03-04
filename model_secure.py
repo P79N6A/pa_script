@@ -79,7 +79,7 @@ SQL_CREATE_TABLE_CHARGE = '''
         begin_time      INTEGER,
         end_time        INTEGER,
         begin_level     TEXT,
-        endlevel        TEXT,
+        end_level        TEXT,
         source          TEXT,
         deleted         INTEGER,
         repeated        INTEGER
@@ -88,7 +88,7 @@ SQL_CREATE_TABLE_CHARGE = '''
 SQL_INSERT_TABLE_CHARGE = '''
     insert into charge(
         id, begin_time, end_time, begin_level,
-        endlevel, source, deleted, repeated)
+        end_level, source, deleted, repeated)
     values(?, ?, ?, ?, ?, ?, ?, ?)'''
 
 SQL_CREATE_TABLE_BLACKLIST = '''
@@ -228,6 +228,8 @@ class SM(object):
         if self.db_cmd is not None:
             self.db_cmd.CommandText = SQL_CREATE_TABLE_ACCOUNT
             self.db_cmd.ExecuteNonQuery()
+            self.db_cmd.CommandText = SQL_CREATE_TABLE_CHARGE
+            self.db_cmd.ExecuteNonQuery()
             self.db_cmd.CommandText = SQL_CREATE_TABLE_BLACKLIST
             self.db_cmd.ExecuteNonQuery()
             self.db_cmd.CommandText = SQL_CREATE_TABLE_BLOCKEDSMS
@@ -251,6 +253,9 @@ class SM(object):
 
     def db_insert_table_account(self, column):
         self.db_insert_table(SQL_INSERT_TABLE_ACCOUNT, column.get_values())
+
+    def db_insert_table_charge(self, column):
+        self.db_insert_table(SQL_INSERT_TABLE_CHARGE, column.get_values())
 
     def db_insert_table_blacklist(self, column):
         self.db_insert_table(SQL_INSERT_TABLE_BLACKLIST, column.get_values())
@@ -334,11 +339,11 @@ class Charge(Column):
         self.begin_time  = None
         self.end_time    = None
         self.begin_level = None
-        self.endlevel    = None
+        self.end_level    = None
 
     def get_values(self):
         return (self.id, self.begin_time, self.end_time, self.begin_level,
-                self.endlevel) + super(Charge, self).get_values()
+                self.end_level) + super(Charge, self).get_values()
 
 class Blacklist(Column):
     def __init__(self):
@@ -425,12 +430,36 @@ class GenerateModel(object):
         self.db = SQLite.SQLiteConnection('Data Source = {}'.format(self.cache_db))
         self.db.Open()
         self.db_cmd = SQLite.SQLiteCommand(self.db)
+        models.extend(self._get_charge_models())
         models.extend(self._get_blacklist_models())
         models.extend(self._get_blockedsms_models())
         models.extend(self._get_callrecord_models())
         models.extend(self._get_wifi_signal_models())
         self.db.Close()
         return models
+
+    def _get_charge_models(self):
+        model = []
+        sql = '''select distinct * from charge'''
+        try:
+            self.db_cmd.CommandText = sql
+            sr = self.db_cmd.ExecuteReader()
+            while(sr.Read()):
+                charge = Secure.ChargeLog()
+                charge.BeginTime = self._get_timestamp(sr[1])
+                charge.EndTime = self._get_timestamp(sr[2])
+                begin_level = float(sr[3])
+                end_level = float(sr[4])
+                charge.BeginLevel = str(begin_level*100) + '%'
+                charge.EndLevel = str(end_level*100) + '%'
+                charge.SourceFile = self._get_source_file(str(sr[5]))
+                charge.Deleted = self._convert_deleted_status(sr[6])
+                model.append(charge)
+            sr.Close()
+            return model
+        except Exception as e:
+            print(e)
+            exc()
 
     def _get_blacklist_models(self):
         model = []
@@ -449,7 +478,6 @@ class GenerateModel(object):
             sr.Close()
             return model
         except Exception as e:
-            print(e)
             exc()
 
     def _get_blockedsms_models(self):
