@@ -1316,9 +1316,7 @@ class GenerateModel(object):
                         model = QQ.GroupMessage()
                         model.Group = self.chatroom_models.get(self._gen_key(account_id, talker_id))                        
                         memmber = self.group_member_models.get(self._gen_key(talker_id, sender_id)) 
-                        if  memmber is None:
-                            print(talker_id + "----" + sender_id)
-                        else:
+                        if  memmber is not None:                                                    
                             model.Sender = memmber.User
                          
                     elif talker_type == CHAT_TYPE_FRIEND:
@@ -1326,9 +1324,11 @@ class GenerateModel(object):
                         model.Friend = self.friend_models.get(self._gen_key(account_id, talker_id))
                         model.Sender = self.friend_models.get(self._gen_key(account_id, sender_id))
                     elif  talker_type == CHAT_TYPE_DISCUSSION:
-                        model = QQ.DiscussionGroup()
-                        model.Group = self.chatroom_models.get(self._gen_key(account_id, talker_id))
-                        model.Sender = self.group_member_models.get(self._gen_key(talker_id, sender_id)).User
+                        model = QQ.DiscussionGroupMessage()
+                        model.DiscussionGroup = self.chatroom_models.get(self._gen_key(account_id, talker_id))
+                        memmber = self.group_member_models.get(self._gen_key(talker_id, sender_id)) 
+                        if  memmber is not None:
+                            model.Sender = memmber.User
                     else:
                         return 
                     model.SourceFile = source
