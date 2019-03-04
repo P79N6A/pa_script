@@ -39,13 +39,17 @@ HUAWEI_PHONE = "HUAWEI"
 VIVO_PHONE = "VIVO"
 NEXUS_PHONE = "NEXUS"
 ONEPLUS_PHONE = "ONEPLUS"
+SAMSUNG_PHONE = "SAMSUNG"
+SMARTISAN_PHONE = "SAMARTISAN"
 
 # 各种安卓机型的基站信息匹配规则
 PATTERN_RULES = {
     HUAWEI_PHONE: ".*CellIdentity.*mMcc=(.*) .*mMnc=(.*) .*mLac=(.*) .*mCid=(.*) .*mArfcn.*",
     VIVO_PHONE: ".*CellIdentity.*mMcc=(.*) .*mMnc=(.*) .*mLac=(.*) .*mCid=(.*) .*mPsc.*",
-    NEXUS_PHONE: ".*CellIdentityLte.*mMcc=(.*) mMnc=(.*) mCi=(.*) mPci.*mTac=(.*) mEarfcn.*CellIdentityLte.*",
-    ONEPLUS_PHONE: ".*CellIdentityLte.*mCi=(.*?) mPci=.*mTac=(.*?) mEarfcn.*mMcc=(.*?) mMnc=(.*?) mAlphaLong.*CellIdentityLte.*CellIdentityLte.*"
+    NEXUS_PHONE: ".*CellIdentity.*mMcc=(.*) mMnc=(.*) mCi=(.*) mPci.*mTac=(.*) mEarfcn.*CellIdentityLte.*",
+    ONEPLUS_PHONE: ".*CellIdentity.*mCi=(.*?) mPci=.*mTac=(.*?) mEarfcn.*mMcc=(.*?) mMnc=(.*?) mAlphaLong.*CellIdentityLte.*CellIdentityLte.*",
+    SAMSUNG_PHONE: ".*cellIdentity.*{.mcc = (.*), .mnc = (.*), .ci = (.*), .pci = 0, .tac = (.*), .earfcn.*",
+    SMARTISAN_PHONE: ".*cellIdentity.*{.mcc = (.*), .mnc = (.*), .ci = (.*), .pci.*tac = (.*), .earfcn"
 }
 
 
@@ -86,6 +90,10 @@ class Radio(object):
             pass
         elif "meizu" in phone_name:
             pass
+        elif "samsung" in phone_name:
+            models.extend(self.parse_samsung_radio(radio_log, PATTERN_RULES[SAMSUNG_PHONE]))
+        elif "smartisan" in phone_name:
+            models.extend(self.parse_smartisan_radio(radio_log, PATTERN_RULES[SMARTISAN_PHONE]))
         self.close_cache()
         return models
 
@@ -120,7 +128,7 @@ class Radio(object):
             PA_runtime.save_cache_path(bcp_connectdevice.BASESTATION_INFORMATION, self.db_path, temp_dir)
         except:
             pass
-        
+       
     def parse_huawei_radio(self, radio_log, pattern):
         if radio_log is None:
             return
@@ -250,6 +258,72 @@ class Radio(object):
                                     loc.Position.Value = coord
                                     models.append(loc)
                                 self.insert_cache(mcc,mnc,lac,ci,latitude,longitude)
+                        except Exception as e:
+                            pass
+        return models
+    
+    def parse_samsung_radio(self, radio_log, pattern):
+        if radio_log is None:
+            return
+        models = []
+        log_list = radio_log.split("\n")
+        pattern = re.compile(pattern)
+        for line in log_list:
+            if line.find("DATA_REGISTRATION_STATE") != -1:
+                results = re.match(pattern, line)
+                if results:
+                    if len(results.groups()[0]) != 0 and len(results.groups()[1]) != 0 and len(results.groups()[2]) != 0 and len(results.groups()[3]) != 0:
+                        try:
+                            if int(results.groups()[1]) in [0,1]:
+                                mcc,mnc,mci,tac = results.groups()
+                                celltower = CellTower()
+                                celltower.MNC.Value = mnc
+                                celltower.MCC.Value = mcc
+                                celltower.LAC.Value = tac
+                                celltower.CID.Value = mci
+                                models.append(celltower)
+                                longitude,latitude = self._get_lbs_data(mcc, mnc, tac, mci)
+                                if longitude and latitude:
+                                    loc = Location()
+                                    coord = Coordinate()
+                                    coord.Longitude.Value = longitude
+                                    coord.Latitude.Value = latitude
+                                    loc.Position.Value = coord
+                                    models.append(loc)
+                                self.insert_cache(mcc,mnc,tac,mci,latitude,longitude)
+                        except Exception as e:
+                            pass
+        return models
+
+    def parse_smartisan_radio(self, radio_log, pattern):
+        if radio_log is None:
+            return
+        models = []
+        log_list = radio_log.split("\n")
+        pattern = re.compile(pattern)
+        for line in log_list:
+            if line.find("DATA_REGISTRATION_STATE") != -1:
+                results = re.match(pattern, line)
+                if results:
+                    if len(results.groups()[0]) != 0 and len(results.groups()[1]) != 0 and len(results.groups()[2]) != 0 and len(results.groups()[3]) != 0:
+                        try:
+                            if int(results.groups()[1]) in [0,1]:
+                                mcc,mnc,mci,tac = results.groups()
+                                celltower = CellTower()
+                                celltower.MNC.Value = mnc
+                                celltower.MCC.Value = mcc
+                                celltower.LAC.Value = tac
+                                celltower.CID.Value = mci
+                                models.append(celltower)
+                                longitude,latitude = self._get_lbs_data(mcc, mnc, tac, mci)
+                                if longitude and latitude:
+                                    loc = Location()
+                                    coord = Coordinate()
+                                    coord.Longitude.Value = longitude
+                                    coord.Latitude.Value = latitude
+                                    loc.Position.Value = coord
+                                    models.append(loc)
+                                self.insert_cache(mcc,mnc,tac,mci,latitude,longitude)
                         except Exception as e:
                             pass
         return models
