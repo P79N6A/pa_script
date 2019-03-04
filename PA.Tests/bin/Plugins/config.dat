@@ -3053,6 +3053,7 @@
             <string>/contacts/contacts.db$</string>
             <string>/contact.db$</string>
             <string>/contact.vcf$</string>
+            <string>/contact$</string>
           </array>
           <key>Category</key>
           <string>Contacts</string>
@@ -3081,6 +3082,7 @@
             <string>/calls/callinfo.db$</string>
             <string>^/calllog.db$</string>
             <string>/callrecord_backup.xml$</string>
+            <string>/call$</string>
           </array>
           <key>Category</key>
           <string>Calls</string>
