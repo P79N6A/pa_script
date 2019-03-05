@@ -3205,7 +3205,7 @@
           <integer>2</integer>
           <key>Patterns</key>
           <array>
-            <string>data/com\.android\.email/databases$</string>
+            <string>data/com\.android\.email/databases/EmailProvider.db$</string>
           </array>
           <key>Category</key>
           <string>Mails</string>
