@@ -412,6 +412,7 @@ class WeChatParser(Wechat):
         if 'Friend' in db.Tables:
             ts = SQLiteParser.TableSignature('Friend')
             SQLiteParser.Tools.AddSignatureToTable(ts, "userName", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
+            SQLiteParser.Tools.AddSignatureToTable(ts, "contact_remark", SQLiteParser.FieldType.Blob, SQLiteParser.FieldConstraints.NotNull)
             for rec in db.ReadTableRecords(ts, self.extract_deleted, False, ''):
                 if canceller.IsCancellationRequested:
                     break
@@ -905,7 +906,7 @@ class WeChatParser(Wechat):
                         fav_item.sender_id = source_info.Element('fromusr').Value
                 if xml.Element('desc'):
                     fav_item.content = xml.Element('desc').Value
-            elif fav_type in [model_wechat.FAV_TYPE_IMAGE, model_wechat.FAV_TYPE_VOICE, model_wechat.FAV_TYPE_VIDEO, model_wechat.FAV_TYPE_VIDEO_2, model_wechat.FAV_TYPE_ATTACHMENT]:
+            elif fav_type in [model_wechat.FAV_TYPE_IMAGE, model_wechat.FAV_TYPE_VOICE, model_wechat.FAV_TYPE_VIDEO, model_wechat.FAV_TYPE_VIDEO_2, model_wechat.FAV_TYPE_ATTACHMENT, model_wechat.FAV_TYPE_ATTACHMENT_2]:
                 fav_item = model.create_item()
                 fav_item.type = fav_type
                 if xml.Element('source'):
@@ -1009,7 +1010,7 @@ class WeChatParser(Wechat):
                         if fav_item.type == model_wechat.FAV_TYPE_TEXT:
                             if item.Element('datadesc'):
                                 fav_item.content = item.Element('datadesc').Value
-                        elif fav_item.type in [model_wechat.FAV_TYPE_IMAGE, model_wechat.FAV_TYPE_VOICE, model_wechat.FAV_TYPE_VIDEO, model_wechat.FAV_TYPE_VIDEO_2, model_wechat.FAV_TYPE_ATTACHMENT]:
+                        elif fav_item.type in [model_wechat.FAV_TYPE_IMAGE, model_wechat.FAV_TYPE_VOICE, model_wechat.FAV_TYPE_VIDEO, model_wechat.FAV_TYPE_VIDEO_2, model_wechat.FAV_TYPE_ATTACHMENT, model_wechat.FAV_TYPE_ATTACHMENT_2]:
                             ext = 'fav_dat'
                             if item.Element('datafmt'):
                                 ext = item.Element('datafmt').Value

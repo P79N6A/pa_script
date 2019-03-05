@@ -73,6 +73,7 @@ FAV_TYPE_LOCATION = 6  # 位置
 FAV_TYPE_ATTACHMENT = 8  # 附件
 FAV_TYPE_CHAT = 14  # 聊天记录
 FAV_TYPE_VIDEO_2 = 16 # 视频
+FAV_TYPE_ATTACHMENT_2 = 18  # 附件
 
 LOCATION_TYPE_GPS = 1  # GPS坐标
 LOCATION_TYPE_GPS_MC = 2  # GPS米制坐标
@@ -2036,9 +2037,11 @@ class GenerateModel(object):
                         model.Content.Value.AddressName = location_address
                         model.Content.Value.Coordinate = Base.Coordinate(location_longitude, location_latitude, self._convert_location_type(location_type))
                         #self.add_model(model.Content.Value)
-                    elif fav_type == FAV_TYPE_ATTACHMENT:
+                    elif fav_type == [FAV_TYPE_ATTACHMENT, FAV_TYPE_ATTACHMENT_2]:
                         model.Content = Base.Content.AttachmentContent(model)
                         model.Content.Value = Base.Attachment()
+                        model.Content.Value.FileName = content
+                        model.Content.Value.Path = media_path
                     else:
                         model.Content = Base.Content.TextContent(model)
                         model.Content.Value = content
