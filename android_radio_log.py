@@ -129,7 +129,7 @@ class Radio(object):
             PA_runtime.save_cache_path(bcp_connectdevice.BASESTATION_INFORMATION, self.db_path, temp_dir)
         except:
             pass
-       
+        
     def parse_huawei_radio(self, radio_log, pattern):
         if radio_log is None:
             return
@@ -158,7 +158,7 @@ class Radio(object):
                                     coord.Latitude.Value = latitude
                                     loc.Position.Value = coord
                                     models.append(loc)
-                                self.insert_cache(mcc,mnc,lac,ci,latitude,longitude)
+                                self.insert_cache(mcc,mnc,tac,ci,latitude,longitude)
                         except Exception as e:
                             pass
         return models
@@ -192,7 +192,7 @@ class Radio(object):
                                     coord.Latitude.Value = latitude
                                     loc.Position.Value = coord
                                     models.append(loc)
-                                self.insert_cache(mcc,mnc,lac,ci,latitude,longitude)
+                                self.insert_cache(mcc,mnc,tac,ci,latitude,longitude)
                         except Exception as e:
                             pass
         return models
@@ -258,7 +258,7 @@ class Radio(object):
                                     coord.Latitude.Value = latitude
                                     loc.Position.Value = coord
                                     models.append(loc)
-                                self.insert_cache(mcc,mnc,lac,ci,latitude,longitude)
+                                self.insert_cache(mcc,mnc,tac,mci,latitude,longitude)
                         except Exception as e:
                             pass
         return models
