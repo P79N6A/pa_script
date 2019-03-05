@@ -965,8 +965,14 @@ class WeChatParser(Wechat):
                     weburlitem = xml.Element('weburlitem')
                     if weburlitem.Element('pagetitle'):
                         fav_item.link_title = weburlitem.Element('pagetitle').Value
+                    if weburlitem.Element('pagedesc'):
+                        fav_item.link_content = weburlitem.Element('pagedesc').Value
                     if weburlitem.Element('pagethumb_url'):
                         fav_item.link_image = weburlitem.Element('pagethumb_url').Value
+                if xml.Element('datalist') and xml.Element('datalist').Element('dataitem'):
+                    item = xml.Element('datalist').Element('dataitem')
+                    if item.Element('thumbfullmd5') and fav_item.link_image in [None, '']:
+                        fav_item.link_image = self._parse_user_fav_path(item.Element('thumbfullmd5').Value, 'fav_thumb')
             elif fav_type == model_wechat.FAV_TYPE_MUSIC:
                 fav_item = model.create_item()
                 fav_item.type = fav_type
