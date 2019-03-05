@@ -983,8 +983,7 @@ class GenerateBcp(object):
                 sid = '0000000000000000000000000000000' + str(count)
                 contactinfo.SEQUENCE_NAME = sid[-32::]
                 contactinfo.RELATIONSHIP_NAME = sr[9]
-                a = sr[15]
-                contactinfo.DELETE_STATUS = DELETE_STATUS_DELETED if sr[15] == 1 else DELETE_STATUS_INTACT
+                contactinfo.DELETE_STATUS = DELETE_STATUS_DELETED if sr[14] == 1 else DELETE_STATUS_INTACT
                 self.basic.db_insert_table_contact_info(contactinfo)
             self.basic.db_commit()
             self.db_cmd.Dispose()
@@ -1008,8 +1007,7 @@ class GenerateBcp(object):
                 sid = '0000000000000000000000000000000' + str(count)
                 contactdetail.SEQUENCE_NAME = sid[-32::]
                 contactdetail.RELATIONSHIP_ACCOUNT = sr[8]
-                a = sr[15]
-                contactdetail.DELETE_STATUS = DELETE_STATUS_DELETED if sr[15] == 1 else DELETE_STATUS_INTACT
+                contactdetail.DELETE_STATUS = DELETE_STATUS_DELETED if sr[14] == 1 else DELETE_STATUS_INTACT
                 self.basic.db_insert_table_contact_detail(contactdetail)
             self.basic.db_commit()
             self.db_cmd.Dispose()
