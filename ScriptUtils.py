@@ -1135,6 +1135,153 @@ class Fields(object):
     BlobField = BlobField
 
 
+class SemiXmlParser(object):
+    def __init__(self):
+        self.root = None
+
+    @staticmethod
+    def _get_content_end(raw_data, start_index):
+        while 1:
+            if start_index >= len(raw_data):
+                return start_index
+            if raw_data[start_index] == 0x00:
+                return start_index
+            else:
+                start_index += 0x01
+
+    def parse(self, raw_data):
+        if not isinstance(raw_data, bytearray):
+            raw_data = bytearray(raw_data)
+        data_length = len(raw_data)
+
+        field_list = []
+        value_list = []
+        ptr = 0x0a
+
+        while 1:
+            if ptr >= data_length:
+                break
+            field_len = raw_data[ptr + 0x01] - 1
+            start_ptr = ptr + 0x03
+            end_ptr = start_ptr + field_len
+            raw_field_data = raw_data[start_ptr:end_ptr]
+            field_list.append(raw_field_data)
+            if raw_data[end_ptr] == 0x00 and raw_data[end_ptr + 0x01] == 0x00:
+                ptr = end_ptr + 0x02
+                content = ""
+            elif raw_data[end_ptr] == 0x00 and raw_data[end_ptr + 0x01] != 0x00:
+                offset = 0x03 if raw_data[end_ptr + 0x01] & 0xF0 == 0xc0 else 0x02
+                content_start_ptr = end_ptr + offset
+                content_end_ptr = self._get_content_end(raw_data, content_start_ptr)
+                content = raw_data[content_start_ptr:content_end_ptr]
+                ptr = content_end_ptr
+            else:
+                content = None
+            value_list.append(content)
+    
+        self.feed(field_list, value_list)
+        return self.root
+
+    def feed(self, field_list, value_list):
+        field_list = [str(f) for f in field_list]
+        value_list = [str(v) for v in value_list]
+        for k, v in zip(field_list, value_list):
+            keys = k.split('.')
+            self.add_keys(keys)
+            self.set_value(keys, v)
+
+    def add_keys(self, keys):
+        if isinstance(keys, str):
+            keys = keys.split(".")
+        if self.root is None:
+            self.root = SemiXmlNode(keys[0])
+        node = self.root
+        for i in range(len(keys)-1):
+            child_name = keys[i+1]
+            child_node = node.get_child(child_name)
+            if child_node is None:
+                node = node.add_child(child_name)
+            else:
+                node = child_node
+
+    def set_value(self, keys, value):
+        if isinstance(keys, str):
+            keys = keys.split(".")
+        if self.root is None:
+            self.root = SemiXmlNode(keys[0])
+        node = self.root
+        for i in range(len(keys)-1):
+            child_name = keys[i+1]
+            child_node = node.get_child(child_name)
+            if child_node is None:
+                raise Exception('key not exists')
+            else:
+                if i == (len(keys)-2):
+                    child_node.value = value.decode('utf-8')
+                node = child_node
+
+    def get_keys(self, keys):
+        if isinstance(keys, str):
+            keys = keys.split(".")
+        if self.root is None:
+            return None
+        node = self.root
+        for i in range(len(keys)-1):
+            child_name = keys[i+1]
+            child_node = node.get_child(child_name)
+            if child_node is None:
+                return None
+            else:
+                if i == (len(keys)-2):
+                    return child_node
+                node = child_node
+
+    def export_items(self):
+        count = int(self.get_keys('msg.appmsg.mmreader.category.$count').value)
+        ret_nodes = []
+        for i in range(count):
+            if i == 0:
+                key = 'msg.appmsg.mmreader.category.item'
+            else:
+                key = 'msg.appmsg.mmreader.category.item' + str(i)
+            node = self.get_keys(key)
+            if node is not None:
+                if key == 'msg.appmsg.mmreader.category.item':
+                    ret_nodes.insert(0, node)
+                else:
+                    ret_nodes.append(node)
+        return ret_nodes
+
+
+class SemiXmlNode(object):
+    def __init__(self, name):
+        self.name = name
+        self.children = []
+        self.parent = None
+        self.value = None
+
+    def add_child(self, key):
+        node = SemiXmlNode(key)
+        node.parent = self
+        self.children.append(node)
+        return node
+
+    def get_child(self, key, default=None):
+        for i in self.children:
+            if i.name == key:
+                return i
+        return default
+
+    def __getitem__(self, key, default=None):
+        return self.get_child(key, default)
+
+    def get(self, key, default=None):
+        for i in self.children:
+            if i.name == key:
+                return i
+        return default
+
+
 
 ################################################################################################################
 ##                                    __author__ = "Yangliyuan"                                               ##
@@ -1197,14 +1344,14 @@ def parse_decorator(func):
 
 ######### Base Class #########
 
-def base_analyze(Parser, node, BCP_TYPE, VERSION_APP_VALUE, bulid_name, db_name):
+def base_analyze(Parser, node, BCP_TYPE, VERSION_APP_VALUE, build_name, db_name):
     '''
     Args:
         Parser (Parser):
         node (node): 
         BCP_TYPE: 
         VERSION_APP_VALUE (int): VERSION_APP_VALUE
-        bulid_name (str): pr.build
+        build_name (str): pr.build
         db_name (str): 中间数据库名称
     Returns:
         pr
@@ -1220,7 +1367,7 @@ def base_analyze(Parser, node, BCP_TYPE, VERSION_APP_VALUE, bulid_name, db_name)
         TraceService.Trace(TraceLevel.Debug, msg)
     if res:
         pr.Models.AddRange(res)
-        pr.Build(bulid_name)
+        pr.Build(build_name)
     return pr
 
 

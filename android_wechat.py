@@ -182,6 +182,8 @@ class WeChatParser(Wechat):
 
     def process(self):
         for build in self.node_dict:
+            prog = progress['APP', build]
+            prog.Start()
             self.ar = AppResources(progress['APP', build]['MEDIA', '多媒体'])
             self.ar.set_thum_config("jpg", "Video")
             self.ar.set_thum_config("thumb", "Video")
@@ -199,7 +201,8 @@ class WeChatParser(Wechat):
             pr.Models.AddRange(self.ar.parse())
             pr.Build(build)
             ds.Add(pr)
-            
+
+            prog.Finish(True)
             self.ar = None
 
     def parse_user_node(self, node, build):
@@ -253,7 +256,8 @@ class WeChatParser(Wechat):
                 # print('%s android_wechat() decrypt EnMicroMsg.db' % time.asctime(time.localtime(time.time())))
                 if Decryptor.decrypt(node, self._get_db_key(self.imei, self.uin), mm_db_path):
                     # print('%s android_wechat() parse MicroMsg.db' % time.asctime(time.localtime(time.time())))
-                    self._parse_mm_db(mm_db_path, node.AbsolutePath)
+                    mm_db_parser = self._parse_mm_db(mm_db_path, node.AbsolutePath)
+                    next(mm_db_parser)
             except Exception as e:
                 TraceService.Trace(TraceLevel.Error, "android_wechat.py Error: LINE {}".format(traceback.format_exc()))
             self.set_progress(65)
@@ -284,6 +288,7 @@ class WeChatParser(Wechat):
                 self._parse_story_db(self.user_node.GetByPath('/StoryMicroMsg.db'))
             except Exception as e:
                 TraceService.Trace(TraceLevel.Error, "android_wechat.py Error: LINE {}".format(traceback.format_exc()))
+            next(mm_db_parser)
             self.set_progress(99)
             self.im.db_create_index()
             # 数据库填充完毕，请将中间数据库版本和app数据库版本插入数据库，用来检测app是否需要重新解析
@@ -306,7 +311,7 @@ class WeChatParser(Wechat):
         try:
             self.get_wechat_res(self.ar)
         except Exception as e:
-            print(e)
+            print_error()
 
         self.im = None
         self.build = None
@@ -447,10 +452,13 @@ class WeChatParser(Wechat):
         self.set_progress(25)
         self.get_chatroom_models(self.cache_db)
         self.set_progress(30)
-        self._parse_mm_db_message(db, source)
         self._parse_mm_db_bank_cards(db, source)
         self._parse_mm_db_login_devices(db, source)
         self.push_models()
+        yield
+        self._parse_mm_db_message(db, source)
+        self.push_models()
+        yield
 
     def _parse_fav_db(self, fav_db_path, source):
         db = None
@@ -1146,7 +1154,7 @@ class WeChatParser(Wechat):
                     friend_type = model_wechat.FRIEND_TYPE_BLOCKED
                 else:
                     friend_type = model_wechat.FRIEND_TYPE_FRIEND
-            elif contact_type == 0:
+            elif username.endswith('@app') is True:
                 friend_type = model_wechat.FRIEND_TYPE_PROGRAM
             friend = model_wechat.Friend()
             friend.deleted = deleted
@@ -1611,34 +1619,27 @@ class WeChatParser(Wechat):
             else:
                 pass
 
+    # TODO: to optimize
     def _process_parse_message_app_message(self, row_content):
-        title_pattern = '<title><!\[CDATA\[(.+?)\]\]></title>'
-        content_pattern = '<des><!\[CDATA\[([\s\S]*)\]\]></des>'
+        title_pattern = r'<title><!\[CDATA\[(.+?)\]\]></title>'
+        content_pattern = r'<des><!\[CDATA\[([\s\S]*)\]\]></des>'
+        url_pattern = r'<url><!\[CDATA\[([\s\S]*?)\]\]></url>'
 
         title = ''
         content = ''
+        url = ''
 
         ans = re.findall(title_pattern, row_content)
         if ans:
-            title = ans[0]
+            title = ans[0].strip()
         ans = re.findall(content_pattern, row_content)
         if ans:
-            content = ans[0]
+            content = ans[0].strip()
+        ans = re.findall(url_pattern, row_content)
+        if ans:
+            url = ans[0].strip()
 
-        return "#*#".join((title, content))
-
-    def _search_file(self, file_name):
-        """搜索函数"""
-        search_nodes = self.extend_nodes + self._search_nodes
-
-        for node in search_nodes:
-            results = node.Search(file_name)
-            for result in results:
-                if os.path.isfile(result.PathWithMountPoint):
-                    if result.Parent not in self._search_nodes:
-                        self._search_nodes.insert(0, result.Parent)
-                    return result
-        return None
+        return "#*#".join((title, content, url))
 
     def _search_fav_file(self, file_name):
         """搜索函数"""
@@ -1856,7 +1857,7 @@ class Decryptor:
                                        "android_wechat.py Error: LINE {}".format(traceback.format_exc()))
                     return False
 
-        size = src_node.Size
+        #size = src_node.Size
         src_node.Data.seek(0)
         first_page = src_node.read(1024)
 
@@ -1886,15 +1887,31 @@ class Decryptor:
         de.write(content)
         de.write(iv)
 
-        for _ in range(1, size // 1024):
-            if canceller.IsCancellationRequested:
+        # 增大缓存
+        buffer_size = 1024 * 1024
+        while True:
+            buffer = src_node.read(buffer_size)
+            size = len(buffer)
+            for i in range(0, size // 1024):
+                content = buffer[i * 1024: (i + 1) * 1024]
+                iv = content[1008: 1024]
+                de.write(Decryptor.aes_decrypt(final_key,
+                                               Convert.FromBase64String(base64.b64encode(iv)),
+                                               Convert.FromBase64String(base64.b64encode(content[:1008]))))
+                de.write(iv)
+
+            if size < buffer_size:
                 break
-            content = src_node.read(1024)
-            iv = content[1008: 1024]
-            de.write(Decryptor.aes_decrypt(final_key,
-                                           Convert.FromBase64String(base64.b64encode(iv)),
-                                           Convert.FromBase64String(base64.b64encode(content[:1008]))))
-            de.write(iv)
+
+        #for _ in range(1, size // 1024 * 16):
+        #    if canceller.IsCancellationRequested:
+        #        break
+        #    content = src_node.read(1024)
+        #    iv = content[1008: 1024]
+        #    de.write(Decryptor.aes_decrypt(final_key,
+        #                                   Convert.FromBase64String(base64.b64encode(iv)),
+        #                                   Convert.FromBase64String(base64.b64encode(content[:1008]))))
+        #    de.write(iv)
         de.close()
 
         Decryptor.db_fix_header(dst_db_path)

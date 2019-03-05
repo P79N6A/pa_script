@@ -27,12 +27,12 @@ class AppResources(object):
     def parse(self):
         if self.prog:
             self.prog.Start()
+            self.prog.Value = 0
         if  len(self.node_list) == 0:
             if self.prog:
                 self.prog.Skip()
             raise Exception("No multimedia resource directory was passed in")
         self.step_value = 100 / len(self.node_list)
-        print(" self.step_value is %d " % self.step_value)
         if len(self.media_models) != 0:
             self.path_list = self.return_model_index(self.media_models)
         map(self.progress_search, self.node_list.keys())
@@ -86,8 +86,6 @@ class AppResources(object):
 
 
     def progress_search(self, node):
-        if self.prog:
-            self.prog.Value = 0
         res_lists = self._get_all_files(node, [])
         if len(res_lists) == 0:
             return
@@ -312,6 +310,10 @@ class AppResources(object):
 
     def _set_progess_value(self):
         if self.prog is not None:
-            self.prog.Value = self.prog_value + self.step_value
+            if self.prog_value > 100:
+                self.prog_value = 100
+                self.prog.Value = self.prog_value
+                return
             self.prog_value += self.step_value
-            print('set_progress() %d' % (self.prog_value + self.step_value))
+            self.prog.Value = self.prog_value
+            print('多媒体子进度当前为: %d' % self.prog.Value)

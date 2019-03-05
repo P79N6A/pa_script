@@ -41,7 +41,7 @@ def analyze_duoshan(node, extract_deleted, extract_source):
                         node, 
                         bcp_im.CONTACT_ACCOUNT_TYPE_IM_OTHER, 
                         VERSION_APP_VALUE,
-                        bulid_name='多闪',
+                        build_name='多闪',
                         db_name='DuoShan_i')
 
 

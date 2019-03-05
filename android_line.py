@@ -9,108 +9,47 @@ import clr
 try:
     clr.AddReference('model_im')
     clr.AddReference('bcp_im')
+    clr.AddReference('ScriptUtils')
 except:
     pass
 del clr
 import model_im
 import bcp_im
-
-DEBUG = True
-DEBUG = False
-
-CASE_NAME = ds.ProjectState.ProjectDir.Name
+from ScriptUtils import DEBUG, CASE_NAME, exc, tp, print_run_time, base_analyze, parse_decorator, BaseAndroidParser
 
 UNKNOWN_USER_ID       = -1
 UNKNOWN_USER_NICKNAME = '未知用户'
 UNKNOWN_USER_USERNAME = '未知用户'
 
-VERSION_APP_VALUE = 2
+VERSION_APP_VALUE = 3
 
-def print_run_time(func): 
-    ''' decorator ''' 
-    def wrapper(*args, **kw):  
-        local_time = time.time()  
-        res = func(*args, **kw) 
-        if DEBUG:
-            msg = 'Current Function <{}> run time is {:.2} s'.format(func.__name__ , time.time() - local_time)  
-            TraceService.Trace(TraceLevel.Warning, "{}".format(msg))
-        if res:
-            return res
-    return wrapper
-
-def exc(e=''):
-    ''' Exception output '''
-    try:
-        if DEBUG:
-            py_name = os.path.basename(__file__)
-            msg = 'DEBUG {} case:<{}> :'.format(py_name, CASE_NAME)
-            TraceService.Trace(TraceLevel.Warning, 
-                            (msg+'{}{}').format(traceback.format_exc(), e))
-    except:
-        pass    
-
-def tp(*e):
-    ''' Highlight print in vs '''
-    if DEBUG:
-        TraceService.Trace(TraceLevel.Warning, "{}".format(e))
-    else:
-        pass     
-
+@parse_decorator
 def analyze_line(node, extract_deleted, extract_source):
     ''' android LINE 
 
         jp.naver.line.android
     '''
-    tp('android_line.py is running ...')
-    pr = ParserResults()
-    res = []
-    try:
-        res = LineParser(node, extract_deleted, extract_source).parse()
-    except:
-        TraceService.Trace(TraceLevel.Debug, 
-                           'android_line.py 解析新案例 "{}" 出错: {}'.format(CASE_NAME, traceback.format_exc()))
-    if res:
-        pr.Models.AddRange(res)
-        pr.Build('LINE')
-        tp('android_line.py is finished !')
-    return pr
+    return base_analyze(AndroidLineParser, 
+                        node, 
+                        bcp_im.CONTACT_ACCOUNT_TYPE_IM_LINE, 
+                        VERSION_APP_VALUE,
+                        build_name='LINE',
+                        db_name='LINE_A')
 
-class LineParser(object):
 
-    def __init__(self, node, extract_deleted, extract_source):
+class AndroidLineParser(BaseAndroidParser):
+    def __init__(self, node, db_name):
         ''' node: /data/data/jp.naver.line.android/databases/naver_line
         '''
+        super(AndroidLineParser, self).__init__(node, db_name)
         #tp(node.AbsolutePath)
+        self.VERSION_VALUE_DB = model_im.VERSION_VALUE_DB
         self.root = node.Parent
-        self.extract_deleted = extract_deleted
-        self.extract_source  = extract_source
-        self.im = model_im.IM()        
-        self.cachepath = ds.OpenCachePath("LINE")
+        self.csm = model_im.IM()
+        self.Generate = model_im.GenerateModel
 
-        hash_str = hashlib.md5(node.AbsolutePath.encode('utf8')).hexdigest()[8:-8]
-        self.cache_db = self.cachepath + '\\a_line_{}.db'.format(hash_str)
         # search profile, sticker
         self.media_node = None
-
-        if self.root.FileSystem.Name.endswith('.tar'):
-            self.rename_file_path = ['/storage/emulated', '/data/media'] 
-        else:
-            self.rename_file_path = None        
-
-    def parse(self):
-        if DEBUG or self.im.need_parse(self.cache_db, VERSION_APP_VALUE):
-            self.im.db_create(self.cache_db) 
-            self.parse_main()
-            if not canceller.IsCancellationRequested:
-                self.im.db_insert_table_version(model_im.VERSION_KEY_DB, model_im.VERSION_VALUE_DB)
-                self.im.db_insert_table_version(model_im.VERSION_KEY_APP, VERSION_APP_VALUE)
-                self.im.db_commit()
-            self.im.db_close()
-
-        tmp_dir = ds.OpenCachePath('tmp')
-        save_cache_path(bcp_im.CONTACT_ACCOUNT_TYPE_IM_LINE, self.cache_db, tmp_dir)
-        models = model_im.GenerateModel(self.cache_db).get_models()
-        return models
 
     def parse_main(self):
         ''' nvar_line '''
@@ -148,10 +87,10 @@ class LineParser(object):
                     search.source     = self.cur_db_source
                     search.deleted    = 1 if rec.IsDeleted else 0               
                     try:
-                        search.insert_db(self.im)
+                        search.insert_db(self.csm)
                     except:
                         exc()
-            self.im.db_commit()    
+            self.csm.db_commit()    
 
     def parse_Account(self):
         ''' LINE 通过以下来来确定本人 mid
@@ -192,7 +131,7 @@ class LineParser(object):
                 account.deleted    = 1 if rec.IsDeleted else 0
                 account.source     = self.cur_db_source
                 try:
-                    account.insert_db(self.im)
+                    account.insert_db(self.csm)
                 except:
                     exc()
                 cur_account = account
@@ -205,12 +144,12 @@ class LineParser(object):
             account.username   = UNKNOWN_USER_USERNAME
             account.source     = self.cur_db_source
             try:
-                account.insert_db(self.im)
+                account.insert_db(self.csm)
             except:
                 exc()        
             cur_account = account
               
-        self.im.db_commit()    
+        self.csm.db_commit()    
         return cur_account
 
     def preparse_group_member(self, table_name):
@@ -309,10 +248,10 @@ class LineParser(object):
             except:
                 exc()
             try:
-                chatroom.insert_db(self.im)
+                chatroom.insert_db(self.csm)
             except:
                 exc()
-        self.im.db_commit()  
+        self.csm.db_commit()  
         return CHATROOM_ID_NAME
 
     def parse_chat(self, table_name):
@@ -439,10 +378,10 @@ class LineParser(object):
             message.source  = self.cur_db_source
             message.deleted = 1 if rec.IsDeleted else 0         
             try:
-                message.insert_db(self.im)
+                message.insert_db(self.csm)
             except:
                 exc()
-        self.im.db_commit()
+        self.csm.db_commit()
 
     def parse_Friend(self, table_name, FRIEND_CHATROOMS):
         ''' naver_line contacts 
@@ -520,10 +459,10 @@ class LineParser(object):
             for chatroom_id in FRIEND_CHATROOMS.get(friend.friend_id, []):
                 self.parse_ChatroomMember(friend, chatroom_id)
             try:
-                friend.insert_db(self.im)
+                friend.insert_db(self.csm)
             except:
                 exc()            
-        self.im.db_commit()
+        self.csm.db_commit()
         return FRIEND_ID_NAME        
 
     def parse_ChatroomMember(self, friend, chatroom_id):
@@ -563,7 +502,7 @@ class LineParser(object):
         cm.deleted      = friend.deleted  
         cm.source       = friend.source  
         try:
-            cm.insert_db(self.im)
+            cm.insert_db(self.csm)
         except:
             exc()
 
@@ -883,72 +822,6 @@ class LineParser(object):
             return type_map[status]
         except:
             tp('new status {}!!!!!!!!!!!!!!!!!'.format(status))
-
-
-    def _read_db(self, db_path):
-        ''' 读取手机数据库
-
-        :type db_path: str
-        :rtype: bool                              
-        '''
-        db_node = self.root.GetByPath(db_path)
-        self.cur_db = SQLiteParser.Database.FromNode(db_node, canceller)
-        if self.cur_db is None:
-            return False
-        self.cur_db_source = db_node.AbsolutePath
-        return True
-
-    def _read_table(self, table_name):
-        ''' 读取手机数据库 - 表
-
-        :type table_name: str
-        :rtype: db.ReadTableRecords()                                       
-        '''
-        self._PK_LIST = []
-        try:
-            tb = SQLiteParser.TableSignature(table_name)  
-            return self.cur_db.ReadTableRecords(tb, self.extract_deleted, True)
-        except:
-            exc()
-            return []
-
-    def _is_duplicate(self, rec, pk_name):
-        ''' filter duplicate record
-        
-        Args:
-            rec (record): 
-            pk_name (str): 
-        Returns:
-            bool: rec[pk_name].Value in self._PK_LIST
-        '''
-        try:
-            pk_value = rec[pk_name].Value
-            if IsDBNull(pk_value) or pk_value in self._PK_LIST:
-                return True
-            self._PK_LIST.append(pk_value)
-            return False
-        except:
-            exc()
-            return True
-
-    @staticmethod
-    def _is_empty(rec, *args):
-        ''' 过滤 DBNull 空数据, 有一空值就跳过
-        
-        :type rec:   rec
-        :type *args: str
-        :rtype: bool
-        '''
-        try:
-            for i in args:
-
-                
-                if IsDBNull(rec[i].Value) or rec[i].Value in ('', ' ', None, [], {}):
-                    return True
-            return False
-        except:
-            exc()
-            return True     
 
     @staticmethod
     def _get_im_ts(timestamp):

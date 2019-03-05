@@ -46,7 +46,10 @@ def analyze_wechat(root, extract_deleted, extract_source):
     nodes = root.FileSystem.Search('/DB/MM\.sqlite$')
     if len(nodes) > 0:
         progress.Start()
-        WeChatParser(process_nodes(nodes), extract_deleted, extract_source).process()
+        try:
+            WeChatParser(process_nodes(nodes), extract_deleted, extract_source).process()
+        except Exception as e:
+            TraceService.Trace(TraceLevel.Error, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
         progress.Finish(True)
     else:
         progress.Skip()
@@ -129,6 +132,9 @@ class WeChatParser(Wechat):
 
     def process(self):
         for build in self.node_dict:
+            prog = progress['APP', build]
+            prog.Start()
+
             # 每个app创建一个资源节点
             self.ar = AppResources(progress['APP', build]['MEDIA', '多媒体'])
             self.ar.set_thum_config('pic_thum', 'Image')
@@ -146,6 +152,7 @@ class WeChatParser(Wechat):
             ds.Add(pr)
             
             self.ar = None
+            prog.Finish(True)
 
     def parse_user_node(self, node, build):
         self.im = model_wechat.IM()
@@ -242,36 +249,36 @@ class WeChatParser(Wechat):
             except Exception as e:
                 TraceService.Trace(TraceLevel.Error, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
             self.set_progress(35)
-            try:
-                #print('%s apple_wechat() parse MM.sqlite' % time.asctime(time.localtime(time.time())))
-                self._parse_user_mm_db(self.user_node.GetByPath('/DB/MM.sqlite'))
-            except Exception as e:
-                TraceService.Trace(TraceLevel.Error, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
-            self.set_progress(80)
-            try:
-                #print('%s apple_wechat() parse fts_message.db' % time.asctime(time.localtime(time.time())))
-                self._parse_user_fts_db(self.user_node.GetByPath('/fts/fts_message.db'))
-            except Exception as e:
-                TraceService.Trace(TraceLevel.Error, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
-            self.set_progress(90)
-            try:
-                #print('%s apple_wechat() parse story_main.db' % time.asctime(time.localtime(time.time())))
-                self._parse_user_story_db(self.user_node.GetByPath('/story/story_main.db'))
-            except Exception as e:
-                TraceService.Trace(TraceLevel.Error, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
-            self.set_progress(92)
             if self.private_user_node is not None:
                 try:
                     #print('%s apple_wechat() parse fav.db' % time.asctime(time.localtime(time.time())))
                     self._parse_user_fav_db(self.private_user_node.GetByPath('/Favorites/fav.db'))
                 except Exception as e:
                     TraceService.Trace(TraceLevel.Error, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
-                self.set_progress(98)
+                self.set_progress(41)
                 try:
                     #print('%s apple_wechat() parse wshistory.pb' % time.asctime(time.localtime(time.time())))
                     self._parse_user_search(self.private_user_node.GetByPath('/searchH5/cache/wshistory.pb'))
                 except Exception as e:
                     TraceService.Trace(TraceLevel.Error, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
+            self.set_progress(42)
+            try:
+                #print('%s apple_wechat() parse MM.sqlite' % time.asctime(time.localtime(time.time())))
+                self._parse_user_mm_db(self.user_node.GetByPath('/DB/MM.sqlite'), 42, 87)
+            except Exception as e:
+                TraceService.Trace(TraceLevel.Error, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
+            self.set_progress(87)
+            try:
+                #print('%s apple_wechat() parse fts_message.db' % time.asctime(time.localtime(time.time())))
+                self._parse_user_fts_db(self.user_node.GetByPath('/fts/fts_message.db'))
+            except Exception as e:
+                TraceService.Trace(TraceLevel.Error, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
+            self.set_progress(97)
+            try:
+                #print('%s apple_wechat() parse story_main.db' % time.asctime(time.localtime(time.time())))
+                self._parse_user_story_db(self.user_node.GetByPath('/story/story_main.db'))
+            except Exception as e:
+                TraceService.Trace(TraceLevel.Error, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
             self.set_progress(99)
             self.im.db_create_index()
             # 数据库填充完毕，请将中间数据库版本和app数据库版本插入数据库，用来检测app是否需要重新解析
@@ -405,6 +412,7 @@ class WeChatParser(Wechat):
         if 'Friend' in db.Tables:
             ts = SQLiteParser.TableSignature('Friend')
             SQLiteParser.Tools.AddSignatureToTable(ts, "userName", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
+            SQLiteParser.Tools.AddSignatureToTable(ts, "contact_remark", SQLiteParser.FieldType.Blob, SQLiteParser.FieldConstraints.NotNull)
             for rec in db.ReadTableRecords(ts, self.extract_deleted, False, ''):
                 if canceller.IsCancellationRequested:
                     break
@@ -544,7 +552,7 @@ class WeChatParser(Wechat):
 
         return True
 
-    def _parse_user_mm_db(self, node):
+    def _parse_user_mm_db(self, node, progress_start, progress_end):
         if not node:
             return False
         if canceller.IsCancellationRequested:
@@ -567,7 +575,7 @@ class WeChatParser(Wechat):
             return False
         if not db:
             return False
-        self.set_progress(36)
+        self.set_progress(progress_start+1)
 
         #db_tables = set()
         #ts = SQLiteParser.TableSignature('sqlite_master')
@@ -619,7 +627,7 @@ class WeChatParser(Wechat):
                     TraceService.Trace(TraceLevel.Error, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
             self.im.db_commit()
             self.push_models()
-            self.set_progress(36 + i * 100 / len(db.Tables) * (80 - 36) / 100)
+            self.set_progress(progress_start+1 + i * 100 / len(db.Tables) * (progress_end - progress_start+1) / 100)
         return True
 
     def _parse_user_mm_db_with_value(self, deleted, source, username, msg, msg_type, msg_local_id, is_sender, timestamp, user_hash, user_unknown):
@@ -643,7 +651,7 @@ class WeChatParser(Wechat):
             message.talker_type = model_wechat.CHAT_TYPE_FRIEND
             message.sender_id = self.user_account.account_id if is_sender else username
             if username == 'newsapp':
-                message.content = self._process_parse_message_tencent_news(msg)
+                message.content = self._process_parse_message_tencent_news(msg, message)
             else:
                 revoke_content = self._process_parse_friend_message(msg, msg_type, msg_local_id, self.user_node, user_hash, message)
 
@@ -898,7 +906,7 @@ class WeChatParser(Wechat):
                         fav_item.sender_id = source_info.Element('fromusr').Value
                 if xml.Element('desc'):
                     fav_item.content = xml.Element('desc').Value
-            elif fav_type in [model_wechat.FAV_TYPE_IMAGE, model_wechat.FAV_TYPE_VOICE, model_wechat.FAV_TYPE_VIDEO, model_wechat.FAV_TYPE_VIDEO_2, model_wechat.FAV_TYPE_ATTACHMENT]:
+            elif fav_type in [model_wechat.FAV_TYPE_IMAGE, model_wechat.FAV_TYPE_VOICE, model_wechat.FAV_TYPE_VIDEO, model_wechat.FAV_TYPE_VIDEO_2, model_wechat.FAV_TYPE_ATTACHMENT, model_wechat.FAV_TYPE_ATTACHMENT_2]:
                 fav_item = model.create_item()
                 fav_item.type = fav_type
                 if xml.Element('source'):
@@ -1002,7 +1010,7 @@ class WeChatParser(Wechat):
                         if fav_item.type == model_wechat.FAV_TYPE_TEXT:
                             if item.Element('datadesc'):
                                 fav_item.content = item.Element('datadesc').Value
-                        elif fav_item.type in [model_wechat.FAV_TYPE_IMAGE, model_wechat.FAV_TYPE_VOICE, model_wechat.FAV_TYPE_VIDEO, model_wechat.FAV_TYPE_VIDEO_2, model_wechat.FAV_TYPE_ATTACHMENT]:
+                        elif fav_item.type in [model_wechat.FAV_TYPE_IMAGE, model_wechat.FAV_TYPE_VOICE, model_wechat.FAV_TYPE_VIDEO, model_wechat.FAV_TYPE_VIDEO_2, model_wechat.FAV_TYPE_ATTACHMENT, model_wechat.FAV_TYPE_ATTACHMENT_2]:
                             ext = 'fav_dat'
                             if item.Element('datafmt'):
                                 ext = item.Element('datafmt').Value
@@ -1435,25 +1443,61 @@ class WeChatParser(Wechat):
                         attach_node = self.user_node.GetByPath('OpenData/{}/{}.{}'.format(friend_hash, msg_local_id, ext))
                         if attach_node is not None:
                             model.link_url = attach_node.AbsolutePath
+                    elif msg_type == 9:  # 提醒
+                        if appmsg.Element('des'):
+                            content = appmsg.Element('des').Value
+                            model.type = model_wechat.MESSAGE_CONTENT_TYPE_TEXT
                     elif msg_type == 17:  # 位置共享
                         if appmsg.Element('title'):
                             content = appmsg.Element('title').Value
                             model.type = model_wechat.MESSAGE_CONTENT_TYPE_TEXT
                     else:
                         mmreader = appmsg.Element('mmreader')
-                        if mmreader:
+                        if mmreader and mmreader.Element('category'):
                             content = ''
-                            category = mmreader.Element('category')
-                            if category and category.Element('item'):
-                                item = category.Element('item')
-                                if item.Element('title'):
-                                    model.link_title = item.Element('title').Value
-                                if item.Element('digest'):
-                                    model.link_content = item.Element('digest').Value
-                                if item.Element('url'):
-                                    model.link_url = item.Element('url').Value
-                                if item.Element('cover'):
-                                    model.link_image = item.Element('cover').Value
+                            count = 1
+                            if mmreader.Element('category').Attribute('count'):
+                                count = int(mmreader.Element('category').Attribute('count').Value)
+                            if count > 1:
+                                items = mmreader.Element('category').Elements('item')
+                                contents = []
+                                for item in items:
+                                    info = {}
+                                    if item.Element('title'):
+                                        info['title'] = item.Element('title').Value
+                                    if item.Element('digest'):
+                                        info['description'] = item.Element('digest').Value
+                                    if item.Element('url'):
+                                        info['url'] = item.Element('url').Value
+                                    if item.Element('cover'):
+                                        info['image'] = item.Element('cover').Value
+                                    if len(info) > 0:
+                                        contents.append(info)
+                                try:
+                                    content = json.dumps(contents, ensure_ascii=False)
+                                    model.type = model_wechat.MESSAGE_CONTENT_TYPE_LINK_SET
+                                except Exception as e:
+                                    item = mmreader.Element('category').Element('item')
+                                    if item is not None:
+                                        if item.Element('title'):
+                                            model.link_title = item.Element('title').Value
+                                        if item.Element('digest'):
+                                            model.link_content = item.Element('digest').Value
+                                        if item.Element('url'):
+                                            model.link_url = item.Element('url').Value
+                                        if item.Element('cover'):
+                                            model.link_image = item.Element('cover').Value
+                            elif count == 1:
+                                item = mmreader.Element('category').Element('item')
+                                if item is not None:
+                                    if item.Element('title'):
+                                        model.link_title = item.Element('title').Value
+                                    if item.Element('digest'):
+                                        model.link_content = item.Element('digest').Value
+                                    if item.Element('url'):
+                                        model.link_url = item.Element('url').Value
+                                    if item.Element('cover'):
+                                        model.link_image = item.Element('cover').Value
                         else:
                             content = ''
                             if appmsg.Element('title'):
@@ -1504,6 +1548,49 @@ class WeChatParser(Wechat):
                     model.link_image = appmsg.Element('thumburl').Value
             else:
                 pass
+        return content
+
+    def _process_parse_message_tencent_news(self, xml_str, model):
+        content = xml_str
+        news = []
+        xml = None
+        try:
+            xml = XElement.Parse(xml_str)
+        except Exception as e:
+            model.type = model_wechat.MESSAGE_CONTENT_TYPE_TEXT
+        if xml and xml.Name.LocalName == 'mmreader' and xml.Element('category'):
+            contents = []
+            items = xml.Element('category').Elements('newitem')
+            for item in items:
+                info = {}
+                if item.Element('title'):
+                    info['title'] = item.Element('title').Value
+                if item.Element('digest'):
+                    info['description'] = item.Element('digest').Value
+                if item.Element('url'):
+                    info['url'] = item.Element('url').Value
+                if item.Element('cover'):
+                    info['image'] = item.Element('cover').Value
+                if len(info) > 0:
+                    contents.append(info)
+            try:
+                content = json.dumps(contents, ensure_ascii=False)
+                model.type = model_wechat.MESSAGE_CONTENT_TYPE_LINK_SET
+            except Exception as e:
+                item = xml.Element('category').Element('newitem')
+                if item is not None:
+                    model.type = model_wechat.MESSAGE_CONTENT_TYPE_LINK
+                    content = ''
+                    if item.Element('title'):
+                        model.link_title = item.Element('title').Value
+                    if item.Element('digest'):
+                        model.link_content = item.Element('digest').Value
+                    if item.Element('url'):
+                        model.link_url = item.Element('url').Value
+                    if item.Element('cover'):
+                        model.link_image = item.Element('cover').Value
+                else:
+                    model.type = model_wechat.MESSAGE_CONTENT_TYPE_TEXT
         return content
 
     def _parse_pay_card(self):

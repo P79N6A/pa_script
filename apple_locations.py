@@ -7,9 +7,13 @@ from PA.Common.Utilities.Types import TimeStampFormats
 from PA.InfraLib import LocationSourceType
 import sqlite3
 import clr
-clr.AddReference('System.Core')
-clr.AddReference('System.Xml.Linq')
-clr.AddReference('System.Data.SQLite')
+try:
+    clr.AddReference('System.Core')
+    clr.AddReference('System.Xml.Linq')
+    clr.AddReference('System.Data.SQLite')
+    clr.AddReference('bcp_connectdevice')
+except:
+    pass
 del clr
 from System.Data.SQLite import *
 import System
@@ -18,6 +22,9 @@ import shutil
 import time
 import PA.InfraLib.ModelsV2.Base as Base
 from PA.InfraLib.ModelsV2.CommonEnum import CoordinateType
+
+import bcp_connectdevice
+import hashlib
 
 def moveFileto(sourceDir,  targetDir): 
     shutil.copy(sourceDir,  targetDir)
@@ -188,6 +195,19 @@ class LocationsParser(object):
             results.append(result)
             if cell.HasLogicalContent:
                 results.append(cell)
+            try:
+                mcc = self._db_record_get_int_value(record, 'MCC')
+                mnc = self._db_record_get_int_value(record, 'MNC')
+                lac = self._db_record_get_string_value(record, 'LAC')
+                ci = self._db_record_get_string_value(record, 'CI')
+                latitude = self._db_record_get_string_value(record, 'Latitude')
+                longitude = self._db_record_get_string_value(record, 'Longitude')
+                sid = self._db_record_get_string_value(record, 'SID')
+                nid = self._db_record_get_string_value(record, 'NID')
+                bsid = self._db_record_get_string_value(record, 'BSID')
+                self.insert_cache(mcc, mnc, lac, ci, latitude, longitude, sid, nid, bsid)
+            except:
+                pass
         return results
 
     def parse_cdma_cell_location(self):
@@ -226,6 +246,19 @@ class LocationsParser(object):
             results.append(result)
             if cell.HasLogicalContent:
                 results.Add(cell)
+            try:
+                mcc = self._db_record_get_int_value(record, 'MCC')
+                mnc = self._db_record_get_int_value(record, 'MNC')
+                lac = self._db_record_get_string_value(record, 'LAC')
+                ci = self._db_record_get_string_value(record, 'CI')
+                latitude = self._db_record_get_string_value(record, 'Latitude')
+                longitude = self._db_record_get_string_value(record, 'Longitude')
+                sid = self._db_record_get_string_value(record, 'SID')
+                nid = self._db_record_get_string_value(record, 'NID')
+                bsid = self._db_record_get_string_value(record, 'BSID')
+                self.insert_cache(mcc, mnc, lac, ci, latitude, longitude, sid, nid, bsid)
+            except:
+                pass
         return results
 
     def parse_wifi_locations(self):
@@ -349,6 +382,20 @@ class LocationsParser(object):
             self.get_coordinate_and_data_from_record(record, result)
             results.append(result)
 
+            try:
+                mcc = self._db_record_get_int_value(record, 'MCC')
+                mnc = self._db_record_get_int_value(record, 'MNC')
+                lac = self._db_record_get_string_value(record, 'LAC')
+                ci = self._db_record_get_string_value(record, 'CI')
+                latitude = self._db_record_get_string_value(record, 'Latitude')
+                longitude = self._db_record_get_string_value(record, 'Longitude')
+                sid = self._db_record_get_string_value(record, 'SID')
+                nid = self._db_record_get_string_value(record, 'NID')
+                bsid = self._db_record_get_string_value(record, 'BSID')
+                self.insert_cache(mcc, mnc, lac, ci, latitude, longitude, sid, nid, bsid)
+            except:
+                pass
+
         return results
 
     def parse_reminder_locations(self):
@@ -467,6 +514,7 @@ class LocationsParser(object):
     def parse(self):
         if self.db is None:
             return []
+        self.create_cache()
         results = []
         results += self.parse_cell_locations()
         results += self.parse_cdma_cell_location()
@@ -476,7 +524,68 @@ class LocationsParser(object):
         results += self.parse_cell_location_harvest()
         results += self.parse_reminder_locations()
         results += self.parse_app_harvest_locations()
+        self.close_cache()
         return results
+
+    def create_cache(self):
+        '''创建中间数据库'''
+        self.cd = bcp_connectdevice.ConnectDeviceBcp()
+        cachepath = ds.OpenCachePath("基站信息")
+        md5_db = hashlib.md5()
+        db_name = 'radio_log'
+        md5_db.update(db_name.encode(encoding = 'utf-8'))
+        self.db_path = cachepath + '\\' + md5_db.hexdigest().upper() + '.db'
+        self.cd.db_create(self.db_path)
+
+    def insert_cache(self, mcc, mnc, lac, ci, latitude, longitude, sid, nid, bsid):
+        '''插入数据'''
+        base = bcp_connectdevice.BasestationInfo()
+        base.MCC = mcc
+        base.MNC = mnc
+        base.LAC = lac
+        base.CellID = ci
+        base.LATITUDE = latitude
+        base.LONGITUDE = longitude
+        base.SID = sid
+        base.NID = nid
+        base.BASE_STATION_ID = bsid
+        self.cd.db_insert_table_basestation_information(base)
+
+    def close_cache(self):
+        '''关闭数据库,导出bcp'''
+        try:
+            self.cd.db_commit()
+            self.cd.db_close()
+            #bcp entry
+            temp_dir = ds.OpenCachePath('tmp')
+            PA_runtime.save_cache_path(bcp_connectdevice.BASESTATION_INFORMATION, self.db_path, temp_dir)
+        except:
+            pass
+
+    @staticmethod
+    def _db_record_get_string_value(record, column, default_value=''):
+        try:
+            if not record[column].IsDBNull:
+                try:
+                    value = str(record[column].Value)
+                    return value
+                except Exception as e:
+                    return default_value
+            return default_value
+        except:
+            return default_value
+
+    @staticmethod
+    def _db_record_get_int_value(record, column, default_value=0):
+        try:
+            if not IsDBNull(record[column].Value):
+                try:
+                    return int(record[column].Value)
+                except Exception as e:
+                    return default_value
+            return default_value
+        except:
+            return default_value
 
 def analyze_locations(node, extract_deleted, extract_source):
     #extractDeleted = False #暂时禁用位置相关的数据恢复

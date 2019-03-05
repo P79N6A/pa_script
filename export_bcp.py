@@ -11,6 +11,7 @@ try:
     clr.AddReference('model_eb')
     clr.AddReference('bcp_other')
     clr.AddReference('bcp_wechat')
+    clr.AddReference('bcp_connectdevice')
 except:
     pass
 del clr
@@ -21,13 +22,14 @@ import bcp_weibo
 import bcp_browser
 import bcp_basic
 import bcp_other
+import bcp_connectdevice
 import hashlib
 import bcp_wechat
 import os
 import traceback
 import model_eb
 
-IM_LIST     = ['1030001','1030027','1030028','1030035','1030038','1030043','1030044','1030045','1030046','1030047','1030048','1030049','1030050','1030051','1030052','1030053','1039999']
+IM_LIST     = ['1030001','1030027','1030028','1030035','1030038','1030043','1030044','1030045','1030046','1030047','1030048','1030049','1030050','1030051','1030052','1030053','1039999', '1290007']
 WEIBO_LIST  = ['1330001','1330002','1330003','1330004','1330005','1330006','1339999']
 MAP_LIST    = ['1440001','1440002','1440003','1440004','1440005','1449999','1440009','1449999']
 MAIL_LIST   = ['01001','01002','01003','01004','01005','01006','01007','01999']
@@ -35,6 +37,7 @@ BROWER_LIST = ['1560001','1560002','1560003','1560004','1560005','1560006','1560
 BASIC_LIST  = ["01","02","03","04","05","06","07","08","09","10","11","12","13","14"]
 EC_LIST = ["1220007", "1220069", "1220005", "1220002", "1290007"]
 OTHER_LIST = ["15","16","17","18","19","20"]
+BASESTATION_LIST = ["21", "22", "23", "24"]
 WECHAT = "1030036"
 
 # caseDir = r"E:\iPhone 6_11.1.2_133217541373990_full(1)_0817\caches"
@@ -165,6 +168,19 @@ def run(target_id, bcp_path, case_path, mountDir, software_type):
                         print(e)
                 return bcp_path_list
 
+        # 连接设备信息类生成bcp数据库
+        elif software_type in BASESTATION_LIST:
+            path_lists = read_path(software_path)
+            if path_lists:
+                for path in path_lists: 
+                    try:
+                        ts_db = md5(path, ts_path)    
+                        bcp_connectdevice.GenerateBcp(bcp_path, path, ts_db, target_id, mountDir).generate()
+                        bcp_path_list.append(ts_db)
+                    except Exception as e:
+                        print(e)
+                return bcp_path_list
+
         # 其他应用信息
         elif software_type in OTHER_LIST:
             path_lists = read_path(software_path)
@@ -177,7 +193,6 @@ def run(target_id, bcp_path, case_path, mountDir, software_type):
                     except Exception as e:
                         print(e)
                 return bcp_path_list
-
     return None
 
 def md5(cache_path, ts_path):

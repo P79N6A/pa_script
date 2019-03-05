@@ -99,6 +99,9 @@ class ContactParser(model_contact.MC):
             #oppo系统备份
             elif re.findall("contact.vcf", self.node.AbsolutePath):
                 self.analyze_contact_oppo_bac()
+            #vivo系统备份
+            elif re.findall("contact$", self.node.AbsolutePath):
+                self.analyze_contact_oppo_bac()
             self.db_insert_table_version(model_contact.VERSION_KEY_DB, model_contact.VERSION_VALUE_DB)
             self.db_insert_table_version(model_contact.VERSION_KEY_APP, VERSION_APP_VALUE)
             self.db_commit()

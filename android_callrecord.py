@@ -56,6 +56,8 @@ class CallsParse(MC):
             elif re.findall('calllog.vcl', self.node.AbsolutePath):
                 self.analyze_call_records_case7()
             #vivo自带备份案例
+            elif re.findall('call$', self.node.AbsolutePath):
+                self.analyze_call_records_case8()
             #小米自带备份案例
             #华为全盘通话记录存储在calls.db中
             elif self.node.Parent.GetByPath('/calls.db'):
@@ -308,6 +310,28 @@ class CallsParse(MC):
                 elif re.findall('X-TYPE:', line):
                     dic['type'] = re.sub('X-TYPE:', '', line).replace('\n', '')
             self.db_commit()
+        except:
+            traceback.print_exc()
+
+    def analyze_call_records_case8(self):
+        try:
+            if self.node and self.node.Data:
+                xml_data = XElement.Parse(self.node.read())
+                xml_data = str(xml_data)
+                recs = re.findall('<call(.*?)/>', xml_data)
+                for rec in recs:
+                    try:
+                        d = re.findall('"(.*?)"', rec)
+                        records = Records()
+                        records.phone_number = str(d[0])
+                        records.date = int(d[2]) if d[2] is not ' ' else 0
+                        records.duration = int(d[3]) if d[3] is not ' ' else 0
+                        records.type = int(d[1]) if d[1] is not ' ' else 0
+                        records.source = self.node.AbsolutePath
+                        self.db_insert_table_call_records(records)
+                    except:
+                        traceback.print_exc()
+                self.db_commit() 
         except:
             traceback.print_exc()
 
