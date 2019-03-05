@@ -70,10 +70,11 @@ FAV_TYPE_VOICE = 3  # 语音
 FAV_TYPE_VIDEO = 4  # 视频
 FAV_TYPE_LINK = 5  # 链接
 FAV_TYPE_LOCATION = 6  # 位置
+FAV_TYPE_MUSIC = 7  # 音乐
 FAV_TYPE_ATTACHMENT = 8  # 附件
 FAV_TYPE_CHAT = 14  # 聊天记录
 FAV_TYPE_VIDEO_2 = 16 # 视频
-FAV_TYPE_ATTACHMENT_2 = 18  # 附件
+FAV_TYPE_NOTE = 18  # 笔记
 
 LOCATION_TYPE_GPS = 1  # GPS坐标
 LOCATION_TYPE_GPS_MC = 2  # GPS米制坐标
@@ -2022,7 +2023,7 @@ class GenerateModel(object):
                         model.Content.Value = media_model
                         if is_valid_media_model_path(media_path):
                             self.ar.save_media_model(media_model)
-                    elif fav_type == FAV_TYPE_LINK:
+                    elif fav_type in [FAV_TYPE_LINK, FAV_TYPE_MUSIC]:
                         model.Content = Base.Content.LinkContent(model)
                         model.Content.Value = Base.Link()
                         model.Content.Value.Title = link_title
@@ -2037,7 +2038,7 @@ class GenerateModel(object):
                         model.Content.Value.AddressName = location_address
                         model.Content.Value.Coordinate = Base.Coordinate(location_longitude, location_latitude, self._convert_location_type(location_type))
                         #self.add_model(model.Content.Value)
-                    elif fav_type == [FAV_TYPE_ATTACHMENT, FAV_TYPE_ATTACHMENT_2]:
+                    elif fav_type == [FAV_TYPE_ATTACHMENT, FAV_TYPE_NOTE]:
                         model.Content = Base.Content.AttachmentContent(model)
                         model.Content.Value = Base.Attachment()
                         model.Content.Value.FileName = content
