@@ -77,7 +77,7 @@ class Radio(object):
             pass
         elif "vivo" in phone_name:
             models.extend(self.parse_vivo_radio(radio_log, PATTERN_RULES[VIVO_PHONE]))
-        elif "huawei" in phone_name:
+        elif "HUAWEI" in phone_name:
             models.extend(self.parse_huawei_radio(radio_log, PATTERN_RULES[HUAWEI_PHONE]))
         elif "honor" in phone_name:
             pass
@@ -142,7 +142,7 @@ class Radio(object):
                 if results:
                     if len(results.groups()[0]) != 0 and len(results.groups()[1]) != 0 and len(results.groups()[2]) != 0 and len(results.groups()[3]) != 0:
                         try:
-                            if int(results.groups()[1]) in [0,1,11]:
+                            if int(results.groups()[1]) in [0,1,2,3,5,6,7,9,11,20]:
                                 celltower = CellTower()
                                 mcc,mnc,ci,tac = results.groups()
                                 celltower.MNC.Value = mnc
@@ -175,7 +175,7 @@ class Radio(object):
                 if results:
                     if len(results.groups()[0]) != 0 and len(results.groups()[1]) != 0 and len(results.groups()[2]) != 0 and len(results.groups()[3]) != 0:
                         try:
-                            if int(results.groups()[1]) in [0,1,11]:
+                            if int(results.groups()[1]) in [0,1,2,3,5,6,7,9,11,20]:
                                 mcc,mnc,ci,tac = results.groups()
                                 celltower = CellTower()
                                 mcc,mnc,ci,tac = results.groups()
@@ -209,7 +209,7 @@ class Radio(object):
                 if results:
                     if len(results.groups()[0]) != 0 and len(results.groups()[1]) != 0 and len(results.groups()[2]) != 0 and len(results.groups()[3]) != 0:
                         try:
-                            if int(results.groups()[1]) in [0,1,11]:
+                            if int(results.groups()[1]) in [0,1,2,3,5,6,7,9,11,20]:
                                 mcc,mnc,lac,ci = results.groups()
                                 celltower = CellTower()
                                 celltower.MNC.Value = mnc
@@ -242,7 +242,7 @@ class Radio(object):
                 if results:
                     if len(results.groups()[0]) != 0 and len(results.groups()[1]) != 0 and len(results.groups()[2]) != 0 and len(results.groups()[3]) != 0:
                         try:
-                            if int(results.groups()[1]) in [0,1]:
+                            if int(results.groups()[1]) in [0,1,2,3,5,6,7,9,11,20]:
                                 mci,tac,mcc,mnc = results.groups()
                                 celltower = CellTower()
                                 celltower.MNC.Value = mnc
@@ -275,7 +275,7 @@ class Radio(object):
                 if results:
                     if len(results.groups()[0]) != 0 and len(results.groups()[1]) != 0 and len(results.groups()[2]) != 0 and len(results.groups()[3]) != 0:
                         try:
-                            if int(results.groups()[1]) in [0,1]:
+                            if int(results.groups()[1]) in [0,1,2,3,5,6,7,9,11,20]:
                                 mcc,mnc,mci,tac = results.groups()
                                 celltower = CellTower()
                                 celltower.MNC.Value = mnc
@@ -308,7 +308,7 @@ class Radio(object):
                 if results:
                     if len(results.groups()[0]) != 0 and len(results.groups()[1]) != 0 and len(results.groups()[2]) != 0 and len(results.groups()[3]) != 0:
                         try:
-                            if int(results.groups()[1]) in [0,1]:
+                            if int(results.groups()[1]) in [0,1,2,3,5,6,7,9,11,20]:
                                 mcc,mnc,mci,tac = results.groups()
                                 celltower = CellTower()
                                 celltower.MNC.Value = mnc
