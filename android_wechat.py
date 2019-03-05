@@ -252,6 +252,7 @@ class WeChatParser(Wechat):
 
             node = self.user_node.GetByPath('/EnMicroMsg.db')
             mm_db_path = os.path.join(self.cache_path, self.user_hash + '_mm.db')
+            mm_db_parser = None
             try:
                 # print('%s android_wechat() decrypt EnMicroMsg.db' % time.asctime(time.localtime(time.time())))
                 if Decryptor.decrypt(node, self._get_db_key(self.imei, self.uin), mm_db_path):
@@ -288,7 +289,8 @@ class WeChatParser(Wechat):
                 self._parse_story_db(self.user_node.GetByPath('/StoryMicroMsg.db'))
             except Exception as e:
                 TraceService.Trace(TraceLevel.Error, "android_wechat.py Error: LINE {}".format(traceback.format_exc()))
-            next(mm_db_parser)
+            if mm_db_parser is not None:
+                next(mm_db_parser)
             self.set_progress(99)
             self.im.db_create_index()
             # 数据库填充完毕，请将中间数据库版本和app数据库版本插入数据库，用来检测app是否需要重新解析
@@ -1027,19 +1029,19 @@ class WeChatParser(Wechat):
         self.user_account_model = self.get_account_model(user_account)
         self.add_model(self.user_account_model)
         # add self to friend
-        if self.user_account_model is not None:
-            model = WeChat.Friend()
-            model.SourceFile = self.user_account_model.SourceFile
-            model.Deleted = self.user_account_model.Deleted
-            model.AppUserAccount = self.user_account_model
-            model.Account = self.user_account_model.Account
-            model.NickName = self.user_account_model.NickName
-            model.HeadPortraitPath = self.user_account_model.HeadPortraitPath
-            model.Gender = self.user_account_model.Gender
-            model.Signature = self.user_account_model.Signature
-            model.Type = WeChat.FriendType.Friend
-            self.friend_models[self.user_account_model.Account] = model
-            self.add_model(model)
+        # if self.user_account_model is not None:
+        #     model = WeChat.Friend()
+        #     model.SourceFile = self.user_account_model.SourceFile
+        #     model.Deleted = self.user_account_model.Deleted
+        #     model.AppUserAccount = self.user_account_model
+        #     model.Account = self.user_account_model.Account
+        #     model.NickName = self.user_account_model.NickName
+        #     model.HeadPortraitPath = self.user_account_model.HeadPortraitPath
+        #     model.Gender = self.user_account_model.Gender
+        #     model.Signature = self.user_account_model.Signature
+        #     model.Type = WeChat.FriendType.Friend
+        #     self.friend_models[self.user_account_model.Account] = model
+        #     self.add_model(model)
         self.push_models()
 
     def _parse_mm_db_get_user_info_from_userinfo(self, cursor, id):
@@ -1219,7 +1221,39 @@ class WeChatParser(Wechat):
                 cm.display_name = None
             cm.insert_db(self.im)
 
+    def _get_rcon_messages(self, db):
+        ret = {}
+        if 'rconversation' in db.Tables:
+            if canceller.IsCancellationRequested:
+                return
+            ts = SQLiteParser.TableSignature('rconversation')
+            SQLiteParser.Tools.AddSignatureToTable(ts, "username", SQLiteParser.FieldType.Text,
+                                                   SQLiteParser.FieldConstraints.NotNull)
+            SQLiteParser.Tools.AddSignatureToTable(ts, "isSend", SQLiteParser.FieldType.Int,
+                                                   SQLiteParser.FieldConstraints.NotNull)
+            SQLiteParser.Tools.AddSignatureToTable(ts, "content", SQLiteParser.FieldType.Text,
+                                                   SQLiteParser.FieldConstraints.NotNull)
+            SQLiteParser.Tools.AddSignatureToTable(ts, "conversationTime", SQLiteParser.FieldType.Int,
+                                                   SQLiteParser.FieldConstraints.NotNull)
+            for rec in db.ReadTableRecords(ts, False, False, ''):
+                if canceller.IsCancellationRequested:
+                    break
+                try:
+                    item = {}
+                    content = item['content'] = self._db_record_get_string_value(rec, 'content')
+                    item['is_send'] = self._db_record_get_int_value(rec, 'isSend')
+                    username = item['username'] = self._db_record_get_string_value(rec, 'username')
+                    send_time = item['send_time'] = self._db_record_get_int_value(rec, 'conversationTime')
+                    deleted = 0 if rec.Deleted == DeletedState.Intact else 1
+                    if ((content, username) not in ret) and (deleted == 0):
+                        ret[(content, username)] = item
+                except Exception as e:
+                    print_error()
+        return ret
+
     def _parse_mm_db_message(self, db, source):
+        rconversation_messages = self._get_rcon_messages(db)
+        print rconversation_messages
         if 'message' in db.Tables:
             if canceller.IsCancellationRequested:
                 return
@@ -1244,11 +1278,39 @@ class WeChatParser(Wechat):
                     msg_id = self._db_record_get_string_value(rec, 'msgId')
                     lv_buffer = self._db_record_get_blob_value(rec, 'lvbuffer')
                     msg_svr_id = self._db_record_get_string_value(rec, 'msgSvrId')
+                    msq_seq = self._db_record_get_int_value(rec, 'msgSeq')
                     deleted = 0 if rec.Deleted == DeletedState.Intact else 1
+                    key = (msg, talker_id)
+                    if deleted == 0 and (key in rconversation_messages):
+                        del rconversation_messages[key]
                     self._parse_mm_db_message_with_value(deleted, source, talker_id, msg, img_path, is_send, status,
                                                          msg_type, timestamp, msg_id, lv_buffer, msg_svr_id)
                 except Exception as e:
-                    pass
+                    print_error()
+
+            # 下面这段代码是因为message里面的消息不一定是全的，还可能遗漏了几条，这几条可以在rconversation里面找到
+            # 原因不详，可能是因为分开写入message和rconversation表的时候，因为某些原因没有来得及同时写入，就提取出来了
+            for i in rconversation_messages.values():
+                print('find messages which is not in messages')
+                if canceller.IsCancellationRequested:
+                    break
+                try:
+                    talker_id = i.get('username', None)
+                    msg = i.get('content', None)
+                    img_path = None
+                    is_send = i.get('is_send', None)
+                    status = None
+                    msg_type = None
+                    timestamp = i.get('send_time')
+                    msg_id = None
+                    lv_buffer = None
+                    msg_svr_id = None
+                    deleted = 0
+                    self._parse_mm_db_message_with_value(deleted, source, talker_id, msg, img_path, is_send, status,
+                                                         msg_type, timestamp, msg_id, lv_buffer, msg_svr_id)
+                except Exception as e:
+                    print_error()
+
             self.im.db_commit()
             self.push_models()
 
