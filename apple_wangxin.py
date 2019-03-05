@@ -278,14 +278,41 @@ class WangxinParser():
                         elif friend.type == model_im.FRIEND_TYPE_SHOP:
                             message.talker_type = model_im.CHAT_TYPE_SHOP
                     message.is_sender = message.sender_id == self.user
-    
-                    message.type = self.parse_message_type(rec['ZTYPE'].Value)
+                    msg_type = rec['ZTYPE'].Value
+                    message.type = self.parse_message_type(msg_type)
                     message.content =  UnicodeEncoding.UTF8.GetString(rec['ZCONTENT'].Value) if not IsDBNull(rec['ZCONTENT'].Value) else None
                     message.send_time = int(float(self.macTime_to_unixTime(rec['ZTIME'].Value)))
+                    if message.type == model_im.MESSAGE_CONTENT_TYPE_IMAGE:
+                        try:
+                            obj = json.loads(message.content)
+                            message.media_path = obj['previewUrl']
+                        except:
+                            message.media_path = message.content
+                            traceback.print_exc()
+                    if message.type == model_im.MESSAGE_CONTENT_TYPE_VOICE:
+                        try:
+                            obj = json.loads(message.content)
+                            message.media_path = obj['url']
+                        except:
+                            message.media_path = message.content
+                            traceback.print_exc()
                     if message.type == model_im.MESSAGE_CONTENT_TYPE_VIDEO:
                         try:
                             obj = json.loads(message.content)
-                            message.content = obj['resource']
+                            message.media_path = obj['resource']
+                        except:
+                            message.media_path = message.content
+                            traceback.print_exc()
+                    if message.type == model_im.MESSAGE_CONTENT_TYPE_CONTACT_CARD:
+                        try:
+                            obj = json.loads(message.content)
+                            message.content = '{} 的名片'.format(obj['name'])
+                        except:
+                            traceback.print_exc()
+                    if msg_type == 66:
+                        try:
+                            obj = json.loads(message.content)
+                            message.content = obj['header']['summary']
                         except:
                             traceback.print_exc()
                     if message.type == model_im.MESSAGE_CONTENT_TYPE_LOCATION:  
@@ -318,25 +345,41 @@ class WangxinParser():
                             if from_id == member.member_id:
                                 message.sender_name = member.display_name
                     message.is_sender = message.sender_id == self.user
-                    message.type = self.parse_message_type(rec['ZCONTENTTYPE'].Value)
+                    msg_type = rec['ZCONTENTTYPE'].Value
+                    message.type = self.parse_message_type(msg_type)
                     message.send_time = int(float(self.macTime_to_unixTime(rec['ZDTIME'].Value)))
                     message.content =  str(rec['ZCONTENT'].Value)
                     if message.type == model_im.MESSAGE_CONTENT_TYPE_IMAGE:
                         try:
                             obj = json.loads(message.content)
-                            message.content = obj['previewUrl']
+                            message.media_path = obj['previewUrl']
                         except:
+                            message.media_path = message.content
                             traceback.print_exc()
                     if message.type == model_im.MESSAGE_CONTENT_TYPE_VOICE:
                         try:
                             obj = json.loads(message.content)
-                            message.content = obj['url']
+                            message.media_path = obj['url']
                         except:
+                            message.media_path = message.content
                             traceback.print_exc()
                     if message.type == model_im.MESSAGE_CONTENT_TYPE_VIDEO:
                         try:
                             obj = json.loads(message.content)
-                            message.content = obj['resource']
+                            message.media_path = obj['resource']
+                        except:
+                            message.media_path = message.content
+                            traceback.print_exc()
+                    if message.type == model_im.MESSAGE_CONTENT_TYPE_CONTACT_CARD:
+                        try:
+                            obj = json.loads(message.content)
+                            message.content = '{} 的名片'.format(obj['name'])
+                        except:
+                            traceback.print_exc()
+                    if msg_type == 66:
+                        try:
+                            obj = json.loads(message.content)
+                            message.content = obj['header']['summary']
                         except:
                             traceback.print_exc()
                     if message.type == model_im.MESSAGE_CONTENT_TYPE_LOCATION:

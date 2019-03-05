@@ -906,7 +906,7 @@ class WeChatParser(Wechat):
                         fav_item.sender_id = source_info.Element('fromusr').Value
                 if xml.Element('desc'):
                     fav_item.content = xml.Element('desc').Value
-            elif fav_type in [model_wechat.FAV_TYPE_IMAGE, model_wechat.FAV_TYPE_VOICE, model_wechat.FAV_TYPE_VIDEO, model_wechat.FAV_TYPE_VIDEO_2, model_wechat.FAV_TYPE_ATTACHMENT, model_wechat.FAV_TYPE_ATTACHMENT_2]:
+            elif fav_type in [model_wechat.FAV_TYPE_IMAGE, model_wechat.FAV_TYPE_VOICE, model_wechat.FAV_TYPE_VIDEO, model_wechat.FAV_TYPE_VIDEO_2, model_wechat.FAV_TYPE_ATTACHMENT]:
                 fav_item = model.create_item()
                 fav_item.type = fav_type
                 if xml.Element('source'):
@@ -929,6 +929,22 @@ class WeChatParser(Wechat):
                         ext = item.Element('datafmt').Value
                     if item.Element('fullmd5'):
                         fav_item.media_path = self._parse_user_fav_path(item.Element('fullmd5').Value, ext)
+            elif fav_type == model_wechat.FAV_TYPE_NOTE:
+                fav_item = model.create_item()
+                fav_item.type = fav_type
+                if xml.Element('source') and xml.Element('source').Element('fromusr'):
+                    fav_item.sender_id = xml.Element('source').Element('fromusr').Value
+                if xml.Element('edittime'):
+                    try:
+                        fav_item.timestamp = int(xml.Element('edittime').Value)
+                    except Exception as e:
+                        pass
+                if xml.Element('datalist'):
+                    for item in xml.Element('datalist').Elements('dataitem'):
+                        if item.Attribute('datatype') and item.Attribute('datatype').Value == '1':
+                            if item.Element('datadesc'):
+                                fav_item.content = item.Element('datadesc').Value
+                                break
             elif fav_type == model_wechat.FAV_TYPE_LINK:
                 fav_item = model.create_item()
                 fav_item.type = fav_type
@@ -949,8 +965,38 @@ class WeChatParser(Wechat):
                     weburlitem = xml.Element('weburlitem')
                     if weburlitem.Element('pagetitle'):
                         fav_item.link_title = weburlitem.Element('pagetitle').Value
+                    if weburlitem.Element('pagedesc'):
+                        fav_item.link_content = weburlitem.Element('pagedesc').Value
                     if weburlitem.Element('pagethumb_url'):
                         fav_item.link_image = weburlitem.Element('pagethumb_url').Value
+                if xml.Element('datalist') and xml.Element('datalist').Element('dataitem'):
+                    item = xml.Element('datalist').Element('dataitem')
+                    if item.Element('thumbfullmd5') and fav_item.link_image in [None, '']:
+                        fav_item.link_image = self._parse_user_fav_path(item.Element('thumbfullmd5').Value, 'fav_thumb')
+            elif fav_type == model_wechat.FAV_TYPE_MUSIC:
+                fav_item = model.create_item()
+                fav_item.type = fav_type
+                if xml.Element('source'):
+                    source_info = xml.Element('source')
+                    if source_info.Element('createtime'):
+                        try:
+                            fav_item.timestamp = int(source_info.Element('createtime').Value)
+                        except Exception as e:
+                            pass
+                    if source_info.Element('realchatname'):
+                        fav_item.sender_id = source_info.Element('realchatname').Value
+                    elif source_info.Element('fromusr'):
+                        fav_item.sender_id = source_info.Element('fromusr').Value
+                if xml.Element('datalist') and xml.Element('datalist').Element('dataitem'):
+                    item = xml.Element('datalist').Element('dataitem')
+                    if item.Element('datatitle'):
+                        fav_item.link_title = item.Element('datatitle').Value
+                    if item.Element('datadesc'):
+                        fav_item.link_content = item.Element('datadesc').Value
+                    if item.Element('stream_weburl'):
+                        fav_item.link_url = item.Element('stream_weburl').Value
+                    if item.Element('thumbfullmd5'):
+                        fav_item.link_image = self._parse_user_fav_path(item.Element('thumbfullmd5').Value, 'fav_thumb')
             elif fav_type == model_wechat.FAV_TYPE_LOCATION:
                 fav_item = model.create_item()
                 fav_item.type = fav_type
@@ -1010,7 +1056,7 @@ class WeChatParser(Wechat):
                         if fav_item.type == model_wechat.FAV_TYPE_TEXT:
                             if item.Element('datadesc'):
                                 fav_item.content = item.Element('datadesc').Value
-                        elif fav_item.type in [model_wechat.FAV_TYPE_IMAGE, model_wechat.FAV_TYPE_VOICE, model_wechat.FAV_TYPE_VIDEO, model_wechat.FAV_TYPE_VIDEO_2, model_wechat.FAV_TYPE_ATTACHMENT, model_wechat.FAV_TYPE_ATTACHMENT_2]:
+                        elif fav_item.type in [model_wechat.FAV_TYPE_IMAGE, model_wechat.FAV_TYPE_VOICE, model_wechat.FAV_TYPE_VIDEO, model_wechat.FAV_TYPE_VIDEO_2, model_wechat.FAV_TYPE_ATTACHMENT]:
                             ext = 'fav_dat'
                             if item.Element('datafmt'):
                                 ext = item.Element('datafmt').Value
@@ -1023,6 +1069,17 @@ class WeChatParser(Wechat):
                                     fav_item.link_url = source_info.Element('link').Value
                             if item.Element('weburlitem') and item.Element('weburlitem').Element('pagetitle'):
                                 fav_item.link_title = item.Element('weburlitem').Element('pagetitle').Value
+                            if item.Element('thumbfullmd5'):
+                                fav_item.link_image = self._parse_user_fav_path(item.Element('thumbfullmd5').Value, 'fav_thumb')
+                            elif item.Element('weburlitem') and item.Element('weburlitem').Element('pagethumb_url'):
+                                fav_item.link_image = item.Element('weburlitem').Element('pagethumb_url').Value
+                        elif fav_item.type == model_wechat.FAV_TYPE_MUSIC:
+                            if item.Element('datatitle'):
+                                fav_item.link_title = item.Element('datatitle').Value
+                            if item.Element('datadesc'):
+                                fav_item.link_content = item.Element('datadesc').Value
+                            if item.Element('stream_weburl'):
+                                fav_item.link_url = item.Element('stream_weburl').Value
                             if item.Element('thumbfullmd5'):
                                 fav_item.link_image = self._parse_user_fav_path(item.Element('thumbfullmd5').Value, 'fav_thumb')
                         elif fav_item.type == model_wechat.FAV_TYPE_LOCATION:
@@ -1435,6 +1492,9 @@ class WeChatParser(Wechat):
                         model.type = model_wechat.MESSAGE_CONTENT_TYPE_ATTACHMENT
                         if appmsg.Element('title'):
                             content = appmsg.Element('title').Value
+                            model.link_title = content
+                        if appmsg.Element('des'):
+                            model.link_content = appmsg.Element('des').Value
                         ext = ''
                         if appmsg.Element('appattach') and appmsg.Element('appattach').Element('fileext'):
                             ext = appmsg.Element('appattach').Element('fileext').Value

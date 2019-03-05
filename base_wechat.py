@@ -1155,7 +1155,7 @@ class Wechat(object):
                 model.Content.Value = media_model
                 if model_wechat.is_valid_media_model_path(favorite_item.media_path):
                     self.ar.save_media_model(media_model)
-            elif favorite_item.type == model_wechat.FAV_TYPE_LINK:
+            elif favorite_item.type in [model_wechat.FAV_TYPE_LINK, model_wechat.FAV_TYPE_MUSIC]:
                 model.Content = Base.Content.LinkContent(model)
                 model.Content.Value = Base.Link()
                 model.Content.Value.Title = favorite_item.link_title
@@ -1169,7 +1169,7 @@ class Wechat(object):
                 model.Content.Value.Time = model_wechat.GenerateModel._get_timestamp(favorite_item.timestamp)
                 model.Content.Value.AddressName = favorite_item.location_address
                 model.Content.Value.Coordinate = Base.Coordinate(favorite_item.location_longitude, favorite_item.location_latitude, model_wechat.GenerateModel._convert_location_type(favorite_item.location_type))
-            elif favorite_item.type in [model_wechat.FAV_TYPE_ATTACHMENT, model_wechat.FAV_TYPE_ATTACHMENT_2]:
+            elif favorite_item.type == model_wechat.FAV_TYPE_ATTACHMENT:
                 model.Content = Base.Content.AttachmentContent(model)
                 model.Content.Value = Base.Attachment()
                 model.Content.Value.FileName = favorite_item.content
