@@ -15,7 +15,7 @@ import json
 import model_wacai
 from MapUtil import md5
 
-VERSION_APP_VALUE = 1
+VERSION_APP_VALUE = 2
 
 
 class WaCaiTally(object):
@@ -154,7 +154,8 @@ class WaCaiTally(object):
                                 bill_record.name = name
                             if "amount" in data:
                                 amount = data["amount"]
-                                bill_record.amount = amount
+                                if amount:
+                                    bill_record.amount = float(amount) / 100
                             if "type" in data:
                                 bill_type = data["type"]  # COST PRE
                                 if bill_type == "COST":

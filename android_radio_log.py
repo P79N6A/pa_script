@@ -70,6 +70,7 @@ class Radio(object):
         if device is None:
             return
         Info = NextStepExts.SafeGetObject[NSDictionary](plist,"Info")
+        phone_name = ""
         phone_name = NextStepExts.SafeGetString(Info,"Name")
         radio_log  = NextStepExts.SafeGetString(device,"RadioLog")
         if "Xiaomi" in phone_name:
