@@ -3,7 +3,10 @@
 __author__ = "Xu Tao"
 
 import clr
-clr.AddReference("safe_read_sqlite")
+try:
+    clr.AddReference("safe_read_sqlite")
+except:
+    pass
 del clr
 
 import PA_runtime

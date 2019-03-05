@@ -1816,6 +1816,30 @@
 
     <dict>
       <key>Module</key>
+      <string>apple_wacaitally</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_wacaitally</string>
+          <key>RunnerType</key>
+          <integer>0</integer>
+          <key>Patterns</key>
+          <array>
+            <string>Library/Preferences/com.hangzhoucaimi.wacai.plist$</string>
+          </array>
+          <key>Category</key>
+          <string>WaCai</string>
+          <key>Name</key>
+          <string>挖财记账理财(苹果)</string>
+          <key>Filter</key>
+          <string>应用>金融理财</string>
+        </dict>
+      </array>
+    </dict>
+
+    <dict>
+      <key>Module</key>
       <string>apple_neteasemail</string>
       <key>Runners</key>
       <array>
@@ -3181,7 +3205,7 @@
           <integer>2</integer>
           <key>Patterns</key>
           <array>
-            <string>data/com\.android\.email/databases$</string>
+            <string>data/com\.android\.email/databases/EmailProvider.db$</string>
           </array>
           <key>Category</key>
           <string>Mails</string>
@@ -3254,7 +3278,7 @@
           <key>Patterns</key>
           <array>
             <string>sim/sim.db$</string>
-            <string>com\.android\.providers\.telephony/databases$</string>
+            <string>com.android.providers.telephony/databases/telephony.db$</string>
           </array>
           <key>Category</key>
           <string>Sim</string>
