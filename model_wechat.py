@@ -2038,7 +2038,7 @@ class GenerateModel(object):
                         model.Content.Value.AddressName = location_address
                         model.Content.Value.Coordinate = Base.Coordinate(location_longitude, location_latitude, self._convert_location_type(location_type))
                         #self.add_model(model.Content.Value)
-                    elif fav_type == [FAV_TYPE_ATTACHMENT, FAV_TYPE_NOTE]:
+                    elif fav_type == FAV_TYPE_ATTACHMENT:
                         model.Content = Base.Content.AttachmentContent(model)
                         model.Content.Value = Base.Attachment()
                         model.Content.Value.FileName = content
