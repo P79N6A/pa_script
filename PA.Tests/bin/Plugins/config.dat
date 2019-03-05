@@ -3278,7 +3278,7 @@
           <key>Patterns</key>
           <array>
             <string>sim/sim.db$</string>
-            <string>com\.android\.providers\.telephony/databases$</string>
+            <string>com.android.providers.telephony/databases/telephony.db$</string>
           </array>
           <key>Category</key>
           <string>Sim</string>
