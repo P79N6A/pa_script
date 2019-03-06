@@ -61,11 +61,11 @@ namespace TestApp
             string xs = "\0\0\0\0\0";
             bool empty = xs.All(c=>c=='\0');
 
-            Database db = new Database(@"F:\AddressBook.sqlitedb");
+            Database db = new Database(@"H:\X\MM.sqlite");
             var tables = db.Tables;
             var ts = new TableSignature("ABPerson");
 
-            var rs = db.ReadTableRecords(ts,true);
+            var rs = db.ReadTableRecords(ts, true);
             var deletes = rs.Where(r => r.Deleted == DeletedState.Deleted).ToList();
             foreach(var r in rs)
             {
