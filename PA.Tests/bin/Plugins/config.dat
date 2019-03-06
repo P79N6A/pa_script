@@ -3072,12 +3072,13 @@
           <integer>2</integer>
           <key>Patterns</key>
           <array>
-            <string>/data/com.android.providers.contacts/databases/contacts2.db$</string>
+            <!-- <string>/data/com.android.providers.contacts/databases/contacts2.db$</string>
             <string>/user_de/0/com.android.providers.contacts/databases/contacts2.db$</string>
             <string>/contacts/contacts.db$</string>
             <string>/contact.db$</string>
             <string>/contact.vcf$</string>
-            <string>/contact$</string>
+            <string>/contact$</string> -->
+            <string>#</string>
           </array>
           <key>Category</key>
           <string>Contacts</string>
@@ -3101,12 +3102,13 @@
           <integer>2</integer>
           <key>Patterns</key>
           <array>
-            <string>/data/com.android.providers.contacts/databases/contacts2.db$</string>
+            <!-- <string>/data/com.android.providers.contacts/databases/contacts2.db$</string>
             <string>/user_de/0/com.android.providers.contacts/databases/contacts2.db$</string>
             <string>/calls/callinfo.db$</string>
             <string>^/calllog.db$</string>
             <string>/callrecord_backup.xml$</string>
-            <string>/call$</string>
+            <string>/call$</string> -->
+            <string>#</string>
           </array>
           <key>Category</key>
           <string>Calls</string>
@@ -4056,5 +4058,29 @@
       </array>
     </dict>
     
+    <dict>
+      <key>Module</key>
+      <string>android_huaweismartcare</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_smartcare</string>
+          <key>RunnerType</key>
+          <integer>2</integer>
+          <key>Patterns</key>
+          <array>
+            <string>/smartcare\.db$</string>
+          </array>
+          <key>Category</key>
+          <string>HUAWEISmartCare</string>
+          <key>Name</key>
+          <string>华为情景智能(安卓)</string>
+          <key>Filter</key>
+          <string>基础数据</string>
+        </dict>
+      </array>
+    </dict>
+
   </array>
 </plist>

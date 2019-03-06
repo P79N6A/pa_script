@@ -188,6 +188,40 @@ class Wechat(object):
                                     pass
                             model.deal_status = status 
 
+    def _process_parse_message_attachment(self, xml_element, model):
+        if xml_element.Name.LocalName == 'msg':
+            fromusername = xml_element.Element('fromusername')
+            if fromusername and len(fromusername.Value) > 0:
+                model.sender_id = fromusername.Value
+            appmsg = xml_element.Element('appmsg')
+            if appmsg is not None:
+                try:
+                    msg_type = int(appmsg.Element('type').Value) if appmsg.Element('type') else 0
+                except Exception as e:
+                    msg_type = 0
+                if msg_type != 6:
+                    return
+
+                title = appmsg.Element('title')
+                if title is None:
+                    return
+                model.type = model_wechat.MESSAGE_CONTENT_TYPE_ATTACHMENT
+                # 这些是file_size的请求过程
+                # app_attach = appmsg.Element('appattach')
+                # if app_attach is not None:
+                #     file_size = app_attach.Element('totallen')
+                #     if file_size is not None:
+                #         size = file_size.Value
+                for extend_node in self.extend_nodes:
+                    # TODO optimize
+                    # 增加对文件的校验，如果两个文件名字相同怎么半？
+                    # 如果直接对文件进行md5校验，那么如果碰到大文件整个的性能就会下降
+                    file_ = next(iter(extend_node.Parent.Search(title.Value + '$')), None)
+                    if file_ is not None:
+                        model.media_path = file_.AbsolutePath
+                        break
+                return title.Value
+
     def _process_parse_message_location(self, xml_str, model):
         content = xml_str
         xml = None
@@ -278,6 +312,14 @@ class Wechat(object):
             return content
         else:
             return msg
+
+    def _strip_message_content(self, content):
+        try:
+            com = re.compile(r'<.*?>')
+            return com.sub('', content)
+        except Exception as e:
+            print(e)
+            return content
 
     def _process_parse_message_system_xml(self, xml_str):
         content = xml_str
@@ -549,7 +591,7 @@ class Wechat(object):
         elif msg_type == MSG_TYPE_APP_MESSAGE:
             return model_wechat.MESSAGE_CONTENT_TYPE_APPMESSAGE
         elif msg_type == MSG_TYPE_LINK_SEMI:
-            return model_wechat.MESSAGE_CONTENT_TYPE_SEMI_XML
+            return model_wechat.MESSAGE_CONTENT_TYPE_LINK_SET
         else:
             return model_wechat.MESSAGE_CONTENT_TYPE_LINK
 
@@ -941,8 +983,8 @@ class Wechat(object):
             elif message.type == model_wechat.MESSAGE_CONTENT_TYPE_ATTACHMENT:
                 model.Content = Base.Content.AttachmentContent(model)
                 model.Content.Value = Base.Attachment()
-                model.Content.Value.FileName = message.link_title
-                model.Content.Value.Path = message.link_url
+                model.Content.Value.FileName = message.content
+                model.Content.Value.Path = message.media_path
             elif message.type == model_wechat.MESSAGE_CONTENT_TYPE_RED_ENVELPOE:
                 model.Content = Base.Content.RedEnvelopeContent(model)
                 model.Content.Value = WeChat.RedEnvelope()
@@ -968,28 +1010,10 @@ class Wechat(object):
                 model.Content.Value.Status = model_wechat.GenerateModel._convert_deal_status(message.deal_status)
             elif message.type == model_wechat.MESSAGE_CONTENT_TYPE_APPMESSAGE:
                 model.Content = Base.Content.TemplateContent(model)
-                try:
-                    title, content, url = message.content.split('#*#', 2)
-                except Exception as e:
-                    print('debug', e)
-                    title = url = ''
-                    content = message.content
-                model.Content.Title = title
-                model.Content.Content = content
-                model.Content.InfoUrl = url
+                model.Content.Title = message.link_title
+                model.Content.Content = message.link_content
+                model.Content.InfoUrl = message.link_url
                 model.Content.SendTime = model_wechat.GenerateModel._get_timestamp(message.timestamp)
-            elif message.type == model_wechat.MESSAGE_CONTENT_TYPE_SEMI_XML:
-                model.Content = Base.Content.LinkSetContent(model)
-                parser = SemiXmlParser()
-                parser.parse(message.content.encode('utf-8'))
-                items = parser.export_items()
-                for item in items:
-                    link = Base.Link()
-                    link.Title = getattr(item.get('title'), 'value', None)
-                    link.Description = getattr(item.get('digest'), 'value', None)
-                    link.Url = getattr(item.get('url'), 'value', None)
-                    link.ImagePath = getattr(item.get('cover'), 'value', None)
-                    model.Content.Values.Add(link)
             elif message.type == model_wechat.MESSAGE_CONTENT_TYPE_LINK_SET:
                 model.Content = Base.Content.LinkSetContent(model)
                 items = []

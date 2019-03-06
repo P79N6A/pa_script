@@ -74,7 +74,7 @@ def process_nodes(nodes):
 
             app_path = None
             app_info = None
-            if app_node is not None and app_node.AbsolutePath != '/':  # 如果能获取到app_path，从ds里获取app路径对应的app信息
+            if app_node is not None:  # 如果能获取到app_path，从ds里获取app路径对应的app信息
                 app_path = app_node.AbsolutePath
                 try:
                     app_info = ds.GetApplication(app_node.AbsolutePath)
@@ -1492,7 +1492,6 @@ class WeChatParser(Wechat):
                         model.type = model_wechat.MESSAGE_CONTENT_TYPE_ATTACHMENT
                         if appmsg.Element('title'):
                             content = appmsg.Element('title').Value
-                            model.link_title = content
                         if appmsg.Element('des'):
                             model.link_content = appmsg.Element('des').Value
                         ext = ''
@@ -1502,7 +1501,7 @@ class WeChatParser(Wechat):
                             ext = 'dat'
                         attach_node = self.user_node.GetByPath('OpenData/{}/{}.{}'.format(friend_hash, msg_local_id, ext))
                         if attach_node is not None:
-                            model.link_url = attach_node.AbsolutePath
+                            model.media_path = attach_node.AbsolutePath
                     elif msg_type == 9:  # 提醒
                         if appmsg.Element('des'):
                             content = appmsg.Element('des').Value

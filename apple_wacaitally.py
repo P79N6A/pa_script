@@ -77,6 +77,7 @@ class WaCaiTally(object):
                 tid = self._get_table_record_value(rec, "id")  # int
                 tname = self._get_table_record_value(rec, "name")
                 ttype = self._get_table_record_value(rec, "type")
+                data = self._get_table_record_value(rec, "data")
 
                 tally_book = model_wacai.Tally()
                 tally_book.source = db_node.AbsolutePath
@@ -85,7 +86,19 @@ class WaCaiTally(object):
                 tally_book.bookId = str(tid)
                 tally_book.name = tname
                 tally_book.tallyType = 2
-
+                if data:
+                    try:
+                        tally_data = json.loads(data)
+                        if "currencyFlag" in tally_data:
+                            tally_book.moneyFlag = tally_data["currencyFlag"]
+                        if "memberCount" in tally_data:
+                            tally_book.memberCount = tally_data["memberCount"]
+                        if "createdTime" in tally_data:
+                            tally_book.createTime = tally_data["createdTime"]
+                        if "updatedTime" in tally_data:
+                            tally_book.updatedTime = tally_data["updatedTime"]
+                    except:
+                        pass
                 if tally_book.bookId:
                     self.wacai.db_insert_table_tally(tally_book)
             except Exception as e:
@@ -116,6 +129,7 @@ class WaCaiTally(object):
                 member.bookId = str(bookid)
                 member.memberId = str(mid)
                 member.avatar = avatar
+                member.name = name
                 if member.bookId and member.memberId:
                     self.wacai.db_insert_table_member(member)
             except Exception as e:

@@ -33,7 +33,7 @@ class CallsParse(MC):
         self.extractSource = extractSource
         self.db = None
         self.db_cmd = None
-        self.cache_path = ds.OpenCachePath("CallRecord")
+        self.cache_path = ds.OpenCachePath("通话记录")
         md5_db = hashlib.md5()
         db_name = self.node.AbsolutePath
         md5_db.update(db_name.encode(encoding = 'utf-8'))
@@ -395,9 +395,36 @@ class CallsParse(MC):
 
 def analyze_android_calls(node, extractDeleted, extractSource):
     pr = ParserResults()
-    pr.Models.AddRange(CallsParse(node, extractDeleted, extractSource).parse())
-    pr.Build('通话记录')
-    return pr
+    try:
+        if len(list(node.Search('/com.android.providers.contacts/databases/contacts2.db$'))) != 0:
+            progress.Start()
+            pr.Models.AddRange(CallsParse(node.Search('/com.android.providers.contacts/databases/contacts2.db$')[0], extractDeleted, extractSource).parse())
+            pr.Build('通话记录')
+            return pr
+        elif len(list(node.Search('/calls/callinfo.db$'))) != 0:
+            progress.Start()
+            pr.Models.AddRange(CallsParse(node.Search('/calls/callinfo.db$')[0], extractDeleted, extractSource).parse())
+            pr.Build('通话记录')
+            return pr
+        elif len(list(node.Search('^/calllog.db$'))) != 0:
+            progress.Start()
+            pr.Models.AddRange(CallsParse(node.Search('^/calllog.db$')[0], extractDeleted, extractSource).parse())
+            pr.Build('通话记录')
+            return pr
+        elif len(list(node.Search('/callrecord_backup.xml$'))) != 0:
+            progress.Start()
+            pr.Models.AddRange(CallsParse(node.Search('/callrecord_backup.xml$')[0], extractDeleted, extractSource).parse())
+            pr.Build('通话记录')
+            return pr
+        elif len(list(node.Search('/call$'))) != 0:
+            progress.Start()
+            pr.Models.AddRange(CallsParse(node.Search('/call$')[0], extractDeleted, extractSource).parse())
+            pr.Build('通话记录')
+            return pr
+        else:
+            progress.Skip()
+    except:
+        progress.Skip()
 
 def execute(node, extractDeleted):
     return analyze_android_calls(node, extractDeleted, False)
