@@ -59,7 +59,7 @@ MESSAGE_CONTENT_TYPE_RED_ENVELPOE = 9  # 红包
 MESSAGE_CONTENT_TYPE_TRANSFER = 10  # 转账
 MESSAGE_CONTENT_TYPE_SPLIT_BILL = 11  # 群收款
 MESSAGE_CONTENT_TYPE_APPMESSAGE = 12
-MESSAGE_CONTENT_TYPE_SEMI_XML = 13
+# MESSAGE_CONTENT_TYPE_SEMI_XML = 13    # 暂时取消
 MESSAGE_CONTENT_TYPE_LINK_SET = 14  # 链接集合
 MESSAGE_CONTENT_TYPE_SYSTEM = 99  # 系统
 
@@ -1683,28 +1683,10 @@ class GenerateModel(object):
                             model.Content.Value.Status = self._convert_deal_status(deal_status)
                         elif msg_type == MESSAGE_CONTENT_TYPE_APPMESSAGE:
                             model.Content = Base.Content.TemplateContent(model)
-                            try:
-                                title, content, url = content.split('#*#', 2)
-                            except Exception as e:
-                                #print('debug', e)
-                                title = url = ''
-                                content = content
-                            model.Content.Title = title
-                            model.Content.Content = content
-                            model.Content.InfoUrl = url
+                            model.Content.Title = link_title
+                            model.Content.Content = link_content
+                            model.Content.InfoUrl = link_url
                             model.Content.SendTime = self._get_timestamp(timestamp)
-                        elif msg_type == MESSAGE_CONTENT_TYPE_SEMI_XML:
-                            model.Content = Base.Content.LinkSetContent(model)
-                            parser = SemiXmlParser()
-                            parser.parse(content.encode('utf-8'))
-                            items = parser.export_items()
-                            for item in items:
-                                link = Base.Link()
-                                link.Title = getattr(item.get('title'), 'value', None)
-                                link.Description = getattr(item.get('digest'), 'value', None)
-                                link.Url = getattr(item.get('url'), 'value', None)
-                                link.ImagePath = getattr(item.get('cover'), 'value', None)
-                                model.Content.Values.Add(link)
                         elif msg_type == MESSAGE_CONTENT_TYPE_LINK_SET:
                             model.Content = Base.Content.LinkSetContent(model)
                             items = []
