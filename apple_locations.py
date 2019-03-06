@@ -285,7 +285,19 @@ class LocationsParser(object):
             self.get_mac_from_record(record, result.Description)
             self.get_coordinate_and_data_from_record(record, result)
             results.append(result)
-
+            try:
+                mcc = None
+                mnc = None
+                lac = None
+                ci = None
+                latitude = self._db_record_get_string_value(record, 'Latitude')
+                longitude = self._db_record_get_string_value(record, 'Longitude')
+                sid = None
+                nid = None
+                bsid = None
+                self.insert_cache(mcc, mnc, lac, ci, latitude, longitude, sid, nid, bsid)
+            except:
+                pass
         return results
 
     def parse_location_harvest(self):
