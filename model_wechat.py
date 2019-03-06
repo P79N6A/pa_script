@@ -1663,8 +1663,8 @@ class GenerateModel(object):
                         elif msg_type == MESSAGE_CONTENT_TYPE_ATTACHMENT:
                             model.Content = Base.Content.AttachmentContent(model)
                             model.Content.Value = Base.Attachment()
-                            model.Content.Value.FileName = link_title
-                            model.Content.Value.Path = link_url
+                            model.Content.Value.FileName = content
+                            model.Content.Value.Path = media_path
                         elif msg_type == MESSAGE_CONTENT_TYPE_SPLIT_BILL:
                             model.Content = Base.Content.SplitBillContent(model)
                             model.Content.Value = WeChat.SplitBill()
