@@ -941,8 +941,8 @@ class Wechat(object):
             elif message.type == model_wechat.MESSAGE_CONTENT_TYPE_ATTACHMENT:
                 model.Content = Base.Content.AttachmentContent(model)
                 model.Content.Value = Base.Attachment()
-                model.Content.Value.FileName = message.link_title
-                model.Content.Value.Path = message.link_url
+                model.Content.Value.FileName = message.content
+                model.Content.Value.Path = message.media_path
             elif message.type == model_wechat.MESSAGE_CONTENT_TYPE_RED_ENVELPOE:
                 model.Content = Base.Content.RedEnvelopeContent(model)
                 model.Content.Value = WeChat.RedEnvelope()
