@@ -42,16 +42,30 @@ ONEPLUS_PHONE = "ONEPLUS"
 SAMSUNG_PHONE = "SAMSUNG"
 SMARTISAN_PHONE = "SAMARTISAN"
 
-# 各种安卓机型的基站信息匹配规则
-PATTERN_RULES = {
-    HUAWEI_PHONE: ".*CellIdentity.*mMcc=(.*) .*mMnc=(.*) .*mLac=(.*) .*mCid=(.*) .*mArfcn.*",
-    VIVO_PHONE: ".*CellIdentity.*mMcc=(.*) .*mMnc=(.*) .*mLac=(.*) .*mCid=(.*) .*mPsc.*",
-    NEXUS_PHONE: ".*CellIdentity.*mMcc=(.*) mMnc=(.*) mCi=(.*) mPci.*mTac=(.*) mEarfcn.*CellIdentityLte.*",
-    ONEPLUS_PHONE: ".*CellIdentity.*mCi=(.*?) mPci=.*mTac=(.*?) mEarfcn.*mMcc=(.*?) mMnc=(.*?) mAlphaLong.*CellIdentityLte.*CellIdentityLte.*",
-    SAMSUNG_PHONE: ".*cellIdentity.*{.mcc = (.*), .mnc = (.*), .ci = (.*), .pci = 0, .tac = (.*), .earfcn.*",
-    SMARTISAN_PHONE: ".*cellIdentity.*{.mcc = (.*), .mnc = (.*), .ci = (.*), .pci.*tac = (.*), .earfcn"
-}
+MCC = 1
+MNC = 2
+LAC = 3
+TAC = 4
+CI = 5
 
+# 各种安卓机型的基站信息匹配规则
+# PATTERN_RULES = {
+#     HUAWEI_PHONE: ".*CellIdentity.*mMcc=(.*) .*mMnc=(.*) .*mLac=(.*) .*mCid=(.*) .*mArfcn.*",
+#     VIVO_PHONE: ".*CellIdentity.*mMcc=(.*) .*mMnc=(.*) .*mLac=(.*) .*mCid=(.*) .*mPsc.*",
+#     NEXUS_PHONE: ".*CellIdentity.*mMcc=(.*) mMnc=(.*) mCi=(.*) mPci.*mTac=(.*) mEarfcn.*CellIdentityLte.*",
+#     ONEPLUS_PHONE: ".*CellIdentity.*mCi=(.*?) mPci=.*mTac=(.*?) mEarfcn.*mMcc=(.*?) mMnc=(.*?) mAlphaLong.*CellIdentityLte.*CellIdentityLte.*",
+#     SAMSUNG_PHONE: ".*cellIdentity.*{.mcc = (.*), .mnc = (.*), .ci = (.*), .pci = 0, .tac = (.*), .earfcn.*",
+#     SMARTISAN_PHONE: ".*cellIdentity.*{.mcc = (.*), .mnc = (.*), .ci = (.*), .pci.*tac = (.*), .earfcn.*"
+# }
+
+PATTERN_RULES = {
+    ".*CellIdentity.*mMcc=(.*) .*mMnc=(.*) .*mLac=(.*) .*mCid=(.*) .*mArfcn.*": [MCC, MNC, LAC, CI],
+    ".*CellIdentity.*mMcc=(.*) .*mMnc=(.*) .*mLac=(.*) .*mCid=(.*) .*mPsc.*": [MCC, MNC, LAC, CI],
+    ".*CellIdentity.*mMcc=(.*) mMnc=(.*) mCi=(.*) mPci.*mTac=(.*) mEarfcn.*CellIdentityLte.*": [MCC, MNC, CI, TAC],
+    ".*CellIdentity.*mCi=(.*?) mPci=.*mTac=(.*?) mEarfcn.*mMcc=(.*?) mMnc=(.*?) mAlphaLong.*CellIdentityLte.*CellIdentityLte.*": [CI, TAC, MCC, MNC],
+    ".*cellIdentity.*{.mcc = (.*), .mnc = (.*), .ci = (.*), .pci = 0, .tac = (.*), .earfcn.*": [MCC, MNC, CI, TAC],
+    ".*cellIdentity.*{.mcc = (.*), .mnc = (.*), .ci = (.*), .pci.*tac = (.*), .earfcn.*": [MCC, MNC, CI, TAC]
+}
 
 class Radio(object):
 
@@ -61,6 +75,7 @@ class Radio(object):
         self.extract_Source = extract_Source
 
     def parse(self):
+        IS_REGEX = False
         self.create_cache()
         models = []
         plist = NSHelpers.ReadPlist[NSDictionary](mainfest_path)
@@ -69,32 +84,35 @@ class Radio(object):
         device = NextStepExts.SafeGetObject[NSDictionary](plist,"Device")
         if device is None:
             return
-        Info = NextStepExts.SafeGetObject[NSDictionary](plist,"Info")
-        phone_name = ""
-        phone_name = NextStepExts.SafeGetString(Info,"Name")
         radio_log  = NextStepExts.SafeGetString(device,"RadioLog")
-        if "Xiaomi" in phone_name:
-            pass
-        elif "vivo" in phone_name:
-            models.extend(self.parse_vivo_radio(radio_log, PATTERN_RULES[VIVO_PHONE]))
-        elif "HUAWEI" in phone_name:
-            models.extend(self.parse_huawei_radio(radio_log, PATTERN_RULES[HUAWEI_PHONE]))
-        elif "honor" in phone_name:
-            pass
-        elif "oppo" in phone_name:
-            pass
-        elif "LGE" in phone_name:
-            models.extend(self.parse_nexus_radio(radio_log, PATTERN_RULES[NEXUS_PHONE]))
-        elif "oneplus" in phone_name:
-            models.extend(self.parse_oneplus_radio(radio_log, PATTERN_RULES[ONEPLUS_PHONE]))
-        elif "zte" in phone_name:
-            pass
-        elif "meizu" in phone_name:
-            pass
-        elif "samsung" in phone_name:
-            models.extend(self.parse_samsung_radio(radio_log, PATTERN_RULES[SAMSUNG_PHONE]))
-        elif "smartisan" in phone_name:
-            models.extend(self.parse_smartisan_radio(radio_log, PATTERN_RULES[SMARTISAN_PHONE]))
+        for key, value in PATTERN_RULES.items():
+            if not IS_REGEX:
+                model_list = self.parse_android_radio(radio_log, key, value)
+                if model_list:
+                    IS_REGEX = True
+                models.extend(model_list)
+        # if "Xiaomi" in phone_name:
+        #     pass
+        # elif "vivo" in phone_name:
+        #     models.extend(self.parse_vivo_radio(radio_log, PATTERN_RULES[VIVO_PHONE]))
+        # elif "HUAWEI" in phone_name:
+        #     models.extend(self.parse_huawei_radio(radio_log, PATTERN_RULES[HUAWEI_PHONE]))
+        # elif "honor" in phone_name:
+        #     pass
+        # elif "oppo" in phone_name:
+        #     pass
+        # elif "LGE" in phone_name:
+        #     models.extend(self.parse_nexus_radio(radio_log, PATTERN_RULES[NEXUS_PHONE]))
+        # elif "oneplus" in phone_name:
+        #     models.extend(self.parse_oneplus_radio(radio_log, PATTERN_RULES[ONEPLUS_PHONE]))
+        # elif "zte" in phone_name:
+        #     pass
+        # elif "meizu" in phone_name:
+        #     pass
+        # elif "samsung" in phone_name:
+        #     models.extend(self.parse_samsung_radio(radio_log, PATTERN_RULES[SAMSUNG_PHONE]))
+        # elif "smartisan" in phone_name:
+        #     models.extend(self.parse_smartisan_radio(radio_log, PATTERN_RULES[SMARTISAN_PHONE]))
         self.close_cache()
         return models
 
@@ -129,28 +147,40 @@ class Radio(object):
             PA_runtime.save_cache_path(bcp_connectdevice.BASESTATION_INFORMATION, self.db_path, temp_dir)
         except:
             pass
-        
-    def parse_huawei_radio(self, radio_log, pattern):
+
+    def parse_android_radio(self, radio_log, pattern, rules):
         if radio_log is None:
-            return
+            returntac
         models = []
         log_list = radio_log.split("\n")
         pattern = re.compile(pattern)
         for line in log_list:
-            if line.find("RIL_REQUEST_GET_CELL_INFO_LIST") != -1 and line.find("error") == -1 and len(line) > 153:
+            if (line.find("RIL_REQUEST_GET_CELL_INFO_LIST") != -1 or line.find("DATA_REGISTRATION_STATE") != -1 or line.find("VOICE_REGISTRATION_STATE") != -1) and line.find("error") == -1 and len(line) > 153:
                 results = re.match(pattern, line)
                 if results:
                     if len(results.groups()[0]) != 0 and len(results.groups()[1]) != 0 and len(results.groups()[2]) != 0 and len(results.groups()[3]) != 0:
                         try:
-                            if int(results.groups()[1]) in [0,1,2,3,5,6,7,9,11,20]:
+                            if int(results.groups()[1]) in [0, 1, 2, 3, 5, 6, 7, 9, 11, 20]:
+                                a, b, c, d = results.groups()
+                                cell_tower = [None,None,None,None]
+                                for i in rules:
+                                    if i == 1:
+                                        cell_tower[0] = a
+                                    elif i == 2:
+                                        cell_tower[1] = b
+                                    elif i == 3:
+                                        cell_tower[2] = c
+                                    elif i == 4:
+                                        cell_tower[2] = c
+                                    elif i == 5:
+                                        cell_tower[3] = d
                                 celltower = CellTower()
-                                mcc,mnc,ci,tac = results.groups()
-                                celltower.MNC.Value = mnc
-                                celltower.MCC.Value = mcc
-                                celltower.LAC.Value = tac
-                                celltower.CID.Value = ci
+                                celltower.MNC.Value = cell_tower[0]
+                                celltower.MCC.Value = cell_tower[1]
+                                celltower.LAC.Value = cell_tower[2]
+                                celltower.CID.Value = cell_tower[3]
                                 models.append(celltower)
-                                longitude,latitude = self._get_lbs_data(mcc, mnc, tac, ci)
+                                longitude,latitude = self._get_lbs_data(cell_tower[0], cell_tower[1], cell_tower[2], cell_tower[3])
                                 if longitude and latitude:
                                     loc = Location()
                                     coord = Coordinate()
@@ -158,145 +188,180 @@ class Radio(object):
                                     coord.Latitude.Value = latitude
                                     loc.Position.Value = coord
                                     models.append(loc)
-                                self.insert_cache(mcc,mnc,tac,ci,latitude,longitude)
-                        except Exception as e:
-                            pass
+                                self.insert_cache(cell_tower[0], cell_tower[1], cell_tower[2], cell_tower[3], latitude, longitude)
+                        except Exception as e: 
+                            print(e)
         return models
 
-    def parse_vivo_radio(self, radio_log, pattern):
-        if radio_log is None:
-            return
-        models = []
-        log_list = radio_log.split("\n")
-        pattern = re.compile(pattern)
-        for line in log_list:
-            if line.find("RIL_REQUEST_GET_CELL_INFO_LIST") != -1:
-                results = re.match(pattern, line)
-                if results:
-                    if len(results.groups()[0]) != 0 and len(results.groups()[1]) != 0 and len(results.groups()[2]) != 0 and len(results.groups()[3]) != 0:
-                        try:
-                            if int(results.groups()[1]) in [0,1,2,3,5,6,7,9,11,20]:
-                                mcc,mnc,ci,tac = results.groups()
-                                celltower = CellTower()
-                                mcc,mnc,ci,tac = results.groups()
-                                celltower.MNC.Value = mnc
-                                celltower.MCC.Value = mcc
-                                celltower.LAC.Value = tac
-                                celltower.CID.Value = ci
-                                models.append(celltower)
-                                longitude,latitude = self._get_lbs_data(mcc, mnc, tac, ci)
-                                if longitude and latitude:
-                                    loc = Location()
-                                    coord = Coordinate()
-                                    coord.Longitude.Value = longitude
-                                    coord.Latitude.Value = latitude
-                                    loc.Position.Value = coord
-                                    models.append(loc)
-                                self.insert_cache(mcc,mnc,tac,ci,latitude,longitude)
-                        except Exception as e:
-                            pass
-        return models
 
-    def parse_nexus_radio(self, radio_log, pattern):
-        if radio_log is None:
-            return
-        models = []
-        log_list = radio_log.split("\n")
-        pattern = re.compile(pattern)
-        for line in log_list:
-            if line.find("RIL_REQUEST_GET_CELL_INFO_LIST") != -1:
-                results = re.match(pattern, line)
-                if results:
-                    if len(results.groups()[0]) != 0 and len(results.groups()[1]) != 0 and len(results.groups()[2]) != 0 and len(results.groups()[3]) != 0:
-                        try:
-                            if int(results.groups()[1]) in [0,1,2,3,5,6,7,9,11,20]:
-                                mcc,mnc,lac,ci = results.groups()
-                                celltower = CellTower()
-                                celltower.MNC.Value = mnc
-                                celltower.MCC.Value = mcc
-                                celltower.LAC.Value = lac
-                                celltower.CID.Value = ci
-                                models.append(celltower)
-                                longitude,latitude = self._get_lbs_data(mcc, mnc, lac, ci)
-                                if longitude and latitude:
-                                    loc = Location()
-                                    coord = Coordinate()
-                                    coord.Longitude.Value = longitude
-                                    coord.Latitude.Value = latitude
-                                    loc.Position.Value = coord
-                                    models.append(loc)
-                                self.insert_cache(mcc,mnc,lac,ci,latitude,longitude)
-                        except Exception as e:
-                            pass
-        return models
         
-    def parse_oneplus_radio(self, radio_log, pattern):
-        if radio_log is None:
-            return
-        models = []
-        log_list = radio_log.split("\n")
-        pattern = re.compile(pattern)
-        for line in log_list:
-            if line.find("RIL_REQUEST_GET_CELL_INFO_LIST") != -1:
-                results = re.match(pattern, line)
-                if results:
-                    if len(results.groups()[0]) != 0 and len(results.groups()[1]) != 0 and len(results.groups()[2]) != 0 and len(results.groups()[3]) != 0:
-                        try:
-                            if int(results.groups()[1]) in [0,1,2,3,5,6,7,9,11,20]:
-                                mci,tac,mcc,mnc = results.groups()
-                                celltower = CellTower()
-                                celltower.MNC.Value = mnc
-                                celltower.MCC.Value = mcc
-                                celltower.LAC.Value = tac
-                                celltower.CID.Value = mci
-                                models.append(celltower)
-                                longitude,latitude = self._get_lbs_data(mcc, mnc, tac, mci)
-                                if longitude and latitude:
-                                    loc = Location()
-                                    coord = Coordinate()
-                                    coord.Longitude.Value = longitude
-                                    coord.Latitude.Value = latitude
-                                    loc.Position.Value = coord
-                                    models.append(loc)
-                                self.insert_cache(mcc,mnc,tac,mci,latitude,longitude)
-                        except Exception as e:
-                            pass
-        return models
+    # def parse_huawei_radio(self, radio_log, pattern):
+    #     if radio_log is None:
+    #         return
+    #     models = []
+    #     log_list = radio_log.split("\n")
+    #     pattern = re.compile(pattern)
+    #     for line in log_list:
+    #         if line.find("RIL_REQUEST_GET_CELL_INFO_LIST") != -1 and line.find("error") == -1 and len(line) > 153:
+    #             results = re.match(pattern, line)
+    #             if results:
+    #                 if len(results.groups()[0]) != 0 and len(results.groups()[1]) != 0 and len(results.groups()[2]) != 0 and len(results.groups()[3]) != 0:
+    #                     try:
+    #                         if int(results.groups()[1]) in [0,1,2,3,5,6,7,9,11,20]:
+    #                             celltower = CellTower()
+    #                             mcc,mnc,ci,tac = results.groups()
+    #                             celltower.MNC.Value = mnc
+    #                             celltower.MCC.Value = mcc
+    #                             celltower.LAC.Value = tac
+    #                             celltower.CID.Value = ci
+    #                             models.append(celltower)
+    #                             longitude,latitude = self._get_lbs_data(mcc, mnc, tac, ci)
+    #                             if longitude and latitude:
+    #                                 loc = Location()
+    #                                 coord = Coordinate()
+    #                                 coord.Longitude.Value = longitude
+    #                                 coord.Latitude.Value = latitude
+    #                                 loc.Position.Value = coord
+    #                                 models.append(loc)
+    #                             self.insert_cache(mcc,mnc,tac,ci,latitude,longitude)
+    #                     except Exception as e:
+    #                         pass
+    #     return models
+
+    # def parse_vivo_radio(self, radio_log, pattern):
+    #     if radio_log is None:
+    #         return
+    #     models = []
+    #     log_list = radio_log.split("\n")
+    #     pattern = re.compile(pattern)
+    #     for line in log_list:
+    #         if line.find("RIL_REQUEST_GET_CELL_INFO_LIST") != -1:
+    #             results = re.match(pattern, line)
+    #             if results:
+    #                 if len(results.groups()[0]) != 0 and len(results.groups()[1]) != 0 and len(results.groups()[2]) != 0 and len(results.groups()[3]) != 0:
+    #                     try:
+    #                         if int(results.groups()[1]) in [0,1,2,3,5,6,7,9,11,20]:
+    #                             mcc,mnc,ci,tac = results.groups()
+    #                             celltower = CellTower()
+    #                             mcc,mnc,ci,tac = results.groups()
+    #                             celltower.MNC.Value = mnc
+    #                             celltower.MCC.Value = mcc
+    #                             celltower.LAC.Value = tac
+    #                             celltower.CID.Value = ci
+    #                             models.append(celltower)
+    #                             longitude,latitude = self._get_lbs_data(mcc, mnc, tac, ci)
+    #                             if longitude and latitude:
+    #                                 loc = Location()
+    #                                 coord = Coordinate()
+    #                                 coord.Longitude.Value = longitude
+    #                                 coord.Latitude.Value = latitude
+    #                                 loc.Position.Value = coord
+    #                                 models.append(loc)
+    #                             self.insert_cache(mcc,mnc,tac,ci,latitude,longitude)
+    #                     except Exception as e:
+    #                         pass
+    #     return models
+
+    # def parse_nexus_radio(self, radio_log, pattern):
+    #     if radio_log is None:
+    #         return
+    #     models = []
+    #     log_list = radio_log.split("\n")
+    #     pattern = re.compile(pattern)
+    #     for line in log_list:
+    #         if line.find("RIL_REQUEST_GET_CELL_INFO_LIST") != -1:
+    #             results = re.match(pattern, line)
+    #             if results:
+    #                 if len(results.groups()[0]) != 0 and len(results.groups()[1]) != 0 and len(results.groups()[2]) != 0 and len(results.groups()[3]) != 0:
+    #                     try:
+    #                         if int(results.groups()[1]) in [0,1,2,3,5,6,7,9,11,20]:
+    #                             mcc,mnc,lac,ci = results.groups()
+    #                             celltower = CellTower()
+    #                             celltower.MNC.Value = mnc
+    #                             celltower.MCC.Value = mcc
+    #                             celltower.LAC.Value = lac
+    #                             celltower.CID.Value = ci
+    #                             models.append(celltower)
+    #                             longitude,latitude = self._get_lbs_data(mcc, mnc, lac, ci)
+    #                             if longitude and latitude:
+    #                                 loc = Location()
+    #                                 coord = Coordinate()
+    #                                 coord.Longitude.Value = longitude
+    #                                 coord.Latitude.Value = latitude
+    #                                 loc.Position.Value = coord
+    #                                 models.append(loc)
+    #                             self.insert_cache(mcc,mnc,lac,ci,latitude,longitude)
+    #                     except Exception as e:
+    #                         pass
+    #     return models
+        
+    # def parse_oneplus_radio(self, radio_log, pattern):
+    #     if radio_log is None:
+    #         return
+    #     models = []
+    #     log_list = radio_log.split("\n")
+    #     pattern = re.compile(pattern)
+    #     for line in log_list:
+    #         if line.find("RIL_REQUEST_GET_CELL_INFO_LIST") != -1:
+    #             results = re.match(pattern, line)
+    #             if results:
+    #                 if len(results.groups()[0]) != 0 and len(results.groups()[1]) != 0 and len(results.groups()[2]) != 0 and len(results.groups()[3]) != 0:
+    #                     try:
+    #                         if int(results.groups()[1]) in [0,1,2,3,5,6,7,9,11,20]:
+    #                             mci,tac,mcc,mnc = results.groups()
+    #                             celltower = CellTower()
+    #                             celltower.MNC.Value = mnc
+    #                             celltower.MCC.Value = mcc
+    #                             celltower.LAC.Value = tac
+    #                             celltower.CID.Value = mci
+    #                             models.append(celltower)
+    #                             longitude,latitude = self._get_lbs_data(mcc, mnc, tac, mci)
+    #                             if longitude and latitude:
+    #                                 loc = Location()
+    #                                 coord = Coordinate()
+    #                                 coord.Longitude.Value = longitude
+    #                                 coord.Latitude.Value = latitude
+    #                                 loc.Position.Value = coord
+    #                                 models.append(loc)
+    #                             self.insert_cache(mcc,mnc,tac,mci,latitude,longitude)
+    #                     except Exception as e:
+    #                         pass
+    #     return models
     
-    def parse_samsung_radio(self, radio_log, pattern):
-        if radio_log is None:
-            return
-        models = []
-        log_list = radio_log.split("\n")
-        pattern = re.compile(pattern)
-        for line in log_list:
-            if line.find("DATA_REGISTRATION_STATE") != -1:
-                results = re.match(pattern, line)
-                if results:
-                    if len(results.groups()[0]) != 0 and len(results.groups()[1]) != 0 and len(results.groups()[2]) != 0 and len(results.groups()[3]) != 0:
-                        try:
-                            if int(results.groups()[1]) in [0,1,2,3,5,6,7,9,11,20]:
-                                mcc,mnc,mci,tac = results.groups()
-                                celltower = CellTower()
-                                celltower.MNC.Value = mnc
-                                celltower.MCC.Value = mcc
-                                celltower.LAC.Value = tac
-                                celltower.CID.Value = mci
-                                models.append(celltower)
-                                longitude,latitude = self._get_lbs_data(mcc, mnc, tac, mci)
-                                if longitude and latitude:
-                                    loc = Location()
-                                    coord = Coordinate()
-                                    coord.Longitude.Value = longitude
-                                    coord.Latitude.Value = latitude
-                                    loc.Position.Value = coord
-                                    models.append(loc)
-                                self.insert_cache(mcc,mnc,tac,mci,latitude,longitude)
-                        except Exception as e:
-                            pass
-        return models
+    # def parse_samsung_radio(self, radio_log, pattern):
+    #     if radio_log is None:
+    #         return
+    #     models = []
+    #     log_list = radio_log.split("\n")
+    #     pattern = re.compile(pattern)
+    #     for line in log_list:
+    #         if line.find("DATA_REGISTRATION_STATE") != -1:
+    #             results = re.match(pattern, line)
+    #             if results:
+    #                 if len(results.groups()[0]) != 0 and len(results.groups()[1]) != 0 and len(results.groups()[2]) != 0 and len(results.groups()[3]) != 0:
+    #                     try:
+    #                         if int(results.groups()[1]) in [0,1,2,3,5,6,7,9,11,20]:
+    #                             mcc,mnc,mci,tac = results.groups()
+    #                             celltower = CellTower()
+    #                             celltower.MNC.Value = mnc
+    #                             celltower.MCC.Value = mcc
+    #                             celltower.LAC.Value = tac
+    #                             celltower.CID.Value = mci
+    #                             models.append(celltower)
+    #                             longitude,latitude = self._get_lbs_data(mcc, mnc, tac, mci)
+    #                             if longitude and latitude:
+    #                                 loc = Location()
+    #                                 coord = Coordinate()
+    #                                 coord.Longitude.Value = longitude
+    #                                 coord.Latitude.Value = latitude
+    #                                 loc.Position.Value = coord
+    #                                 models.append(loc)
+    #                             self.insert_cache(mcc,mnc,tac,mci,latitude,longitude)
+    #                     except Exception as e:
+    #                         pass
+    #     return models
 
-    def parse_smartisan_radio(self, radio_log, pattern):
+    # def parse_smartisan_radio(self, radio_log, pattern):
         if radio_log is None:
             return
         models = []
