@@ -362,37 +362,37 @@ class Radio(object):
     #     return models
 
     # def parse_smartisan_radio(self, radio_log, pattern):
-        if radio_log is None:
-            return
-        models = []
-        log_list = radio_log.split("\n")
-        pattern = re.compile(pattern)
-        for line in log_list:
-            if line.find("DATA_REGISTRATION_STATE") != -1:
-                results = re.match(pattern, line)
-                if results:
-                    if len(results.groups()[0]) != 0 and len(results.groups()[1]) != 0 and len(results.groups()[2]) != 0 and len(results.groups()[3]) != 0:
-                        try:
-                            if int(results.groups()[1]) in [0,1,2,3,5,6,7,9,11,20]:
-                                mcc,mnc,mci,tac = results.groups()
-                                celltower = CellTower()
-                                celltower.MNC.Value = mnc
-                                celltower.MCC.Value = mcc
-                                celltower.LAC.Value = tac
-                                celltower.CID.Value = mci
-                                models.append(celltower)
-                                longitude,latitude = self._get_lbs_data(mcc, mnc, tac, mci)
-                                if longitude and latitude:
-                                    loc = Location()
-                                    coord = Coordinate()
-                                    coord.Longitude.Value = longitude
-                                    coord.Latitude.Value = latitude
-                                    loc.Position.Value = coord
-                                    models.append(loc)
-                                self.insert_cache(mcc,mnc,tac,mci,latitude,longitude)
-                        except Exception as e:
-                            pass
-        return models
+        # if radio_log is None:
+        #     return
+        # models = []
+        # log_list = radio_log.split("\n")
+        # pattern = re.compile(pattern)
+        # for line in log_list:
+        #     if line.find("DATA_REGISTRATION_STATE") != -1:
+        #         results = re.match(pattern, line)
+        #         if results:
+        #             if len(results.groups()[0]) != 0 and len(results.groups()[1]) != 0 and len(results.groups()[2]) != 0 and len(results.groups()[3]) != 0:
+        #                 try:
+        #                     if int(results.groups()[1]) in [0,1,2,3,5,6,7,9,11,20]:
+        #                         mcc,mnc,mci,tac = results.groups()
+        #                         celltower = CellTower()
+        #                         celltower.MNC.Value = mnc
+        #                         celltower.MCC.Value = mcc
+        #                         celltower.LAC.Value = tac
+        #                         celltower.CID.Value = mci
+        #                         models.append(celltower)
+        #                         longitude,latitude = self._get_lbs_data(mcc, mnc, tac, mci)
+        #                         if longitude and latitude:
+        #                             loc = Location()
+        #                             coord = Coordinate()
+        #                             coord.Longitude.Value = longitude
+        #                             coord.Latitude.Value = latitude
+        #                             loc.Position.Value = coord
+        #                             models.append(loc)
+        #                         self.insert_cache(mcc,mnc,tac,mci,latitude,longitude)
+        #                 except Exception as e:
+        #                     pass
+        # return models
     
     def _get_lbs_data(self, mcc, mnc, lac, ci):
         """[summary]
