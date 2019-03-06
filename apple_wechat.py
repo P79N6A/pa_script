@@ -74,7 +74,7 @@ def process_nodes(nodes):
 
             app_path = None
             app_info = None
-            if app_node is not None and app_node.AbsolutePath != '/':  # 如果能获取到app_path，从ds里获取app路径对应的app信息
+            if app_node is not None:  # 如果能获取到app_path，从ds里获取app路径对应的app信息
                 app_path = app_node.AbsolutePath
                 try:
                     app_info = ds.GetApplication(app_node.AbsolutePath)
