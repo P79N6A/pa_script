@@ -208,7 +208,7 @@ class AppResources(object):
             image.Size = os.path.getsize(abs_path)
             image.Path = path
             addTime = os.path.getctime(abs_path)
-            image.FileExtention = 'jpg'
+            image.FileSuffix = 'jpg'
             image.MimeType = 'image'
             image.AddTime = self._get_timestamp(addTime)
             location = Base.Location(image)

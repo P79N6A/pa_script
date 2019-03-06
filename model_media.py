@@ -402,7 +402,7 @@ class Generate(object):
             image.Path = node.AbsolutePath
             image.Size = os.path.getsize(path)
             addTime = os.path.getctime(path)
-            image.FileExtention = 'jpg'
+            image.FileSuffix = 'jpg'
             image.MimeType = 'image'
             image.AddTime = self._get_timestamp(addTime)
             location = Base.Location(image)
@@ -529,7 +529,7 @@ class Generate(object):
                         for log in media_log:
                             video.Logs.Add(log)
                         modifyTime = self._db_reader_get_int_value(sr, 4)
-                        audio.FileExtention = self._db_reader_get_string_value(sr, 5)
+                        audio.FileSuffix = self._db_reader_get_string_value(sr, 5)
                         audio.MimeType = self._db_reader_get_string_value(sr, 5)
                         audio.ModifyTime = self._get_timestamp(modifyTime)
                         audio.Album = self._db_reader_get_string_value(sr, 14)
@@ -547,7 +547,7 @@ class Generate(object):
                         #image.NodeOrUrl.Init(path)
                         image.Size = self._db_reader_get_int_value(sr, 2)
                         addTime = self._db_reader_get_int_value(sr, 3)
-                        image.FileExtention = self._db_reader_get_string_value(sr, 5)
+                        image.FileSuffix = self._db_reader_get_string_value(sr, 5)
                         image.MimeType = self._db_reader_get_string_value(sr, 5)
                         image.AddTime = self._get_timestamp(addTime)
                         image.Description = self._db_reader_get_string_value(sr, 17)
@@ -614,7 +614,7 @@ class Generate(object):
                         #video.NodeOrUrl.Init(path)
                         video.Size = self._db_reader_get_int_value(sr, 2)
                         addTime = self._db_reader_get_int_value(sr, 3)
-                        video.FileExtention = self._db_reader_get_string_value(sr, 5)
+                        video.FileSuffix = self._db_reader_get_string_value(sr, 5)
                         video.MimeType = self._db_reader_get_string_value(sr, 5)
                         video.AddTime = self._get_timestamp(addTime)
                         video.Description = self._db_reader_get_string_value(sr, 17)
@@ -689,7 +689,7 @@ class Generate(object):
                     thumbnail.Width = self._db_reader_get_int_value(sr, 3)
                     addTime = self._db_reader_get_int_value(sr, 5)
                     thumbnail.AddTime = self._get_timestamp(addTime)
-                    thumbnail.FileExtention = self._db_reader_get_string_value(sr, 6)
+                    thumbnail.FileSuffix = self._db_reader_get_string_value(sr, 6)
                     thumbnail.MimeType = self._db_reader_get_string_value(sr, 6)
                     thumbnail.SourceFile = self._get_source_file(str(sr[7]))
                     thumbnail.Deleted = self._convert_deleted_status(sr[8])
@@ -788,7 +788,7 @@ class Generate(object):
                     thumbnail.Width = self._db_reader_get_int_value(sr, 3)
                     addTime = self._db_reader_get_int_value(sr, 5)
                     thumbnail.AddTime = self._get_timestamp(addTime)
-                    thumbnail.FileExtention = self._db_reader_get_string_value(sr, 6)
+                    thumbnail.FileSuffix = self._db_reader_get_string_value(sr, 6)
                     thumbnail.MimeType = self._db_reader_get_string_value(sr, 6)
                     thumbnail.SourceFile = self._get_source_file(str(sr[7]))
                     thumbnail.Deleted = self._convert_deleted_status(sr[8])
