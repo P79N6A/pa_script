@@ -40,7 +40,7 @@ def analyze_yixin(root, extract_deleted, extract_source):
 class AndroidYiXinParser(BaseAndroidParser):
     def __init__(self, node, db_name):
         super(AndroidYiXinParser, self).__init__(node, db_name)
-        self.root = node
+        self.root = node.Parent.Parent
         self.csm = model_im.IM()
         self.Generate = model_im.GenerateModel
         self.user_list = []

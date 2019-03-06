@@ -2633,7 +2633,7 @@
           <integer>2</integer>
           <key>Patterns</key>
           <array>
-            <string>/im.yixin$</string>
+            <string>/im.yixin/databases/mobidroid\.sqlite$</string>
           </array>
           <key>Category</key>
           <string>YiXin</string>
