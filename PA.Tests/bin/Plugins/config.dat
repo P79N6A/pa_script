@@ -4058,5 +4058,29 @@
       </array>
     </dict>
     
+    <dict>
+      <key>Module</key>
+      <string>android_huaweismartcare</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_smartcare</string>
+          <key>RunnerType</key>
+          <integer>2</integer>
+          <key>Patterns</key>
+          <array>
+            <string>/smartcare\.db$</string>
+          </array>
+          <key>Category</key>
+          <string>HUAWEISmartCare</string>
+          <key>Name</key>
+          <string>华为情景智能(安卓)</string>
+          <key>Filter</key>
+          <string>基础数据</string>
+        </dict>
+      </array>
+    </dict>
+
   </array>
 </plist>
