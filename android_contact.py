@@ -85,9 +85,13 @@ class ContactParser(model_contact.MC):
             self.db_create(self.cachedb)
             #全盘案例 /com.android.provider.contacts/databases/contacts2.db/data
             if re.findall("contacts2.db", self.node.AbsolutePath):
-                self.create_deleted_db()
-                self.analyze_raw_contact_table()
-                self.analyze_contact_case1()
+                nodes = self.node.FileSystem.Search('/com.android.providers.contacts/databases/contacts2.db$')
+                print(list(nodes))
+                for node in nodes:
+                    self.contact_node = node
+                    self.create_deleted_db()
+                    self.analyze_raw_contact_table()
+                    self.analyze_contact_case1()
             #备份案例 /contacts/contacts.db/AddressBook
             elif re.findall("contacts.db", self.node.AbsolutePath):
                 self.analyze_contact_logic_case1()
@@ -137,7 +141,7 @@ class ContactParser(model_contact.MC):
     def insert_deleted_db(self):
         '''向恢复数据库中插入数据'''
         try:
-            db = SQLiteParser.Database.FromNode(self.node, canceller)
+            db = SQLiteParser.Database.FromNode(self.contact_node, canceller)
             ts = SQLiteParser.TableSignature('data')
             self.rdb_trans = self.rdb.BeginTransaction()
             for rec in db.ReadTableRecords(ts, self.extractDeleted, True):
@@ -286,7 +290,7 @@ class ContactParser(model_contact.MC):
                     if raw_contact is not None:
                         contacts.times_contacted = raw_contact[0]
                         contacts.last_time_contact = raw_contact[1]
-                    contacts.source = self.node.AbsolutePath
+                    contacts.source = self.contact_node.AbsolutePath
                     contacts.deleted = self._verify_dict(value, "deleted")
                     self.db_insert_table_call_contacts(contacts)
                 except:
