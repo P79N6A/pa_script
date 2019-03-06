@@ -71,7 +71,7 @@ class AndroidTencentSecureParser(BaseParser):
             last_recog_time	    TEXT
             signal_hist	        TEXT
         '''
-        for rec in self._read_table(table_name):
+        for rec in self._read_table(table_name, read_delete=False):
             try:
                 if (self._is_empty(rec, 'ssid', 'bssid')
                     or rec['bssid'].Value.count(':') != 5):
@@ -95,7 +95,7 @@ class AndroidTencentSecureParser(BaseParser):
             value1	        TEXT
             value2	        INT2    			
         '''
-        for rec in self._read_table(table_name):
+        for rec in self._read_table(table_name, read_delete=False):
             try:
                 cr = model_secure.Callrecord()
                 if (self._is_empty(rec, 'phone_number')

@@ -1036,6 +1036,8 @@ class EBBCP(object):
         res = dict()
         while reader.Read():
             deal = DealInfo()
+            deal.set_value_with_idx(deal.colltection_target_id, self.colltection_target_id)
+            deal.set_value_with_idx(deal.app_code, self.app_code)
             deal.set_value_with_idx(deal.deal_id, unity_c37r.c_sharp_get_string(reader, 0))
             try:
                 deal.set_value_with_idx(deal.money, unity_c37r.c_sharp_get_real(reader, 2))

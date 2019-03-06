@@ -29,7 +29,7 @@ import os
 import traceback
 import model_eb
 
-IM_LIST     = ['1030001','1030027','1030028','1030035','1030038','1030043','1030044','1030045','1030046','1030047','1030048','1030049','1030050','1030051','1030052','1030053','1039999', '1290007']
+IM_LIST     = ['1030001','1030027','1030028','1030035','1030038','1030043','1030044','1030045','1030046','1030047','1030048','1030049','1030050','1030051','1030052','1030053','1039999']
 WEIBO_LIST  = ['1330001','1330002','1330003','1330004','1330005','1330006','1339999']
 MAP_LIST    = ['1440001','1440002','1440003','1440004','1440005','1449999','1440009','1449999']
 MAIL_LIST   = ['01001','01002','01003','01004','01005','01006','01007','01999']
@@ -50,8 +50,6 @@ def get_support_apps(caseDirs):
             if os.path.exists(path):
                 apps = [ f for f in os.listdir(path) if os.path.isfile(os.path.join(path,f))]
                 lists.append(apps)
-            else:
-                return None
         return lists
     return None
 
@@ -74,7 +72,7 @@ def run(target_id, bcp_path, case_path, mountDir, software_type):
                         bcp_im.GenerateBcp(bcp_path, mountDir, path, ts_db, target_id, software_type).generate()
                         bcp_path_list.append(ts_db)
                     except Exception as e:
-                        print(e)
+                        TraceService.Trace(TraceLevel.Error, "[export_bcp.py]:[Software_code:{0}]-[Error:{1}]".format(software_type, traceback.format_exc()))
                 return bcp_path_list
 
         # 微信生成bcp
@@ -87,7 +85,7 @@ def run(target_id, bcp_path, case_path, mountDir, software_type):
                         bcp_wechat.GenerateWechatBcp(bcp_path, mountDir, path, ts_db, target_id, software_type).generate()
                         bcp_path_list.append(ts_db)
                     except Exception as e:
-                        print(e)
+                        TraceService.Trace(TraceLevel.Error, "[export_bcp.py]:[Software_code:{0}]-[Error:{1}]".format(software_type, traceback.format_exc()))
                 return bcp_path_list
 
         elif software_type in EC_LIST:
@@ -100,7 +98,7 @@ def run(target_id, bcp_path, case_path, mountDir, software_type):
                         bcp.generate_bcp()
                         bcp_path_list.append(ts_db)
                     except Exception as e:
-                        print(e)
+                        TraceService.Trace(TraceLevel.Error, "[export_bcp.py]:[Software_code:{0}]-[Error:{1}]".format(software_type, traceback.format_exc()))
                 return bcp_path_list
 
         # 地理位置类生成bcp数据库
@@ -113,7 +111,7 @@ def run(target_id, bcp_path, case_path, mountDir, software_type):
                         bcp_gis.BuildBCP(path, ts_db, target_id, software_type).genetate()
                         bcp_path_list.append(ts_db)
                     except Exception as e:
-                        print(e)
+                        TraceService.Trace(TraceLevel.Error, "[export_bcp.py]:[Software_code:{0}]-[Error:{1}]".format(software_type, traceback.format_exc()))
                 return bcp_path_list
 
         # # 浏览器类生成bcp数据库
@@ -126,7 +124,7 @@ def run(target_id, bcp_path, case_path, mountDir, software_type):
                         bcp_browser.GenerateBcp(path, ts_db, target_id, software_type).generate()
                         bcp_path_list.append(ts_db)
                     except Exception as e:
-                        print(e)
+                        TraceService.Trace(TraceLevel.Error, "[export_bcp.py]:[Software_code:{0}]-[Error:{1}]".format(software_type, traceback.format_exc()))
                 return bcp_path_list
 
         # 邮件类生成bcp数据库
@@ -139,7 +137,7 @@ def run(target_id, bcp_path, case_path, mountDir, software_type):
                         bcp_mail.GenerateBcp(bcp_path, path, ts_db, target_id, software_type, mountDir).generate()
                         bcp_path_list.append(ts_db)
                     except Exception as e:
-                        print(e)
+                        TraceService.Trace(TraceLevel.Error, "[export_bcp.py]:[Software_code:{0}]-[Error:{1}]".format(software_type, traceback.format_exc()))
                 return bcp_path_list
 
         # 微博类生成bcp数据库
@@ -152,7 +150,7 @@ def run(target_id, bcp_path, case_path, mountDir, software_type):
                         bcp_weibo.GenerateBcp(path, ts_db, target_id, software_type).generate()
                         bcp_path_list.append(ts_db)
                     except Exception as e:
-                        print(e)
+                        TraceService.Trace(TraceLevel.Error, "[export_bcp.py]:[Software_code:{0}]-[Error:{1}]".format(software_type, traceback.format_exc()))
                 return bcp_path_list
         
         # 基础信息类生成bcp数据库
@@ -165,7 +163,7 @@ def run(target_id, bcp_path, case_path, mountDir, software_type):
                         bcp_basic.GenerateBcp(bcp_path, path, ts_db, target_id, mountDir).generate()
                         bcp_path_list.append(ts_db)
                     except Exception as e:
-                        print(e)
+                        TraceService.Trace(TraceLevel.Error, "[export_bcp.py]:[Software_code:{0}]-[Error:{1}]".format(software_type, traceback.format_exc()))
                 return bcp_path_list
 
         # 连接设备信息类生成bcp数据库
@@ -178,7 +176,7 @@ def run(target_id, bcp_path, case_path, mountDir, software_type):
                         bcp_connectdevice.GenerateBcp(bcp_path, path, ts_db, target_id, mountDir).generate()
                         bcp_path_list.append(ts_db)
                     except Exception as e:
-                        print(e)
+                        TraceService.Trace(TraceLevel.Error, "[export_bcp.py]:[Software_code:{0}]-[Error:{1}]".format(software_type, traceback.format_exc()))
                 return bcp_path_list
 
         # 其他应用信息
@@ -191,7 +189,7 @@ def run(target_id, bcp_path, case_path, mountDir, software_type):
                         bcp_other.BuildBCP(bcp_path, path, ts_db, target_id, software_type, mountDir).generate()
                         bcp_path_list.append(ts_db)
                     except Exception as e:
-                        print(e)
+                        TraceService.Trace(TraceLevel.Error, "[export_bcp.py]:[Software_code:{0}]-[Error:{1}]".format(software_type, traceback.format_exc()))
                 return bcp_path_list
     return None
 
@@ -203,7 +201,7 @@ def md5(cache_path, ts_path):
         try:
             os.remove(db_path)
         except Exception as e:
-            print("{0} remove failed!".format(db_path))
+            TraceService.Trace(TraceLevel.Error, "{0} remove failed!".format(db_path))
     return db_path
 
 def read_path(path):
