@@ -1484,15 +1484,15 @@ class WeChatParser(Wechat):
         elif msg_type == MSG_TYPE_VOIP_GROUP:
             content = self._process_parse_message_voip_group(content)
         elif msg_type == MSG_TYPE_SYSTEM:
-            pass
+            content = self._strip_message_content(content)
         elif msg_type in [MSG_TYPE_SYSTEM_2, MSG_TYPE_SYSTEM_3]:
             content, revoke_content = self._process_parse_message_system_xml(content)
         elif msg_type == MSG_TYPE_LINK_SEMI:
-            pass
+            content = self._process_parse_message_semi_xml(content)
         elif msg_type == MSG_TYPE_APP_MESSAGE:
-            content = self._process_parse_message_app_message(content)
+            content = self._process_parse_message_app_message(content, model)
         else:  # MSG_TYPE_LINK
-            self._process_parse_message_link(content, model)
+            content = self._process_parse_message_link(content, model)
 
         model.content = content
         return revoke_content
@@ -1616,6 +1616,8 @@ class WeChatParser(Wechat):
             index = xml_content.find('<?xml version="1.0"?>')
             if index > 0:
                 xml_content = xml_content.replace('<?xml version="1.0"?>', '')  # remove xml declare not in front of content
+            if not xml_content.startswith('<'):
+                xml_content = xml_content[xml_content.find('<'):]       # there is something not important in front of some xml
             xml = XElement.Parse(xml_content)
         except Exception as e:
             if model.deleted == 0:
@@ -1633,6 +1635,9 @@ class WeChatParser(Wechat):
                         msg_type = 0
                     if msg_type in [2000, 2001]:
                         self._process_parse_message_deal(xml, model)
+                    elif msg_type == 6:
+                        content = self._process_parse_message_attachment(xml, model)
+                        return content
                     else:
                         msg_title = appmsg.Element('title').Value if appmsg.Element('title') else ''
                         mmreader = appmsg.Element('mmreader')
@@ -1681,8 +1686,21 @@ class WeChatParser(Wechat):
             else:
                 pass
 
+    def _process_parse_message_semi_xml(self, row_content):
+        parser = SemiXmlParser()
+        parser.parse(row_content.encode('utf-8'))
+        items = parser.export_items()
+        contents = [dict(
+                title = getattr(item.get('title'), 'value', None),
+                description = getattr(item.get('digest'), 'value', None),
+                url = getattr(item.get('url'), 'value', None),
+                image = getattr(item.get('cover'), 'value', None),
+            ) for item in items]
+        content = json.dumps(contents, ensure_ascii=False)
+        return content
+
     # TODO: to optimize
-    def _process_parse_message_app_message(self, row_content):
+    def _process_parse_message_app_message(self, row_content, model):
         title_pattern = r'<title><!\[CDATA\[(.+?)\]\]></title>'
         content_pattern = r'<des><!\[CDATA\[([\s\S]*)\]\]></des>'
         url_pattern = r'<url><!\[CDATA\[([\s\S]*?)\]\]></url>'
@@ -1693,15 +1711,13 @@ class WeChatParser(Wechat):
 
         ans = re.findall(title_pattern, row_content)
         if ans:
-            title = ans[0].strip()
+            model.link_title = ans[0].strip()
         ans = re.findall(content_pattern, row_content)
         if ans:
-            content = ans[0].strip()
+            model.link_content = ans[0].strip()
         ans = re.findall(url_pattern, row_content)
         if ans:
-            url = ans[0].strip()
-
-        return "#*#".join((title, content, url))
+            model.link_url = ans[0].strip()
 
     def _search_fav_file(self, file_name):
         """搜索函数"""
