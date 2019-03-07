@@ -25,11 +25,13 @@ import bcp_browser
 VERSION_APP_VALUE = 2
 
 # 国产安卓手机预装浏览器类型
+NATIVE = bcp_browser.NETWORK_APP_OTHER
 XIAOMI  = bcp_browser.NETWORK_APP_XIAOMI
 HUAWEI  = bcp_browser.NETWORK_APP_HUAWEI
 VIVO    = bcp_browser.NETWORK_APP_VIVO
 OPPO    = bcp_browser.NETWORK_APP_OPPO
 LENOVO  = bcp_browser.NETWORK_APP_LENOVO
+MEIZU   = bcp_browser.NETWORK_APP_MEIZU
 
 """ 安卓原生类 com.android.browser/databases/browser2.db
         # xiaomi, huawei, oppo
@@ -63,15 +65,37 @@ LENOVO  = bcp_browser.NETWORK_APP_LENOVO
         ''' databases/browser2.db - history 浏览记录
 
             'created' is 'create_time' in lebrowser.db:
+
+    TODO 华为 OPPO 分不清, 暂时统一归为 安卓浏览器
 """
+
+def analyze_android_browser(node, extract_deleted, extract_source):
+    _root = node.Parent.Parent
+    if _root.GetByPath('app_miui_webview'):
+        return analyze_xiaomi_browser(node, extract_deleted, extract_source)
+    # else:
+    #     for _folder in _root.Children:
+    #         if 'app_mz_statsapp' in _folder.Name:
+    #             return analyze_meizu_browser(node, extract_deleted, extract_source)
+    return analyze_native_android_browser(node, extract_deleted, extract_source)
+
+
+@parse_decorator
+def analyze_native_android_browser(node, extract_deleted, extract_source):
+    return base_analyze(AndroidBrowserParser, node, NATIVE, VERSION_APP_VALUE, '安卓浏览器', 'Native')
+ 
+@parse_decorator
+def analyze_meizu_browser(node, extract_deleted, extract_source):
+    return base_analyze(AndroidBrowserParser, node, MEIZU, VERSION_APP_VALUE, '魅族浏览器', 'Meizu')
 
 @parse_decorator
 def analyze_xiaomi_browser(node, extract_deleted, extract_source):
     return base_analyze(AndroidBrowserParser, node, XIAOMI, VERSION_APP_VALUE, '小米浏览器', 'Xiaomi')
-
-@parse_decorator
-def analyze_huawei_browser(node, extract_deleted, extract_source):
-    return base_analyze(AndroidBrowserParser, node, HUAWEI, VERSION_APP_VALUE, '华为浏览器', 'Huawei')
+ 
+# @parse_decorator
+# def analyze_huawei_browser(node, extract_deleted, extract_source):
+#     tp(node.AbsolutePath)
+#     return base_analyze(AndroidBrowserParser, node, HUAWEI, VERSION_APP_VALUE, '华为浏览器', 'Huawei')
 
 @parse_decorator
 def analyze_oppo_browser(node, extract_deleted, extract_source):
@@ -195,14 +219,13 @@ class AndroidBrowserParser(model_browser.BaseBrowserParser, BaseAndroidParser):
         self.csm.db_commit()
 
     def parse_SearchHistory(self):
-        if self.model_db_name in ['VIVO', 'Huawei']:
+        if self.model_db_name in ['VIVO', 'Huawei', 'Native']:
             self._parse_SearchHistory_vivo_huawei('searches')        
         elif self.model_db_name == 'Xiaomi':
             self._parse_SearchHistory_xiaomi('mostvisited')
         elif self.model_db_name == 'OPPO':
             self._parse_SearchHistory_oppo('oppo_quicksearch_history')
 
-    
     def _parse_SearchHistory_vivo_huawei(self, table_name):
         ''' databases/browser2.db - searches 无 URL
 

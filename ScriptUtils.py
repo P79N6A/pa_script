@@ -1477,8 +1477,10 @@ class BaseParser(object):
         if read_delete is None:
             read_delete = self.extract_deleted
         try:
+            if table_name not in self.cur_db.Tables:
+                return []
             tb = SQLiteParser.TableSignature(table_name)
-            res = self.cur_db.ReadTableRecords(tb, read_delete, True)
+            # res = self.cur_db.ReadTableRecords(tb, read_delete, True)
             return self.cur_db.ReadTableRecords(tb, read_delete, True)
         except:
             if self.cur_db and self.cur_db.FilePath:
@@ -1508,7 +1510,7 @@ class BaseParser(object):
             exc()
             return False
 
-    def _read_xml(self, xml_path):
+    def _read_xml(self, xml_path='', xml_node=None):
         ''' _read_xml, set self.cur_xml_source
 
         Args: 
@@ -1518,7 +1520,8 @@ class BaseParser(object):
             xml_data (XElement)
         '''
         try:
-            xml_node = self.root.GetByPath(xml_path)
+            if xml_node is None:
+                xml_node = self.root.GetByPath(xml_path)
             if xml_node and xml_node.Data:
                 xml_data = XElement.Parse(xml_node.read())
                 self.cur_xml_source = xml_node.AbsolutePath

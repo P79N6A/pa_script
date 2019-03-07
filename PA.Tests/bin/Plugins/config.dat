@@ -3347,33 +3347,17 @@
       <array>
         <dict>
           <key>EntryPoint</key>
-          <string>analyze_xiaomi_browser</string>
+          <string>analyze_android_browser</string>
           <key>RunnerType</key>
           <integer>2</integer>
           <key>Patterns</key>
           <array>
-            <string>/com\.android\.browser/app_miui_webview/Cookies$</string>
+            <string>/com\.android\.browser/databases/browser2\.db$</string>
           </array>
           <key>Category</key>
-          <string>XiaomiBrowser</string>
+          <string>AndroidBrowser</string>
           <key>Name</key>
-          <string>小米浏览器(安卓)</string>
-          <key>Filter</key>
-          <string>应用>浏览器</string>
-        </dict>
-        <dict>
-          <key>EntryPoint</key>
-          <string>analyze_huawei_browser</string>
-          <key>RunnerType</key>
-          <integer>2</integer>
-          <key>Patterns</key>
-          <array>
-            <string>/com\.android\.browser/app_core_ucmobile/Cookies$</string>
-          </array>
-          <key>Category</key>
-          <string>HuaweiBrowser</string>
-          <key>Name</key>
-          <string>华为浏览器(安卓)</string>
+          <string>安卓浏览器(安卓)</string>
           <key>Filter</key>
           <string>应用>浏览器</string>
         </dict>
