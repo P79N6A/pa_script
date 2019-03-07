@@ -108,7 +108,7 @@ class Ctrip(object):
                     if 'user_info' not in db.Tables:
                         return
                     tb = SQLiteParser.TableSignature('user_info')
-                    for rec in db.ReadTableRecords(tb, self.extractDeleted):
+                    for rec in db.ReadTableRecords(tb, False):
                         if canceller.IsCancellationRequested:
                             return
                         try:

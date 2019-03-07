@@ -279,6 +279,14 @@ class Wechat(object):
         else:
             return msg
 
+    def _strip_message_content(self, content):
+        try:
+            com = re.compile(r'<.*?>')
+            return com.sub('', content)
+        except Exception as e:
+            print(e)
+            return content
+
     def _process_parse_message_system_xml(self, xml_str):
         content = xml_str
         revoke_content = None
@@ -549,7 +557,7 @@ class Wechat(object):
         elif msg_type == MSG_TYPE_APP_MESSAGE:
             return model_wechat.MESSAGE_CONTENT_TYPE_APPMESSAGE
         elif msg_type == MSG_TYPE_LINK_SEMI:
-            return model_wechat.MESSAGE_CONTENT_TYPE_SEMI_XML
+            return model_wechat.MESSAGE_CONTENT_TYPE_LINK_SET
         else:
             return model_wechat.MESSAGE_CONTENT_TYPE_LINK
 
@@ -968,28 +976,10 @@ class Wechat(object):
                 model.Content.Value.Status = model_wechat.GenerateModel._convert_deal_status(message.deal_status)
             elif message.type == model_wechat.MESSAGE_CONTENT_TYPE_APPMESSAGE:
                 model.Content = Base.Content.TemplateContent(model)
-                try:
-                    title, content, url = message.content.split('#*#', 2)
-                except Exception as e:
-                    print('debug', e)
-                    title = url = ''
-                    content = message.content
-                model.Content.Title = title
-                model.Content.Content = content
-                model.Content.InfoUrl = url
+                model.Content.Title = message.link_title
+                model.Content.Content = message.link_content
+                model.Content.InfoUrl = message.link_url
                 model.Content.SendTime = model_wechat.GenerateModel._get_timestamp(message.timestamp)
-            elif message.type == model_wechat.MESSAGE_CONTENT_TYPE_SEMI_XML:
-                model.Content = Base.Content.LinkSetContent(model)
-                parser = SemiXmlParser()
-                parser.parse(message.content.encode('utf-8'))
-                items = parser.export_items()
-                for item in items:
-                    link = Base.Link()
-                    link.Title = getattr(item.get('title'), 'value', None)
-                    link.Description = getattr(item.get('digest'), 'value', None)
-                    link.Url = getattr(item.get('url'), 'value', None)
-                    link.ImagePath = getattr(item.get('cover'), 'value', None)
-                    model.Content.Values.Add(link)
             elif message.type == model_wechat.MESSAGE_CONTENT_TYPE_LINK_SET:
                 model.Content = Base.Content.LinkSetContent(model)
                 items = []

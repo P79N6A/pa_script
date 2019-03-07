@@ -694,6 +694,33 @@ class WeChatParser(Wechat):
                             fav_item.content = xml_str
                         if item.Element('datasrcname'):
                             fav_item.sender_name = item.Element('datasrcname').Value
+            elif fav_type == model_wechat.FAV_TYPE_MUSIC:
+                fav_item = model.create_item()
+                fav_item.type = fav_type
+                source_element = xml.Element('source')
+                data_list_element = xml.Element('datalist')
+                if source_element is not None:
+                    if source_element.Element('fromusr'):
+                        fav_item.sender = source_element.Element('fromusr').Value
+                    if source_element.Element('tousr'):
+                        fav_item.sender = source_element.Element('tousr').Value
+                if data_list_element is not None:
+                    data_item = data_list_element.Element('dataitem')
+                    dataid = str(data_item.Attribute('dataid').Value)
+                    for node in self.extend_nodes:
+                        file_ = next(iter(node.GetByPath('favorite').Search(dataid)), None)
+                        fav_item.media_path = file_.AbsolutePath
+                    stream_url = data_item.Element('stream_dataurl')
+                    if stream_url is not None:
+                        fav_item.link_url = stream_url.Value
+                    title = data_item.Element('datatitle')
+                    if title is not None:
+                        fav_item.link_title = title.Value
+                    author = data_item.Element('datadesc')
+                    if title is not None:
+                        fav_item.link_content = author.Value
+            elif fav_type == model_wechat.FAV_TYPE_NOTE:
+                pass
             else:
                 fav_item = model.create_item()
                 fav_item.type = fav_type
@@ -1484,15 +1511,15 @@ class WeChatParser(Wechat):
         elif msg_type == MSG_TYPE_VOIP_GROUP:
             content = self._process_parse_message_voip_group(content)
         elif msg_type == MSG_TYPE_SYSTEM:
-            pass
+            content = self._strip_message_content(content)
         elif msg_type in [MSG_TYPE_SYSTEM_2, MSG_TYPE_SYSTEM_3]:
             content, revoke_content = self._process_parse_message_system_xml(content)
         elif msg_type == MSG_TYPE_LINK_SEMI:
-            pass
+            content = self._process_parse_message_semi_xml(content)
         elif msg_type == MSG_TYPE_APP_MESSAGE:
-            content = self._process_parse_message_app_message(content)
+            content = self._process_parse_message_app_message(content, model)
         else:  # MSG_TYPE_LINK
-            self._process_parse_message_link(content, model)
+            content = self._process_parse_message_link(content, model)
 
         model.content = content
         return revoke_content
@@ -1565,7 +1592,7 @@ class WeChatParser(Wechat):
                         hd_file = img_name[len(TH_PREFIX):]
                     else:
                         hd_file = img_name
-                    hd_nodes = p_node.Search('/{}[.].+$'.format(hd_file))
+                    hd_nodes = p_node.Search('/' + hd_file + r'[.][a-zA-Z]{2,6}$')
                     if hd_nodes is not None:
                         for hd_node in hd_nodes:
                             media_path = hd_node.AbsolutePath
@@ -1616,6 +1643,8 @@ class WeChatParser(Wechat):
             index = xml_content.find('<?xml version="1.0"?>')
             if index > 0:
                 xml_content = xml_content.replace('<?xml version="1.0"?>', '')  # remove xml declare not in front of content
+            if not xml_content.startswith('<'):
+                xml_content = xml_content[xml_content.find('<'):]       # there is something not important in front of some xml
             xml = XElement.Parse(xml_content)
         except Exception as e:
             if model.deleted == 0:
@@ -1633,6 +1662,9 @@ class WeChatParser(Wechat):
                         msg_type = 0
                     if msg_type in [2000, 2001]:
                         self._process_parse_message_deal(xml, model)
+                    elif msg_type == 6:
+                        content = self._process_parse_message_attachment(xml, model)
+                        return content
                     else:
                         msg_title = appmsg.Element('title').Value if appmsg.Element('title') else ''
                         mmreader = appmsg.Element('mmreader')
@@ -1681,8 +1713,21 @@ class WeChatParser(Wechat):
             else:
                 pass
 
+    def _process_parse_message_semi_xml(self, row_content):
+        parser = SemiXmlParser()
+        parser.parse(row_content.encode('utf-8'))
+        items = parser.export_items()
+        contents = [dict(
+                title = getattr(item.get('title'), 'value', None),
+                description = getattr(item.get('digest'), 'value', None),
+                url = getattr(item.get('url'), 'value', None),
+                image = getattr(item.get('cover'), 'value', None),
+            ) for item in items]
+        content = json.dumps(contents, ensure_ascii=False)
+        return content
+
     # TODO: to optimize
-    def _process_parse_message_app_message(self, row_content):
+    def _process_parse_message_app_message(self, row_content, model):
         title_pattern = r'<title><!\[CDATA\[(.+?)\]\]></title>'
         content_pattern = r'<des><!\[CDATA\[([\s\S]*)\]\]></des>'
         url_pattern = r'<url><!\[CDATA\[([\s\S]*?)\]\]></url>'
@@ -1693,15 +1738,47 @@ class WeChatParser(Wechat):
 
         ans = re.findall(title_pattern, row_content)
         if ans:
-            title = ans[0].strip()
+            model.link_title = ans[0].strip()
         ans = re.findall(content_pattern, row_content)
         if ans:
-            content = ans[0].strip()
+            model.link_content = ans[0].strip()
         ans = re.findall(url_pattern, row_content)
         if ans:
-            url = ans[0].strip()
+            model.link_url = ans[0].strip()
 
-        return "#*#".join((title, content, url))
+    def _process_parse_message_attachment(self, xml_element, model):
+        if xml_element.Name.LocalName == 'msg':
+            fromusername = xml_element.Element('fromusername')
+            if fromusername and len(fromusername.Value) > 0:
+                model.sender_id = fromusername.Value
+            appmsg = xml_element.Element('appmsg')
+            if appmsg is not None:
+                try:
+                    msg_type = int(appmsg.Element('type').Value) if appmsg.Element('type') else 0
+                except Exception as e:
+                    msg_type = 0
+                if msg_type != 6:
+                    return
+
+                title = appmsg.Element('title')
+                if title is None:
+                    return
+                model.type = model_wechat.MESSAGE_CONTENT_TYPE_ATTACHMENT
+                # 这些是file_size的请求过程
+                # app_attach = appmsg.Element('appattach')
+                # if app_attach is not None:
+                #     file_size = app_attach.Element('totallen')
+                #     if file_size is not None:
+                #         size = file_size.Value
+                for extend_node in self.extend_nodes:
+                    # TODO optimize
+                    # 增加对文件的校验，如果两个文件名字相同怎么半？
+                    # 如果直接对文件进行md5校验，那么如果碰到大文件整个的性能就会下降
+                    file_ = next(iter(extend_node.Parent.Search(title.Value + '$')), None)
+                    if file_ is not None:
+                        model.media_path = file_.AbsolutePath
+                        break
+                return title.Value
 
     def _search_fav_file(self, file_name):
         """搜索函数"""

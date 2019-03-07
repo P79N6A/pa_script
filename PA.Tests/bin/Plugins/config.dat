@@ -2633,7 +2633,7 @@
           <integer>2</integer>
           <key>Patterns</key>
           <array>
-            <string>/im.yixin$</string>
+            <string>/im.yixin/databases/mobidroid\.sqlite$</string>
           </array>
           <key>Category</key>
           <string>YiXin</string>
@@ -3347,33 +3347,17 @@
       <array>
         <dict>
           <key>EntryPoint</key>
-          <string>analyze_xiaomi_browser</string>
+          <string>analyze_android_browser</string>
           <key>RunnerType</key>
           <integer>2</integer>
           <key>Patterns</key>
           <array>
-            <string>/com\.android\.browser/app_miui_webview/Cookies$</string>
+            <string>/com\.android\.browser/databases/browser2\.db$</string>
           </array>
           <key>Category</key>
-          <string>XiaomiBrowser</string>
+          <string>AndroidBrowser</string>
           <key>Name</key>
-          <string>小米浏览器(安卓)</string>
-          <key>Filter</key>
-          <string>应用>浏览器</string>
-        </dict>
-        <dict>
-          <key>EntryPoint</key>
-          <string>analyze_huawei_browser</string>
-          <key>RunnerType</key>
-          <integer>2</integer>
-          <key>Patterns</key>
-          <array>
-            <string>/com\.android\.browser/app_core_ucmobile/Cookies$</string>
-          </array>
-          <key>Category</key>
-          <string>HuaweiBrowser</string>
-          <key>Name</key>
-          <string>华为浏览器(安卓)</string>
+          <string>安卓浏览器(安卓)</string>
           <key>Filter</key>
           <string>应用>浏览器</string>
         </dict>
@@ -4058,5 +4042,29 @@
       </array>
     </dict>
     
+    <dict>
+      <key>Module</key>
+      <string>android_huaweismartcare</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_smartcare</string>
+          <key>RunnerType</key>
+          <integer>2</integer>
+          <key>Patterns</key>
+          <array>
+            <string>/smartcare\.db$</string>
+          </array>
+          <key>Category</key>
+          <string>HUAWEISmartCare</string>
+          <key>Name</key>
+          <string>华为情景智能(安卓)</string>
+          <key>Filter</key>
+          <string>基础数据</string>
+        </dict>
+      </array>
+    </dict>
+
   </array>
 </plist>

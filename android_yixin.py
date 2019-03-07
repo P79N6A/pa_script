@@ -19,11 +19,11 @@ from ScriptUtils import DEBUG, CASE_NAME, exc, tp, base_analyze, parse_decorator
 
 
 # app 数据库版本
-VERSION_APP_VALUE = 3
+VERSION_APP_VALUE = 4
 
 @parse_decorator
 def analyze_yixin(root, extract_deleted, extract_source):
-    if root.AbsolutePath == '/data/media/0/Android/data/im.yixin':
+    if root.AbsolutePath == '/data/media/0/Android/data/im.yixin/mobidroid.sqlite':
         return
     pr = ParserResults()
     _pr = base_analyze(AndroidYiXinParser, 
@@ -40,73 +40,72 @@ def analyze_yixin(root, extract_deleted, extract_source):
 class AndroidYiXinParser(BaseAndroidParser):
     def __init__(self, node, db_name):
         super(AndroidYiXinParser, self).__init__(node, db_name)
-        self.root = node
+        self.root = node.Parent.Parent
         self.csm = model_im.IM()
         self.Generate = model_im.GenerateModel
-        self.user_list = []
+        self.user_id_list = []
         self.media_node = None
+        self.user_id = ''
 
     def parse(self, BCP_TYPE, VERSION_APP_VALUE):
-        self.user_list = self.get_user_list()
-        if not self.user_list:
+        self.user_id_list = self.get_user_id_list()
+        if not self.user_id_list:
             return []
         model = super(AndroidYiXinParser, self).parse(BCP_TYPE, VERSION_APP_VALUE)
         mlm = ModelListMerger()
         return list(mlm.GetUnique(model))
 
     def parse_main(self):
-        for user in self.user_list:
+        for user in self.user_id_list:
+
             self.friends = {}
             self.chatrooms = {}
-            self.user = user
-            self.parse_user()
-            self.user = None
+            self.user_id = user
+            tp(user)
+            self.get_user()
+            self.get_contacts()
+            self.get_chats()
+
+            self.user_id = ''
             self.friends = None
             self.chatrooms = None
 
-    def get_user_list(self):
-        user_list = []
-        for file in os.listdir(self.root.PathWithMountPoint):
-            if file.isdigit():
-                user_list.append(file)
-        return user_list
+    def get_user_id_list(self):
+        user_id_list = []
+        for file_name in os.listdir(self.root.PathWithMountPoint):
 
-    def parse_user(self):
-        self.get_user()
-        self.get_contacts()
-        self.get_chats()
+            if file_name.isdigit():
+                user_id_list.append(file_name)
+        return user_id_list
 
     def get_user(self):
         ''' main.db - yixin_contact
         
-            FieldName	SQLType	Size	Precision	PKDisplay	
+            FieldName	SQLType	
             uid         	Varchar	16
             yid         	Varchar	64
             ecpid          	Varchar	64
             mobile         	varchar	16
             email          	Varchar	64
-            nickname           Varchar	64
-            photourl           Varchar	256
+            nickname        Varchar	64
+            photourl        Varchar	256
             gender         	INTEGER
-            birthday           Varchar	16
+            birthday        Varchar	16
             address        	Varchar	128
-            signature          Varchar	64
+            signature       Varchar	64
             bkimage        	Varchar	256
-            fullspelling       Varchar	128
-            shortspelling      Varchar	64
-            sinaweibo          Varchar	64
+            fullspelling    Varchar	128
+            shortspelling   Varchar	64
+            sinaweibo       Varchar	64
             qqweibo        	archar	64
             renren         	Varchar	64
             config         	Varchar	512
             socials        	Varchar	512
         '''
-        if self.user is None:
-            return
-
         account = model_im.Account()
-        account.account_id = self.user
+        account.account_id = self.user_id
 
-        dbPath = self.root.GetByPath(self.user + '/main.db')
+        dbPath = self.root.GetByPath(self.user_id + '/main.db')
         db = SQLiteParser.Database.FromNode(dbPath)
         if db is None:
             self.csm.db_insert_table_account(account)
@@ -128,12 +127,9 @@ class AndroidYiXinParser(BaseAndroidParser):
                 account.address = rec['address'].Value
         self.csm.db_insert_table_account(account)
         self.csm.db_commit()
-
+        
     def get_contacts(self):
-        if self.user is None:
-            return
-
-        dbPath = self.root.GetByPath(self.user + '/main.db')
+        dbPath = self.root.GetByPath(self.user_id + '/main.db')
         db = SQLiteParser.Database.FromNode(dbPath)
         if db is None:
             return
@@ -142,8 +138,6 @@ class AndroidYiXinParser(BaseAndroidParser):
             ts = SQLiteParser.TableSignature('yixin_contact')
             SQLiteParser.Tools.AddSignatureToTable(ts, "uid", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
             for rec in db.ReadTableRecords(ts, self.extract_deleted):
-                if canceller.IsCancellationRequested:
-                    return
                 _id = rec['uid'].Value
                 if _id in self.friends:
                     continue
@@ -151,7 +145,7 @@ class AndroidYiXinParser(BaseAndroidParser):
                 friend = model_im.Friend()
                 friend.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
                 friend.source = 'YiXin'
-                friend.account_id = self.user
+                friend.account_id = self.user_id
                 friend.friend_id = _id
                 friend.nickname = rec['nickname'].Value
                 friend.photo = rec['photourl'].Value
@@ -160,7 +154,7 @@ class AndroidYiXinParser(BaseAndroidParser):
                 friend.email = rec['email'].Value
                 friend.address = rec['address'].Value
                 friend.type = model_im.FRIEND_TYPE_FRIEND
-                self.friends[id] = friend
+                self.friends[_id] = friend
                 if 'buddylist' in db.Tables:
                     ts = SQLiteParser.TableSignature('buddylist')
                     SQLiteParser.Tools.AddSignatureToTable(ts, "uid", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
@@ -181,22 +175,20 @@ class AndroidYiXinParser(BaseAndroidParser):
                 chatroom = model_im.Chatroom()
                 chatroom.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
                 chatroom.source = 'YiXin'
-                chatroom.account_id = self.user
+                chatroom.account_id = self.user_id
                 chatroom.chatroom_id = _id
                 chatroom.name = rec['defaultname'].Value
                 chatroom.creator_id = rec['creator'].Value
                 chatroom.photo = rec['photo'].Value
                 chatroom.member_count = rec['membercount'].Value
                 chatroom.type = model_im.CHATROOM_TYPE_NORMAL
-                self.chatrooms[id] = chatroom
+                self.chatrooms[_id] = chatroom
                 self.csm.db_insert_table_chatroom(chatroom)
         
                 if 'tuser' in db.Tables:
                     ts = SQLiteParser.TableSignature('tuser')
                     SQLiteParser.Tools.AddSignatureToTable(ts, "tid", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
                     for rec in db.ReadTableRecords(ts, self.extract_deleted):
-                        if canceller.IsCancellationRequested:
-                            return
                         room_id = rec['tid'].Value
                         if chatroom.chatroom_id != room_id:
                             continue
@@ -204,7 +196,7 @@ class AndroidYiXinParser(BaseAndroidParser):
                         chatroom_member = model_im.ChatroomMember()
                         chatroom_member.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
                         chatroom_member.source = 'YiXin'
-                        chatroom_member.account_id = self.user
+                        chatroom_member.account_id = self.user_id
                         chatroom_member.chatroom_id = room_id
                         chatroom_member.member_id = rec['uid'].Value
                         friend = self.friends.get(chatroom_member.member_id)
@@ -221,8 +213,6 @@ class AndroidYiXinParser(BaseAndroidParser):
             ts = SQLiteParser.TableSignature('painfo')
             SQLiteParser.Tools.AddSignatureToTable(ts, "uid", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
             for rec in db.ReadTableRecords(ts, self.extract_deleted):
-                if canceller.IsCancellationRequested:
-                    return
                 _id = rec['uid'].Value
                 if _id in self.friends:
                     continue
@@ -230,7 +220,7 @@ class AndroidYiXinParser(BaseAndroidParser):
                 friend = model_im.Friend()
                 friend.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
                 friend.source = 'YiXin'
-                friend.account_id = self.user
+                friend.account_id = self.user_id
                 friend.friend_id = _id
                 friend.nickname = rec['nickname'].Value
                 friend.photo = rec['photourl'].Value
@@ -258,10 +248,7 @@ class AndroidYiXinParser(BaseAndroidParser):
             attachstr	    Varchar
             msgSvrId	    Long
         '''
-        if self.user is None:
-            return
-
-        dbPath = self.root.GetByPath(self.user + '/msg.db')
+        dbPath = self.root.GetByPath(self.user_id + '/msg.db')
         if not self._read_db(node=dbPath):
             return
         for _id in self.friends.keys() or self.chatrooms.keys():
@@ -272,23 +259,22 @@ class AndroidYiXinParser(BaseAndroidParser):
                         continue
                     if _id != rec['id'].Value:
                         continue
-                    friend = self.friends.get(id)
+                    friend = self.friends.get(_id)
                     
                     message = model_im.Message()
                     message.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
                     message.source = dbPath.AbsolutePath
-                    message.account_id = self.user
+                    message.account_id = self.user_id
                     message.talker_id = _id
                     message.talker_type = model_im.CHAT_TYPE_FRIEND if _id in self.friends.keys() else model_im.CHAT_TYPE_GROUP
                     message.talker_name = friend.nickname
-                    message.is_sender = model_im.MESSAGE_TYPE_SEND if rec['fromid'].Value == self.user else model_im.MESSAGE_TYPE_RECEIVE
+                    message.is_sender = model_im.MESSAGE_TYPE_SEND if rec['fromid'].Value == self.user_id else model_im.MESSAGE_TYPE_RECEIVE
                     message.sender_id = rec['fromid'].Value
                     message.sender_name = self.username if message.is_sender == model_im.MESSAGE_TYPE_SEND else message.talker_name 
                     message.msg_id = rec['msgid'].Value
                     message.type = self.parse_message_type(rec['msgtype'].Value)
                     message.send_time = rec['time'].Value
                     message.content = parse_yixin_msg_content(rec['content'].Value)
-
                     message.media_path = self.get_media_path(rec['attachstr'].Value, message.type)
 
                     if message.type == model_im.MESSAGE_CONTENT_TYPE_LOCATION:
@@ -350,14 +336,13 @@ class AndroidYiXinParser(BaseAndroidParser):
                 pattern = media_patterns['video'] + relative_file_path
             else:
                 return 
-            
             media_path =  self._search_media_file(pattern)
             return media_path
         except:
             return None
             
     def get_location(self, location, content, attachstr, time):
-        location.account_id = self.user
+        location.account_id = self.user_id
         location.timestamp = time
         location.type = model_im.LOCATION_TYPE_GOOGLE
         location.latitude = content.split(',')[0]
@@ -407,7 +392,6 @@ class AndroidYiXinParser(BaseAndroidParser):
             return list(fs.Search(raw_file_path))[0].AbsolutePath
         except:
             return None
-
 
 
 def parse_yixin_msg_content(_content):
