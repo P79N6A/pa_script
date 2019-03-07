@@ -421,9 +421,10 @@ def parse_yixin_msg_content(_content):
     ''' 
     try:
         _d = json.loads(_content)
+        res = []
+        for _item in _d.get('data', {}).get('items', []):
+            res.append(_item.get('linkurl', ''))
+        return ', '.join(_linkurl for _linkurl in res)
     except:
         return _content
-    res = []
-    for _item in _d.get('data', {}).get('items', []):
-        res.append(_item.get('linkurl', ''))
-    return ', '.join(_linkurl for _linkurl in res)
+
