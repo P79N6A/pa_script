@@ -188,40 +188,6 @@ class Wechat(object):
                                     pass
                             model.deal_status = status 
 
-    def _process_parse_message_attachment(self, xml_element, model):
-        if xml_element.Name.LocalName == 'msg':
-            fromusername = xml_element.Element('fromusername')
-            if fromusername and len(fromusername.Value) > 0:
-                model.sender_id = fromusername.Value
-            appmsg = xml_element.Element('appmsg')
-            if appmsg is not None:
-                try:
-                    msg_type = int(appmsg.Element('type').Value) if appmsg.Element('type') else 0
-                except Exception as e:
-                    msg_type = 0
-                if msg_type != 6:
-                    return
-
-                title = appmsg.Element('title')
-                if title is None:
-                    return
-                model.type = model_wechat.MESSAGE_CONTENT_TYPE_ATTACHMENT
-                # 这些是file_size的请求过程
-                # app_attach = appmsg.Element('appattach')
-                # if app_attach is not None:
-                #     file_size = app_attach.Element('totallen')
-                #     if file_size is not None:
-                #         size = file_size.Value
-                for extend_node in self.extend_nodes:
-                    # TODO optimize
-                    # 增加对文件的校验，如果两个文件名字相同怎么半？
-                    # 如果直接对文件进行md5校验，那么如果碰到大文件整个的性能就会下降
-                    file_ = next(iter(extend_node.Parent.Search(title.Value + '$')), None)
-                    if file_ is not None:
-                        model.media_path = file_.AbsolutePath
-                        break
-                return title.Value
-
     def _process_parse_message_location(self, xml_str, model):
         content = xml_str
         xml = None

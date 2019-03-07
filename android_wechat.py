@@ -694,6 +694,33 @@ class WeChatParser(Wechat):
                             fav_item.content = xml_str
                         if item.Element('datasrcname'):
                             fav_item.sender_name = item.Element('datasrcname').Value
+            elif fav_type == model_wechat.FAV_TYPE_MUSIC:
+                fav_item = model.create_item()
+                fav_item.type = fav_type
+                source_element = xml.Element('source')
+                data_list_element = xml.Element('datalist')
+                if source_element is not None:
+                    if source_element.Element('fromusr'):
+                        fav_item.sender = source_element.Element('fromusr').Value
+                    if source_element.Element('tousr'):
+                        fav_item.sender = source_element.Element('tousr').Value
+                if data_list_element is not None:
+                    data_item = data_list_element.Element('dataitem')
+                    dataid = str(data_item.Attribute('dataid').Value)
+                    for node in self.extend_nodes:
+                        file_ = next(iter(node.GetByPath('favorite').Search(dataid)), None)
+                        fav_item.media_path = file_.AbsolutePath
+                    stream_url = data_item.Element('stream_dataurl')
+                    if stream_url is not None:
+                        fav_item.link_url = stream_url.Value
+                    title = data_item.Element('datatitle')
+                    if title is not None:
+                        fav_item.link_title = title.Value
+                    author = data_item.Element('datadesc')
+                    if title is not None:
+                        fav_item.link_content = author.Value
+            elif fav_type == model_wechat.FAV_TYPE_NOTE:
+                pass
             else:
                 fav_item = model.create_item()
                 fav_item.type = fav_type
@@ -1565,7 +1592,7 @@ class WeChatParser(Wechat):
                         hd_file = img_name[len(TH_PREFIX):]
                     else:
                         hd_file = img_name
-                    hd_nodes = p_node.Search('/{}[.].+$'.format(hd_file))
+                    hd_nodes = p_node.Search('/' + hd_file + r'[.][a-zA-Z]{2,6}$')
                     if hd_nodes is not None:
                         for hd_node in hd_nodes:
                             media_path = hd_node.AbsolutePath
@@ -1718,6 +1745,40 @@ class WeChatParser(Wechat):
         ans = re.findall(url_pattern, row_content)
         if ans:
             model.link_url = ans[0].strip()
+
+    def _process_parse_message_attachment(self, xml_element, model):
+        if xml_element.Name.LocalName == 'msg':
+            fromusername = xml_element.Element('fromusername')
+            if fromusername and len(fromusername.Value) > 0:
+                model.sender_id = fromusername.Value
+            appmsg = xml_element.Element('appmsg')
+            if appmsg is not None:
+                try:
+                    msg_type = int(appmsg.Element('type').Value) if appmsg.Element('type') else 0
+                except Exception as e:
+                    msg_type = 0
+                if msg_type != 6:
+                    return
+
+                title = appmsg.Element('title')
+                if title is None:
+                    return
+                model.type = model_wechat.MESSAGE_CONTENT_TYPE_ATTACHMENT
+                # 这些是file_size的请求过程
+                # app_attach = appmsg.Element('appattach')
+                # if app_attach is not None:
+                #     file_size = app_attach.Element('totallen')
+                #     if file_size is not None:
+                #         size = file_size.Value
+                for extend_node in self.extend_nodes:
+                    # TODO optimize
+                    # 增加对文件的校验，如果两个文件名字相同怎么半？
+                    # 如果直接对文件进行md5校验，那么如果碰到大文件整个的性能就会下降
+                    file_ = next(iter(extend_node.Parent.Search(title.Value + '$')), None)
+                    if file_ is not None:
+                        model.media_path = file_.AbsolutePath
+                        break
+                return title.Value
 
     def _search_fav_file(self, file_name):
         """搜索函数"""
