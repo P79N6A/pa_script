@@ -1054,12 +1054,18 @@ class GenerateBcp(object):
             10    is_sender           INT,
             11    source              TEXT,
             12    deleted             INT DEFAULT 0, 
-            13    repeated            INT DEFAULT 0          
+            13    repeated            INT DEFAULT 0     
+
+            14    recv_phonenumber   TEXT,
+            15    recv_name          TEXT,
+            16    smsc               TEXT,
+            17    is_mms             INT                 
         '''
         MAIL_TYPE_2_FOLDER = {
-            0: '99', # ALL - 其他
-            1: '01', # INBOX - 收件箱
-            3: '03', # DRAFT - 草稿箱
+            0: '99', # ALL    - 其他
+            1: '01', # INBOX  - 收件箱
+            2: '02', # SENT   - 发件箱
+            3: '03', # DRAFT  - 草稿箱
             4: '02', # OUTBOX - 发件箱
         }
         try:
@@ -1073,13 +1079,15 @@ class GenerateBcp(object):
                     break
                 sms = SMSInfo()
                 sms.COLLECT_TARGET_ID = self.collect_target_id
-                # sms.MSISDN
-                sms.RELATIONSHIP_ACCOUNT = sr[2]
-                sms.RELATIONSHIP_NAME    = sr[3]
+                sms.MSISDN = sr[2] if sr[10] == 1 else sr[14]
                 if sr[10] == 1:     # is_sender
                     sms.LOCAL_ACTION = '02'
+                    sms.RELATIONSHIP_ACCOUNT = sr[14]
+                    sms.RELATIONSHIP_NAME    = sr[15]
                 elif sr[10] == 0:
                     sms.LOCAL_ACTION = '01'
+                    sms.RELATIONSHIP_ACCOUNT = sr[2]
+                    sms.RELATIONSHIP_NAME    = sr[3]
                 else:
                     sms.LOCAL_ACTION = '99'
                 sms.MAIL_SEND_TIME   = sr[8]
