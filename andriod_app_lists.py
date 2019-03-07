@@ -54,7 +54,8 @@ class AppLists(object):
                 icon = KeyValueModel()
                 dicts = defaultdict(list)
                 base_apk_path = app.PathWithMountPoint + "\\base.apk"
-                file_content = os.popen( destDir + " dump badging {0}".format(base_apk_path)).read()
+                tmp_path = " dump badging {0}".format(base_apk_path)
+                file_content = os.popen('"{0}"'.format(destDir) + tmp_path).read()
                 if file_content:
                     app_info = model_applists.Info()
                     app_info.sourceFile = app.AbsolutePath + "/base.apk"

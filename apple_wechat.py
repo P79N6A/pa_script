@@ -145,11 +145,17 @@ class WeChatParser(Wechat):
                 self.parse_user_node(node, build)
                 gc.collect()
 
-            pr = ParserResults()
-            pr.Categories = DescripCategories.Wechat
-            pr.Models.AddRange(self.ar.parse())
-            pr.Build(build)
-            ds.Add(pr)
+            try:
+                ar_models = self.ar.parse()
+            except Exception as e:
+                ar_models = None
+
+            if ar_models is not None:
+                pr = ParserResults()
+                pr.Categories = DescripCategories.Wechat
+                pr.Models.AddRange()
+                pr.Build(build)
+                ds.Add(pr)
             
             self.ar = None
             prog.Finish(True)
