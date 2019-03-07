@@ -137,7 +137,7 @@ class baiduMapParser(object):
                                 routeaddr.to_posY = data.get("efavnode").get("geopty")
                             routeaddr.type = 6
                         except Exception as e:
-                            TraceService.Trace(TraceLevel.Error,"Get model_map.RouteRec() Failed! -{0}".format(e))      
+                            TraceService.Trace(TraceLevel.Info,"Get model_map.RouteRec() Failed! -{0}".format(e))      
                             continue
                     if routeaddr.from_name:
                         self.baidumap.db_insert_table_routerec(routeaddr)
