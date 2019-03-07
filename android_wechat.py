@@ -198,7 +198,12 @@ class WeChatParser(Wechat):
 
             pr = ParserResults()
             pr.Categories = DescripCategories.Wechat
-            pr.Models.AddRange(self.ar.parse())
+            try:
+                res = self.ar.parse()
+            except Exception as e:
+                print e
+                res = []
+            pr.Models.AddRange(res)
             pr.Build(build)
             ds.Add(pr)
 
