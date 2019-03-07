@@ -149,9 +149,12 @@ class MediaParse(object):
                     thumbnails.url = self._db_record_get_string_value(rec, '_data')
                     thumbnails.url = self.dcim_node.AbsolutePath + re.sub('.*DCIM', '', thumbnails.url)
                     thumbnails.media_id = self._db_record_get_int_value(rec, 'image_id')
-                    media_url = os.path.basename(thumbnails.url).replace('+', '.')
-                    thumbnail_path = ''
-                    media_nodes = self.dcim_node.Search(media_url+'$')
+                    try:
+                        media_url = os.path.basename(thumbnails.url).replace('+', '.')
+                        thumbnail_path = ''
+                        media_nodes = self.dcim_node.Search(media_url+'$')
+                    except:
+                        media_nodes = []
                     if len(list(media_nodes)) != 0:
                         thumbnails.url = media_nodes[0].AbsolutePath
                         thumbnail_path = media_nodes[0].PathWithMountPoint
