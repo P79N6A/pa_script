@@ -6,7 +6,7 @@ from PA_runtime import *
 from System.IO import Path
 from PIL.ExifTags import TAGS
 from PA.InfraLib.ModelsV2.Base import *
-from PA.InfraLib.Utils import FileTypeChecker,FileDomain
+from PA.InfraLib.Utils import FileTypeChecker, FileDomain
 
 
 class AppResources(object):
@@ -25,13 +25,13 @@ class AppResources(object):
         self.step_value = None
 
     def parse(self):
-        if self.prog:
-            self.prog.Start()
-            self.prog.Value = 0
-        if  len(self.node_list) == 0:
+        if len(self.node_list) == 0:
             if self.prog:
                 self.prog.Skip()
             raise Exception("No multimedia resource directory was passed in")
+        if self.prog:
+            self.prog.Start()
+            self.prog.Value = 0
         self.step_value = 100 / len(self.node_list)
         if len(self.media_models) != 0:
             self.path_list = self.return_model_index(self.media_models)
@@ -41,8 +41,7 @@ class AppResources(object):
             self.prog.Value = 100
             self.prog.Finish(True)
         return self.res_models
-
-    
+  
     def save_media_model(self, model):
         """
         Save media models
@@ -50,7 +49,6 @@ class AppResources(object):
         if model.Path not in self.media_path_set:
             self.media_models.append(model)
             self.media_path_set.add(model.Path)
-
 
     def save_res_folder(self, node, ntype):
         """
@@ -64,13 +62,11 @@ class AppResources(object):
         if node is not None:
             self.node_list[node] = ntype
 
-
     def set_thum_config(self, thum, rtype):
         if rtype == "Image":
             self.img_thum_suffix.add(thum)
         elif rtype == "Video":
             self.video_thum_suffix.add(thum)
-
 
     def _get_all_files(self, node, all_files):
         """
@@ -83,7 +79,6 @@ class AppResources(object):
             else:
                self._get_all_files(files, all_files)
         return all_files
-
 
     def progress_search(self, node):
         res_lists = self._get_all_files(node, [])
@@ -112,7 +107,6 @@ class AppResources(object):
                 
                 self.res_models.append(model)
         self._set_progess_value()
-
 
     def _is_created(self, node, ntype):
         suffix = os.path.splitext(node.AbsolutePath)[-1][1:]
@@ -161,7 +155,6 @@ class AppResources(object):
                 else:
                     return None
 
-
     def return_model_index(self, models):
         dicts = {}
         for i in models:
@@ -169,7 +162,6 @@ class AppResources(object):
                 continue
             dicts[i.Path] = i
         return dicts
-
 
     def _get_exif_data(self, path):
         '''获取图片metadata'''
@@ -187,7 +179,6 @@ class AppResources(object):
                 return ret
         except:
             return {}
-
 
     def assign_value_to_model(self, image, path):
         """[get pics exif infomation]
@@ -294,7 +285,6 @@ class AppResources(object):
             return image
         except:
             return image
-
 
     def _get_timestamp(self, timestamp):
         try:
