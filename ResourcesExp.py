@@ -306,4 +306,3 @@ class AppResources(object):
                 return
             self.prog_value += self.step_value
             self.prog.Value = self.prog_value
-            print('多媒体子进度当前为: %d' % self.prog.Value)
