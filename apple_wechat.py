@@ -153,7 +153,7 @@ class WeChatParser(Wechat):
             if ar_models is not None:
                 pr = ParserResults()
                 pr.Categories = DescripCategories.Wechat
-                pr.Models.AddRange()
+                pr.Models.AddRange(ar_models)
                 pr.Build(build)
                 ds.Add(pr)
             
