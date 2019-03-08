@@ -242,8 +242,11 @@ class Andriod_QQParser(object):
             self.im.db_commit()
             self.im.db_close()
         #PA_runtime.save_cache_path(bcp_im.CONTACT_ACCOUNT_TYPE_IM_QQ,self.cachedb,self.bcppath)
-        gen = GenerateModel(self.cachedb,self.sourceApp)
-        gen.get_models()
+        gen = GenerateModel(self.cachedb,self.sourceApp)       
+        try:
+            gen.get_models()
+        except:
+            pass
         try:
             self.get_qq_res(gen.ar)
         except Exception as e:
@@ -254,23 +257,10 @@ class Andriod_QQParser(object):
         dicts = {}
         searchkey = 'tencent/'+ self.resFolder + "$"
         resnode = self.root.FileSystem.Search(searchkey)
-        for node in img_node:
+        for node in resnode:
             ar.save_res_folder(node, "Other")
-
-        #opendata_node = self.root.GetByPath("OpenData")
-        #fav_node = self.private_root.GetByPath("Favorites/Data")
-        # hi_node = self.private_root.GetByPath("HeadImg")
-        #emot_node = self.private_root.GetByPath("emoticonThumb")
-        #emop_node = self.private_root.GetByPath("emoticonPIC")
-        #story_node = self.private_root.GetByPath("story/media_data")
-        #ar.save_res_folder(img_node, "Image")
-        #ar.save_res_folder(audio_node, "Audio")
-        #ar.save_res_folder(video_node, "Video")
-        #ar.save_res_folder(opendata_node, "Other")
-        #ar.save_res_folder(fav_node, "Other")
-        #ar.save_res_folder(emot_node, "Image")
-        #ar.save_res_folder(emop_node, "Image")
-        #ar.save_res_folder(story_node, "Video")
+        else:
+            return
         res = ar.parse()
         pr = ParserResults()
         pr.Categories = DescripCategories.QQ

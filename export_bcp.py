@@ -12,6 +12,7 @@ try:
     clr.AddReference('bcp_other')
     clr.AddReference('bcp_wechat')
     clr.AddReference('bcp_connectdevice')
+    clr.AddReference('bcp_qq')
 except:
     pass
 del clr
@@ -28,7 +29,7 @@ import bcp_wechat
 import os
 import traceback
 import model_eb
-
+import bcp_qq
 IM_LIST     = ['1030001','1030027','1030028','1030035','1030038','1030043','1030044','1030045','1030046','1030047','1030048','1030049','1030050','1030051','1030052','1030053','1039999']
 WEIBO_LIST  = ['1330001','1330002','1330003','1330004','1330005','1330006','1339999']
 MAP_LIST    = ['1440001','1440002','1440003','1440004','1440005','1449999','1440009','1449999']
@@ -39,6 +40,7 @@ EC_LIST = ["1220007", "1220069", "1220005", "1220002", "1290007"]
 OTHER_LIST = ["15","16","17","18","19","20"]
 BASESTATION_LIST = ["21", "22", "23", "24"]
 WECHAT = "1030036"
+QQ = '1030001'
 
 # caseDir = r"E:\iPhone 6_11.1.2_133217541373990_full(1)_0817\caches"
 
@@ -89,7 +91,17 @@ def run(target_id, bcp_path, case_path, mountDir, software_type):
                     except Exception as e:
                         print(e)
                 return bcp_path_list
-
+        elif software_type == QQ:
+            path_lists = read_path(software_path)
+            if path_lists:
+                for path in path_lists:
+                    try:
+                        ts_db = md5(path, ts_path)  
+                        bcp_qq.GenerateQQBcp(bcp_path, mountDir, path, ts_db, target_id, software_type).generate()
+                        bcp_path_list.append(ts_db)
+                    except Exception as e:
+                        print(e)
+                return bcp_path_list        
         elif software_type in EC_LIST:
             path_lists = read_path(software_path)
             if path_lists:
