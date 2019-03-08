@@ -50,7 +50,7 @@ def analyze_youxin(root, extract_deleted, extract_source):
     return pr
 
 def execute(node,extracteDeleted):
-    return analyze_renren(node, extracteDeleted, False)
+    return analyze_youxin(node, extracteDeleted, False)
 
 class YouXinParser():
     def __init__(self, node, extract_deleted, extract_source):
@@ -62,7 +62,7 @@ class YouXinParser():
         if not os.path.exists(self.cache_path):
             os.makedirs(self.cache_path)
         self.cache_db = os.path.join(self.cache_path, 'cache.db')
-
+        self.app_root = self.root.Parent
         nameValues.SafeAddValue(bcp_im.CONTACT_ACCOUNT_TYPE_IM_YOUXIN, self.cache_db)
 
     def parse(self):
@@ -127,15 +127,22 @@ class YouXinParser():
             for rec in db.ReadTableRecords(ts, self.extract_deleted):
                 account.username = self._db_record_get_string_value(rec, 'NAME')
                 self.username = account.username
-                account.gender = 2 if self._db_record_get_string_value(rec, 'GENDER') == '女' else 1
+                gender = self._db_record_get_string_value(rec, 'GENDER')
+                account.gender = 2 if gender == '女' else 1 if gender == '男' else 0
                 account.telephone = self._db_record_get_string_value(rec, 'MOBILE_NUMBER')
                 account.email = self._db_record_get_string_value(rec, 'EMAIL')
                 birthday = self._db_record_get_string_value(rec, 'BIRTHDAY')
-                ts = time.strptime(birthday, '%Y-%m-%d')
-                birthday = int(time.mktime(ts))
-                account.birthday = birthday
-                account.photo = self._db_record_get_string_value(rec, 'PHOTO_LOCATION')
-
+                try:
+                    ts = time.strptime(birthday, '%Y-%m-%d')
+                    birthday = int(time.mktime(ts))
+                    account.birthday = birthday
+                except:
+                    pass
+                photo = self._db_record_get_string_value(rec, 'PHOTO_LOCATION')
+                if photo is not '':
+                    photo_nodes = self.app_root.Search(os.path.basename(photo) + '$')
+                    if len(list(photo_nodes)) != 0:
+                        account.photo = photo_nodes[0].AbsolutePath
         self.im.db_insert_table_account(account)
         self.im.db_commit()
 
@@ -151,7 +158,7 @@ class YouXinParser():
         if 'PROFILE_TABLE' in db.Tables:
             ts = SQLiteParser.TableSignature('PROFILE_TABLE')
             SQLiteParser.Tools.AddSignatureToTable(ts, 'UID', SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
-            for rec in db.ReadTableRecords(ts, self.extract_deleted):
+            for rec in db.ReadTableRecords(ts, self.extract_deleted, True):
                 if canceller.IsCancellationRequested:
                     return
                 try:
@@ -159,34 +166,78 @@ class YouXinParser():
                     if id == self.user or id in self.contacts.keys():
                         continue
                     friend = model_im.Friend()
-                    self.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
+                    friend.deleted = 0
                     friend.source = dbPath.AbsolutePath
                     friend.account_id = self.user
                     friend.friend_id = id
                     friend.nickname = self._db_record_get_string_value(rec, 'NAME')
-                    friend.gender = 2 if self._db_record_get_string_value(rec, 'SEX') == '女' else 1
+                    gender = self._db_record_get_string_value(rec, 'SEX')
+                    friend.gender = 2 if gender == '女' else 1 if gender == '男' else 0
                     friend.signature = self._db_record_get_string_value(rec, 'SIGNATURE')
                     friend.email = self._db_record_get_string_value(rec, 'EMAIL')
                     birthday = self._db_record_get_string_value(rec, 'BIRTHDAY')
-                    ts = time.strptime(birthday, '%Y-%m-%d')
-                    birthday = int(time.mktime(ts))
-                    friend.birthday = birthday
+                    try:
+                        timestamp = time.strptime(birthday, '%Y-%m-%d')
+                        birthday = int(time.mktime(timestamp))
+                        friend.birthday = birthday
+                    except:
+                        pass
                     friend.province = self._db_record_get_string_value(rec, 'PROVINCE')
                     friend.city = self._db_record_get_string_value(rec, 'CITY')
                     friend.telephone = self._db_record_get_string_value(rec, 'MOBILE_NUMBER')
-                    friend.photo = self._db_record_get_string_value(rec, 'PICTURE')
+                    photo = self._db_record_get_string_value(rec, 'PICTURE')
+                    if photo is not '':
+                        photo_nodes = self.app_root.Search(os.path.basename(photo))
+                        if len(list(photo_nodes)) != 0:
+                            friend.photo = photo_nodes[0].AbsolutePath
                     friend.type = model_im.FRIEND_TYPE_FRIEND
-                    if IsDBNull(friend.photo):
-                        friend.photo = None
                     self.contacts[id] = friend
                     self.im.db_insert_table_friend(friend)
                 except:
                     pass
-
+            self.im.db_commit()
+            for rec in db.ReadTableDeletedRecords(ts, False):
+                if canceller.IsCancellationRequested:
+                        return
+                try:
+                    id = self._db_record_get_string_value(rec, 'UID')
+                    if id == self.user or id in self.contacts.keys():
+                        continue
+                    friend = model_im.Friend()
+                    friend.deleted = 1
+                    friend.source = dbPath.AbsolutePath
+                    friend.account_id = self.user
+                    friend.friend_id = id
+                    friend.nickname = self._db_record_get_string_value(rec, 'NAME')
+                    gender = self._db_record_get_string_value(rec, 'SEX')
+                    friend.gender = 2 if gender == '女' else 1 if gender == '男' else 0
+                    friend.signature = self._db_record_get_string_value(rec, 'SIGNATURE')
+                    friend.email = self._db_record_get_string_value(rec, 'EMAIL')
+                    birthday = self._db_record_get_string_value(rec, 'BIRTHDAY')
+                    try:
+                        timestamp = time.strptime(birthday, '%Y-%m-%d')
+                        birthday = int(time.mktime(timestamp))
+                        friend.birthday = birthday
+                    except:
+                        pass
+                    friend.province = self._db_record_get_string_value(rec, 'PROVINCE')
+                    friend.city = self._db_record_get_string_value(rec, 'CITY')
+                    friend.telephone = self._db_record_get_string_value(rec, 'MOBILE_NUMBER')
+                    photo = self._db_record_get_string_value(rec, 'PICTURE')
+                    if photo is not '':
+                        photo_nodes = self.app_root.Search(os.path.basename(photo))
+                        if len(list(photo_nodes)) != 0:
+                            friend.photo = photo_nodes[0].AbsolutePath
+                    friend.type = model_im.FRIEND_TYPE_FRIEND
+                    self.contacts[id] = friend
+                    self.im.db_insert_table_friend(friend)
+                except:
+                    pass
+            self.im.db_commit()
         if 'contact' in db.Tables:
             ts = SQLiteParser.TableSignature('contact')
             SQLiteParser.Tools.AddSignatureToTable(ts, 'UID', SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
-            for rec in db.ReadTableRecords(ts, self.extract_deleted):
+            for rec in db.ReadTableRecords(ts, self.extract_deleted, True):
                 if canceller.IsCancellationRequested:
                     return
                 try:
@@ -198,13 +249,49 @@ class YouXinParser():
                         continue
 
                     friend = model_im.Friend()
-                    self.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
+                    friend.deleted = 0
                     friend.source = dbPath.AbsolutePath
                     friend.account_id = self.user
                     friend.friend_id = self._db_record_get_string_value(rec, 'UID')
                     friend.nickname = self._db_record_get_string_value(rec, 'NAME')
                     friend.telephone = self._db_record_get_string_value(rec, 'NUMBER')
-                    friend.photo = self._db_record_get_string_value(rec, 'HEAD_URL')
+                    photo = self._db_record_get_string_value(rec, 'HEAD_URL')
+                    if photo is not '':
+                        photo_nodes = self.app_root.Search(os.path.basename(photo))
+                        if len(list(photo_nodes)) != 0:
+                            friend.photo = photo_nodes[0].AbsolutePath
+                    friend.address = self._db_record_get_string_value(rec, 'LOCATION')
+                    friend.type = model_im.FRIEND_TYPE_FRIEND
+                    if IsDBNull(friend.photo):
+                        friend.photo = None
+                    self.contacts[id] = friend
+                    self.im.db_insert_table_friend(friend)
+                except:
+                    pass
+            self.im.db_commit()
+            for rec in db.ReadTableDeletedRecords(ts, False):
+                if canceller.IsCancellationRequested:
+                    return
+                try:
+                    id = self._db_record_get_string_value(rec, 'UID')
+                    if id == '':
+                        id = self._db_record_get_string_value(rec, 'NUMBER')
+
+                    if id in self.contacts.keys():
+                        continue
+
+                    friend = model_im.Friend()
+                    friend.deleted = 1
+                    friend.source = dbPath.AbsolutePath
+                    friend.account_id = self.user
+                    friend.friend_id = self._db_record_get_string_value(rec, 'UID')
+                    friend.nickname = self._db_record_get_string_value(rec, 'NAME')
+                    friend.telephone = self._db_record_get_string_value(rec, 'NUMBER')
+                    photo = self._db_record_get_string_value(rec, 'HEAD_URL')
+                    if photo is not '':
+                        photo_nodes = self.app_root.Search(os.path.basename(photo))
+                        if len(list(photo_nodes)) != 0:
+                            friend.photo = photo_nodes[0].AbsolutePath
                     friend.address = self._db_record_get_string_value(rec, 'LOCATION')
                     friend.type = model_im.FRIEND_TYPE_FRIEND
                     if IsDBNull(friend.photo):
@@ -229,7 +316,7 @@ class YouXinParser():
             ts = SQLiteParser.TableSignature(table)
             SQLiteParser.Tools.AddSignatureToTable(ts, 'uid', SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
             for id in self.contacts.keys():
-                for rec in db.ReadTableRecords(ts, self.extract_deleted):
+                for rec in db.ReadTableRecords(ts, self.extract_deleted, True):
                     if canceller.IsCancellationRequested:
                         return
                     try:
@@ -239,7 +326,7 @@ class YouXinParser():
                         friend = self.contacts.get(id)
 
                         message = model_im.Message()
-                        message.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
+                        message.deleted = 0
                         message.source = dbPath.AbsolutePath
                         message.account_id = self.user
                         message.talker_id = id
@@ -251,26 +338,97 @@ class YouXinParser():
                         message.msg_id = str(uuid.uuid1()).replace('-', '')
                         message.type = self.parse_message_type(self._db_record_get_int_value(rec, 'extra_mime'))
                         message.content = self._db_record_get_string_value(rec, 'body')
-                        try:
-                            if type != model_im.MESSAGE_CONTENT_TYPE_TEXT and type != model_im.MESSAGE_CONTENT_TYPE_LOCATION:
+                        if message.type == model_im.MESSAGE_CONTENT_TYPE_IMAGE or message.type == model_im.MESSAGE_CONTENT_TYPE_VOICE or message.type == model_im.MESSAGE_CONTENT_TYPE_VIDEO:
+                            try:
                                 media_nodes = self.root.FileSystem.Search(os.path.basename(message.content) + '$')
                                 if len(list(media_nodes)) != 0:
                                     for node in media_nodes:
                                         message.content = None
                                         message.media_path = node.AbsolutePath
-                                        if re.findall('image', message.media_path):
-                                            message.type = model_im.MESSAGE_CONTENT_TYPE_IMAGE
-                                        elif re.findall('audio', message.media_path):
-                                            message.type = model_im.MESSAGE_CONTENT_TYPE_VOICE
-                                        break
                                 else:
                                     message.media_path = message.content
-                                    if re.findall('image', message.media_path):
-                                        message.type = model_im.MESSAGE_CONTENT_TYPE_IMAGE
-                                    elif re.findall('audio', message.media_path):
-                                        message.type = model_im.MESSAGE_CONTENT_TYPE_VOICE
-                        except:
-                            pass
+                            except:
+                               pass
+                        elif message.type == model_im.MESSAGE_CONTENT_TYPE_LINK:
+                            try:
+                                json_data = message.content
+                                dic_data = json.loads(json_data)
+                                lst = dic_data['list'][0]
+                                title = lst['title'] if 'title' in lst else ''
+                                pic = lst['pic'] if 'pic' in lst else ''
+                                desc = lst['desc'] if 'desc' in lst else ''
+                                share_url = lst['actions']['href'][1]
+                                link = model_im.Link()
+                                message.link_id = link.link_id
+                                link.title = title
+                                link.url = share_url
+                                link.content = desc
+                                link.image = pic
+                                self.im.db_insert_table_link(link)
+                            except:
+                                pass
+                        message.send_time = int(self._db_record_get_string_value(rec, 'date')[0:10:])
+                        if message.is_sender == model_im.MESSAGE_TYPE_SEND:
+                            message.status = model_im.MESSAGE_STATUS_SENT if self._db_record_get_int_value(rec, 'status') == 1 else model_im.MESSAGE_STATUS_UNSENT
+                        if message.is_sender == model_im.MESSAGE_TYPE_RECEIVE:
+                            message.status = model_im.MESSAGE_STATUS_READ if self._db_record_get_int_value(rec, 'status') == 1 else model_im.MESSAGE_STATUS_UNREAD
+                        if message.type == model_im.MESSAGE_CONTENT_TYPE_LOCATION:
+                            message.location_obj = message.create_location()
+                            message.location_id = self.get_location(message.location_obj, message.content, message.send_time)
+                        self.im.db_insert_table_message(message)
+                    except:
+                        pass
+                for rec in db.ReadTableDeletedRecords(ts, False):
+                    if canceller.IsCancellationRequested:
+                        return
+                    try:
+                        if id != self._db_record_get_string_value(rec, 'uid'):
+                            continue
+
+                        friend = self.contacts.get(id)
+
+                        message = model_im.Message()
+                        message.deleted = 0
+                        message.source = dbPath.AbsolutePath
+                        message.account_id = self.user
+                        message.talker_id = id
+                        message.talker_name = friend.nickname
+                        message.talker_type = model_im.CHAT_TYPE_FRIEND
+                        message.is_sender = model_im.MESSAGE_TYPE_SEND if self._db_record_get_int_value(rec, 'type') else model_im.MESSAGE_TYPE_RECEIVE
+                        message.sender_id = self.user if message.is_sender == model_im.MESSAGE_TYPE_SEND else id
+                        message.sender_name = friend.nickname if message.sender_id == id else self.username
+                        message.msg_id = str(uuid.uuid1()).replace('-', '')
+                        message.type = self.parse_message_type(self._db_record_get_int_value(rec, 'extra_mime'))
+                        message.content = self._db_record_get_string_value(rec, 'body')
+                        if message.type == model_im.MESSAGE_CONTENT_TYPE_IMAGE or message.type == model_im.MESSAGE_CONTENT_TYPE_VOICE or message.type == model_im.MESSAGE_CONTENT_TYPE_VIDEO:
+                            try:
+                                media_nodes = self.root.FileSystem.Search(os.path.basename(message.content) + '$')
+                                if len(list(media_nodes)) != 0:
+                                    for node in media_nodes:
+                                        message.content = None
+                                        message.media_path = node.AbsolutePath
+                                else:
+                                    message.media_path = message.content
+                            except:
+                               pass
+                        elif message.type == model_im.MESSAGE_CONTENT_TYPE_LINK:
+                            try:
+                                json_data = message.content
+                                dic_data = json.loads(json_data)
+                                title = dic_data['title'] if 'title' in dic_data else ''
+                                lst = dic_data['list'][0]
+                                pic = lst['pic'] if 'pic' in lst else ''
+                                desc = lst['desc'] if 'desc' in lst else ''
+                                share_url = lst['actions']['href'][1]
+                                link = model_im.Link()
+                                message.link_id = link.link_id
+                                link.title = title
+                                link.url = share_url
+                                link.content = desc
+                                link.image = pic
+                                self.im.db_insert_table_link(link)
+                            except:
+                                pass
                         message.send_time = int(self._db_record_get_string_value(rec, 'date')[0:10:])
                         if message.is_sender == model_im.MESSAGE_TYPE_SEND:
                             message.status = model_im.MESSAGE_STATUS_SENT if self._db_record_get_int_value(rec, 'status') == 1 else model_im.MESSAGE_STATUS_UNSENT
@@ -294,6 +452,8 @@ class YouXinParser():
             msgtype = model_im.MESSAGE_CONTENT_TYPE_VIDEO
         if type == 5:
             msgtype = model_im.MESSAGE_CONTENT_TYPE_LOCATION
+        if type == 6:
+            msgtype = model_im.MESSAGE_CONTENT_TYPE_LINK
         return msgtype
 
     def get_media_path(self, content, type):
@@ -305,7 +465,7 @@ class YouXinParser():
         try:
             obj = json.loads(content)
         except:
-            traceback.print_exc()
+            return
         location.account_id = self.user
         location.address = obj['description']
         location.latitude = obj['latitude']

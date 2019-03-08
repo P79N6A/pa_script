@@ -504,19 +504,20 @@ class GenerateModel(object):
 # 拷文件。。。
 #
 # WACODE_0010_24
-WA_CODE_DANGDANG = 1220001
-WA_CODE_TMAIL = 1220002
-WA_CODE_JINGDONG = 1220005
-WA_CODE_SUNING = 1220006
-WA_CODE_TAOBAO = 1220007
-WA_CODE_NB1 = 1220008
-WA_CODE_PAIPAI = 1220009
-WA_CODE_JUMEI = 1220013
-WA_CODE_NUOMI = 1220014
-WA_CODE_MEITUAN = 1220040
-WA_CODE_DAZHONG = 1220050
-WA_CODE_XIANYU = 1220069
-WA_CODE_WANHUI = 1220077
+WA_CODE_DANGDANG = "1220001"
+WA_CODE_TMAIL = "1220002"
+WA_CODE_JINGDONG = "1220005"
+WA_CODE_SUNING = "1220006"
+WA_CODE_TAOBAO = "1220007"
+WA_CODE_NB1 = "1220008"
+WA_CODE_PAIPAI = "1220009"
+WA_CODE_JUMEI = "1220013"
+WA_CODE_NUOMI = "1220014"
+WA_CODE_MEITUAN = "1220040"
+WA_CODE_DAZHONG = "1220050"
+WA_CODE_XIANYU = "1220069"
+WA_CODE_WANHUI = "1220077"
+WA_CODE_ALIPAY = '1290007'
 
 
 TBL_BCP_CREATE_ACCOUNT = '''
@@ -642,7 +643,7 @@ TBL_BCP_CREATE_DEAL = '''
 '''
 
 TBL_BCP_INSERT_DEAL = '''
-    insert into WA_MFORENSICS_070400(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+    insert into WA_MFORENSICS_070400 values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
 '''
 
 TBL_BCP_CREATE_VERSION = '''
@@ -983,7 +984,7 @@ class EBBCP(object):
             if os.path.exists(pic):
                 #a.set_value_with_idx(os.path.join(self.app_code, ))
                 ppath,pname = os.path.split(pic)
-                a.set_value_with_idx(self.app_code + '/' + pname)
+                a.set_value_with_idx(a.photo, self.app_code + '/' + pname)
                 pass # copy file...
             a.set_value_with_idx(a.telephone, unity_c37r.c_sharp_get_string(reader, 5))
             gender = unity_c37r.c_sharp_get_long(reader, 6)
@@ -1035,14 +1036,19 @@ class EBBCP(object):
         res = dict()
         while reader.Read():
             deal = DealInfo()
+            deal.set_value_with_idx(deal.colltection_target_id, self.colltection_target_id)
+            deal.set_value_with_idx(deal.app_code, self.app_code)
             deal.set_value_with_idx(deal.deal_id, unity_c37r.c_sharp_get_string(reader, 0))
-            deal.set_value_with_idx(deal.money, unity_c37r.c_sharp_get_long(reader, 2))
+            try:
+                deal.set_value_with_idx(deal.money, unity_c37r.c_sharp_get_real(reader, 2))
+            except:
+                deal.set_value_with_idx(deal.money, 0)
             deal.set_value_with_idx(deal.description, unity_c37r.c_sharp_get_string(reader, 3))
             t = unity_c37r.c_sharp_get_long(reader, 6)
             if t != 0:
                 deal.set_value_with_idx(deal.time, t)
             pass
-            unity_c37r.execute_query(self.cmd, TBL_DEAL_INSERT, deal.get_values())
+            unity_c37r.execute_query(self.cmd, TBL_BCP_INSERT_DEAL, deal.get_values())
             # status... not supported right now
             # type ... not suppoted right now
         reader.Close()

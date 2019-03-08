@@ -188,7 +188,9 @@ def analyze_notestore(node, extractDeleted):
     try:
         notestore_node = node.FileSystem.Search('/group.com.apple.notes/NoteStore.sqlite$')
         if len(list(notestore_node)) == 0:
-            return
+            notestore_node = node.FileSystem.Search('/NoteStore.sqlite$')
+            if len(list(notestore_node)) == 0:
+                return
         db = SQLiteParser.Database.FromNode(notestore_node[0])
         if db is None:
             return

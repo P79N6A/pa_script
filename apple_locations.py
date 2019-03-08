@@ -7,9 +7,13 @@ from PA.Common.Utilities.Types import TimeStampFormats
 from PA.InfraLib import LocationSourceType
 import sqlite3
 import clr
-clr.AddReference('System.Core')
-clr.AddReference('System.Xml.Linq')
-clr.AddReference('System.Data.SQLite')
+try:
+    clr.AddReference('System.Core')
+    clr.AddReference('System.Xml.Linq')
+    clr.AddReference('System.Data.SQLite')
+    clr.AddReference('bcp_connectdevice')
+except:
+    pass
 del clr
 from System.Data.SQLite import *
 import System
@@ -18,6 +22,9 @@ import shutil
 import time
 import PA.InfraLib.ModelsV2.Base as Base
 from PA.InfraLib.ModelsV2.CommonEnum import CoordinateType
+
+import bcp_connectdevice
+import hashlib
 
 def moveFileto(sourceDir,  targetDir): 
     shutil.copy(sourceDir,  targetDir)
@@ -150,83 +157,109 @@ class LocationsParser(object):
         SQLiteParser.Tools.ReadColumnToField[str](record, 'HorizontalAccuracy', result.Precision,
                                                   self.extract_source, lambda x: str(x))
 
-    def parse_cell_locations(self):
-        if self.db is None or 'CellLocation' not in self.db.Tables:
-            return []
-        ts = SQLiteParser.TableSignature('CellLocation')
-        if self.extract_deleted:
-            ts['Latitude'] = ts['Longitude'] = ts['Timestamp'] = SQLiteParser.Signatures.NumericSet(7)
-            ts['Confidence'] = SQLiteParser.Signatures.NumericSet(1)
-            ts['HorizontalAccuracy'] = SQLiteParser.Signatures.SignatureFactory.GetFieldSignature(SQLiteParser.FieldType.Int)
-            ts['MCC'] = ts['MNC'] = SQLiteParser.Signatures.NumericRange(1, 2)
-            ts['LAC'] = SQLiteParser.Signatures.NumericRange(1, 3)
-            ts['CI'] = SQLiteParser.Signatures.NumericRange(1, 4)
+    # def parse_cell_locations(self):
+    #     if self.db is None or 'CellLocation' not in self.db.Tables:
+    #         return []
+    #     ts = SQLiteParser.TableSignature('CellLocation')
+    #     if self.extract_deleted:
+    #         ts['Latitude'] = ts['Longitude'] = ts['Timestamp'] = SQLiteParser.Signatures.NumericSet(7)
+    #         ts['Confidence'] = SQLiteParser.Signatures.NumericSet(1)
+    #         ts['HorizontalAccuracy'] = SQLiteParser.Signatures.SignatureFactory.GetFieldSignature(SQLiteParser.FieldType.Int)
+    #         ts['MCC'] = ts['MNC'] = SQLiteParser.Signatures.NumericRange(1, 2)
+    #         ts['LAC'] = SQLiteParser.Signatures.NumericRange(1, 3)
+    #         ts['CI'] = SQLiteParser.Signatures.NumericRange(1, 4)
 
-        results = []
-        for record in self.db.ReadTableRecords(ts, self.extract_deleted, True):
-            if not self.validate_coordinate(record):
-                continue
+    #     results = []
+    #     for record in self.db.ReadTableRecords(ts, self.extract_deleted, True):
+    #         if not self.validate_coordinate(record):
+    #             continue
 
-            result = Location()
-            result.Deleted = record.Deleted
-            result.Category.Value = LocationCategories.CELL_TOWERS
-            result.SourceType = LocationSourceType.CellTowers
-            cell = CellTower()
-            cell.Deleted = result.Deleted
+    #         result = Location()
+    #         result.Deleted = record.Deleted
+    #         result.Category.Value = LocationCategories.CELL_TOWERS
+    #         result.SourceType = LocationSourceType.CellTowers
+    #         cell = CellTower()
+    #         cell.Deleted = result.Deleted
 
-            SQLiteParser.Tools.ReadColumnToField[str](record, 'MCC', cell.MCC, self.extract_source, str)
-            SQLiteParser.Tools.ReadColumnToField[str](record, 'MNC', cell.MNC, self.extract_source, str)
-            SQLiteParser.Tools.ReadColumnToField[str](record, 'LAC', cell.LAC, self.extract_source, str)
-            if record.ContainsKey("CI") and not IsDBNull(record["CI"].Value) and record["CI"].Value >= 0:
-                SQLiteParser.Tools.ReadColumnToField[str](record, 'CI', cell.CID, self.extract_source, str)
+    #         SQLiteParser.Tools.ReadColumnToField[str](record, 'MCC', cell.MCC, self.extract_source, str)
+    #         SQLiteParser.Tools.ReadColumnToField[str](record, 'MNC', cell.MNC, self.extract_source, str)
+    #         SQLiteParser.Tools.ReadColumnToField[str](record, 'LAC', cell.LAC, self.extract_source, str)
+    #         if record.ContainsKey("CI") and not IsDBNull(record["CI"].Value) and record["CI"].Value >= 0:
+    #             SQLiteParser.Tools.ReadColumnToField[str](record, 'CI', cell.CID, self.extract_source, str)
 
-            self.get_timestamp_from_record(record, result.TimeStamp)
-            cell.TimeStamp.Init(result.TimeStamp)
-            self.get_description_from_record(record, result.Description, ['MCC', 'MNC', 'LAC', 'CI'])
-            self.get_coordinate_and_data_from_record(record, result)
-            cell.Position.Value = result.Position.Value
-            results.append(result)
-            if cell.HasLogicalContent:
-                results.append(cell)
-        return results
+    #         self.get_timestamp_from_record(record, result.TimeStamp)
+    #         cell.TimeStamp.Init(result.TimeStamp)
+    #         self.get_description_from_record(record, result.Description, ['MCC', 'MNC', 'LAC', 'CI'])
+    #         self.get_coordinate_and_data_from_record(record, result)
+    #         cell.Position.Value = result.Position.Value
+    #         results.append(result)
+    #         if cell.HasLogicalContent:
+    #             results.append(cell)
+    #         try:
+    #             mcc = self._db_record_get_int_value(record, 'MCC')
+    #             mnc = self._db_record_get_int_value(record, 'MNC')
+    #             lac = self._db_record_get_string_value(record, 'LAC')
+    #             ci = self._db_record_get_string_value(record, 'CI')
+    #             latitude = self._db_record_get_string_value(record, 'Latitude')
+    #             longitude = self._db_record_get_string_value(record, 'Longitude')
+    #             sid = self._db_record_get_string_value(record, 'SID')
+    #             nid = self._db_record_get_string_value(record, 'NID')
+    #             bsid = self._db_record_get_string_value(record, 'BSID')
+    #             self.insert_cache(mcc, mnc, lac, ci, latitude, longitude, sid, nid, bsid)
+    #         except:
+    #             pass
+    #     return results
 
-    def parse_cdma_cell_location(self):
-        if self.db is None or 'CdmaCellLocation' not in self.db.Tables:
-            return []
+    # def parse_cdma_cell_location(self):
+    #     if self.db is None or 'CdmaCellLocation' not in self.db.Tables:
+    #         return []
 
-        ts = SQLiteParser.TableSignature('CdmaCellLocation')
-        if self.extract_deleted:
-            ts['Latitude'] = ts['Longitude'] = ts['Timestamp'] = SQLiteParser.Signatures.NumericSet(7)
-            ts['Confidence'] = SQLiteParser.Signatures.NumericSet(1)
-            ts['HorizontalAccuracy'] = SQLiteParser.Signatures.SignatureFactory.GetFieldSignature(SQLiteParser.FieldType.Int)
-            ts['MCC'] = ts['SID'] = ts['NID'] = ts['BSID'] = SQLiteParser.Signatures.NumericRange(1, 2)
+    #     ts = SQLiteParser.TableSignature('CdmaCellLocation')
+    #     if self.extract_deleted:
+    #         ts['Latitude'] = ts['Longitude'] = ts['Timestamp'] = SQLiteParser.Signatures.NumericSet(7)
+    #         ts['Confidence'] = SQLiteParser.Signatures.NumericSet(1)
+    #         ts['HorizontalAccuracy'] = SQLiteParser.Signatures.SignatureFactory.GetFieldSignature(SQLiteParser.FieldType.Int)
+    #         ts['MCC'] = ts['SID'] = ts['NID'] = ts['BSID'] = SQLiteParser.Signatures.NumericRange(1, 2)
 
-        results = []
-        for record in self.db.ReadTableRecords(ts, self.extract_deleted, True):
-            if not self.validate_coordinate(record):
-                continue
+    #     results = []
+    #     for record in self.db.ReadTableRecords(ts, self.extract_deleted, True):
+    #         if not self.validate_coordinate(record):
+    #             continue
 
-            result = Location()
-            result.Deleted = record.Deleted
-            result.Category.Value = LocationCategories.CELL_TOWERS
-            result.SourceType = LocationSourceType.CellTowers
-            cell = CellTower()
-            cell.Deleted = result.Deleted
+    #         result = Location()
+    #         result.Deleted = record.Deleted
+    #         result.Category.Value = LocationCategories.CELL_TOWERS
+    #         result.SourceType = LocationSourceType.CellTowers
+    #         cell = CellTower()
+    #         cell.Deleted = result.Deleted
 
-            SQLiteParser.Tools.ReadColumnToField[str](record, 'MCC', cell.MCC, self.extract_source, str)
-            SQLiteParser.Tools.ReadColumnToField[str](record, 'SID', cell.SID, self.extract_source, str)
-            SQLiteParser.Tools.ReadColumnToField[str](record, 'NID', cell.NID, self.extract_source, str)
-            SQLiteParser.Tools.ReadColumnToField[str](record, 'BSID', cell.BID, self.extract_source, str)
+    #         SQLiteParser.Tools.ReadColumnToField[str](record, 'MCC', cell.MCC, self.extract_source, str)
+    #         SQLiteParser.Tools.ReadColumnToField[str](record, 'SID', cell.SID, self.extract_source, str)
+    #         SQLiteParser.Tools.ReadColumnToField[str](record, 'NID', cell.NID, self.extract_source, str)
+    #         SQLiteParser.Tools.ReadColumnToField[str](record, 'BSID', cell.BID, self.extract_source, str)
 
-            self.get_timestamp_from_record(record, result.TimeStamp)
-            cell.TimeStamp.Init(result.TimeStamp)
-            self.get_description_from_record(record, result.Description, ['MCC', 'SID', 'NID', 'BSID'])
-            self.get_coordinate_and_data_from_record(record, result)
-            cell.Position.Value = result.Position.Value
-            results.append(result)
-            if cell.HasLogicalContent:
-                results.Add(cell)
-        return results
+    #         self.get_timestamp_from_record(record, result.TimeStamp)
+    #         cell.TimeStamp.Init(result.TimeStamp)
+    #         self.get_description_from_record(record, result.Description, ['MCC', 'SID', 'NID', 'BSID'])
+    #         self.get_coordinate_and_data_from_record(record, result)
+    #         cell.Position.Value = result.Position.Value
+    #         results.append(result)
+    #         if cell.HasLogicalContent:
+    #             results.Add(cell)
+    #         try:
+    #             mcc = self._db_record_get_int_value(record, 'MCC')
+    #             mnc = self._db_record_get_int_value(record, 'MNC')
+    #             lac = self._db_record_get_string_value(record, 'LAC')
+    #             ci = self._db_record_get_string_value(record, 'CI')
+    #             latitude = self._db_record_get_string_value(record, 'Latitude')
+    #             longitude = self._db_record_get_string_value(record, 'Longitude')
+    #             sid = self._db_record_get_string_value(record, 'SID')
+    #             nid = self._db_record_get_string_value(record, 'NID')
+    #             bsid = self._db_record_get_string_value(record, 'BSID')
+    #             self.insert_cache(mcc, mnc, lac, ci, latitude, longitude, sid, nid, bsid)
+    #         except:
+    #             pass
+    #     return results
 
     def parse_wifi_locations(self):
         if self.db is None or 'WifiLocation' not in self.db.Tables:
@@ -252,7 +285,19 @@ class LocationsParser(object):
             self.get_mac_from_record(record, result.Description)
             self.get_coordinate_and_data_from_record(record, result)
             results.append(result)
-
+            try:
+                mcc = None
+                mnc = None
+                lac = None
+                ci = None
+                latitude = self._db_record_get_string_value(record, 'Latitude')
+                longitude = self._db_record_get_string_value(record, 'Longitude')
+                sid = None
+                nid = None
+                bsid = None
+                self.insert_cache(mcc, mnc, lac, ci, latitude, longitude, sid, nid, bsid)
+            except:
+                pass
         return results
 
     def parse_location_harvest(self):
@@ -321,35 +366,49 @@ class LocationsParser(object):
 
         return results
 
-    def parse_cell_location_harvest(self):
-        if self.db is None or 'CellLocationHarvest' not in self.db.Tables:
-            return []
-        ts = SQLiteParser.TableSignature('CellLocationHarvest')
-        if self.extract_deleted:
-            ts['Latitude'] = ts['Longitude'] = ts['Timestamp'] = SQLiteParser.Signatures.NumericSet(7)
-            ts['Confidence'] = SQLiteParser.Signatures.NumericSet(1)
-            ts['HorizontalAccuracy'] = SQLiteParser.Signatures.SignatureFactory.GetFieldSignature(SQLiteParser.FieldType.Int)
-            ts['MCC'] = ts['MNC'] = SQLiteParser.Signatures.NumericRange(1, 2)
-            ts['LAC'] = SQLiteParser.Signatures.NumericRange(1, 3)
-            ts['CI'] = SQLiteParser.Signatures.NumericRange(1, 4)
-            ts['Operator'] = TextNotNull
+    # def parse_cell_location_harvest(self):
+    #     if self.db is None or 'CellLocationHarvest' not in self.db.Tables:
+    #         return []
+    #     ts = SQLiteParser.TableSignature('CellLocationHarvest')
+    #     if self.extract_deleted:
+    #         ts['Latitude'] = ts['Longitude'] = ts['Timestamp'] = SQLiteParser.Signatures.NumericSet(7)
+    #         ts['Confidence'] = SQLiteParser.Signatures.NumericSet(1)
+    #         ts['HorizontalAccuracy'] = SQLiteParser.Signatures.SignatureFactory.GetFieldSignature(SQLiteParser.FieldType.Int)
+    #         ts['MCC'] = ts['MNC'] = SQLiteParser.Signatures.NumericRange(1, 2)
+    #         ts['LAC'] = SQLiteParser.Signatures.NumericRange(1, 3)
+    #         ts['CI'] = SQLiteParser.Signatures.NumericRange(1, 4)
+    #         ts['Operator'] = TextNotNull
 
-        results = []
-        for record in self.db.ReadTableRecords(ts, self.extract_deleted, True):
-            if not self.validate_coordinate(record):
-                continue
+    #     results = []
+    #     for record in self.db.ReadTableRecords(ts, self.extract_deleted, True):
+    #         if not self.validate_coordinate(record):
+    #             continue
 
-            result = Location()
-            result.Deleted = record.Deleted
-            result.Category.Value = "Harvested Cell Towers"
-            result.SourceType = LocationSourceType.CellHarvest
+    #         result = Location()
+    #         result.Deleted = record.Deleted
+    #         result.Category.Value = "Harvested Cell Towers"
+    #         result.SourceType = LocationSourceType.CellHarvest
 
-            self.get_timestamp_from_record(record, result.TimeStamp)
-            self.get_description_from_record(record, result.Description, ['Operator', 'MCC', 'MNC', 'LAC', 'CI'])
-            self.get_coordinate_and_data_from_record(record, result)
-            results.append(result)
+    #         self.get_timestamp_from_record(record, result.TimeStamp)
+    #         self.get_description_from_record(record, result.Description, ['Operator', 'MCC', 'MNC', 'LAC', 'CI'])
+    #         self.get_coordinate_and_data_from_record(record, result)
+    #         results.append(result)
 
-        return results
+    #         try:
+    #             mcc = self._db_record_get_int_value(record, 'MCC')
+    #             mnc = self._db_record_get_int_value(record, 'MNC')
+    #             lac = self._db_record_get_string_value(record, 'LAC')
+    #             ci = self._db_record_get_string_value(record, 'CI')
+    #             latitude = self._db_record_get_string_value(record, 'Latitude')
+    #             longitude = self._db_record_get_string_value(record, 'Longitude')
+    #             sid = self._db_record_get_string_value(record, 'SID')
+    #             nid = self._db_record_get_string_value(record, 'NID')
+    #             bsid = self._db_record_get_string_value(record, 'BSID')
+    #             self.insert_cache(mcc, mnc, lac, ci, latitude, longitude, sid, nid, bsid)
+    #         except:
+    #             pass
+
+    #     return results
 
     def parse_reminder_locations(self):
         if self.db is None or 'Fences' not in self.db.Tables:
@@ -467,16 +526,78 @@ class LocationsParser(object):
     def parse(self):
         if self.db is None:
             return []
+        self.create_cache()
         results = []
-        results += self.parse_cell_locations()
-        results += self.parse_cdma_cell_location()
+        # results += self.parse_cell_locations()
+        # results += self.parse_cdma_cell_location()
         results += self.parse_wifi_locations()
         results += self.parse_location_harvest()
         results += self.parse_wifi_location_harvest()
-        results += self.parse_cell_location_harvest()
+        # results += self.parse_cell_location_harvest()
         results += self.parse_reminder_locations()
         results += self.parse_app_harvest_locations()
+        self.close_cache()
         return results
+
+    def create_cache(self):
+        '''创建中间数据库'''
+        self.cd = bcp_connectdevice.ConnectDeviceBcp()
+        cachepath = ds.OpenCachePath("基站信息")
+        md5_db = hashlib.md5()
+        db_name = 'radio_log'
+        md5_db.update(db_name.encode(encoding = 'utf-8'))
+        self.db_path = cachepath + '\\' + md5_db.hexdigest().upper() + '.db'
+        self.cd.db_create(self.db_path)
+
+    def insert_cache(self, mcc, mnc, lac, ci, latitude, longitude, sid, nid, bsid):
+        '''插入数据'''
+        base = bcp_connectdevice.BasestationInfo()
+        base.MCC = mcc
+        base.MNC = mnc
+        base.LAC = lac
+        base.CellID = ci
+        base.LATITUDE = latitude
+        base.LONGITUDE = longitude
+        base.SID = sid
+        base.NID = nid
+        base.BASE_STATION_ID = bsid
+        self.cd.db_insert_table_basestation_information(base)
+
+    def close_cache(self):
+        '''关闭数据库,导出bcp'''
+        try:
+            self.cd.db_commit()
+            self.cd.db_close()
+            #bcp entry
+            temp_dir = ds.OpenCachePath('tmp')
+            PA_runtime.save_cache_path(bcp_connectdevice.BASESTATION_INFORMATION, self.db_path, temp_dir)
+        except:
+            pass
+
+    @staticmethod
+    def _db_record_get_string_value(record, column, default_value=''):
+        try:
+            if not record[column].IsDBNull:
+                try:
+                    value = str(record[column].Value)
+                    return value
+                except Exception as e:
+                    return default_value
+            return default_value
+        except:
+            return default_value
+
+    @staticmethod
+    def _db_record_get_int_value(record, column, default_value=0):
+        try:
+            if not IsDBNull(record[column].Value):
+                try:
+                    return int(record[column].Value)
+                except Exception as e:
+                    return default_value
+            return default_value
+        except:
+            return default_value
 
 def analyze_locations(node, extract_deleted, extract_source):
     #extractDeleted = False #暂时禁用位置相关的数据恢复
@@ -1928,4 +2049,218 @@ def analyze_passbook(d, extractDeleted, extractSource):
                 results.append(card)
     pr.Models.AddRange(results)
     pr.Build('Passbook')
+    return pr
+
+################################################################
+##                          cell tower                        ##
+
+def _get_table_record_value(rec, column):
+    if column in rec and (not rec[column].IsDBNull):
+        return rec[column].Value
+    else:
+        return None
+
+def convert_to_timestamp(mac_time, v=10):
+    try:
+        date = 0
+        date_2 = mac_time
+        if mac_time < 1000000000:
+            date = mac_time + 978307200
+        else:
+            date = mac_time
+            date_2 = date_2 - 978278400 - 8 * 3600
+        s_ret = date if v > 5 else date_2
+        ts = TimeStamp.FromUnixTime(s_ret, False)
+        if not ts.IsValidForSmartphone():
+            ts = None
+        return ts
+    except:
+        return None
+
+def _get_cdma_cell_location(node, extract_deleted):
+    models = []
+    if node is None:
+        return
+    db = SQLiteParser.Database.FromNode(node)
+    if "CdmaCellLocation" not in db.Tables:
+        return
+    ts = SQLiteParser.TableSignature('CdmaCellLocation')
+    for record in db.ReadTableRecords(ts, extract_deleted, True):
+        try:
+            cell = CellTower()
+            cell.Deleted = record.Deleted
+            mcc = _get_table_record_value(record, "MCC")
+            sid = _get_table_record_value(record, "SID")
+            nid = _get_table_record_value(record, "NID")
+            BSID = _get_table_record_value(record, "BSID")
+            longitude = _get_table_record_value(record, "Longitude")
+            latitude = _get_table_record_value(record, "Latitude")
+            timestamp = _get_table_record_value(record, "Timestamp")
+
+            if mcc:
+                cell.MCC.Value = str(mcc)
+            if sid:
+                cell.SID.Value = str(sid)
+            if nid:
+                cell.NID.Value = str(nid)
+            if BSID:
+                cell.BID.Value = str(BSID)
+
+            if longitude and latitude:
+                c = Coordinate()
+                c.Longitude.Value = longitude
+                c.Latitude.Value =latitude
+                cell.Position.Value = c
+            if timestamp:
+                cell.TimeStamp.Value = convert_to_timestamp(timestamp)
+            if mcc and sid and nid:
+                models.append(cell)
+        except Exception as e:
+            print(e)
+    return models
+
+
+def _get_cell_location(node, extract_deleted):
+    models = []
+    if node is None:
+        return
+    db = SQLiteParser.Database.FromNode(node)
+    if "CellLocation" not in db.Tables:
+        return
+    ts = SQLiteParser.TableSignature('CellLocation')
+    for record in db.ReadTableRecords(ts, extract_deleted, True):
+        try:
+            cell = CellTower()
+            cell.Deleted = record.Deleted
+            mcc = _get_table_record_value(record, "MCC")
+            mnc = _get_table_record_value(record, "MNC")
+            lac = _get_table_record_value(record, "LAC")
+            ci = _get_table_record_value(record, "CI")
+            longitude = _get_table_record_value(record, "Longitude")
+            latitude = _get_table_record_value(record, "Latitude")
+            timestamp = _get_table_record_value(record, "Timestamp")
+
+            if mcc:
+                cell.MCC.Value = str(mcc)
+            if mnc:
+                cell.MNC.Value = str(mnc)
+            if lac:
+                cell.LAC.Value = str(lac)
+            if ci:
+                cell.CID.Value = str(ci)
+
+            if longitude and latitude:
+                c = Coordinate()
+                c.Longitude.Value = longitude
+                c.Latitude.Value =latitude
+                cell.Position.Value = c
+            if timestamp:
+                cell.TimeStamp.Value = convert_to_timestamp(timestamp)
+            if mcc and mnc and lac:
+                models.append(cell)
+        except Exception as e:
+            print(e)
+    return models
+
+def _get_lte_cell_location(node, extract_deleted):
+    models = []
+    if node is None:
+        return
+    db = SQLiteParser.Database.FromNode(node)
+    if "LteCellLocation" not in db.Tables:
+        return
+    ts = SQLiteParser.TableSignature('LteCellLocation')
+    for record in db.ReadTableRecords(ts, extract_deleted, True):
+        try:
+            cell = CellTower()
+            cell.Deleted = record.Deleted
+            mcc = _get_table_record_value(record, "MCC")
+            mnc = _get_table_record_value(record, "MNC")
+            tac = _get_table_record_value(record, "TAC")
+            ci = _get_table_record_value(record, "CI")
+            longitude = _get_table_record_value(record, "Longitude")
+            latitude = _get_table_record_value(record, "Latitude")
+            timestamp = _get_table_record_value(record, "Timestamp")
+
+            if mcc:
+                cell.MCC.Value = str(mcc)
+            if mnc:
+                cell.MNC.Value = str(mnc)
+            if tac:
+                cell.LAC.Value = str(tac)
+            if ci:
+                cell.CID.Value = str(ci)
+            if longitude and latitude:
+                c = Coordinate()
+                c.Longitude.Value = longitude
+                c.Latitude.Value =latitude
+                cell.Position.Value = c
+            if timestamp:
+                cell.TimeStamp.Value = convert_to_timestamp(timestamp)
+            if mcc and mnc and tac:
+                models.append(cell)
+        except Exception as e:
+            print(e)
+    return models
+
+def _get_scdma_cell_location(node, extract_deleted):
+    models = []
+    if node is None:
+        return
+    db = SQLiteParser.Database.FromNode(node)
+    if "ScdmaCellLocation" not in db.Tables:
+        return
+    ts = SQLiteParser.TableSignature('ScdmaCellLocation')
+    for record in db.ReadTableRecords(ts, extract_deleted, True):
+        try:
+            cell = CellTower()
+            cell.Deleted = record.Deleted
+            mcc = _get_table_record_value(record, "MCC")
+            mnc = _get_table_record_value(record, "MNC")
+            lac = _get_table_record_value(record, "LAC")
+            ci = _get_table_record_value(record, "CI")
+            longitude = _get_table_record_value(record, "Longitude")
+            latitude = _get_table_record_value(record, "Latitude")
+            timestamp = _get_table_record_value(record, "Timestamp")
+
+            if mcc:
+                cell.MCC.Value = str(mcc)
+            if mnc:
+                cell.MNC.Value = str(mnc)
+            if lac:
+                cell.LAC.Value = str(lac)
+            if ci:
+                cell.CID.Value = str(ci)
+            if longitude and latitude:
+                c = Coordinate()
+                c.Longitude.Value = longitude
+                c.Latitude.Value =latitude
+                cell.Position.Value = c
+            if timestamp:
+                cell.TimeStamp.Value = convert_to_timestamp(timestamp)
+            if mcc and mnc and lac:
+                models.append(cell)
+        except Exception as e:
+            print(e)
+    return models
+    
+
+def analyze_apple_cell_location(node, extract_deleted, extract_source):
+    pr = ParserResults()
+    results = []
+    cdma_res = _get_cdma_cell_location(node, extract_deleted)
+    cell_res = _get_cell_location(node, extract_deleted)
+    lte_res = _get_lte_cell_location(node, extract_deleted)
+    scdma_res = _get_scdma_cell_location(node, extract_deleted)
+    if cdma_res:
+        results.extend(cdma_res)
+    if cell_res:
+        results.extend(cell_res)
+    if lte_res:
+        results.extend(lte_res)
+    if scdma_res:
+        results.extend(scdma_res)
+    if results:
+        pr.Models.AddRange(results)
+        pr.Build("苹果基站")
     return pr

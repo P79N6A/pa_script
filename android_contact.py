@@ -9,13 +9,13 @@ import clr
 try:
     clr.AddReference('model_contact')
     clr.AddReference('System.Data.SQLite')
-    #clr.AddReference('bcp_basic')
+    clr.AddReference('bcp_basic')
 except:
     pass
 del clr
 
 import model_contact
-#import bcp_basic
+import bcp_basic
 
 import System.Data.SQLite as SQLite
 import hashlib
@@ -81,12 +81,17 @@ class ContactParser(model_contact.MC):
 
     def parse(self):
         if self.need_parse(self.cachedb, VERSION_APP_VALUE):
+            print(self.node.PathWithMountPoint)
             self.db_create(self.cachedb)
             #全盘案例 /com.android.provider.contacts/databases/contacts2.db/data
             if re.findall("contacts2.db", self.node.AbsolutePath):
-                self.create_deleted_db()
-                self.analyze_raw_contact_table()
-                self.analyze_contact_case1()
+                nodes = self.node.FileSystem.Search('/com.android.providers.contacts/databases/contacts2.db$')
+                print(list(nodes))
+                for node in nodes:
+                    self.contact_node = node
+                    self.create_deleted_db()
+                    self.analyze_raw_contact_table()
+                    self.analyze_contact_case1()
             #备份案例 /contacts/contacts.db/AddressBook
             elif re.findall("contacts.db", self.node.AbsolutePath):
                 self.analyze_contact_logic_case1()
@@ -106,6 +111,12 @@ class ContactParser(model_contact.MC):
             self.db_insert_table_version(model_contact.VERSION_KEY_APP, VERSION_APP_VALUE)
             self.db_commit()
             self.db_close()
+        generate = model_contact.Generate(self.cachedb)
+        models = generate.get_models()
+        #bcp entry
+        temp_dir = ds.OpenCachePath('tmp')
+        PA_runtime.save_cache_path(bcp_basic.BASIC_CONTACT_INFORMATION, self.cachedb, temp_dir)
+        PA_runtime.save_cache_path(bcp_basic.BASIC_CONTACT_DETAILED_INFORMATION, self.cachedb, temp_dir)
         generate = model_contact.Generate(self.cachedb)
         models = generate.get_models()
         return models
@@ -130,7 +141,7 @@ class ContactParser(model_contact.MC):
     def insert_deleted_db(self):
         '''向恢复数据库中插入数据'''
         try:
-            db = SQLiteParser.Database.FromNode(self.node, canceller)
+            db = SQLiteParser.Database.FromNode(self.contact_node, canceller)
             ts = SQLiteParser.TableSignature('data')
             self.rdb_trans = self.rdb.BeginTransaction()
             for rec in db.ReadTableRecords(ts, self.extractDeleted, True):
@@ -279,7 +290,7 @@ class ContactParser(model_contact.MC):
                     if raw_contact is not None:
                         contacts.times_contacted = raw_contact[0]
                         contacts.last_time_contact = raw_contact[1]
-                    contacts.source = self.node.AbsolutePath
+                    contacts.source = self.contact_node.AbsolutePath
                     contacts.deleted = self._verify_dict(value, "deleted")
                     self.db_insert_table_call_contacts(contacts)
                 except:
@@ -584,9 +595,36 @@ class ContactParser(model_contact.MC):
 
 def analyze_android_contact(node, extractDeleted, extractSource):
     pr = ParserResults()
-    pr.Models.AddRange(ContactParser(node, extractDeleted, extractSource).parse())
-    pr.Build('联系人')
-    return pr
+    try:
+        if len(list(node.Search('/com.android.providers.contacts/databases/contacts2.db$'))) != 0:
+            progress.Start()
+            pr.Models.AddRange(ContactParser(node.Search('/com.android.providers.contacts/databases/contacts2.db$')[0], extractDeleted, extractSource).parse())
+            pr.Build('联系人')
+            return pr
+        elif len(list(node.Search('/contacts/contacts.db$'))) != 0:
+            progress.Start()
+            pr.Models.AddRange(ContactParser(node.Search('/contacts/contacts.db$')[0], extractDeleted, extractSource).parse())
+            pr.Build('联系人')
+            return pr
+        elif len(list(node.Search('contact.db$'))) != 0:
+            progress.Start()
+            pr.Models.AddRange(ContactParser(node.Search('contact.db$')[0], extractDeleted, extractSource).parse())
+            pr.Build('联系人')
+            return pr
+        elif len(list(node.Search('contact.vcf$'))) != 0:
+            progress.Start()
+            pr.Models.AddRange(ContactParser(node.Search('contact.vcf$')[0], extractDeleted, extractSource).parse())
+            pr.Build('联系人')
+            return pr
+        elif len(list(node.Search('contact$'))) != 0:
+            progress.Start()
+            pr.Models.AddRange(ContactParser(node.Search('contact$')[0], extractDeleted, extractSource).parse())
+            pr.Build('联系人')
+            return pr
+        else:
+            progress.Skip()
+    except:
+        progress.Skip()
 
 def execute(node, extractDeleted):
     return analyze_android_contact(node, extractDeleted, False)

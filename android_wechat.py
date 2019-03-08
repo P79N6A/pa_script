@@ -126,8 +126,7 @@ def get_build(app_path):
     build = '微信'
     if not app_path:
         return build
-
-    if app_path == r'/data/data/com.tencent.mm':
+    if app_path == r'/data/data/com.tencent.mm' or app_path == r'/Root/data/com.tencent.mm':
         return build
 
     if re.match(r'/data/user/\d+/com.tencent.mm', app_path) is not None:
@@ -198,7 +197,12 @@ class WeChatParser(Wechat):
 
             pr = ParserResults()
             pr.Categories = DescripCategories.Wechat
-            pr.Models.AddRange(self.ar.parse())
+            try:
+                res = self.ar.parse()
+            except Exception as e:
+                print e
+                res = []
+            pr.Models.AddRange(res)
             pr.Build(build)
             ds.Add(pr)
 
@@ -252,11 +256,13 @@ class WeChatParser(Wechat):
 
             node = self.user_node.GetByPath('/EnMicroMsg.db')
             mm_db_path = os.path.join(self.cache_path, self.user_hash + '_mm.db')
+            mm_db_parser = None
             try:
                 # print('%s android_wechat() decrypt EnMicroMsg.db' % time.asctime(time.localtime(time.time())))
                 if Decryptor.decrypt(node, self._get_db_key(self.imei, self.uin), mm_db_path):
                     # print('%s android_wechat() parse MicroMsg.db' % time.asctime(time.localtime(time.time())))
-                    self._parse_mm_db(mm_db_path, node.AbsolutePath)
+                    mm_db_parser = self._parse_mm_db(mm_db_path, node.AbsolutePath)
+                    next(mm_db_parser)
             except Exception as e:
                 TraceService.Trace(TraceLevel.Error, "android_wechat.py Error: LINE {}".format(traceback.format_exc()))
             self.set_progress(65)
@@ -287,6 +293,8 @@ class WeChatParser(Wechat):
                 self._parse_story_db(self.user_node.GetByPath('/StoryMicroMsg.db'))
             except Exception as e:
                 TraceService.Trace(TraceLevel.Error, "android_wechat.py Error: LINE {}".format(traceback.format_exc()))
+            if mm_db_parser is not None:
+                next(mm_db_parser)
             self.set_progress(99)
             self.im.db_create_index()
             # 数据库填充完毕，请将中间数据库版本和app数据库版本插入数据库，用来检测app是否需要重新解析
@@ -327,9 +335,9 @@ class WeChatParser(Wechat):
     def _is_valid_user_dir(self):
         if self.root is None or self.user_node is None:
             return False
-        if self.root.GetByPath('/shared_prefs/auth_info_key_prefs.xml') is None and self.root.GetByPath(
-                '/shared_prefs/com.tencent.mm_preferences.xml'):
-            return False
+        # if self.root.GetByPath('/shared_prefs/auth_info_key_prefs.xml') is None and self.root.GetByPath(
+                # '/shared_prefs/com.tencent.mm_preferences.xml'):
+            # return False
         return True
 
     @staticmethod
@@ -450,10 +458,13 @@ class WeChatParser(Wechat):
         self.set_progress(25)
         self.get_chatroom_models(self.cache_db)
         self.set_progress(30)
-        self._parse_mm_db_message(db, source)
         self._parse_mm_db_bank_cards(db, source)
         self._parse_mm_db_login_devices(db, source)
         self.push_models()
+        yield
+        self._parse_mm_db_message(db, source)
+        self.push_models()
+        yield
 
     def _parse_fav_db(self, fav_db_path, source):
         db = None
@@ -687,6 +698,33 @@ class WeChatParser(Wechat):
                             fav_item.content = xml_str
                         if item.Element('datasrcname'):
                             fav_item.sender_name = item.Element('datasrcname').Value
+            elif fav_type == model_wechat.FAV_TYPE_MUSIC:
+                fav_item = model.create_item()
+                fav_item.type = fav_type
+                source_element = xml.Element('source')
+                data_list_element = xml.Element('datalist')
+                if source_element is not None:
+                    if source_element.Element('fromusr'):
+                        fav_item.sender = source_element.Element('fromusr').Value
+                    if source_element.Element('tousr'):
+                        fav_item.sender = source_element.Element('tousr').Value
+                if data_list_element is not None:
+                    data_item = data_list_element.Element('dataitem')
+                    dataid = str(data_item.Attribute('dataid').Value)
+                    for node in self.extend_nodes:
+                        file_ = next(iter(node.GetByPath('favorite').Search(dataid)), None)
+                        fav_item.media_path = file_.AbsolutePath
+                    stream_url = data_item.Element('stream_dataurl')
+                    if stream_url is not None:
+                        fav_item.link_url = stream_url.Value
+                    title = data_item.Element('datatitle')
+                    if title is not None:
+                        fav_item.link_title = title.Value
+                    author = data_item.Element('datadesc')
+                    if title is not None:
+                        fav_item.link_content = author.Value
+            elif fav_type == model_wechat.FAV_TYPE_NOTE:
+                pass
             else:
                 fav_item = model.create_item()
                 fav_item.type = fav_type
@@ -1022,19 +1060,19 @@ class WeChatParser(Wechat):
         self.user_account_model = self.get_account_model(user_account)
         self.add_model(self.user_account_model)
         # add self to friend
-        if self.user_account_model is not None:
-            model = WeChat.Friend()
-            model.SourceFile = self.user_account_model.SourceFile
-            model.Deleted = self.user_account_model.Deleted
-            model.AppUserAccount = self.user_account_model
-            model.Account = self.user_account_model.Account
-            model.NickName = self.user_account_model.NickName
-            model.HeadPortraitPath = self.user_account_model.HeadPortraitPath
-            model.Gender = self.user_account_model.Gender
-            model.Signature = self.user_account_model.Signature
-            model.Type = WeChat.FriendType.Friend
-            self.friend_models[self.user_account_model.Account] = model
-            self.add_model(model)
+        # if self.user_account_model is not None:
+        #     model = WeChat.Friend()
+        #     model.SourceFile = self.user_account_model.SourceFile
+        #     model.Deleted = self.user_account_model.Deleted
+        #     model.AppUserAccount = self.user_account_model
+        #     model.Account = self.user_account_model.Account
+        #     model.NickName = self.user_account_model.NickName
+        #     model.HeadPortraitPath = self.user_account_model.HeadPortraitPath
+        #     model.Gender = self.user_account_model.Gender
+        #     model.Signature = self.user_account_model.Signature
+        #     model.Type = WeChat.FriendType.Friend
+        #     self.friend_models[self.user_account_model.Account] = model
+        #     self.add_model(model)
         self.push_models()
 
     def _parse_mm_db_get_user_info_from_userinfo(self, cursor, id):
@@ -1214,7 +1252,38 @@ class WeChatParser(Wechat):
                 cm.display_name = None
             cm.insert_db(self.im)
 
+    def _get_rcon_messages(self, db):
+        ret = {}
+        if 'rconversation' in db.Tables:
+            if canceller.IsCancellationRequested:
+                return
+            ts = SQLiteParser.TableSignature('rconversation')
+            SQLiteParser.Tools.AddSignatureToTable(ts, "username", SQLiteParser.FieldType.Text,
+                                                   SQLiteParser.FieldConstraints.NotNull)
+            SQLiteParser.Tools.AddSignatureToTable(ts, "isSend", SQLiteParser.FieldType.Int,
+                                                   SQLiteParser.FieldConstraints.NotNull)
+            SQLiteParser.Tools.AddSignatureToTable(ts, "content", SQLiteParser.FieldType.Text,
+                                                   SQLiteParser.FieldConstraints.NotNull)
+            SQLiteParser.Tools.AddSignatureToTable(ts, "conversationTime", SQLiteParser.FieldType.Int,
+                                                   SQLiteParser.FieldConstraints.NotNull)
+            for rec in db.ReadTableRecords(ts, False, False, ''):
+                if canceller.IsCancellationRequested:
+                    break
+                try:
+                    item = {}
+                    content = item['content'] = self._db_record_get_string_value(rec, 'content')
+                    item['is_send'] = self._db_record_get_int_value(rec, 'isSend')
+                    username = item['username'] = self._db_record_get_string_value(rec, 'username')
+                    send_time = item['send_time'] = self._db_record_get_int_value(rec, 'conversationTime')
+                    deleted = 0 if rec.Deleted == DeletedState.Intact else 1
+                    if ((content, username) not in ret) and (deleted == 0):
+                        ret[(content, username)] = item
+                except Exception as e:
+                    print_error()
+        return ret
+
     def _parse_mm_db_message(self, db, source):
+        rconversation_messages = self._get_rcon_messages(db)
         if 'message' in db.Tables:
             if canceller.IsCancellationRequested:
                 return
@@ -1240,10 +1309,37 @@ class WeChatParser(Wechat):
                     lv_buffer = self._db_record_get_blob_value(rec, 'lvbuffer')
                     msg_svr_id = self._db_record_get_string_value(rec, 'msgSvrId')
                     deleted = 0 if rec.Deleted == DeletedState.Intact else 1
+                    key = (msg, talker_id)
+                    if deleted == 0 and (key in rconversation_messages):
+                        del rconversation_messages[key]
                     self._parse_mm_db_message_with_value(deleted, source, talker_id, msg, img_path, is_send, status,
                                                          msg_type, timestamp, msg_id, lv_buffer, msg_svr_id)
                 except Exception as e:
-                    pass
+                    print_error()
+
+            # 下面这段代码是因为message里面的消息不一定是全的，还可能遗漏了几条，这几条可以在rconversation里面找到
+            # 原因不详，可能是因为分开写入message和rconversation表的时候，因为某些原因没有来得及同时写入，就提取出来了
+            for i in rconversation_messages.values():
+                print('find messages which is not in messages')
+                if canceller.IsCancellationRequested:
+                    break
+                try:
+                    talker_id = i.get('username', None)
+                    msg = i.get('content', None)
+                    img_path = None
+                    is_send = i.get('is_send', None)
+                    status = None
+                    msg_type = None
+                    timestamp = i.get('send_time')
+                    msg_id = None
+                    lv_buffer = None
+                    msg_svr_id = None
+                    deleted = 0
+                    self._parse_mm_db_message_with_value(deleted, source, talker_id, msg, img_path, is_send, status,
+                                                         msg_type, timestamp, msg_id, lv_buffer, msg_svr_id)
+                except Exception as e:
+                    print_error()
+
             self.im.db_commit()
             self.push_models()
 
@@ -1417,15 +1513,15 @@ class WeChatParser(Wechat):
         elif msg_type == MSG_TYPE_VOIP_GROUP:
             content = self._process_parse_message_voip_group(content)
         elif msg_type == MSG_TYPE_SYSTEM:
-            pass
+            content = self._strip_message_content(content)
         elif msg_type in [MSG_TYPE_SYSTEM_2, MSG_TYPE_SYSTEM_3]:
             content, revoke_content = self._process_parse_message_system_xml(content)
         elif msg_type == MSG_TYPE_LINK_SEMI:
-            pass
+            content = self._process_parse_message_semi_xml(content)
         elif msg_type == MSG_TYPE_APP_MESSAGE:
-            content = self._process_parse_message_app_message(content)
+            content = self._process_parse_message_app_message(content, model)
         else:  # MSG_TYPE_LINK
-            self._process_parse_message_link(content, model)
+            content = self._process_parse_message_link(content, model)
 
         model.content = content
         return revoke_content
@@ -1498,7 +1594,7 @@ class WeChatParser(Wechat):
                         hd_file = img_name[len(TH_PREFIX):]
                     else:
                         hd_file = img_name
-                    hd_nodes = p_node.Search('/{}[.].+$'.format(hd_file))
+                    hd_nodes = p_node.Search('/' + hd_file + r'[.][a-zA-Z]{2,6}$')
                     if hd_nodes is not None:
                         for hd_node in hd_nodes:
                             media_path = hd_node.AbsolutePath
@@ -1549,6 +1645,8 @@ class WeChatParser(Wechat):
             index = xml_content.find('<?xml version="1.0"?>')
             if index > 0:
                 xml_content = xml_content.replace('<?xml version="1.0"?>', '')  # remove xml declare not in front of content
+            if not xml_content.startswith('<'):
+                xml_content = xml_content[xml_content.find('<'):]       # there is something not important in front of some xml
             xml = XElement.Parse(xml_content)
         except Exception as e:
             if model.deleted == 0:
@@ -1566,6 +1664,9 @@ class WeChatParser(Wechat):
                         msg_type = 0
                     if msg_type in [2000, 2001]:
                         self._process_parse_message_deal(xml, model)
+                    elif msg_type == 6:
+                        content = self._process_parse_message_attachment(xml, model)
+                        return content
                     else:
                         msg_title = appmsg.Element('title').Value if appmsg.Element('title') else ''
                         mmreader = appmsg.Element('mmreader')
@@ -1614,34 +1715,72 @@ class WeChatParser(Wechat):
             else:
                 pass
 
-    def _process_parse_message_app_message(self, row_content):
-        title_pattern = '<title><!\[CDATA\[(.+?)\]\]></title>'
-        content_pattern = '<des><!\[CDATA\[([\s\S]*)\]\]></des>'
+    def _process_parse_message_semi_xml(self, row_content):
+        parser = SemiXmlParser()
+        parser.parse(row_content.encode('utf-8'))
+        items = parser.export_items()
+        contents = [dict(
+                title = getattr(item.get('title'), 'value', None),
+                description = getattr(item.get('digest'), 'value', None),
+                url = getattr(item.get('url'), 'value', None),
+                image = getattr(item.get('cover'), 'value', None),
+            ) for item in items]
+        content = json.dumps(contents, ensure_ascii=False)
+        return content
+
+    # TODO: to optimize
+    def _process_parse_message_app_message(self, row_content, model):
+        title_pattern = r'<title><!\[CDATA\[(.+?)\]\]></title>'
+        content_pattern = r'<des><!\[CDATA\[([\s\S]*)\]\]></des>'
+        url_pattern = r'<url><!\[CDATA\[([\s\S]*?)\]\]></url>'
 
         title = ''
         content = ''
+        url = ''
 
         ans = re.findall(title_pattern, row_content)
         if ans:
-            title = ans[0]
+            model.link_title = ans[0].strip()
         ans = re.findall(content_pattern, row_content)
         if ans:
-            content = ans[0]
+            model.link_content = ans[0].strip()
+        ans = re.findall(url_pattern, row_content)
+        if ans:
+            model.link_url = ans[0].strip()
 
-        return "#*#".join((title, content))
+    def _process_parse_message_attachment(self, xml_element, model):
+        if xml_element.Name.LocalName == 'msg':
+            fromusername = xml_element.Element('fromusername')
+            if fromusername and len(fromusername.Value) > 0:
+                model.sender_id = fromusername.Value
+            appmsg = xml_element.Element('appmsg')
+            if appmsg is not None:
+                try:
+                    msg_type = int(appmsg.Element('type').Value) if appmsg.Element('type') else 0
+                except Exception as e:
+                    msg_type = 0
+                if msg_type != 6:
+                    return
 
-    def _search_file(self, file_name):
-        """搜索函数"""
-        search_nodes = self.extend_nodes + self._search_nodes
-
-        for node in search_nodes:
-            results = node.Search(file_name)
-            for result in results:
-                if os.path.isfile(result.PathWithMountPoint):
-                    if result.Parent not in self._search_nodes:
-                        self._search_nodes.insert(0, result.Parent)
-                    return result
-        return None
+                title = appmsg.Element('title')
+                if title is None:
+                    return
+                model.type = model_wechat.MESSAGE_CONTENT_TYPE_ATTACHMENT
+                # 这些是file_size的请求过程
+                # app_attach = appmsg.Element('appattach')
+                # if app_attach is not None:
+                #     file_size = app_attach.Element('totallen')
+                #     if file_size is not None:
+                #         size = file_size.Value
+                for extend_node in self.extend_nodes:
+                    # TODO optimize
+                    # 增加对文件的校验，如果两个文件名字相同怎么半？
+                    # 如果直接对文件进行md5校验，那么如果碰到大文件整个的性能就会下降
+                    file_ = next(iter(extend_node.Parent.Search(title.Value + '$')), None)
+                    if file_ is not None:
+                        model.media_path = file_.AbsolutePath
+                        break
+                return title.Value
 
     def _search_fav_file(self, file_name):
         """搜索函数"""

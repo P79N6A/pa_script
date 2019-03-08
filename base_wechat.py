@@ -279,6 +279,14 @@ class Wechat(object):
         else:
             return msg
 
+    def _strip_message_content(self, content):
+        try:
+            com = re.compile(r'<.*?>')
+            return com.sub('', content)
+        except Exception as e:
+            print(e)
+            return content
+
     def _process_parse_message_system_xml(self, xml_str):
         content = xml_str
         revoke_content = None
@@ -319,30 +327,6 @@ class Wechat(object):
                     if len(content) > 0:
                         content += '、'
                     content += member.Element('nickname').Value
-        return content
-
-    def _process_parse_message_tencent_news(self, xml_str):
-        content = xml_str
-        news = []
-        xml = None
-        try:
-            xml = XElement.Parse(xml_str)
-        except Exception as e:
-            pass
-        if xml and xml.Name.LocalName == 'mmreader' and xml.Element('category'):
-            items = xml.Element('category').Elements('newitem')
-            for item in items:
-                item_content = []
-                if item.Element('title'):
-                    item_content.append('[标题]' + item.Element('title').Value)
-                if item.Element('digest'):
-                    item_content.append('[内容]' + item.Element('digest').Value)
-                if item.Element('url'):
-                    item_content.append('[链接]' + item.Element('url').Value)
-                if len(item_content) > 0:
-                    news.append('\n'.join(item_content))
-        if len(news) > 0:
-            content = '\n\n'.join(news)
         return content
 
     def _process_parse_message_contact_card(self, xml_str, model):
@@ -573,7 +557,7 @@ class Wechat(object):
         elif msg_type == MSG_TYPE_APP_MESSAGE:
             return model_wechat.MESSAGE_CONTENT_TYPE_APPMESSAGE
         elif msg_type == MSG_TYPE_LINK_SEMI:
-            return model_wechat.MESSAGE_CONTENT_TYPE_SEMI_XML
+            return model_wechat.MESSAGE_CONTENT_TYPE_LINK_SET
         else:
             return model_wechat.MESSAGE_CONTENT_TYPE_LINK
 
@@ -684,9 +668,14 @@ class Wechat(object):
             return None
 
     def set_progress(self, value):
-        if self.progress is not None and value != self.progress.Value:
-            self.progress.Value = value
-            print('set_progress() %d' % value)
+        v = value
+        if v > 100:
+            v = 100
+        elif v < 0:
+            v = 0
+        if self.progress is not None and v != self.progress.Value:
+            self.progress.Value = v
+            #print('set_progress() %d' % v)
 
     def add_model(self, model):
         if model is not None:
@@ -960,8 +949,8 @@ class Wechat(object):
             elif message.type == model_wechat.MESSAGE_CONTENT_TYPE_ATTACHMENT:
                 model.Content = Base.Content.AttachmentContent(model)
                 model.Content.Value = Base.Attachment()
-                model.Content.Value.FileName = message.link_title
-                model.Content.Value.Path = message.link_url
+                model.Content.Value.FileName = message.content
+                model.Content.Value.Path = message.media_path
             elif message.type == model_wechat.MESSAGE_CONTENT_TYPE_RED_ENVELPOE:
                 model.Content = Base.Content.RedEnvelopeContent(model)
                 model.Content.Value = WeChat.RedEnvelope()
@@ -987,21 +976,24 @@ class Wechat(object):
                 model.Content.Value.Status = model_wechat.GenerateModel._convert_deal_status(message.deal_status)
             elif message.type == model_wechat.MESSAGE_CONTENT_TYPE_APPMESSAGE:
                 model.Content = Base.Content.TemplateContent(model)
-                title, content = message.content.split('#*#', 1)
-                model.Content.Title = title
-                model.Content.Content = content
+                model.Content.Title = message.link_title
+                model.Content.Content = message.link_content
+                model.Content.InfoUrl = message.link_url
                 model.Content.SendTime = model_wechat.GenerateModel._get_timestamp(message.timestamp)
-            elif message.type == model_wechat.MESSAGE_CONTENT_TYPE_SEMI_XML:
+            elif message.type == model_wechat.MESSAGE_CONTENT_TYPE_LINK_SET:
                 model.Content = Base.Content.LinkSetContent(model)
-                parser = SemiXmlParser()
-                parser.parse(message.content.encode('utf-8'))
-                items = parser.export_items()
+                items = []
+                try:
+                    items = json.loads(message.content)
+                except Exception as e:
+                    #print(e)
+                    pass
                 for item in items:
                     link = Base.Link()
-                    link.Title = getattr(item.get('title'), 'value', None)
-                    link.Description = getattr(item.get('digest'), 'value', None)
-                    link.Url = getattr(item.get('url'), 'value', None)
-                    link.ImagePath = getattr(item.get('cover'), 'value', None)
+                    link.Title = item.get('title')
+                    link.Description = item.get('description')
+                    link.Url = item.get('url')
+                    link.ImagePath = item.get('image')
                     model.Content.Values.Add(link)
             else:
                 model.Content = Base.Content.TextContent(model)
@@ -1153,15 +1145,13 @@ class Wechat(object):
                 model.Content.Value = media_model
                 if model_wechat.is_valid_media_model_path(favorite_item.media_path):
                     self.ar.save_media_model(media_model)
-            elif favorite_item.type == model_wechat.FAV_TYPE_LINK:
+            elif favorite_item.type in [model_wechat.FAV_TYPE_LINK, model_wechat.FAV_TYPE_MUSIC]:
                 model.Content = Base.Content.LinkContent(model)
                 model.Content.Value = Base.Link()
                 model.Content.Value.Title = favorite_item.link_title
                 model.Content.Value.Description = favorite_item.link_content
                 model.Content.Value.Url = favorite_item.link_url
                 model.Content.Value.ImagePath = favorite_item.link_image
-                if model_wechat.is_valid_media_model_path(favorite_item.link_image):
-                    self.ar.save_media_model(media_model)
             elif favorite_item.type == model_wechat.FAV_TYPE_LOCATION:
                 model.Content = Base.Content.LocationContent(model)
                 model.Content.Value = Base.Location()
@@ -1180,7 +1170,7 @@ class Wechat(object):
             return model
         except Exception as e:
             #print(e)
-            return None, None
+            return None
 
     def get_contact_label_model(self, label):
         try:

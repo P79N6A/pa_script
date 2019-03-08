@@ -51,7 +51,7 @@ def execute(node,extracteDeleted):
 
 class YouXinParser():
     def __init__(self, node, extract_deleted, extract_source):
-        self.extract_deleted = False
+        self.extract_deleted = extract_deleted
         self.extract_source = extract_source
         self.root = node
         self.im = model_im.IM()
@@ -113,7 +113,7 @@ class YouXinParser():
         if 'StrangePhonePersonInfo' in db.Tables:
             ts = SQLiteParser.TableSignature('tatnlinelistusers')
             SQLiteParser.Tools.AddSignatureToTable(ts, "[uid]", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
-            for rec in db.ReadTableRecords(ts, self.extract_deleted):
+            for rec in db.ReadTableRecords(ts, False):
                 if rec['[uid]'].Value != self.user:
                     continue
 
@@ -146,27 +146,29 @@ class YouXinParser():
             ts = SQLiteParser.TableSignature('t_uxin_user')
             SQLiteParser.Tools.AddSignatureToTable(ts, "[uid]", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
             pk = []
-            for rec in db.ReadTableRecords(ts, self.extract_deleted):
+            for rec in db.ReadTableRecords(ts, self.extract_deleted, True):
                 if canceller.IsCancellationRequested:
                     return
                 friend = model_im.Friend()
                 friend.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
                 friend.source = dbPath.AbsolutePath
                 friend.account_id = self.user
-                friend.friend_id = str(rec['[uid]'].Value)
+                friend.friend_id = self._db_record_get_string_value(rec, '[uid]')
                 if friend.friend_id not in pk:
                     pk.append(friend.friend_id)
                 else:
                     continue
                 friend.type = model_im.FRIEND_TYPE_FRIEND
-                nickname = rec['[name]'].Value
+                nickname = self._db_record_get_string_value(rec, '[name]')
                 friend.nickname = nickname if nickname is not '' else '未知联系人'
                 friend.fullname = friend.nickname
-                friend.photo = rec['[small_head_image_url]'].Value
-                friend.signature = rec['[signature]'].Value
-                friend.gender = model_im.GENDER_MALE if rec['[sex]'].Value == '男' else model_im.GENDER_FEMALE
+                friend.photo = self._db_record_get_string_value(rec, '[small_head_image_url]')
+                friend.signature = self._db_record_get_string_value(rec, '[signature]')
+                gender = self._db_record_get_string_value(rec, '[sex]')
+                friend.gender = model_im.GENDER_MALE if gender == '男' else model_im.GENDER_FEMALE if gender == '女' else model_im.GENDER_NONE
                 try:
-                    friend.birthday = int(time.mktime(time.strptime(rec['[birthday]'].Value, '%Y-%m-%d')))
+                    birthday = self._db_record_get_string_value(rec, '[birthday]')
+                    friend.birthday = int(time.mktime(time.strptime(birthday, '%Y-%m-%d')))
                 except:
                     pass
                 self.contacts[friend.friend_id] = friend
@@ -181,13 +183,17 @@ class YouXinParser():
             ts = SQLiteParser.TableSignature('tatnlinelistusers')
             SQLiteParser.Tools.AddSignatureToTable(ts, "[uid]", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
             pk == []
-            for rec in db.ReadTableRecords(ts, self.extract_deleted):
+            for rec in db.ReadTableRecords(ts, self.extract_deleted, True):
                 if canceller.IsCancellationRequested:
                     return
-                id = rec['[uid]'].Value
+                id = self._db_record_get_string_value(rec, '[uid]')
                 if id in self.contacts.keys():
                     continue
-                obj = json.loads(rec['[info]'].Value)
+                info = self._db_record_get_string_value(rec, '[info]')
+                try:
+                    obj = json.loads(info)
+                except:
+                    obj = {}
                 friend = model_im.Friend()
                 friend.deleted = 0 if rec.Deleted == DeletedState.Intact else 1
                 friend.source = dbPath.AbsolutePath
@@ -197,16 +203,19 @@ class YouXinParser():
                     pk.append(friend.friend_id)
                 else:
                     continue
-                username = obj['name']
+                username = self.verify_dic(obj, 'name')
                 friend.nickname = username if username is not '' else '未知联系人'
                 friend.fullname = username if username is not '' else '未知联系人'
                 friend.username = username if username is not '' else '未知联系人'
-                if rec['[type]'].Value == '2':
-                    friend.photo = obj['picture']
-                    friend.signature = obj['signature']
-                friend.gender = model_im.GENDER_MALE if obj['sex'] == '男' else model_im.GENDER_FEMALE
+                typ = self._db_record_get_string_value(rec, '[type]')
+                if typ == '2':
+                    friend.photo = self.verify_dic(obj, 'picture')
+                    friend.signature = self.verify_dic(obj, 'signature')
+                gender = self.verify_dic(obj, 'sex')
+                friend.gender = model_im.GENDER_MALE if gender == '男' else model_im.GENDER_FEMALE if gender == '女' else model_im.GENDER_NONE
                 try:
-                    friend.birthday = int(time.mktime(time.strptime(obj['birthday'], '%Y-%m-%d')))
+                    birthday = self.verify_dic[obj, 'birthday']
+                    friend.birthday = int(time.mktime(time.strptime(birthday, '%Y-%m-%d')))
                 except:
                     pass
                 friend.type = model_im.FRIEND_TYPE_STRANGER
@@ -227,10 +236,11 @@ class YouXinParser():
             for contact_id in self.contacts.keys():
                 ts = SQLiteParser.TableSignature('NewIMMessageInfo')
                 SQLiteParser.Tools.AddSignatureToTable(ts, "[uid]", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
-                for rec in db.ReadTableRecords(ts, self.extract_deleted):
+                for rec in db.ReadTableRecords(ts, self.extract_deleted, True):
                     if canceller.IsCancellationRequested:
                         return
-                    if str(contact_id) != rec['[uid]'].Value:
+                    uid = self._db_record_get_string_value(rec, '[uid]')
+                    if str(contact_id) != uid:
                         continue
                     contact = self.contacts.get(contact_id)
                     message = model_im.Message()
@@ -241,11 +251,12 @@ class YouXinParser():
                     message.talker_id = contact_id
                     message.talker_name = contact.nickname
                     message.talker_type = model_im.CHAT_TYPE_FRIEND
-                    message.is_sender = model_im.MESSAGE_TYPE_SEND if rec['[msgtype]'].Value else model_im.MESSAGE_TYPE_RECEIVE
+                    msgtype = self._db_record_get_string_value(rec, '[msgtype]')
+                    message.is_sender = model_im.MESSAGE_TYPE_SEND if msgtype else model_im.MESSAGE_TYPE_RECEIVE
                     message.sender_id = self.user if message.is_sender == model_im.MESSAGE_TYPE_SEND else contact_id
                     message.sender_name = contact.nickname if message.sender_id == contact_id else self.username
-                    message.type = self.parse_message_type(rec['[msgcontype]'].Value)
-                    message.content = self.decode_url_message(rec['[msgcontent]'].Value)
+                    message.type = self.parse_message_type(self._db_record_get_int_value(rec, '[msgcontype]'))
+                    message.content = self.decode_url_message(self._db_record_get_string_value(rec, '[msgcontent]'))
                     try:
                         message.send_time = int(time.mktime(time.strptime(rec['[msgtime]'].Value, '%Y-%m-%d %H:%M:%S')))
                     except:
@@ -265,10 +276,11 @@ class YouXinParser():
             for contact_id in self.contacts.keys():
                 ts = SQLiteParser.TableSignature('call')
                 SQLiteParser.Tools.AddSignatureToTable(ts, "[uid]", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
-                for rec in db.ReadTableRecords(ts, self.extract_deleted):
+                for rec in db.ReadTableRecords(ts, self.extract_deleted, True):
                     if canceller.IsCancellationRequested:
                         return
-                    if contact_id != rec['[uid]'].Value:
+                    uid = self._db_record_get_string_value(rec, '[uid]')
+                    if contact_id != uid:
                         continue
                     contact = self.contacts.get(contact_id)
                     message = model_im.Message()
@@ -279,28 +291,36 @@ class YouXinParser():
                     message.talker_id = contact_id
                     message.talker_name = contact.nickname
                     message.talker_type = model_im.CHAT_TYPE_FRIEND
-                    message.is_sender = model_im.MESSAGE_TYPE_SEND if rec['[calltype]'].Value == 0 else model_im.MESSAGE_TYPE_RECEIVE
+                    calltype = self._db_record_get_int_value(rec, '[calltype]')
+                    message.is_sender = model_im.MESSAGE_TYPE_SEND if calltype == 0 else model_im.MESSAGE_TYPE_RECEIVE
                     message.sender_id = self.user if message.is_sender == model_im.MESSAGE_TYPE_SEND else contact_id
                     message.sender_name = contact.nickname if message.sender_id == contact_id else self.username
                     message.type = model_im.MESSAGE_CONTENT_TYPE_VOIP
                     if IsDBNull(rec['[telephone]'].Value):
-                        if(rec['[calltime]'].Value == '00:00'):
+                        calltime = self._db_record_get_string_value(rec, '[calltime]')
+                        if(calltime == '00:00'):
                             message.content = "[视频]已取消"
                         else:
-                            message.content = "[视频]通话时长" + rec['[calltime]'].Value
+                            message.content = "[视频]通话时长" + calltime
                     else:
-                        if(rec['[calltime]'].Value == '00:00'):
+                        calltime = self._db_record_get_string_value(rec, '[calltime]')
+                        if(calltime == '00:00'):
                             message.content = "[语音]已取消"
                         else:
-                            message.content = "[语音]通话时长" + rec['[calltime]'].Value
+                            message.content = "[语音]通话时长" + calltime
                     self.im.db_insert_table_message(message)
         self.im.db_commit()
 
     def get_location(self, location, content, time):
-        obj = json.loads(content)
-        location.address = obj['location']['description']
-        location.latitude = obj['location']['latitude']
-        location.longitude = obj['location']['longitude']
+        try:
+            obj = json.loads(content)
+            loc = obj['location'] if 'location' in obj else {}
+        except:
+            obj = {}
+            loc = {}
+        location.address = self.verify_dic(loc, 'description')
+        location.latitude = self.verify_dic(loc, 'latitude')
+        location.longitude = self.verify_dic(loc, 'longitude')
         location.timestamp = time
         self.im.db_insert_table_location(location)
         self.im.db_commit()
@@ -310,10 +330,14 @@ class YouXinParser():
         media_path = ''
         
         if type == model_im.MESSAGE_CONTENT_TYPE_IMAGE:
-            obj = json.loads(content)
+            try:
+                obj = json.loads(content)
+            except:
+                obj = {}
             node = self.root.GetByPath('../../../Documents/' + self.user + '/IMMedia/' + str(contact_id))
             if node is not None:
-                media_path = os.path.join(node.AbsolutePath, obj['[UXinIMPicName]']).replace('.thumb', '')
+                uxinimpicname = self.verify_dic(obj, '[UXinIMPicName]')
+                media_path = os.path.join(node.AbsolutePath, uxinimpicname).replace('.thumb', '')
         if type == model_im.MESSAGE_CONTENT_TYPE_VOICE:
             node = self.root.GetByPath('../../../Documents/' + self.user + '/IMMedia/' + str(contact_id))
             if node is not None:
@@ -338,3 +362,42 @@ class YouXinParser():
             traceback.print_exc()
         return json_string
     
+    @staticmethod
+    def _db_record_get_value(record, column, default_value=None):
+        if not record[column].IsDBNull:
+            return record[column].Value
+        return default_value
+
+    @staticmethod
+    def _db_record_get_string_value(record, column, default_value=''):
+        try:
+            if not record[column].IsDBNull:
+                try:
+                    value = str(record[column].Value)
+                    return value
+                except Exception as e:
+                    return default_value
+            return default_value
+        except:
+            return default_value
+
+    @staticmethod
+    def _db_record_get_int_value(record, column, default_value=0):
+        try:
+            if not record[column].IsDBNull:
+                try:
+                    return int(record[column].Value)
+                except Exception as e:
+                    return default_value
+            return default_value
+        except:
+            return default_value
+
+    @staticmethod
+    def verify_dic(dic, key, default_value = ''):
+        if key not in dic:
+            return default_value
+        elif dic[key] is None:
+            return default_value
+        else: 
+            return str(dic[key])

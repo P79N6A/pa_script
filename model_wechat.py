@@ -31,7 +31,7 @@ import time
 from ResourcesExp import AppResources
 from ScriptUtils import SemiXmlParser
 
-VERSION_VALUE_DB = 7
+VERSION_VALUE_DB = 8
 
 GENDER_NONE = 0
 GENDER_MALE = 1
@@ -59,7 +59,8 @@ MESSAGE_CONTENT_TYPE_RED_ENVELPOE = 9  # 红包
 MESSAGE_CONTENT_TYPE_TRANSFER = 10  # 转账
 MESSAGE_CONTENT_TYPE_SPLIT_BILL = 11  # 群收款
 MESSAGE_CONTENT_TYPE_APPMESSAGE = 12
-MESSAGE_CONTENT_TYPE_SEMI_XML = 13
+# MESSAGE_CONTENT_TYPE_SEMI_XML = 13    # 暂时取消
+MESSAGE_CONTENT_TYPE_LINK_SET = 14  # 链接集合
 MESSAGE_CONTENT_TYPE_SYSTEM = 99  # 系统
 
 # 收藏类型
@@ -69,9 +70,11 @@ FAV_TYPE_VOICE = 3  # 语音
 FAV_TYPE_VIDEO = 4  # 视频
 FAV_TYPE_LINK = 5  # 链接
 FAV_TYPE_LOCATION = 6  # 位置
+FAV_TYPE_MUSIC = 7  # 音乐
 FAV_TYPE_ATTACHMENT = 8  # 附件
 FAV_TYPE_CHAT = 14  # 聊天记录
 FAV_TYPE_VIDEO_2 = 16 # 视频
+FAV_TYPE_NOTE = 18  # 笔记
 
 LOCATION_TYPE_GPS = 1  # GPS坐标
 LOCATION_TYPE_GPS_MC = 2  # GPS米制坐标
@@ -244,6 +247,56 @@ SQL_INSERT_TABLE_MESSAGE = '''
                         deal_create_time, deal_expire_time, link_url, link_title, link_content, link_image, link_from, 
                         business_card_username, business_card_nickname, business_card_gender, business_card_photo,
                         business_card_region, business_card_signature, source, deleted, repeated) 
+        values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
+
+SQL_CREATE_TABLE_MESSAGE_IDX = '''
+    create table if not exists message_{:05d}(
+        account_id TEXT, 
+        talker_id TEXT,
+        talker_type INT,
+        sender_id TEXT,
+        timestamp INT,
+        msg_id TEXT, 
+        type INT,
+        content TEXT,
+        media_path TEXT,
+        media_thum_path TEXT,
+        status INT,
+        is_recall INT,
+        location_latitude REAL,
+        location_longitude REAL,
+        location_elevation REAL,
+        location_address TEXT,
+        location_type INT,
+        deal_money TEXT,
+        deal_description TEXT,
+        deal_remark TEXT,
+        deal_status INT,
+        deal_mode INT,
+        deal_create_time INT,
+        deal_expire_time INT,
+        link_url TEXT,
+        link_title TEXT,
+        link_content TEXT,
+        link_image TEXT,
+        link_from TEXT,
+        business_card_username TEXT,
+        business_card_nickname TEXT,
+        business_card_gender INT,
+        business_card_photo TEXT,
+        business_card_region TEXT,
+        business_card_signature TEXT,
+        source TEXT,
+        deleted INT DEFAULT 0, 
+        repeated INT DEFAULT 0)'''
+
+SQL_INSERT_TABLE_MESSAGE_IDX = '''
+    insert into message_{:05d}(account_id, talker_id, talker_type, sender_id, timestamp, msg_id, type, content, media_path, 
+                               media_thum_path, status, is_recall, location_latitude, location_longitude, location_elevation, 
+                               location_address, location_type, deal_money, deal_description, deal_remark, deal_status, deal_mode,
+                               deal_create_time, deal_expire_time, link_url, link_title, link_content, link_image, link_from, 
+                               business_card_username, business_card_nickname, business_card_gender, business_card_photo,
+                               business_card_region, business_card_signature, source, deleted, repeated) 
         values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
 
 SQL_CREATE_TABLE_FEED = '''
@@ -480,6 +533,9 @@ class IM(object):
         self.db = None
         self.db_cmd = None
         self.db_trans = None
+        self.message_max_count = 10000  # 一张表最大消息数量
+        self.message_count = 0  # 消息计数
+        self.message_table_tail = 0  # 消息表尾数
 
     def db_create(self, db_path):
         if os.path.exists(db_path):
@@ -522,8 +578,9 @@ class IM(object):
             self.db_cmd.ExecuteNonQuery()
             self.db_cmd.CommandText = SQL_CREATE_TABLE_CHATROOM_MEMBER
             self.db_cmd.ExecuteNonQuery()
-            self.db_cmd.CommandText = SQL_CREATE_TABLE_MESSAGE
-            self.db_cmd.ExecuteNonQuery()
+            #self.db_cmd.CommandText = SQL_CREATE_TABLE_MESSAGE
+            #self.db_cmd.ExecuteNonQuery()
+            self.db_create_message_table_with_tail()
             self.db_cmd.CommandText = SQL_CREATE_TABLE_FEED
             self.db_cmd.ExecuteNonQuery()
             self.db_cmd.CommandText = SQL_CREATE_TABLE_FEED_LIKE
@@ -583,8 +640,8 @@ class IM(object):
     def db_insert_table_chatroom_member(self, column):
         self.db_insert_table(SQL_INSERT_TABLE_CHATROOM_MEMBER, column.get_values())
 
-    def db_insert_table_message(self, column):
-        self.db_insert_table(SQL_INSERT_TABLE_MESSAGE, column.get_values())
+    #def db_insert_table_message(self, column):
+    #    self.db_insert_table(SQL_INSERT_TABLE_MESSAGE, column.get_values())
 
     def db_insert_table_feed(self, column):
         self.db_insert_table(SQL_INSERT_TABLE_FEED, column.get_values())
@@ -621,6 +678,22 @@ class IM(object):
 
     def db_insert_table_version(self, key, version):
         self.db_insert_table(SQL_INSERT_TABLE_VERSION, (key, version))
+
+    def db_increase_message_table_with_tail(self):
+        self.message_table_tail += 1
+        self.message_count = 0
+        self.db_create_message_table_with_tail()
+
+    def db_create_message_table_with_tail(self):
+        if self.db_cmd is not None:
+            self.db_cmd.CommandText = SQL_CREATE_TABLE_MESSAGE_IDX.format(self.message_table_tail)
+            self.db_cmd.ExecuteNonQuery()
+
+    def db_insert_table_message_with_tail(self, column):
+        self.db_insert_table(SQL_INSERT_TABLE_MESSAGE_IDX.format(self.message_table_tail), column.get_values())
+        self.message_count += 1
+        if self.message_count >= self.message_max_count:
+            self.db_increase_message_table_with_tail()
 
     '''
     版本检测分为两部分
@@ -814,7 +887,7 @@ class Message(Column):
 
     def insert_db(self, im):
         if isinstance(im, IM):
-            im.db_insert_table_message(self)
+            im.db_insert_table_message_with_tail(self)
 
 
 class Feed(Column):
@@ -1125,12 +1198,18 @@ class GenerateModel(object):
             self.models = []
 
     def set_progress(self, value, account_id=None):
+        v = value
+        if v > 100:
+            v = 100
+        elif v < 0:
+            v = 0
         if account_id is not None:
-            if account_id in self.progresses:
-                self.progresses.get(account_id).Value = value
+            if account_id in self.progresses and v != self.progresses.get(account_id).Value:
+                self.progresses.get(account_id).Value = v
         else:
             for pg in self.progresses.values():
-                pg.Value = value
+                if v != pg.Value:
+                    pg.Value = v
 
     def get_models(self):
         self.db = SQLite.SQLiteConnection('Data Source = {}'.format(self.cache_db))
@@ -1150,13 +1229,13 @@ class GenerateModel(object):
         self.set_progress(26)
         self._get_feed_models()
         self.set_progress(45)
-        self._get_message_models()
-        self.set_progress(85)
         self._get_search_models()
-        self.set_progress(90)
+        self.set_progress(50)
         self._get_favorite_models()
-        self.set_progress(95)
+        self.set_progress(55)
         self._get_story_models()
+        self.set_progress(60)
+        self._get_message_models(60, 100)
         self.set_progress(100)
         for pg in self.progresses.values():
             pg.Finish(True)
@@ -1437,200 +1516,202 @@ class GenerateModel(object):
         except Exception as e:
             TraceService.Trace(TraceLevel.Error, "model_wechat.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
 
-    def _get_message_models(self):
+    def _get_message_models(self, progress_start, progress_end):
         if canceller.IsCancellationRequested:
             return []
-        if not self._db_has_table('message'):
-            return []
-        models = []
-        sql = '''select account_id, talker_id, talker_type, sender_id, timestamp, msg_id, type, content, media_path, 
-                        media_thum_path, status, is_recall, location_latitude, location_longitude, location_elevation, location_address, 
-                        location_type, deal_money, deal_description, deal_remark, deal_status, deal_mode, deal_create_time, 
-                        deal_expire_time, link_url, link_title, link_content, link_image, link_from, business_card_username, 
-                        business_card_nickname, business_card_gender, business_card_photo, business_card_region, business_card_signature, 
-                        source, deleted, repeated
-                 from message '''
-        try:
-            cmd = self.db.CreateCommand()
-            cmd.CommandText = sql
-            r = cmd.ExecuteReader()
-            while r.Read():
-                if canceller.IsCancellationRequested:
-                    break
-                deleted = 0
-                try:
-                    source = self._db_reader_get_string_value(r, 35)
-                    deleted = self._db_reader_get_int_value(r, 36, None)
-                    account_id = self._db_reader_get_string_value(r, 0)
-                    talker_id = self._db_reader_get_string_value(r, 1)
-                    talker_type = self._db_reader_get_int_value(r, 2)
-                    sender_id = self._db_reader_get_string_value(r, 3)
-                    timestamp = self._db_reader_get_int_value(r, 4, None)
-                    msg_type = self._db_reader_get_int_value(r, 6)
-                    content = self._db_reader_get_string_value(r, 7)
-                    media_path = self._db_reader_get_string_value(r, 8)
-                    media_thum_path = self._db_reader_get_string_value(r, 9)
-                    is_recall = self._db_reader_get_int_value(r, 11)
+        tables = self._db_get_message_tables()
+        for i, table in enumerate(tables):
+            sql = '''select account_id, talker_id, talker_type, sender_id, timestamp, msg_id, type, content, media_path, 
+                            media_thum_path, status, is_recall, location_latitude, location_longitude, location_elevation, location_address, 
+                            location_type, deal_money, deal_description, deal_remark, deal_status, deal_mode, deal_create_time, 
+                            deal_expire_time, link_url, link_title, link_content, link_image, link_from, business_card_username, 
+                            business_card_nickname, business_card_gender, business_card_photo, business_card_region, business_card_signature, 
+                            source, deleted, repeated
+                     from {} '''.format(table)
+            try:
+                cmd = self.db.CreateCommand()
+                cmd.CommandText = sql
+                r = cmd.ExecuteReader()
+                while r.Read():
+                    if canceller.IsCancellationRequested:
+                        break
+                    deleted = 0
+                    try:
+                        source = self._db_reader_get_string_value(r, 35)
+                        deleted = self._db_reader_get_int_value(r, 36, None)
+                        account_id = self._db_reader_get_string_value(r, 0)
+                        talker_id = self._db_reader_get_string_value(r, 1)
+                        talker_type = self._db_reader_get_int_value(r, 2)
+                        sender_id = self._db_reader_get_string_value(r, 3)
+                        timestamp = self._db_reader_get_int_value(r, 4, None)
+                        msg_type = self._db_reader_get_int_value(r, 6)
+                        content = self._db_reader_get_string_value(r, 7)
+                        media_path = self._db_reader_get_string_value(r, 8)
+                        media_thum_path = self._db_reader_get_string_value(r, 9)
+                        is_recall = self._db_reader_get_int_value(r, 11)
                     
-                    location_latitude = self._db_reader_get_float_value(r, 12)
-                    location_longitude = self._db_reader_get_float_value(r, 13)
-                    location_elevation = self._db_reader_get_float_value(r, 14)
-                    location_address = self._db_reader_get_string_value(r, 15)
-                    location_type = self._db_reader_get_int_value(r, 16)
+                        location_latitude = self._db_reader_get_float_value(r, 12)
+                        location_longitude = self._db_reader_get_float_value(r, 13)
+                        location_elevation = self._db_reader_get_float_value(r, 14)
+                        location_address = self._db_reader_get_string_value(r, 15)
+                        location_type = self._db_reader_get_int_value(r, 16)
                     
-                    deal_money = self._db_reader_get_string_value(r, 17)
-                    deal_description = self._db_reader_get_string_value(r, 18)
-                    deal_remark = self._db_reader_get_string_value(r, 19)
-                    deal_status = self._db_reader_get_int_value(r, 20)
-                    deal_mode = self._db_reader_get_int_value(r, 21)
-                    deal_create_time = self._db_reader_get_int_value(r, 22)
-                    deal_expire_time = self._db_reader_get_int_value(r, 23)
+                        deal_money = self._db_reader_get_string_value(r, 17)
+                        deal_description = self._db_reader_get_string_value(r, 18)
+                        deal_remark = self._db_reader_get_string_value(r, 19)
+                        deal_status = self._db_reader_get_int_value(r, 20)
+                        deal_mode = self._db_reader_get_int_value(r, 21)
+                        deal_create_time = self._db_reader_get_int_value(r, 22)
+                        deal_expire_time = self._db_reader_get_int_value(r, 23)
 
-                    link_url = self._db_reader_get_string_value(r, 24)
-                    link_title = self._db_reader_get_string_value(r, 25)
-                    link_content = self._db_reader_get_string_value(r, 26)
-                    link_image = self._db_reader_get_string_value(r, 27)
-                    link_from = self._db_reader_get_string_value(r, 28)
+                        link_url = self._db_reader_get_string_value(r, 24)
+                        link_title = self._db_reader_get_string_value(r, 25)
+                        link_content = self._db_reader_get_string_value(r, 26)
+                        link_image = self._db_reader_get_string_value(r, 27)
+                        link_from = self._db_reader_get_string_value(r, 28)
 
-                    business_card_username = self._db_reader_get_string_value(r, 29)
-                    business_card_nickname = self._db_reader_get_string_value(r, 30)
-                    business_card_gender = self._db_reader_get_int_value(r, 31)
-                    business_card_photo = self._db_reader_get_string_value(r, 32)
-                    business_card_region = self._db_reader_get_string_value(r, 33)
-                    business_card_signature = self._db_reader_get_string_value(r, 34)
+                        business_card_username = self._db_reader_get_string_value(r, 29)
+                        business_card_nickname = self._db_reader_get_string_value(r, 30)
+                        business_card_gender = self._db_reader_get_int_value(r, 31)
+                        business_card_photo = self._db_reader_get_string_value(r, 32)
+                        business_card_region = self._db_reader_get_string_value(r, 33)
+                        business_card_signature = self._db_reader_get_string_value(r, 34)
 
-                    if talker_id.endswith("@chatroom"):
-                        model = WeChat.GroupMessage()
-                        model.Group = self.chatroom_models.get(self._get_user_key(account_id, talker_id))
-                    else:
-                        model = WeChat.FriendMessage()
-                        model.Friend = self.friend_models.get(self._get_user_key(account_id, talker_id))
-                    model.SourceFile = source
-                    model.Deleted = self._convert_deleted_status(deleted)
-                    model.AppUserAccount = self.account_models.get(account_id)
-                    model.Sender = self.friend_models.get(self._get_user_key(account_id, sender_id))
-                    #model.SourceData = content
-                    model.CreateTime = self._get_timestamp(timestamp)
-                    model.IsRecall = is_recall != 0
-                    if msg_type == MESSAGE_CONTENT_TYPE_SYSTEM:
-                        model.Way = CommonEnum.MessageWay.System
-                    elif sender_id == account_id:
-                        model.Way = CommonEnum.MessageWay.Send
-                    else:
-                        model.Way = CommonEnum.MessageWay.Receive
+                        if talker_id.endswith("@chatroom"):
+                            model = WeChat.GroupMessage()
+                            model.Group = self.chatroom_models.get(self._get_user_key(account_id, talker_id))
+                        else:
+                            model = WeChat.FriendMessage()
+                            model.Friend = self.friend_models.get(self._get_user_key(account_id, talker_id))
+                        model.SourceFile = source
+                        model.Deleted = self._convert_deleted_status(deleted)
+                        model.AppUserAccount = self.account_models.get(account_id)
+                        model.Sender = self.friend_models.get(self._get_user_key(account_id, sender_id))
+                        #model.SourceData = content
+                        model.CreateTime = self._get_timestamp(timestamp)
+                        model.IsRecall = is_recall != 0
+                        if msg_type == MESSAGE_CONTENT_TYPE_SYSTEM:
+                            model.Way = CommonEnum.MessageWay.System
+                        elif sender_id == account_id:
+                            model.Way = CommonEnum.MessageWay.Send
+                        else:
+                            model.Way = CommonEnum.MessageWay.Receive
                     
-                    if msg_type == MESSAGE_CONTENT_TYPE_IMAGE:
-                        model.Content = Base.Content.ImageContent(model)
-                        media_model = Base.MediaFile.ImageFile(model)
-                        media_model.Path = media_path
-                        model.Content.Value = media_model
-                        if is_valid_media_model_path(media_path):
-                            self.ar.save_media_model(media_model)
-                    elif msg_type == MESSAGE_CONTENT_TYPE_VOICE:
-                        model.Content = Base.Content.VoiceContent(model)
-                        media_model = Base.MediaFile.AudioFile(model)
-                        media_model.Path = media_path
-                        model.Content.Value = media_model
-                        if is_valid_media_model_path(media_path):
-                            self.ar.save_media_model(media_model)
-                    elif msg_type == MESSAGE_CONTENT_TYPE_VIDEO:
-                        model.Content = Base.Content.VideoContent(model)
-                        if media_path not in [None, '']:
-                            media_model = Base.MediaFile.VideoFile(model)
+                        if msg_type == MESSAGE_CONTENT_TYPE_IMAGE:
+                            model.Content = Base.Content.ImageContent(model)
+                            media_model = Base.MediaFile.ImageFile(model)
                             media_model.Path = media_path
                             model.Content.Value = media_model
                             if is_valid_media_model_path(media_path):
                                 self.ar.save_media_model(media_model)
-                        elif is_valid_media_model_path(media_thum_path):
-                            media_model = Base.MediaFile.VideoThumbnailFile(model)
-                            media_model.Deleted = self._convert_deleted_status(1)
+                        elif msg_type == MESSAGE_CONTENT_TYPE_VOICE:
+                            model.Content = Base.Content.VoiceContent(model)
+                            media_model = Base.MediaFile.AudioFile(model)
                             media_model.Path = media_path
                             model.Content.Value = media_model
-                            self.ar.save_media_model(media_model)
+                            if is_valid_media_model_path(media_path):
+                                self.ar.save_media_model(media_model)
+                        elif msg_type == MESSAGE_CONTENT_TYPE_VIDEO:
+                            model.Content = Base.Content.VideoContent(model)
+                            if media_path not in [None, '']:
+                                media_model = Base.MediaFile.VideoFile(model)
+                                media_model.Path = media_path
+                                model.Content.Value = media_model
+                                if is_valid_media_model_path(media_path):
+                                    self.ar.save_media_model(media_model)
+                            elif is_valid_media_model_path(media_thum_path):
+                                media_model = Base.MediaFile.VideoThumbnailFile(model)
+                                media_model.Deleted = self._convert_deleted_status(1)
+                                media_model.Path = media_path
+                                model.Content.Value = media_model
+                                self.ar.save_media_model(media_model)
+                            else:
+                                media_model = Base.MediaFile.VideoFile(model)
+                                media_model.Path = media_path
+                                model.Content.Value = media_model
+                        elif msg_type == MESSAGE_CONTENT_TYPE_CONTACT_CARD:
+                            model.Content = Base.Content.BusinessCardContent(model)
+                            model.Content.Value = WeChat.BusinessCard()
+                            #model.Content.Value.AppUserAccount = 
+                            model.Content.Value.UserID = business_card_username
+                            model.Content.Value.NickName = business_card_nickname
+                            model.Content.Value.Gender = self._convert_gender(business_card_gender)
+                            model.Content.Value.Region = business_card_region
+                            model.Content.Value.Signature = business_card_signature
+                        elif msg_type == MESSAGE_CONTENT_TYPE_LOCATION:
+                            model.Content = Base.Content.LocationContent(model)
+                            model.Content.Value = Base.Location()
+                            model.Content.Value.SourceType = LocationSourceType.App
+                            model.Content.Value.Time = model.CreateTime
+                            model.Content.Value.AddressName = location_address
+                            model.Content.Value.Coordinate = Base.Coordinate(location_longitude, location_latitude, self._convert_location_type(location_type))
+                            self.add_model(model.Content.Value)
+                        elif msg_type == MESSAGE_CONTENT_TYPE_LINK:
+                            model.Content = Base.Content.LinkContent(model)
+                            model.Content.Value = Base.Link()
+                            model.Content.Value.Title = link_title
+                            model.Content.Value.Description = link_content
+                            model.Content.Value.Url = link_url
+                            model.Content.Value.ImagePath = link_image
+                        elif msg_type == MESSAGE_CONTENT_TYPE_RED_ENVELPOE:
+                            model.Content = Base.Content.RedEnvelopeContent(model)
+                            model.Content.Value = WeChat.RedEnvelope()
+                            model.Content.Value.Expiration = self._get_timestamp(deal_expire_time)
+                            model.Content.Value.Title = deal_description
+                            model.Content.Value.Remark = deal_remark
+                            model.Content.Value.Status = self._convert_deal_status(deal_status)
+                        elif msg_type == MESSAGE_CONTENT_TYPE_ATTACHMENT:
+                            model.Content = Base.Content.AttachmentContent(model)
+                            model.Content.Value = Base.Attachment()
+                            model.Content.Value.FileName = content
+                            model.Content.Value.Path = media_path
+                        elif msg_type == MESSAGE_CONTENT_TYPE_SPLIT_BILL:
+                            model.Content = Base.Content.SplitBillContent(model)
+                            model.Content.Value = WeChat.SplitBill()
+                            model.Content.Value.Expiration = self._get_timestamp(deal_expire_time)
+                            model.Content.Value.Title = deal_description
+                            model.Content.Value.Remark = deal_remark
+                            model.Content.Value.Mode = self._convert_deal_mode(deal_mode)
+                            model.Content.Value.Status = self._convert_deal_status(deal_status)
+                        elif msg_type == MESSAGE_CONTENT_TYPE_TRANSFER:
+                            model.Content = Base.Content.TransferContent(model)
+                            model.Content.Value = WeChat.Transfer()
+                            model.Content.Value.Expiration = self._get_timestamp(deal_expire_time)
+                            model.Content.Value.Title = deal_description
+                            model.Content.Value.Remark = deal_remark
+                            model.Content.Value.MoneyOfString = deal_money
+                            model.Content.Value.Status = self._convert_deal_status(deal_status)
+                        elif msg_type == MESSAGE_CONTENT_TYPE_APPMESSAGE:
+                            model.Content = Base.Content.TemplateContent(model)
+                            model.Content.Title = link_title
+                            model.Content.Content = link_content
+                            model.Content.InfoUrl = link_url
+                            model.Content.SendTime = self._get_timestamp(timestamp)
+                        elif msg_type == MESSAGE_CONTENT_TYPE_LINK_SET:
+                            model.Content = Base.Content.LinkSetContent(model)
+                            items = []
+                            try:
+                                items = json.loads(content)
+                            except Exception as e:
+                                pass
+                            for item in items:
+                                link = Base.Link()
+                                link.Title = item.get('title')
+                                link.Description = item.get('description')
+                                link.Url = item.get('url')
+                                link.ImagePath = item.get('image')
+                                model.Content.Values.Add(link)
                         else:
-                            media_model = Base.MediaFile.VideoFile(model)
-                            media_model.Path = media_path
-                            model.Content.Value = media_model
-                    elif msg_type == MESSAGE_CONTENT_TYPE_CONTACT_CARD:
-                        model.Content = Base.Content.BusinessCardContent(model)
-                        model.Content.Value = WeChat.BusinessCard()
-                        #model.Content.Value.AppUserAccount = 
-                        model.Content.Value.UserID = business_card_username
-                        model.Content.Value.NickName = business_card_nickname
-                        model.Content.Value.Gender = self._convert_gender(business_card_gender)
-                        model.Content.Value.Region = business_card_region
-                        model.Content.Value.Signature = business_card_signature
-                    elif msg_type == MESSAGE_CONTENT_TYPE_LOCATION:
-                        model.Content = Base.Content.LocationContent(model)
-                        model.Content.Value = Base.Location()
-                        model.Content.Value.SourceType = LocationSourceType.App
-                        model.Content.Value.Time = model.CreateTime
-                        model.Content.Value.AddressName = location_address
-                        model.Content.Value.Coordinate = Base.Coordinate(location_longitude, location_latitude, self._convert_location_type(location_type))
-                        self.add_model(model.Content.Value)
-                    elif msg_type == MESSAGE_CONTENT_TYPE_LINK:
-                        model.Content = Base.Content.LinkContent(model)
-                        model.Content.Value = Base.Link()
-                        model.Content.Value.Title = link_title
-                        model.Content.Value.Description = link_content
-                        model.Content.Value.Url = link_url
-                        model.Content.Value.ImagePath = link_image
-                    elif msg_type == MESSAGE_CONTENT_TYPE_RED_ENVELPOE:
-                        model.Content = Base.Content.RedEnvelopeContent(model)
-                        model.Content.Value = WeChat.RedEnvelope()
-                        model.Content.Value.Expiration = self._get_timestamp(deal_expire_time)
-                        model.Content.Value.Title = deal_description
-                        model.Content.Value.Remark = deal_remark
-                        model.Content.Value.Status = self._convert_deal_status(deal_status)
-                    elif msg_type == MESSAGE_CONTENT_TYPE_ATTACHMENT:
-                        model.Content = Base.Content.AttachmentContent(model)
-                        model.Content.Value = Base.Attachment()
-                        model.Content.Value.FileName = link_title
-                        model.Content.Value.Path = link_url
-                    elif msg_type == MESSAGE_CONTENT_TYPE_SPLIT_BILL:
-                        model.Content = Base.Content.SplitBillContent(model)
-                        model.Content.Value = WeChat.SplitBill()
-                        model.Content.Value.Expiration = self._get_timestamp(deal_expire_time)
-                        model.Content.Value.Title = deal_description
-                        model.Content.Value.Remark = deal_remark
-                        model.Content.Value.Mode = self._convert_deal_mode(deal_mode)
-                        model.Content.Value.Status = self._convert_deal_status(deal_status)
-                    elif msg_type == MESSAGE_CONTENT_TYPE_TRANSFER:
-                        model.Content = Base.Content.TransferContent(model)
-                        model.Content.Value = WeChat.Transfer()
-                        model.Content.Value.Expiration = self._get_timestamp(deal_expire_time)
-                        model.Content.Value.Title = deal_description
-                        model.Content.Value.Remark = deal_remark
-                        model.Content.Value.MoneyOfString = deal_money
-                        model.Content.Value.Status = self._convert_deal_status(deal_status)
-                    elif msg_type == MESSAGE_CONTENT_TYPE_APPMESSAGE:
-                        model.Content = Base.Content.TemplateContent(model)
-                        title, content = content.split('#*#', 1)
-                        model.Content.Title = title
-                        model.Content.Content = content
-                        model.Content.SendTime = self._get_timestamp(timestamp)
-                    elif msg_type == MESSAGE_CONTENT_TYPE_SEMI_XML:
-                        model.Content = Base.Content.LinkSetContent(model)
-                        parser = SemiXmlParser()
-                        parser.parse(content.encode('utf-8'))
-                        items = parser.export_items()
-                        for item in items:
-                            link = Base.Link()
-                            link.Title = getattr(item.get('title'), 'value', None)
-                            link.Description = getattr(item.get('digest'), 'value', None)
-                            link.Url = getattr(item.get('url'), 'value', None)
-                            link.ImagePath = getattr(item.get('cover'), 'value', None)
-                            model.Content.Values.Add(link)
-                    else:
-                        model.Content = Base.Content.TextContent(model)
-                        model.Content.Value = content
-                    self.add_model(model)
-                except Exception as e:
-                    if deleted == 0:
-                        TraceService.Trace(TraceLevel.Error, "model_wechat.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
-            self.push_models()
-        except Exception as e:
-            TraceService.Trace(TraceLevel.Error, "model_wechat.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
+                            model.Content = Base.Content.TextContent(model)
+                            model.Content.Value = content
+                        self.add_model(model)
+                    except Exception as e:
+                        if deleted == 0:
+                            TraceService.Trace(TraceLevel.Error, "model_wechat.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
+            except Exception as e:
+                TraceService.Trace(TraceLevel.Error, "model_wechat.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
+            self.set_progress(progress_start + i * 100 / len(tables) * (progress_end - progress_start) / 100)
+        self.push_models()
 
     def _get_chatroom_member_models(self, account_id, chatroom_id, sp_id, deleted, owner_id):
         if account_id in [None, ''] or chatroom_id in [None, '']:
@@ -1924,7 +2005,7 @@ class GenerateModel(object):
                         model.Content.Value = media_model
                         if is_valid_media_model_path(media_path):
                             self.ar.save_media_model(media_model)
-                    elif fav_type == FAV_TYPE_LINK:
+                    elif fav_type in [FAV_TYPE_LINK, FAV_TYPE_MUSIC]:
                         model.Content = Base.Content.LinkContent(model)
                         model.Content.Value = Base.Link()
                         model.Content.Value.Title = link_title
@@ -1942,6 +2023,8 @@ class GenerateModel(object):
                     elif fav_type == FAV_TYPE_ATTACHMENT:
                         model.Content = Base.Content.AttachmentContent(model)
                         model.Content.Value = Base.Attachment()
+                        model.Content.Value.FileName = content
+                        model.Content.Value.Path = media_path
                     else:
                         model.Content = Base.Content.TextContent(model)
                         model.Content.Value = content
@@ -2024,6 +2107,19 @@ class GenerateModel(object):
                 return False
         except Exception as e:
             return False
+
+    def _db_get_message_tables(self):
+        tables = []
+        try:
+            sql = r"select name from sqlite_master where type='table' and name like 'message%' "
+            cmd = self.db.CreateCommand()
+            cmd.CommandText = sql
+            r = cmd.ExecuteReader()
+            while r.Read():
+                tables.append(self._db_reader_get_string_value(r, 0))
+        except Exception as e:
+            TraceService.Trace(TraceLevel.Error, "model_wechat.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
+        return tables
 
     def _get_user_key(self, account_id, user_id):
         if account_id is None or user_id is None:
