@@ -6,7 +6,7 @@ from PA.InfraLib.ModelsV2.Base import *
 from PA.InfraLib.Utils import FileTypeChecker, FileDomain
 
 import os
-import threading
+import random
 from PIL import Image
 from PIL.ExifTags import TAGS
 
@@ -48,7 +48,7 @@ class AppResources(object):
             self.prog.Value = 100
             self.prog.Finish(True)
         end = time.time()
-        TraceService.Trace(TraceLevel.Info, "搜索{0}多媒体共计耗时{1}s".format(self.build, int(end)))
+        TraceService.Trace(TraceLevel.Info, "搜索{0}多媒体共计耗时{1}s".format(self.build, int(end-start)))
         # return self.res_models
   
     def save_media_model(self, model):
@@ -118,7 +118,7 @@ class AppResources(object):
                 
                 models.append(model)
                 # self._push_models(model)
-            if len(models) > 1000:
+            if len(models) > int(random.uniform(600, 1200)):
                 self._push_models(models)
                 models = []
         self._push_models(models)
