@@ -1,17 +1,19 @@
 #coding:utf-8
 
-import os
-from PIL import Image
 from PA_runtime import *
 from System.IO import Path
-from PIL.ExifTags import TAGS
 from PA.InfraLib.ModelsV2.Base import *
 from PA.InfraLib.Utils import FileTypeChecker, FileDomain
+
+import os
+import threading
+from PIL import Image
+from PIL.ExifTags import TAGS
 
 
 class AppResources(object):
     
-    def __init__(self, sub_progress=None):
+    def __init__(self, bulid, categories):
         self.res_models = []
         self.path_list = {}
         self.media_models = []
@@ -20,9 +22,11 @@ class AppResources(object):
         self.img_thum_suffix = set()
         self.checker = FileTypeChecker()
         self.video_thum_suffix = set()
-        self.prog = sub_progress
+        self.prog = progress['APP', bulid]['MEDIA', '多媒体']
         self.prog_value = 0
         self.step_value = None
+        self.descript_categories = categories
+        self.build = bulid
 
     def parse(self):
         if len(self.node_list) == 0:
@@ -35,12 +39,17 @@ class AppResources(object):
         self.step_value = 100 / len(self.node_list)
         if len(self.media_models) != 0:
             self.path_list = self.return_model_index(self.media_models)
+        thread_list = []
+        start = time.time()
         map(self.progress_search, self.node_list.keys())
         self.res_models.extend(self.media_models)
+        self._push_models(self.media_models)
         if self.prog:
             self.prog.Value = 100
             self.prog.Finish(True)
-        return self.res_models
+        end = time.time()
+        TraceService.Trace(TraceLevel.Info, "搜索{0}多媒体共计耗时{1}s".format(self.build, int(end)))
+        # return self.res_models
   
     def save_media_model(self, model):
         """
@@ -81,6 +90,7 @@ class AppResources(object):
         return all_files
 
     def progress_search(self, node):
+        models = []
         res_lists = self._get_all_files(node, [])
         if len(res_lists) == 0:
             return
@@ -100,12 +110,18 @@ class AppResources(object):
                     self.assign_value_to_model(model, path)
                 else:
                     model.Path = res.AbsolutePath
-                self.res_models.append(model)
+                models.append(model)
+                # self._push_models(model)
             else:
                 if model.Path is None:
                     model.Path = res.AbsolutePath
                 
-                self.res_models.append(model)
+                models.append(model)
+                # self._push_models(model)
+            if len(models) > 1000:
+                self._push_models(models)
+                models = []
+        self._push_models(models)
         self._set_progess_value()
 
     def _is_created(self, node, ntype):
@@ -306,3 +322,10 @@ class AppResources(object):
                 return
             self.prog_value += self.step_value
             self.prog.Value = self.prog_value
+
+    def _push_models(self, ar_models):
+        pr = ParserResults()
+        pr.Categories = self.descript_categories
+        pr.Models.AddRange(ar_models)
+        pr.Build(self.build)
+        ds.Add(pr)
