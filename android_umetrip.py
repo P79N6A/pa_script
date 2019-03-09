@@ -252,5 +252,5 @@ def analyze_Umetrip(root, extract_deleted, extract_source):
     results = UmetripParser(root, extract_deleted, extract_source).parse()
     if results:
         pr.Models.AddRange(results)
-        pr.Build("Umetrip")
+        pr.Build("纵横航旅")
     return pr
