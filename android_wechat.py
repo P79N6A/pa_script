@@ -183,7 +183,7 @@ class WeChatParser(Wechat):
         for build in self.node_dict:
             prog = progress['APP', build]
             prog.Start()
-            self.ar = AppResources(progress['APP', build]['MEDIA', '多媒体'])
+            self.ar = AppResources(build, DescripCategories.Wechat)
             self.ar.set_thum_config("jpg", "Video")
             self.ar.set_thum_config("thumb", "Video")
             self.ar.set_thum_config("cover", "Video")
@@ -195,16 +195,10 @@ class WeChatParser(Wechat):
                 self.parse_user_node(node, build)
                 gc.collect()
 
-            pr = ParserResults()
-            pr.Categories = DescripCategories.Wechat
             try:
-                res = self.ar.parse()
+                self.ar.parse()
             except Exception as e:
                 print e
-                res = []
-            pr.Models.AddRange(res)
-            pr.Build(build)
-            ds.Add(pr)
 
             prog.Finish(True)
             self.ar = None
