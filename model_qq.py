@@ -139,8 +139,13 @@ SQL_CREATE_TABLE_FRIEND = '''
         nickname TEXT,
         remark TEXT,
         photo TEXT,
+        telephone TEXT,
+        email TEXT,
+        gender int, 
+        age int,
+        address TEXT,
+        birthday TEXT,
         type INT,
-        gender INT,
         region TEXT,
         signature TEXT,
         add_time INT,
@@ -167,6 +172,11 @@ SQL_CREATE_TABLE_CHATROOM = '''
         sp_id INT,
         chatroom_type INT,
         source TEXT,
+        type int,
+        description TEXT,
+        creator_id TEXT,
+        member_count int DEFAULT 0,
+        max_member_count int DEFAULT 0,
         deleted INT DEFAULT 0,
         repeated INT DEFAULT 0
         )'''
@@ -184,6 +194,14 @@ SQL_CREATE_TABLE_CHATROOM_MEMBER = '''
         member_id TEXT,
         nick_name TEXT,
         display_name TEXT,
+        photo TEXT, 
+        telephone TEXT, 
+        email TEXT, 
+        gender int default 0,
+        age int,
+        address TEXT, 
+        birthday TEXT, 
+        signature TEXT,
         sp_id INT,
         source TEXT,
         deleted INT DEFAULT 0,
@@ -228,6 +246,11 @@ SQL_CREATE_TABLE_MESSAGE = '''
         link_content TEXT,
         link_image TEXT,
         link_from TEXT,
+        talker_name TEXT,
+        sender_name TEXT,
+        is_sender int,        
+        location_id int AUTO INCREMENT,
+        deal_id int AUTO INCREMENT,
         business_card_username TEXT,
         business_card_nickname TEXT,
         business_card_gender INT,
@@ -244,8 +267,9 @@ SQL_INSERT_TABLE_MESSAGE = '''
                         location_address, location_type, deal_money, deal_description, deal_remark, deal_status, deal_mode,
                         deal_create_time, deal_expire_time, link_url, link_title, link_content, link_image, link_from,
                         business_card_username, business_card_nickname, business_card_gender, business_card_photo,
-                        business_card_region, business_card_signature, source, deleted, repeated)
-        values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
+                        business_card_region, business_card_signature, talker_name,sender_name,
+                        is_sender,location_id ,deal_id,source, deleted, repeated)
+        values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
 
 SQL_CREATE_TABLE_FEED = '''
     create table if not exists feed(
@@ -648,6 +672,7 @@ class Friend(Column):
         self.region = None  # 地区[TEXT]
         self.signature = None  # 签名[TEXT]
         self.add_time = None  # 添加时间[INT]
+        
 
     def get_values(self):
         return (self.account_id, self.friend_id, self.friend_id_alias, self.nickname, self.remark, self.photo, self.type,
@@ -734,6 +759,11 @@ class Message(Column):
         self.link_content = None  # 链接内容[TEXT]
         self.link_image = None  # 链接图片[TEXT]
         self.link_from = None  # 链接来源[TEXT]
+        self.talker_name = ""
+        self.sender_name= ""
+        self.is_sender = 0   
+        self.location_id = 0
+        self.deal_id = 0
         self.business_card_username = None  # 名片ID[TEXT]
         self.business_card_nickname = None  # 名片昵称[TEXT]
         self.business_card_gender = GENDER_NONE  # 名片性别[INT]
@@ -748,7 +778,8 @@ class Message(Column):
                 self.deal_description, self.deal_remark, self.deal_status, self.deal_mode, self.deal_create_time,
                 self.deal_expire_time, self.link_url, self.link_title, self.link_content, self.link_image, self.link_from,
                 self.business_card_username, self.business_card_nickname, self.business_card_gender, self.business_card_photo,
-                self.business_card_region, self.business_card_signature) + super(Message, self).get_values()
+                self.business_card_region, self.business_card_signature,self.talker_name, self.sender_name,self.is_sender,
+                self.location_id,self.deal_id) + super(Message, self).get_values()
 
     def insert_db(self, im):
         if isinstance(im, IM):
@@ -974,7 +1005,7 @@ class GenerateModel(object):
         self.chatroom_models = {}
         self.models = []
         self.media_models = []
-        self.ar = AppResources()   
+        self.ar = AppResources(build, DescripCategories.QQ)         
         self.db = SQLite.SQLiteConnection('Data Source = {}'.format(self.cache_db))
         self.db.Open()
     def get_accounts_info(self):
@@ -1320,12 +1351,12 @@ class GenerateModel(object):
                 deleted = 0
                 try:
                     source = self._db_reader_get_string_value(r, 35)
-                    deleted = self._db_reader_get_int_value(r, 36, None)
+                    deleted = self._db_reader_get_int_value(r, 36, 0)
                     account_id = self._db_reader_get_string_value(r, 0)
                     talker_id = self._db_reader_get_string_value(r, 1)
                     talker_type = self._db_reader_get_int_value(r, 2)
                     sender_id = self._db_reader_get_string_value(r, 3)
-                    timestamp = self._db_reader_get_int_value(r, 4, None)
+                    timestamp = self._db_reader_get_int_value(r, 4, 0)
                     msg_type = self._db_reader_get_int_value(r, 6)
                     content = self._db_reader_get_string_value(r, 7)
                     media_path = self._db_reader_get_string_value(r, 8)

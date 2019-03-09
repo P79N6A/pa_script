@@ -34,6 +34,7 @@ from PA.InfraLib.Extensions import PlistHelper
 from collections import defaultdict
 import logging
 import bcp_qq
+import bcp_im
 from bcp_qq import *
 from model_qq import *
 import model_qq
@@ -86,7 +87,7 @@ def SafeGetValue(reader,i):
     except:
         return None
 hitdict =  {'(?i)Library/Preferences/com.tencent.mqq.plist$':('QQ',ParserResults()),
-            '(?i)Library/Preferences/com.tencent.mQQi.plist$':('QQ TIM',ParserResults()),
+            '(?i)Library/Preferences/com.tencent.mQQi.plist$':('mQQi',ParserResults()),
             '(?i)Library/Preferences/com.tencent.tim.plist$':('QQ TIM',ParserResults()),
             }
 def checkhit(root):
@@ -101,11 +102,9 @@ def checkhit(root):
 def startthread(root,extdata,extract_deleted,extract_source):        
     try:
         sourceApp = extdata[0]
-        #resFloder = extdata[1]
         QQParser(root,sourceApp, extract_deleted, extract_source).parse()
-        #pr.Models.AddRange(Andriod_QQParser(root,sourceApp, extract_deleted, extract_source).parse())
-        #pr.Build(sourceApp)    
-    except:
+    except Exception as e:
+        print (e)
         pass
     
 def analyze_qq(root, extract_deleted, extract_source):
@@ -149,7 +148,7 @@ class QQParser(object):
         self.friendsGroups = collections.defaultdict()
         self.friendsNickname = collections.defaultdict()
         self.groupContact = collections.defaultdict()
-        self.nickname = ''
+        self.nickname = collections.defaultdict(str)
         self.models = []
         self.accounts = []
         self.contacts = {}  # uin to contact
@@ -157,6 +156,8 @@ class QQParser(object):
         self.troopmsgtables =set()
         self.discussGrptables = set()
         self.troops = collections.defaultdict(Chatroom)
+        self.friends = collections.defaultdict(Friend)
+        self.chatroommembers = collections.defaultdict(ChatroomMember)
         self.im = IM()
         self.cachepath = ds.OpenCachePath(self.app_name) 
         self.bcppath = ds.OpenCachePath("tmp") 
@@ -177,8 +178,7 @@ class QQParser(object):
                     self.friendsNickname.clear()
                     self.friendsGroups.clear()
                     self.groupContact.clear()
-                    self.troops.clear()
-                    self.nickname = ''
+                    self.troops.clear()                    
                     self.contacts = {}                   
                     self.c2cmsgtables =set()
                     self.troopmsgtables =set() 
@@ -207,7 +207,10 @@ class QQParser(object):
             self.im.db_insert_table_version(VERSION_KEY_APP, self.VERSION_APP_VALUE)
             self.im.db_commit()
             self.im.db_close()
-        PA_runtime.save_cache_path(bcp_im.CONTACT_ACCOUNT_TYPE_IM_QQ,self.cachedb,self.bcppath)
+        try:
+            PA_runtime.save_cache_path(bcp_im.CONTACT_ACCOUNT_TYPE_IM_QQ,self.cachedb,self.bcppath)
+        except Exception as e:
+            print (e)
         gen = GenerateModel(self.cachedb,self.sourceApp)
         if len(self.accounts) == 0:
             self.accounts = gen.get_accounts_info()
@@ -228,11 +231,6 @@ class QQParser(object):
             return
         ar.save_res_folder(resnode, "Other")
         res = ar.parse()
-        pr = ParserResults()
-        pr.Categories = DescripCategories.QQ
-        pr.Models.AddRange(res)
-        pr.Build('QQ')
-        ds.Add(pr)
 
     def processFavItem(self,fav,tree_fav_info,msgtype,senderid,sendername,create_time):
         try:            
@@ -437,7 +435,7 @@ class QQParser(object):
                 return
             self.decode_fts_discussgroup_table(acc_id,table)		   
     def decode_fts_chat_table(self,acc_id,table):
-        #chat_id = table[table.rfind('_')+1:]
+        chat_id = table[table.rfind('_')+1:]
         node = self.root.GetByPath('/Documents/contents/' + acc_id + '/FTSMsg.db')
         if node is not None:
             d = node.PathWithMountPoint             
@@ -466,9 +464,13 @@ class QQParser(object):
                     msg.deleted = 1
                     msg.source = node.AbsolutePath
                     try:
-                        msg.talker_name = self.friendsNickname[uin][0]					
+                        msg.talker_name = self.friends[chat_id]
                     except:
                         msg.talker_name = ''
+                    if uid == acc_id:
+                        msg.sender_name = self.nickname
+                    else:
+                        msg.sender_name = msg.talker_name
                     msg.sender_id = uin
                     msg.id = msgid
                     msg.type = MESSAGE_CONTENT_TYPE_TEXT
@@ -499,7 +501,7 @@ class QQParser(object):
                     if canceller.IsCancellationRequested:
                         return
                     msg = Message()
-                    uin = SafeGetString(reader,0)
+                    senduin = SafeGetString(reader,0)
                     sendtime = SafeGetInt64(reader,1)
                     msgtype = SafeGetInt64(reader,2)
                     flag = SafeGetInt64(reader,3)
@@ -512,9 +514,24 @@ class QQParser(object):
                     try:					
                         msg.talker_name =  self.troops[group_id].name
                     except:
-                        msg.talker_name  =''
+                        msg.talker_name  =''                    
+                    if senduin == acc_id:                        
+                        msg.sender_name = self.nickname[acc_id]
+                        msg.is_sender = 1
+                    else:
+                        try:
+                            msg.sender_name = self.chatroommembers[(group_id,senduin)].display_name        
+                        except:
+                            msg.sender_name = ""
+                            pass
+                        if msg.sender_name == ""or msg.sender_name is None:
+                                try:
+                                    msg.sender_name = self.chatroommembers[(group_id,senduin)].nick_name
+                                except:
+                                    pass
+                        msg.is_sender = 0 
                     msg.deleted = 1
-                    msg.sender_id = uin
+                    msg.sender_id = senduin
                     msg.id = msgid
                     msg.type = MESSAGE_CONTENT_TYPE_TEXT
                     msg.content = content
@@ -544,7 +561,7 @@ class QQParser(object):
                     if canceller.IsCancellationRequested:
                         return
                     msg = Message()
-                    uin = SafeGetString(reader,0)
+                    senduin = SafeGetString(reader,0)
                     sendtime = SafeGetInt64(reader,1)
                     msgtype = SafeGetInt64(reader,2)
                     flag = SafeGetInt64(reader,3)
@@ -558,8 +575,23 @@ class QQParser(object):
                         msg.talker_name =  self.troops[group_id].name
                     except:
                         msg.talker_name  =''
+                    if senduin == acc_id:                        
+                        msg.sender_name = self.nickname[acc_id]
+                        msg.is_sender = 1
+                    else:
+                        try:
+                            msg.sender_name = self.chatroommembers[(group_id,senduin)].display_name        
+                        except:
+                            msg.sender_name = ""
+                            pass
+                        if msg.sender_name == ""or msg.sender_name is None:
+                                try:
+                                    msg.sender_name = self.chatroommembers[(group_id,senduin)].nick_name
+                                except:
+                                    pass
+                        msg.is_sender = 0 
                     msg.deleted = 1
-                    msg.sender_id = uin
+                    msg.sender_id = senduin
                     msg.id = msgid
                     msg.type = MESSAGE_CONTENT_TYPE_TEXT
                     msg.content = content
@@ -662,10 +694,10 @@ class QQParser(object):
             ac.city = values['_sCity'].Value
             ac.sex =  values['_sex'].Value
             ac.country = values['_sCountry'].Value 
+            self.nickname[ac.account_id] = ac.nickname
         except:
             pass
-        ac.source = source
-        self.nickname = ac.nickname
+        ac.source = source        
         self.accounts.append(ac.account_id)
         self.im.db_insert_table_account(ac)
         self.im.db_commit()
@@ -692,6 +724,7 @@ class QQParser(object):
                 friend.remark = self.friendsNickname[k][1]
                 friend.source = node.AbsolutePath
                 self.im.db_insert_table_friend(friend)
+                self.friends[friend.friend_id] = friend
         except:
             pass
         self.im.db_commit()
@@ -733,7 +766,7 @@ class QQParser(object):
             table = 'tb_troop'
             if 'tb_troop' not in db.Tables:
                 table = 'tb_troop_new'
-            sql = 'select GroupCode,groupname,groupowner from '+ table
+            sql = 'select GroupCode,groupname from '+ table
             datasource = "Data Source =  " + d +";ReadOnly=True"
             conn = SQLiteConnection(datasource)
             conn.Open()
@@ -751,7 +784,7 @@ class QQParser(object):
                     g.chatroom_id = str(SafeGetInt64(reader,0))
                     g.account_id = acc_id
                     g.name = SafeGetString(reader,1)
-                    g.owner_id = SafeGetString(reader,2)
+                    #g.owner_id = SafeGetString(reader,2)
                     g.source = node.AbsolutePath                        
                 except:                        
                     pass
@@ -760,8 +793,7 @@ class QQParser(object):
             self.im.db_commit() 
     def decode_groupMember_info(self, acc_id):
         try:
-            node = self.root.GetByPath('/Documents/contents/' + acc_id + '/QQ_Group_CFG.db')
-            chatroommmebers = collections.defaultdict(ChatroomMember)
+            node = self.root.GetByPath('/Documents/contents/' + acc_id + '/QQ_Group_CFG.db')            
             if node is not None:
                 d = node.PathWithMountPoint
                 conn = sqlite3.connect(d)
@@ -783,9 +815,10 @@ class QQParser(object):
                         chatroommem.nick_name = strNick
                         chatroommem.display_name = strRemark                                                
                         chatroommem.source = node.AbsolutePath
+                        self.chatroommembers[(groupCode,MemberUin)] =  chatroommem
                     except:
-                        pass
-                    chatroommmebers[(groupCode,MemberUin)] =  chatroommem
+                        pass                    
+                    
             node = self.root.GetByPath('/Documents/contents/' + acc_id + '/QQ.db')
             if node is not None:
                 d = node.PathWithMountPoint                
@@ -809,7 +842,7 @@ class QQParser(object):
                         JoinTime = int(SafeGetString(reader,4))
                         LastSpeakTime = int(SafeGetString(reader,5))
                         gender =int(SafeGetString(reader,6))
-                        chatmem = chatroommmebers[(groupCode, MemberUin)]
+                        chatmem = self.chatroommembers[(groupCode, MemberUin)]
                         if(chatmem.source is None):
                             chatmem.source = node.AbsolutePath
                         chatmem.account_id = acc_id
@@ -826,14 +859,14 @@ class QQParser(object):
                             chatmem.gender = GENDER_NONE
                         chatmem.JoinTime = JoinTime
                         chatmem.lastspeektime = LastSpeakTime
-                    except:
+                    except Exception as e:
                         pass
                 reader.Close()
                 command.Dispose()		
                 conn.Close()   
-            for k in chatroommmebers:
-                self.im.db_insert_table_chatroom_member(chatroommmebers[k])
-        except:
+            for k in self.chatroommembers:
+                self.im.db_insert_table_chatroom_member(self.chatroommembers[k])
+        except Exception as e:
             pass
         self.im.db_commit()
 
@@ -894,6 +927,7 @@ class QQParser(object):
                 except:
                     pass             
                 self.discussGrptables.add("tb_discussGrp_"+ chatroom.chatroom_id)
+                self.troops[chatroom.chatroom_id ] = chatroom
                 self.im.db_insert_table_chatroom(chatroom)
             self.im.db_commit()
             reader.Close()
@@ -929,7 +963,8 @@ class QQParser(object):
                         chatroommem.display_name = strNick
                         chatroommem.source = node.AbsolutePath
                     except:
-                        pass
+                        pass           
+                    self.chatroommembers[(dis_uin,MemberUin)] = chatroommem
                     self.im.db_insert_table_chatroom_member(chatroommem)
         except:
             pass
@@ -980,10 +1015,25 @@ class QQParser(object):
                     msg.account_id = acc_id
                     msg.talker_id = group_id
                     msg.send_id = senduin
-                    if(senduin == acc_id):
+                    try:
+                       msg.talker_name = self.troops[group_id].name
+                    except:
+                        msg.talker_name = ""
+                    if senduin == acc_id:                        
+                        msg.sender_name = self.nickname[acc_id]
                         msg.is_sender = 1
                     else:
-                        msg.is_sender = 0
+                        try:
+                            msg.sender_name = self.chatroommembers[(group_id,senduin)].display_name        
+                        except:
+                            msg.sender_name = ""
+                            pass
+                        if msg.sender_name == ""or msg.sender_name is None:
+                                try:
+                                    msg.sender_name = self.chatroommembers[(group_id,senduin)].nick_name
+                                except:
+                                    pass
+                        msg.is_sender = 0 
                     msg.msg_id = msgid
                     msg.timestamp = sendtime
                     msg.talker_type = CHAT_TYPE_DISCUSSION
@@ -1061,7 +1111,7 @@ class QQParser(object):
                 try:
                     if canceller.IsCancellationRequested:
                         return
-                    uin = str(SafeGetInt64(reader,0))
+                    senduin = str(SafeGetInt64(reader,0))
                     sendtime = int(SafeGetDouble(reader,1))
                     msgtype =SafeGetInt64(reader,2)
                     bread = SafeGetInt64(reader,3)
@@ -1071,11 +1121,28 @@ class QQParser(object):
                     picUrl = SafeGetString(reader,7)
                     msg = Message()
                     msg.account_id = acc_id
-                    msg.talker_id = group_id                    
-                    msg.talker_name = self.troops[group_id].name
-                    msg.sender_name = nickname
+                    msg.talker_id = group_id                                                            
                     msg.talker_type = CHAT_TYPE_GROUP
                     msg.source = node.AbsolutePath
+                    try:
+                        msg.talker_name = self.troops[group_id].name
+                    except:
+                        msg.talker_name = ""
+                    if senduin == acc_id:                        
+                        msg.sender_name = self.nickname[acc_id]
+                        msg.is_sender = 1
+                    else:
+                        try:
+                            msg.sender_name = self.chatroommembers[(group_id,senduin)].display_name        
+                        except:
+                            msg.sender_name = ""
+                            pass                           
+                        if msg.sender_name == "" or msg.sender_name is None:
+                                try:
+                                    msg.sender_name = self.chatroommembers[(group_id,senduin)].nick_name
+                                except:
+                                    pass
+                        msg.is_sender = 0
                     if(bread == 0):
                         msg.status = MESSAGE_STATUS_UNREAD
                     else:
@@ -1084,7 +1151,7 @@ class QQParser(object):
                     msg.repeated = 0
                     msg.msg_id = msgid
                     msg.timestamp = sendtime									
-                    msg.sender_id  = uin
+                    msg.sender_id  = senduin
                     msg.content = content	
                     types  = (MESSAGE_CONTENT_TYPE_TEXT,MESSAGE_CONTENT_TYPE_IMAGE,MESSAGE_CONTENT_TYPE_VOICE,
                     MESSAGE_CONTENT_TYPE_ATTACHMENT,MESSAGE_CONTENT_TYPE_VIDEO,MESSAGE_CONTENT_TYPE_LOCATION,
@@ -1154,9 +1221,15 @@ class QQParser(object):
                     msg.talker_type = CHAT_TYPE_FRIEND
                     msg.source = node.AbsolutePath
                     try:
-                        msg.talker_name = self.friendsNickname[uin][0]					
+                        msg.talker_name = self.friends[chat_id].nickname
                     except:
-                        msg.talker_name = ''
+                        msg.talker_name = ""
+                    if uin == acc_id:                        
+                        msg.sender_name = self.nickname[acc_id]
+                        msg.is_sender = 1
+                    else:
+                        msg.sender_name = msg.talker_name        
+                        msg.is_sender = 0
                     if(bread == 0):
                         msg.status = MESSAGE_STATUS_UNREAD
                     else:
@@ -1428,11 +1501,15 @@ class QQParser(object):
                     msg.account_id = acc_id
                     msg.talker_id = uin
                     msg.talker_type = CHAT_TYPE_FRIEND
-                    msg.source = node.AbsolutePath
+                    msg.source = node.AbsolutePath                    
                     try:
-                        msg.talker_name = self.friendsNickname[uin][0]					
+                        msg.talker_name = self.friends[chat_id].nickname					
                     except:
                         msg.talker_name = ''
+                    if acc_id == uin:
+                         msg.sender_name = self.nickname[acc_id]
+                    else:
+                        msg.sender_name = talker_name
                     if(bread == 0):
                         msg.status = MESSAGE_STATUS_UNREAD
                     else:
@@ -1497,7 +1574,7 @@ class QQParser(object):
                 try:
                     if canceller.IsCancellationRequested:
                         return
-                    uin = str(row['SendUin'].Value)
+                    senduin = str(row['SendUin'].Value)
                     sendtime = row['MsgTime'].Value
                     msgtype = row['sMsgType'].Value
                     bread = row['read'].Value
@@ -1508,11 +1585,27 @@ class QQParser(object):
                     msg = Message()
                     msg.account_id = acc_id
                     msg.talker_id = group_id
-                    msg.sender_id = uin
-                    msg.talker_name = self.troops[group_id].name
-                    #msg.sender_name = nickname
+                    msg.sender_id = senduin                                        
                     msg.talker_type = CHAT_TYPE_GROUP
                     msg.source = node.AbsolutePath
+                    try:
+                        msg.talker_name = self.troops[group_id].name
+                    except:
+                        msg.talker_name = ""
+                    if senduin == acc_id:                        
+                        msg.sender_name = self.nickname[acc_id]
+                        msg.is_sender = 1
+                    else:
+                        try:
+                            msg.sender_name = self.chatroommembers[(group_id,senduin)].display_name                                                        
+                        except:
+                            msg.sender_name = ""
+                        if msg.sender_name == ""or msg.sender_name is None:
+                            try:
+                                msg.sender_name = self.chatroommembers[(group_id,senduin)].nick_name
+                            except:
+                                pass                           
+                        msg.is_sender = 0 
                     if(bread == 0):
                         msg.status = MESSAGE_STATUS_UNREAD
                     else:
@@ -1586,14 +1679,21 @@ class QQParser(object):
                 flag = row['c4flag'].Value
                 content = row['c7content'].Value	
                 msg.account_id = acc_id
-                msg.talker_id = uin
+                msg.talker_id = row['c8conversationUin'].Value
                 msg.deleted = 1
                 msg.source = node.AbsolutePath
                 try:
-                    msg.talker_name = self.friendsNickname[uin][0]					
+                    msg.talker_name = self.friends[msg.talker_id].nickname
                 except:
                     msg.talker_name = ''
-                msg.sender_id =  uin         
+                msg.sender_id =  uin  
+                if uin == acc_id:
+                    msg.sender_name = self.nickname[acc_id]
+                else:
+                    try:
+                        msg.sender_name =  self.friends[uin].nickname 
+                    except:
+                        msg.sender_name = ""
                 msg.type = MESSAGE_CONTENT_TYPE_TEXT
                 msg.content = content
                 msg.timestamp = sendtime
@@ -1626,7 +1726,7 @@ class QQParser(object):
                     return
                 msg = Message()
                 
-                uin = str(row['c1uin'].Value)
+                senduin = str(row['c1uin'].Value)
                 sendtime = row['c2time'].Value
                 msgtype =row['c3type'].Value
                 flag = row['c4flag'].Value
@@ -1637,12 +1737,27 @@ class QQParser(object):
                 msg.account_id = acc_id
                 msg.talker_id = group_id
                 msg.source = node.AbsolutePath
-                try:					
-                    msg.talker_name =  self.troops[group_id].name
+                try:
+                    msg.talker_name = self.troops[group_id].name
                 except:
-                    msg.talker_name  =''
+                    msg.talker_name = ""
+                if senduin == acc_id:                        
+                    msg.sender_name = self.nickname[acc_id]
+                    msg.is_sender = 1
+                else:
+                    try:
+                        msg.sender_name = self.chatroommembers[(group_id,senduin)].display_name                                                        
+                    except:
+                        msg.sender_name = ""
+                        pass
+                    if msg.sender_name == ""or msg.sender_name is None:
+                        try:
+                            msg.sender_name = self.chatroommembers[(group_id,senduin)].nick_name
+                        except:
+                            pass   
+                    msg.is_sender = 0 
                 msg.deleted = 1
-                msg.sender_id = uin                    
+                msg.sender_id = senduin                    
                 msg.id = msgid
                 msg.type = MESSAGE_CONTENT_TYPE_TEXT
                 msg.content = content
@@ -1675,7 +1790,7 @@ class QQParser(object):
                 if canceller.IsCancellationRequested:
                     return
                 msg = Message()				
-                uin = (row['c1uin'].Value)
+                senduin = (row['c1uin'].Value)
                 sendtime = row['c2time'].Value
                 #something not same
                 flag =row['c3type'].Value
@@ -1687,12 +1802,26 @@ class QQParser(object):
                 msg.account_id = acc_id
                 msg.talker_id = group_id
                 msg.source = node.AbsolutePath
-                try:					
-                    msg.talker_name =  self.troops[group_id].name
+                try:
+                    msg.talker_name = self.troops[group_id].name
                 except:
-                    msg.talker_name  =''
+                    msg.talker_name = ""
+                if senduin == acc_id:                        
+                    msg.sender_name = self.nickname[acc_id]
+                    msg.is_sender = 1
+                else:
+                    try:
+                        msg.sender_name = self.chatroommembers[(group_id,senduin)].display_name        
+                    except:
+                        msg.sender_name = ""
+                    if msg.sender_name == ""or msg.sender_name is None:
+                        try:
+                            msg.sender_name = self.chatroommembers[(group_id,senduin)].nick_name
+                        except:
+                            pass   
+                    msg.is_sender = 0     
                 msg.deleted = 1
-                msg.sender_id = uin
+                msg.sender_id = senduin
                 msg.id = msgid
                 msg.type = MESSAGE_CONTENT_TYPE_TEXT
                 msg.content = content

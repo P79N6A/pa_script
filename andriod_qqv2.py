@@ -33,7 +33,7 @@ from  qq_pic_message_pb2 import *
 from model_qq import *
 import uuid
 from QQ_struct import tencent_struct
-#just msgdata
+import bcp_im
 import json
 #import bcp_im
 import base64
@@ -111,8 +111,8 @@ def readVarInt(data):
                 return l
             i = i + 7
 
-hitdict =  {'(?i)com.tencent.qqlite/databases$':('QQ轻聊版','qqlite'),
-            '(?i)com.tencent.mobileqq/databases$':('QQ','mobileqq'),
+hitdict =  { '(?i)com.tencent.mobileqq/databases$':('QQ','mobileqq'),
+            '(?i)com.tencent.qqlite/databases$':('QQ轻聊版','qqlite'),           
             '(?i)com.tencent.mobileqqi/databases$':('QQ国际版','mobileqqi'),
             '(?i)com.tencent.tim/databases$':('QQ TIM','tim'),
             '(?i)com.tencent.minihd.qq/databases$':('平板QQ','minihd')
@@ -133,7 +133,7 @@ def startthread(root,extdata,extract_deleted,extract_source):
         Andriod_QQParser(root,sourceApp,resFloder, extract_deleted, extract_source).parse()
         #pr.Models.AddRange(Andriod_QQParser(root,sourceApp, extract_deleted, extract_source).parse())
         #pr.Build(sourceApp)    
-    except:
+    except Exception as e:
         pass
     
 def analyze_andriod_qq(root, extract_deleted, extract_source):
@@ -241,7 +241,7 @@ class Andriod_QQParser(object):
             self.im.db_insert_table_version(VERSION_KEY_APP, self.VERSION_APP_VALUE)
             self.im.db_commit()
             self.im.db_close()
-        #PA_runtime.save_cache_path(bcp_im.CONTACT_ACCOUNT_TYPE_IM_QQ,self.cachedb,self.bcppath)
+        PA_runtime.save_cache_path(bcp_im.CONTACT_ACCOUNT_TYPE_IM_QQ,self.cachedb,self.bcppath)
         gen = GenerateModel(self.cachedb,self.sourceApp)       
         try:
             gen.get_models()
