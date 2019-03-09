@@ -13,6 +13,9 @@ try:
     clr.AddReference('model_qq')
     clr.AddReference('bcp_im')
     clr.AddReference('QQFriendNickName')
+    clr.AddReference("PNFA.Formats.NextStep")
+    clr.AddReference('PNFA.InfraLib.Exts')
+    clr.AddReference('bcp_qq')
 except:
     pass
 del clr
@@ -27,10 +30,11 @@ from PA_runtime import *
 from QQFriendNickName import *
 from PA.InfraLib.Utils import PList
 from PA.InfraLib.Extensions import PlistHelper
-
+#from PA.Formats.NextStep import *
 from collections import defaultdict
 import logging
-#from  model_im import *
+import bcp_qq
+from bcp_qq import *
 from model_qq import *
 import model_qq
 import uuid 
@@ -203,31 +207,26 @@ class QQParser(object):
             self.im.db_insert_table_version(VERSION_KEY_APP, self.VERSION_APP_VALUE)
             self.im.db_commit()
             self.im.db_close()
-        #PA_runtime.save_cache_path(bcp_im.CONTACT_ACCOUNT_TYPE_IM_QQ,self.cachedb,self.bcppath)
+        PA_runtime.save_cache_path(bcp_im.CONTACT_ACCOUNT_TYPE_IM_QQ,self.cachedb,self.bcppath)
         gen = GenerateModel(self.cachedb,self.sourceApp)
-        gen.get_models()
-        #gen res
-        for acc_id in self.accounts: 
-            self.get_qq_res(acc_id,gen.ar)
+        if len(self.accounts) == 0:
+            self.accounts = gen.get_accounts_info()
+        try:
+            gen.get_models()
+        except:
+            pass
+        #gen res        
+        for acc_id in self.accounts:
+            try:
+                self.get_qq_res(acc_id,gen.ar)  
+            except:
+                pass
     def get_qq_res(self,acc_id, ar):
         dicts = {}
-        resnode = self.root.GetByPath('/Documents/' + acc_id)              
+        resnode = self.root.GetByPath('/Documents/' + acc_id)
+        if resnode is None:
+            return
         ar.save_res_folder(resnode, "Other")
-
-        #opendata_node = self.root.GetByPath("OpenData")
-        #fav_node = self.private_root.GetByPath("Favorites/Data")
-        # hi_node = self.private_root.GetByPath("HeadImg")
-        #emot_node = self.private_root.GetByPath("emoticonThumb")
-        #emop_node = self.private_root.GetByPath("emoticonPIC")
-        #story_node = self.private_root.GetByPath("story/media_data")
-        #ar.save_res_folder(img_node, "Image")
-        #ar.save_res_folder(audio_node, "Audio")
-        #ar.save_res_folder(video_node, "Video")
-        #ar.save_res_folder(opendata_node, "Other")
-        #ar.save_res_folder(fav_node, "Other")
-        #ar.save_res_folder(emot_node, "Image")
-        #ar.save_res_folder(emop_node, "Image")
-        #ar.save_res_folder(story_node, "Video")
         res = ar.parse()
         pr = ParserResults()
         pr.Categories = DescripCategories.QQ
@@ -526,7 +525,7 @@ class QQParser(object):
                 self.im.db_insert_table_message(msg)
             self.im.db_commit()																							
         return 
-    def decode_fts_discussgroup_table(acc_id,table):
+    def decode_fts_discussgroup_table(self,acc_id,table):
         group_id = table[table.rfind('_')+1:]
         node = self.root.GetByPath('/Documents/contents/' + acc_id + '/FTSMsg.db')
         if node is not None:
@@ -698,10 +697,12 @@ class QQParser(object):
         self.im.db_commit()
     def decode_friends(self, acc_id):
         self.decode_friendlist(acc_id)
-    def decode_group_info(self,acc_id):        
-        node = self.root.GetByPath('/Documents/contents/' + acc_id + '/QQTroopMemo')
+    def decode_group_info(self,acc_id): 
+        '''
+        node = self.root.GetByPath('/Documents/contents/' + acc_id + '/QQTroopMemo')        
         if node is  not None:
-            groups = PlistHelper.ReadPlist(node)                
+            #groups = PlistHelper.ReadPlist(node) 
+            groups = NSHelpers.ReadPlist[NSDictionary](node.PathWithMountPoint)               
             if(groups is not None):                
                 for data in groups:
                     try:
@@ -719,7 +720,44 @@ class QQParser(object):
                     self.troops[g.chatroom_id] = g
                     self.im.db_insert_table_chatroom(g)     
             self.im.db_commit()
-
+         '''
+        node = self.root.GetByPath('/Documents/contents/' + acc_id + '/QQ.db')
+        if  len(self.troops) > 0:
+            return
+        
+        if node is  not None:
+            d = node.PathWithMountPoint                
+            db = SQLiteParser.Database.FromNode(node,canceller)
+            if db is None:
+                return		
+            table = 'tb_troop'
+            if 'tb_troop' not in db.Tables:
+                table = 'tb_troop_new'
+            sql = 'select GroupCode,groupname,groupowner from '+ table
+            datasource = "Data Source =  " + d +";ReadOnly=True"
+            conn = SQLiteConnection(datasource)
+            conn.Open()
+            if(conn is None):
+                return
+            command = SQLiteCommand(conn)                
+            command.CommandText = sql
+            reader = command.ExecuteReader()
+            while reader.Read():                               
+                try:
+                    if canceller.IsCancellationRequested:
+                        return
+                    g = Chatroom()
+                    g.chatroom_type = CHATROOM_TYPE_GROUP
+                    g.chatroom_id = str(SafeGetInt64(reader,0))
+                    g.account_id = acc_id
+                    g.name = SafeGetString(reader,1)
+                    g.owner_id = SafeGetString(reader,2)
+                    g.source = node.AbsolutePath                        
+                except:                        
+                    pass
+                self.troops[g.chatroom_id] = g
+                self.im.db_insert_table_chatroom(g)     
+            self.im.db_commit() 
     def decode_groupMember_info(self, acc_id):
         try:
             node = self.root.GetByPath('/Documents/contents/' + acc_id + '/QQ_Group_CFG.db')
@@ -807,15 +845,21 @@ class QQParser(object):
         if db is None:
             return
         #tables = set()
-        if 'tb_message' in db.Tables:
-            self.c2cmsgtables.add('tb_message')
-        if 'tb_c2cTables' in db.Tables:
-            ts = SQLiteParser.TableSignature('tb_c2cTables')
-            for rec in db.ReadTableRecords(ts, True):
-                if canceller.IsCancellationRequested:
-                    return
-                if not IsDBNull(rec['uin'].Value) and rec['uin'].Value.startswith('tb_c2cMsg_') and rec['uin'].Value in db.Tables:
-                    self.c2cmsgtables.add(rec['uin'].Value)
+      
+        d = node.PathWithMountPoint            
+        sql = "select tbl_name from sqlite_master  where type ='table'"
+        datasource = "Data Source =  " + d +";ReadOnly=True"
+        conn = SQLiteConnection(datasource)
+        conn.Open()
+        if(conn is None):
+            return
+        command = SQLiteCommand(conn)                
+        command.CommandText = sql
+        reader = command.ExecuteReader()
+        while reader.Read():
+                tablename = SafeGetString(reader,0)
+                if(tablename.startswith("tb_c2cMsg_")):
+                    self.c2cmsgtables.add(tablename)
         #c2c
         for table in self.c2cmsgtables:
             if canceller.IsCancellationRequested:
@@ -839,6 +883,7 @@ class QQParser(object):
             while reader.Read():
                 try:
                     chatroom = Chatroom()
+                    chatroom.chatroom_type = CHATROOM_TYPE_DISCUSSION
                     chatroom.account_id = acc_id
                     chatroom.chatroom_id = str(SafeGetInt64(reader,0))
                     chatroom.name = SafeGetString(reader,1)
@@ -899,7 +944,14 @@ class QQParser(object):
                 pass
     def decode_discussGrp_chat_table(self,acc_id,table_name):
         group_id = table_name[table_name.rfind('_')+1:]
-        node = self.root.GetByPath('/Documents/contents/' + acc_id + '/QQ.db')
+        node = self.root.GetByPath('/Documents/contents/' + acc_id + '/QQ.db')         
+        if node is None:
+            return
+        db = SQLiteParser.Database.FromNode(node,canceller)
+        if db is None:
+            return		
+        if table_name not in db.Tables:
+            return
         if node is not None:
             d = node.PathWithMountPoint            
             sql = 'select discussuin , senduin , msgtime, Msgtype,read,msg ,msgid,nickname,picurl from ' + table_name + ' order by msgtime'
@@ -1258,8 +1310,16 @@ class QQParser(object):
             originalPath = self.root.GetByPath('/Documents/{0}/image_original/{1}.png'.format(acc_id,md5))
             if(originalPath is None):                
                 originalPath = self.root.GetByPath('/Documents/{0}/image_big/{1}.png'.format(acc_id,md5))
-            thumbnailPath = self.root.GetByPath('/Documents/{0}/image_thumbnail/{1}.png'.format(acc_id,md5))                
+            originalPathAbs = ''
+            if originalPath is not None:
+                originalPathAbs = originalPath.AbsolutePath
+            thumbnailPath = self.root.GetByPath('/Documents/{0}/image_thumbnail/{1}.png'.format(acc_id,md5))     
+            thumbnailAbsPath = ''
+            if thumbnailPath is not None:
+                thumbnailAbsPath = thumbnailPath.AbsolutePath
             if(originalPath is None and thumbnailPath is None):
+                if urlOriginal is '':
+                    return  '',''
                 if urlOriginal.find('/offpic_new/') == 0:
                     url  = "https://c2cpicdw.qpic.cn" + urlOriginal
                     return url,url
@@ -1267,7 +1327,7 @@ class QQParser(object):
                     url  = "http://gchat.qpic.cn" + urlOriginal
                     return url,url                    
             else:
-                return originalPath.AbsolutePath ,thumbnailPath.AbsolutePath
+                return originalPathAbs,thumbnailAbsPath
         except:
             return '',""
     def get_file_attachment(self, acc_id, content):

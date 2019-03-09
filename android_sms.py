@@ -20,7 +20,7 @@ from collections import OrderedDict
 from ScriptUtils import DEBUG, CASE_NAME, exc, tp, BaseAndroidParser, parse_decorator
 
 
-VERSION_APP_VALUE = 3
+VERSION_APP_VALUE = 4
 
 MSG_TYPE_ALL    = 0
 MSG_TYPE_INBOX  = 1
@@ -41,11 +41,11 @@ PDUHEADERS_TO   = 151
 def analyze_sms(node, extract_deleted, extract_source):
     # 首先匹配 icing_mmssms, 然后剩下的只返回最先匹配到的, 不重复匹配
     SMS_PATTERNS = OrderedDict([
-        (r'(?i)/com.google.android.gms/databases/icing_mmssms\.db$', AndroidIcingParser),
-        (r'(?i)/com.android.providers.telephony/databases/mmssms\.db$', AndroidSMSParser), 
-        (r'(?i)/sms/sms.db$', AndroidSMSParserFsLogic), 
-        (r'(?i)/sms.vmsg', VMSGParser),                   # AutoBackup OPPO MEIZU
-        (r'(?i)/sms.db', AutoBackupHuaweiSMSParser),      # AutoBackup HuaWei
+        (r'(?i)/com\.google\.android\.gms/databases/icing_mmssms\.db$', AndroidIcingParser),
+        (r'(?i)/com\.android\.providers\.telephony/databases/mmssms\.db$', AndroidSMSParser), 
+        (r'(?i)/sms/sms\.db$', AndroidSMSParserFsLogic), 
+        (r'(?i)/sms\.vmsg$', VMSGParser),                   # AutoBackup OPPO MEIZU
+        (r'(?i)/sms\.db$', AutoBackupHuaweiSMSParser),      # AutoBackup HuaWei
     ])
     res = []
     hit_nodes = []
@@ -53,7 +53,6 @@ def analyze_sms(node, extract_deleted, extract_source):
     BCP_TYPE = bcp_basic.BASIC_SMS_INFORMATION
     db_name = 'AndroidSMS'
     try:
-
         for _pattern, _parser in SMS_PATTERNS.items():
             _nodes = node.FileSystem.Search(_pattern)
             if len(list(_nodes)) != 0:
@@ -276,11 +275,11 @@ class AndroidSMSParser(BaseAndroidParser):
                 sms._id            = rec[pk_name].Value
                 sms.read_status    = rec['read'].Value
                 sms.type           = rec['type'].Value    # MSG_TYPE
-                sms.subject        = rec['subject'].Value 
+                sms.subject        = rec['subject'].Value
                 sms.body           = rec['body'].Value
-                sms.send_time      = rec['date_sent'].Value
                 sms.delivered_date = rec['date'].Value
-                sms.is_sender   = 1 if sms.type in (MSG_TYPE_SENT, MSG_TYPE_OUTBOX, MSG_TYPE_DRAFT) else 0
+                sms.send_time      = rec['date_sent'].Value if 'date_sent' in rec.Keys else sms.delivered_date
+                sms.is_sender = 1 if sms.type in (MSG_TYPE_SENT, MSG_TYPE_OUTBOX, MSG_TYPE_DRAFT) else 0
                 if sms.is_sender == 1:  # 发
                     sms.sender_phonenumber = self.sim_phonenumber.get(sms.sim_id, None) if sms.sim_id else None
                     sms.sender_name        = self._get_contacts(sms.sender_phonenumber)
@@ -292,7 +291,7 @@ class AndroidSMSParser(BaseAndroidParser):
                     sms.recv_phonenumber   = self.sim_phonenumber.get(sms.sim_id, None) if sms.sim_id else None
                     sms.recv_name          = self._get_contacts(sms.recv_phonenumber)
 
-                sms.deleted = 1 if rec.IsDeleted or sms.deleted else 0         
+                sms.deleted = 1 if rec.IsDeleted or sms.deleted else 0
                 sms.source = self.cur_db_source
                 self.csm.db_insert_table_sms(sms)
             except:
@@ -472,8 +471,8 @@ class AndroidMMSParser(AndroidSMSParser):
                 mms.subject            = rec['sub'].Value
                 mms.read_status        = rec['read'].Value
                 # mms.body               = rec['body'].Value
-                mms.send_time          = rec['date_sent'].Value
                 mms.delivered_date     = rec['date'].Value
+                mms.send_time          = rec['date_sent'].Value if 'date_sent' in rec.Keys else mms.delivered_date
                 mms.type               = rec['msg_box'].Value        # MSG_TYPE
                 mms.is_sender          = 1 if mms.type in (MSG_TYPE_SENT, MSG_TYPE_OUTBOX) else 0
                 mms.deleted            = 1 if rec.IsDeleted else 0
@@ -798,3 +797,4 @@ class AndroidIcingParser(AndroidSMSParser):
             self.csm_mms.db_insert_table_mms(mms)
         except:
             exc()
+

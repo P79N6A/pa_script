@@ -136,7 +136,7 @@ class WeChatParser(Wechat):
             prog.Start()
 
             # 每个app创建一个资源节点
-            self.ar = AppResources(progress['APP', build]['MEDIA', '多媒体'])
+            self.ar = AppResources(build, DescripCategories.Wechat)
             self.ar.set_thum_config('pic_thum', 'Image')
             self.ar.set_thum_config('video_thum', 'Video')
 
@@ -146,16 +146,9 @@ class WeChatParser(Wechat):
                 gc.collect()
 
             try:
-                ar_models = self.ar.parse()
+                self.ar.parse()
             except Exception as e:
-                ar_models = None
-
-            if ar_models is not None:
-                pr = ParserResults()
-                pr.Categories = DescripCategories.Wechat
-                pr.Models.AddRange()
-                pr.Build(build)
-                ds.Add(pr)
+                pass
             
             self.ar = None
             prog.Finish(True)

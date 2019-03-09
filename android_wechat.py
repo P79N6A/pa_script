@@ -126,8 +126,7 @@ def get_build(app_path):
     build = '微信'
     if not app_path:
         return build
-
-    if app_path == r'/data/data/com.tencent.mm':
+    if app_path == r'/data/data/com.tencent.mm' or app_path == r'/Root/data/com.tencent.mm':
         return build
 
     if re.match(r'/data/user/\d+/com.tencent.mm', app_path) is not None:
@@ -184,7 +183,7 @@ class WeChatParser(Wechat):
         for build in self.node_dict:
             prog = progress['APP', build]
             prog.Start()
-            self.ar = AppResources(progress['APP', build]['MEDIA', '多媒体'])
+            self.ar = AppResources(build, DescripCategories.Wechat)
             self.ar.set_thum_config("jpg", "Video")
             self.ar.set_thum_config("thumb", "Video")
             self.ar.set_thum_config("cover", "Video")
@@ -196,16 +195,10 @@ class WeChatParser(Wechat):
                 self.parse_user_node(node, build)
                 gc.collect()
 
-            pr = ParserResults()
-            pr.Categories = DescripCategories.Wechat
             try:
-                res = self.ar.parse()
+                self.ar.parse()
             except Exception as e:
                 print e
-                res = []
-            pr.Models.AddRange(res)
-            pr.Build(build)
-            ds.Add(pr)
 
             prog.Finish(True)
             self.ar = None
@@ -260,6 +253,8 @@ class WeChatParser(Wechat):
             mm_db_parser = None
             try:
                 # print('%s android_wechat() decrypt EnMicroMsg.db' % time.asctime(time.localtime(time.time())))
+                if self.imei is None:
+                    self.imei = 'A000002FD6B191'
                 if Decryptor.decrypt(node, self._get_db_key(self.imei, self.uin), mm_db_path):
                     # print('%s android_wechat() parse MicroMsg.db' % time.asctime(time.localtime(time.time())))
                     mm_db_parser = self._parse_mm_db(mm_db_path, node.AbsolutePath)
@@ -336,9 +331,9 @@ class WeChatParser(Wechat):
     def _is_valid_user_dir(self):
         if self.root is None or self.user_node is None:
             return False
-        if self.root.GetByPath('/shared_prefs/auth_info_key_prefs.xml') is None and self.root.GetByPath(
-                '/shared_prefs/com.tencent.mm_preferences.xml'):
-            return False
+        # if self.root.GetByPath('/shared_prefs/auth_info_key_prefs.xml') is None and self.root.GetByPath(
+                # '/shared_prefs/com.tencent.mm_preferences.xml'):
+            # return False
         return True
 
     @staticmethod
@@ -1285,7 +1280,6 @@ class WeChatParser(Wechat):
 
     def _parse_mm_db_message(self, db, source):
         rconversation_messages = self._get_rcon_messages(db)
-        print rconversation_messages
         if 'message' in db.Tables:
             if canceller.IsCancellationRequested:
                 return
@@ -1310,7 +1304,6 @@ class WeChatParser(Wechat):
                     msg_id = self._db_record_get_string_value(rec, 'msgId')
                     lv_buffer = self._db_record_get_blob_value(rec, 'lvbuffer')
                     msg_svr_id = self._db_record_get_string_value(rec, 'msgSvrId')
-                    msq_seq = self._db_record_get_int_value(rec, 'msgSeq')
                     deleted = 0 if rec.Deleted == DeletedState.Intact else 1
                     key = (msg, talker_id)
                     if deleted == 0 and (key in rconversation_messages):

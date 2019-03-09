@@ -415,40 +415,40 @@ class Wechat(object):
 
     @staticmethod
     def _db_record_get_value(record, column, default_value=None):
-        if not record[column].IsDBNull:
-            return record[column].Value
-        return default_value
+        try:
+            if not record[column].IsDBNull:
+                return record[column].Value
+        except Exception as e:
+            return default_value
 
     @staticmethod
     def _db_record_get_string_value(record, column, default_value=''):
-        if not record[column].IsDBNull:
-            try:
+        try:
+
+            if not record[column].IsDBNull:
                 value = str(record[column].Value)
                 #if record.Deleted != DeletedState.Intact:
                 #    value = filter(lambda x: x in string.printable, value)
                 return value
-            except Exception as e:
-                return default_value
-        return default_value
+        except Exception as e:
+            return default_value
 
     @staticmethod
     def _db_record_get_int_value(record, column, default_value=0):
-        if not record[column].IsDBNull:
-            try:
+        try:
+            if not record[column].IsDBNull:
                 return int(record[column].Value)
-            except Exception as e:
+        except Exception as e:
                 return default_value
-        return default_value
 
     @staticmethod
     def _db_record_get_blob_value(record, column, default_value=None):
-        if not record[column].IsDBNull:
-            try:
+        try:
+            if not record[column].IsDBNull:
                 value = record[column].Value
                 return bytes(value)
-            except Exception as e:
-                return default_value
-        return default_value
+        except Exception as e:
+            return default_value
 
     @staticmethod
     def _db_column_get_string_value(column, default_value=''):
