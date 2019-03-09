@@ -278,12 +278,13 @@ class ContactParser(model_contact.MC):
                     contacts.title = self._verify_dict(value, "occupation")
                     phone_number = self._verify_dict(value, "phone")
                     formatphone = self._verify_dict(value, "formatphone")
-                    if formatphone is not None and formatphone is not '':
-                        contacts.phone_number = formatphone
-                    elif phone_number is not None:
-                        contacts.phone_number = phone_number
-                    else:
-                        contacts.phone_number = ""
+                    contacts.phone_number = phone_number
+                    #if formatphone is not None and formatphone is not '':
+                    #    contacts.phone_number = formatphone
+                    #elif phone_number is not None:
+                    #    contacts.phone_number = phone_number
+                    #else:
+                    #    contacts.phone_number = ""
                     contacts.name = self._verify_dict(value, "name")
                     contacts.address = self._verify_dict(value, "address")
                     contacts.notes = self._verify_dict(value, "note")
