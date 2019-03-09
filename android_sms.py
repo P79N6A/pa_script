@@ -78,7 +78,6 @@ def analyze_sms(node, extract_deleted, extract_source):
             pr.Models.AddRange(res)
             pr.Build('短信')
     except:
-        progress.Skip()
         if DEBUG:
             msg = '{} 解析新案例 <{}> 出错: {}'.format(db_name, CASE_NAME, traceback.format_exc())
             TraceService.Trace(TraceLevel.Debug, msg)
@@ -122,7 +121,6 @@ def analyze_mms(node, extract_deleted, extract_source):
             pr.Models.AddRange(res)
             pr.Build('彩信')
     except:
-        progress.Skip()
         if DEBUG:
             msg = '{} 解析新案例 <{}> 出错: {}'.format(db_name, CASE_NAME, traceback.format_exc())
             TraceService.Trace(TraceLevel.Debug, msg)
