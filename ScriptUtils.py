@@ -1330,6 +1330,7 @@ def print_run_time(func):
             TraceService.Trace(TraceLevel.Warning, '{}'.format(msg))
         if res is not None:
             return res
+
     return wrapper
 
 
@@ -1412,15 +1413,23 @@ class BaseParser(object):
             if not canceller.IsCancellationRequested:
                 self.csm.db_insert_table_version(self.VERSION_KEY_DB, self.VERSION_VALUE_DB)
                 self.csm.db_insert_table_version(self.VERSION_KEY_APP, VERSION_APP_VALUE)
-                self.csm.db_commit()        
+                self.csm.db_commit()
             self.csm.db_close()
             tmp_dir = ds.OpenCachePath('tmp')
-            save_cache_path(BCP_TYPE, self.cache_db, tmp_dir)   
+            save_cache_path(BCP_TYPE, self.cache_db, tmp_dir)
         models = self.Generate(self.cache_db).get_models()
+        # if 'AndroidSMS' in self.cachepath:
+        #     from export_bcp import run as export_bcp_run
+        #     import bcp_basic
+        #     export_bcp_run(target_id='123',
+        #                 bcp_path='F:\Caches',
+        #                 case_path=self.cachepath.replace('AndroidSMS', ''),
+        #                 mountDir='',
+        #                 software_type=bcp_basic.BASIC_SMS_INFORMATION)
         return models
 
     def parse_main(self):
-        pass           
+        pass
 
     def _convert_nodepath(self, raw_path):
         pass
@@ -1434,8 +1443,8 @@ class BaseParser(object):
         '''
         try:
             if timestamp < 0 or len(str(int(timestamp))) != 9:
-                return 
-            dstart = DateTime(1970,1,1,0,0,0)
+                return
+            dstart = DateTime(1970, 1, 1, 0, 0, 0)
             cdate = TimeStampFormats.GetTimeStampEpoch1Jan2001(timestamp)
             uinixtime = int((cdate - dstart).TotalSeconds)
             return uinixtime
@@ -1468,6 +1477,7 @@ class BaseParser(object):
         
         Args:
             table_name (str): 
+            read_delete (bool):
 
         Returns:
             (iterable): self.cur_db.ReadTableDeletedRecords(tb, ...)
@@ -1478,32 +1488,36 @@ class BaseParser(object):
             read_delete = self.extract_deleted
         try:
             if table_name not in self.cur_db.Tables:
+                tp('======= Warnning !!! table: {} not in db: {}'.format(table_name, self.cur_db.FilePath))
                 return []
             tb = SQLiteParser.TableSignature(table_name)
             # res = self.cur_db.ReadTableRecords(tb, read_delete, True)
             return self.cur_db.ReadTableRecords(tb, read_delete, True)
         except:
             if self.cur_db and self.cur_db.FilePath:
-                exc('db path: '+self.cur_db.FilePath)
+                exc('db path: ' + self.cur_db.FilePath)
             else:
                 exc()
             return []
 
-    def _read_json(self, json_path):
+    def _read_json(self, json_path='', json_node=None):
         ''' read_json set self.cur_json_source
 
         Args: 
             json_path (str)
 
         Returns:
-            (bool)
+            (bool) or json_data: set self.cur_json_source
         '''
         try:
-            json_node = self.root.GetByPath(json_path)
+            if json_node is None:
+                json_node = self.root.GetByPath(json_path)
             if not json_node:
                 return False
             file = json_node.Data.read().decode('utf-8')
-            json_data = json.loads(file)
+            if not file:
+                return False
+            json_data = json.loads(file, encoding='utf8')
             self.cur_json_source = json_node.AbsolutePath
             return json_data
         except:
@@ -1530,7 +1544,7 @@ class BaseParser(object):
                 return False
         except:
             exc()
-            return False            
+            return False
 
     def _is_duplicate(self, rec=None, pk_name='', pk_value=None):
         ''' filter duplicate record
@@ -1640,8 +1654,8 @@ class BaseParser(object):
             reg_str = r'^\w+([-+.]\w+)*@\w+([-.]\w+)*\.\w+([-.]\w+)*$'
             match_obj = re.match(reg_str, email_str)
             if match_obj is None:
-                return False      
-            return True      
+                return False
+            return True
         except:
             exc()
             return False
@@ -1657,17 +1671,25 @@ class BaseParser(object):
             (int/float): timastamp e.g. 1534318040.0
         '''
         try:
+            PATT = {
+                15: '%Y{div}%m{div}%d %H:%M',
+                16: '%Y{div}%m{div}%d %H:%M',
+                18: '%Y{div}%m{div}%d %H:%M:%S',
+                19: '%Y{div}%m{div}%d %H:%M:%S',
+            }
             if format_time:
                 div_str = format_time[4]
                 if re.match(r'\d', div_str):
                     div_str = ''
-                time_pattren = "%Y{div}%m{div}%d %H:%M:%S".format(div=div_str)
-                ts = time.strptime(format_time, time_pattren)
-                return time.mktime(ts)
+                time_pattren = PATT.get(len(format_time), '').format(div=div_str)
+                if time_pattren:
+                    ts = time.strptime(format_time, time_pattren)
+                    return time.mktime(ts)
             return 0
         except:
+            tp('error ts', format_time)
             exc()
-            return 0               
+            return 0
 
 
 
@@ -1790,3 +1812,125 @@ class ProtobufDecoder(object):
         end = self.find(identify)
         return self.read_move(end - self.idx)
 
+
+########## DB ###########
+
+SQL_CREATE_TABLE_VERSION = '''
+    create table if not exists version(
+        key TEXT primary key,
+        version INT)'''
+
+SQL_INSERT_TABLE_VERSION = '''
+    insert or REPLACE into version(key, version) values(?, ?)'''
+
+
+class BaseDBModel(object):
+    def __init__(self):
+        self.db = None
+        self.db_cmd = None
+        self.db_trans = None
+        self.VERSION_VALUE_DB = 1
+        self.create_sql_list = [SQL_CREATE_TABLE_VERSION]
+
+    def db_create(self, db_path):
+        if os.path.exists(db_path):
+            try:
+                os.remove(db_path)
+            except:
+                exc()
+        self.db = SQLiteConnection('Data Source = {}'.format(db_path))
+        self.db.Open()
+        self.db_cmd = SQLiteCommand(self.db)
+        try:
+            self.db_trans = self.db.BeginTransaction()
+        except:
+            exc()
+
+        self.db_create_table()
+        self.db_commit()
+
+    def db_commit(self):
+        if self.db_trans is not None:
+            self.db_trans.Commit()
+        self.db_trans = self.db.BeginTransaction()
+
+    def db_close(self):
+        self.db_trans = None
+        if self.db_cmd is not None:
+            self.db_cmd.Dispose()
+            self.db_cmd = None
+        if self.db is not None:
+            self.db.Close()
+            self.db = None
+
+    def db_create_table(self):
+        if self.db_cmd is not None:
+            for create_sql in self.create_sql_list:
+                self.db_cmd.CommandText = create_sql
+                self.db_cmd.ExecuteNonQuery()
+
+    def db_insert_table(self, sql, values):
+        if self.db_cmd is not None:
+            self.db_cmd.CommandText = sql
+            self.db_cmd.Parameters.Clear()
+            for value in values:
+                param = self.db_cmd.CreateParameter()
+                param.Value = value
+                self.db_cmd.Parameters.Add(param)
+            self.db_cmd.ExecuteNonQuery()
+
+    def db_insert_table_version(self, key, version):
+        self.db_insert_table(SQL_INSERT_TABLE_VERSION, (key, version))
+
+    '''
+    版本检测分为两部分
+    如果中间数据库结构改变，会修改db_version
+    如果app增加了新的内容，需要修改app_version
+    只有db_version和app_version都没有变化时，才不需要重新解析
+    '''
+
+    @staticmethod
+    def need_parse(cache_db, app_version):
+        if not os.path.exists(cache_db):
+            return True
+        db = sqlite3.connect(cache_db)
+        cursor = db.cursor()
+        sql = 'select key, version from version'
+        row = None
+        db_version_check = False
+        app_version_check = False
+        try:
+            cursor.execute(sql)
+            row = cursor.fetchone()
+        except Exception as e:
+            pass
+
+        while row is not None:
+            if row[0] == 'db' and row[1] == self.VERSION_VALUE_DB:
+                db_version_check = True
+            elif row[0] == 'app' and row[1] == app_version:
+                app_version_check = True
+            row = cursor.fetchone()
+
+        if cursor is not None:
+            cursor.close()
+        if db is not None:
+            db.close()
+        return not (db_version_check and app_version_check)
+
+
+class BaseColumn(object):
+    def __init__(self):
+        self.source = ''
+        self.deleted = 0
+        self.repeated = 0
+
+    def __setattr__(self, name, value):
+        if not IsDBNull(value):
+            if isinstance(value, str):
+                # 过滤控制字符, 防止断言失败
+                value = re.compile('[\\x00-\\x08\\x0b-\\x0c\\x0e-\\x1f]').sub(' ', value)
+            self.__dict__[name] = value
+
+    def get_values(self):
+        return (self.source, self.deleted, self.repeated)
