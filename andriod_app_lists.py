@@ -48,21 +48,23 @@ class AppLists(object):
         cache_db = self.cache + "\\appinfo.db"
         self.apps_db.db_create(cache_db)
         for app in app_lists:
+            icon_path = None
+            icon_id = None
+            icon = KeyValueModel()
+            dicts = defaultdict(list)
             try:
-                icon_path = None
-                icon_id = None
-                icon = KeyValueModel()
-                dicts = defaultdict(list)
-                base_apk_path = app.PathWithMountPoint + "\\base.apk"
-                tmp_path = " dump badging {0}".format(base_apk_path)
-                file_content = os.popen('"{0}"'.format(destDir) + tmp_path).read()
+                if app.Type == NodeType.Directory:
+                    base_apk_path = app.PathWithMountPoint + "\\base.apk"
+                else:
+                    base_apk_path = app.PathWithMountPoint
+                file_content = os.popen(destDir + " dump badging {0}".format(base_apk_path)).read()
                 if file_content:
                     app_info = model_applists.Info()
                     app_info.sourceFile = app.AbsolutePath + "/base.apk"
                     app_info.installedPath = app.AbsolutePath + "/base.apk"
                     content_list = file_content.split("\n")
                     for line in content_list:
-                        if line.find("package")!= -1:
+                        if line.find("package") != -1:
                             reg = re.compile("package:.*name='(.*?)'.*versionName='(.*?)'")
                             results = re.match(reg, line)
                             if results:
@@ -260,6 +262,7 @@ def analyze_app_lists(node, extract_Deleted, extract_Source):
         results =  AppLists(node, extract_Deleted, extract_Source).other_parse()
     else:
         results =  AppLists(node, extract_Deleted, extract_Source).parse()
+    print(len(results))
     if results:
         pr.Models.AddRange(results)
         pr.Build("应用列表")
