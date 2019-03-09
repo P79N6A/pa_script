@@ -1516,6 +1516,8 @@ class WeChatParser(Wechat):
             content = self._process_parse_message_semi_xml(content)
         elif msg_type == MSG_TYPE_APP_MESSAGE:
             content = self._process_parse_message_app_message(content, model)
+        elif msg_type == MSG_TYPE_FRIEND_RECOMMEND or msg_type == MSG_TYPE_FRIEND_RECOMMEND_ONE:
+            content = self._process_parse_message_friend_recommend(content, model)
         else:  # MSG_TYPE_LINK
             content = self._process_parse_message_link(content, model)
 
@@ -1648,7 +1650,7 @@ class WeChatParser(Wechat):
             if model.deleted == 0:
                 TraceService.Trace(TraceLevel.Error, "base_wechat.py Error: LINE {} \nxml: {}".format(traceback.format_exc(), xml_str))
             model.type = model_wechat.MESSAGE_CONTENT_TYPE_TEXT
-            return
+            return xml_str
 
         if xml is not None:
             if xml.Name.LocalName == 'msg':
