@@ -247,13 +247,14 @@ class ContactParser(model_contact.MC):
                         if not d:
                             continue
                         if "phone" in d and "phone" in data_dic[id]:
-                            if not re.findall(d["phone"], data_dic[id]["phone"]):
+                            
+                            if not re.findall(d["phone"].replace("+", ""), data_dic[id]["phone"]):
                                 data_dic[id]["phone"] = data_dic[id]["phone"] + "," + d["phone"]
                         elif "formatphone" in d and "formatphone" in data_dic[id]:
                             if not re.findall(d["formatphone"], data_dic[id]["formatphone"]):
                                 data_dic[id]["formatphone"] = data_dic[id]["formatphone"] + "," + d["formatphone"]
                         elif "email" in d and "email" in data_dic[id]:
-                            if not re.findall(d["email"], data_dic[id]["email"]):
+                            if not re.findall(d["email"].replace("\\", ""), data_dic[id]["email"]):
                                 data_dic[id]["email"] = data_dic[id]["email"] + "," + d["email"]
                         elif "address" in d and "address" in data_dic[id]:
                             if not re.findall(d["address"], data_dic[id]["address"]):
