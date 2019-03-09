@@ -74,7 +74,7 @@ SQL_CREATE_TABLE_SMS = '''
         sender_name         TEXT,
         read_status         INT DEFAULT 0,
         type                INT DEFAULT 0,
-        suject              TEXT,
+        subject              TEXT,
         body                TEXT,
         send_time           INT,
         delivered_date      INT,
@@ -97,7 +97,7 @@ SQL_INSERT_TABLE_SMS = '''
         sender_name,
         read_status,
         type,
-        suject,
+        subject,
         body,
         send_time,
         delivered_date,
@@ -283,6 +283,7 @@ class Column(object):
     def get_values(self):
         return (self.source, self.deleted, self.repeated)
 
+
 class SimCard(Column):
     def __init__(self):
         super(SimCard, self).__init__()
@@ -297,6 +298,7 @@ class SimCard(Column):
                 self.sync_enabled,
             ) + super(SimCard, self).get_values()
 
+
 class SMS(Column):
     def __init__(self):
         super(SMS, self).__init__()
@@ -306,7 +308,7 @@ class SMS(Column):
         self.sender_name        = None  # 发送者姓名[TEXT]
         self.read_status        = None  # 读取状态[INT], 1 已读, 0 未读
         self.type               = None  # 消息类型[INT], MSG_TYPE
-        self.suject             = None  # 主题, 一般是彩信 mms 才有[TEXT]
+        self.subject            = None  # 主题, 一般是彩信 mms 才有[TEXT]
         self.body               = None  # 内容[TEXT]
         self.send_time          = None  # 发送时间[INT]
         self.delivered_date     = None  # 送达时间
@@ -324,7 +326,7 @@ class SMS(Column):
                 self.sender_name, 
                 self.read_status,
                 self.type, 
-                self.suject,   
+                self.subject,
                 self.body,  
                 self.send_time, 
                 self.delivered_date, 
@@ -337,6 +339,7 @@ class SMS(Column):
                 self.smsc,
                 self.is_mms
             )
+
 
 class MMSPart(Column):
     def __init__(self):
@@ -360,6 +363,7 @@ class MMSPart(Column):
             self.part_charset,
             self.part_contenttype
             )
+
 
 class GenerateSMSModel(object):
     def __init__(self, cache_db, cachepath=None):
@@ -390,7 +394,7 @@ class GenerateSMSModel(object):
                 3    sender_name         TEXT,
                 4    read_status         INT DEFAULT 0,
                 5    type                INT,
-                6    suject              TEXT,
+                6    subject              TEXT,
                 7    body                TEXT,
                 8    send_time           INT,
                 9    delivered_date      INT,
