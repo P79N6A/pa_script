@@ -253,6 +253,8 @@ class WeChatParser(Wechat):
             mm_db_parser = None
             try:
                 # print('%s android_wechat() decrypt EnMicroMsg.db' % time.asctime(time.localtime(time.time())))
+                if self.imei is None:
+                    self.imei = 'A000002FD6B191'
                 if Decryptor.decrypt(node, self._get_db_key(self.imei, self.uin), mm_db_path):
                     # print('%s android_wechat() parse MicroMsg.db' % time.asctime(time.localtime(time.time())))
                     mm_db_parser = self._parse_mm_db(mm_db_path, node.AbsolutePath)
