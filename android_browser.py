@@ -22,7 +22,7 @@ import bcp_browser
 
 
 # app数据库版本
-VERSION_APP_VALUE = 3
+VERSION_APP_VALUE = 4
 
 # 国产安卓手机预装浏览器类型
 NATIVE = bcp_browser.NETWORK_APP_OTHER
@@ -471,6 +471,7 @@ class AndroidOldBrowserParser(AndroidBrowserParser):
         super(AndroidBrowserParser, self).__init__(node, db_name)
         self.root = node.Parent.Parent
         self.model_db_name = db_name
+        self._max_id = 0
 
     def parse_main(self):
         self.cur_account_name = 'default_user'
@@ -481,6 +482,27 @@ class AndroidOldBrowserParser(AndroidBrowserParser):
 
         if self._read_db('databases/webview.db'):
             self.parse_old_cookie('cookies')
+            self.parse_old_browser_record('formurl')
+
+    def parse_old_browser_record(self, table_name):
+        for rec in self._read_table(table_name):
+            try:
+                if (self._is_duplicate(rec, '_id')
+                    or not self._is_url(rec, 'url')):
+                    continue
+                browser_record = model_browser.Browserecord()
+                if self._max_id:
+                    browser_record.id = self._max_id
+                    self._max_id += 1
+                else:
+                    browser_record.id = rec['_id'].Value
+                browser_record.url = rec['url'].Value
+                browser_record.source = self.cur_db_source
+                browser_record.deleted = 1 if rec.IsDeleted else 0
+                self.csm.db_insert_table_browserecords(browser_record)
+            except:
+                exc()
+        self.csm.db_commit()
 
     def parse_old_cookie(self, table_name):
         '''
@@ -535,11 +557,15 @@ class AndroidOldBrowserParser(AndroidBrowserParser):
         '''
         for rec in self._read_table(table_name):
             try:
+
                 if (self._is_empty(rec, 'url', 'title') or
                     self._is_duplicate(rec, '_id')):
                     continue
                 if 'folder' in rec.Keys and rec['folder'].Value == 1:
                     continue
+
+                if not self._max_id:
+                    self._max_id = rec.Count
 
                 _time = 0
                 if 'created' in rec.Keys:
@@ -566,6 +592,7 @@ class AndroidOldBrowserParser(AndroidBrowserParser):
                 self._insert_search_from_browser_record(rec, _time)
             except:
                 exc()
+        self._max_id = rec['_id'].Value
         self.csm.db_commit()
 
 
