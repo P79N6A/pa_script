@@ -479,6 +479,43 @@ class AndroidOldBrowserParser(AndroidBrowserParser):
             self.parse_bookmark('bookmarks')
             self._parse_SearchHistory_vivo_huawei('searches')
 
+        if self._read_db('databases/webview.db'):
+            self.parse_old_cookie('cookies')
+
+    def parse_old_cookie(self, table_name):
+        '''
+            CREATE TABLE cookies (
+                _id INTEGER PRIMARY KEY,
+                name TEXT,
+                value TEXT,
+                domain TEXT,
+                path TEXT,
+                expires INTEGER,
+                secure INTEGER
+            );
+        '''
+        for rec in self._read_table(table_name):
+            try:
+                if (self._is_empty(rec, 'name') or
+                        self._is_duplicate(rec, '_id')):
+                    continue
+                cookie = model_browser.Cookie()
+                cookie.id = rec['_id'].Value
+                # cookie.host_key = rec['host_key'].Value
+                cookie.name = rec['name'].Value
+                cookie.value = rec['value'].Value
+                # cookie.createdate = rec['creation_utc'].Value
+                cookie.expiredate = rec['expires'].Value
+                # cookie.lastaccessdate = rec['last_access_utc'].Value
+                # cookie.hasexipred = rec['has_expires'].Value
+                # cookie.owneruser      = self.cur_account_name
+                cookie.source = self.cur_db_source
+                cookie.deleted = 1 if rec.IsDeleted else 0
+                self.csm.db_insert_table_cookies(cookie)
+            except:
+                exc()
+        self.csm.db_commit()
+
     def parse_bookmark(self, table_name):
         ''' 'databases/browser2.db - bookmarks
 
@@ -531,6 +568,7 @@ class AndroidOldBrowserParser(AndroidBrowserParser):
                 exc()
         self.csm.db_commit()
 
+
     def _insert_search_from_browser_record(self, rec, _time):
         '''SEARCH_ENGINES =
             r'((?P<keyword1>.*?)( - Google 搜尋| - Google Search|- Google 搜索\
@@ -565,7 +603,7 @@ class AndroidOldBrowserParser(AndroidBrowserParser):
         try:
             if browser_title and not IsDBNull(browser_title):
                 match_res = re.match(SEARCH_ENGINES, browser_title)
-                if (match_res and 
+                if (match_res and
                     (match_res.group('keyword1') or match_res.group('keyword2'))):
                     keyword1 = match_res.group('keyword1')
                     keyword2 = match_res.group('keyword2')
