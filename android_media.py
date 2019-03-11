@@ -57,7 +57,7 @@ class MediaParse(object):
             if re.findall('/com.android.providers.media/databases/internal.db$', self.node.AbsolutePath):
                 self.dcim_node = self.node.FileSystem.Search('/DCIM$')
                 if len(self.dcim_node) == 0:
-                    return
+                    return []
                 self.dcim_node = self.dcim_node[0]
                 self.nodes = [self.node, self.node.Parent.GetByPath('/external.db')]
                 self.analyze_media_with_db()

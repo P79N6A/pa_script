@@ -61,8 +61,9 @@ class MediaParse(model_media.MM):
             if db is None:
                 return 
             ts = SQLiteParser.TableSignature('ZGENERICASSET')
-            media_dir = self.node.Parent.Parent.AbsolutePath
-            pdir = self.node.Parent.Parent.PathWithMountPoint
+            media_node = self.node.Parent.Parent
+            #media_dir = self.node.Parent.Parent.AbsolutePath
+            #pdir = self.node.Parent.Parent.PathWithMountPoint
             for rec in db.ReadTableRecords(ts, self.extractDeleted, True):
                 try:
                     media = Media()
@@ -72,8 +73,24 @@ class MediaParse(model_media.MM):
                     name = self._db_record_get_string_value(rec, 'ZFILENAME')
                     if name == '':
                         continue
-                    media.url = os.path.normcase(media_dir + '/' + dir + '/' + name)
-                    pd = os.path.normcase(pdir + '/' + dir + '/' + name)
+                    media_nodes = media_node.Search(dir + '.*' + name + '/.*\..*$')
+                    mnode = None
+                    for n in media_nodes:
+                        mnode = n
+                        break
+                    if mnode is None:
+                        media_nodes = media_node.Search(dir + '/' + name + '$')
+                        for n in media_nodes:
+                            if str(type(n)) == "<type 'TarFileNode'>":
+                                continue
+                            mnode = n
+                            break
+                    if mnode is None:
+                        continue
+                    media.url = mnode.AbsolutePath
+                    #media.url = os.path.normcase(media_dir + '/' + dir + '/' + name)
+                    #pd = os.path.normcase(pdir + '/' + dir + '/' + name)
+                    pd = mnode.PathWithMountPoint
                     self.media_url = pd
                     media.deleted = rec.IsDeleted
                     media.size = os.path.getsize(pd)

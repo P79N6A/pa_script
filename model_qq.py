@@ -40,6 +40,9 @@ CHAT_TYPE_FRIEND = 1  # 好友聊天
 CHAT_TYPE_GROUP = 2  # 群聊天
 CHAT_TYPE_DISCUSSION = 3 # 讨论组
 
+CHATROOM_TYPE_GROUP = 1
+CHATROOM_TYPE_DISCUSSION = 2
+
 MESSAGE_STATUS_UNREAD = 0 # unread
 MESSAGE_STATUS_READ =  1  # read
 
@@ -136,8 +139,13 @@ SQL_CREATE_TABLE_FRIEND = '''
         nickname TEXT,
         remark TEXT,
         photo TEXT,
+        telephone TEXT,
+        email TEXT,
+        gender int, 
+        age int,
+        address TEXT,
+        birthday TEXT,
         type INT,
-        gender INT,
         region TEXT,
         signature TEXT,
         add_time INT,
@@ -162,14 +170,21 @@ SQL_CREATE_TABLE_CHATROOM = '''
         create_time INT,
         join_time INT,
         sp_id INT,
+        chatroom_type INT,
         source TEXT,
+        type int,
+        description TEXT,
+        creator_id TEXT,
+        member_count int DEFAULT 0,
+        max_member_count int DEFAULT 0,
         deleted INT DEFAULT 0,
-        repeated INT DEFAULT 0)'''
+        repeated INT DEFAULT 0
+        )'''
 
 SQL_INSERT_TABLE_CHATROOM = '''
     insert into chatroom(account_id, chatroom_id, name, photo, is_saved, notice, owner_id, create_time, join_time,
-                         sp_id, source, deleted, repeated)
-        values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
+                         sp_id, chatroom_type ,source, deleted, repeated)
+        values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
 
 
 SQL_CREATE_TABLE_CHATROOM_MEMBER = '''
@@ -179,6 +194,14 @@ SQL_CREATE_TABLE_CHATROOM_MEMBER = '''
         member_id TEXT,
         nick_name TEXT,
         display_name TEXT,
+        photo TEXT, 
+        telephone TEXT, 
+        email TEXT, 
+        gender int default 0,
+        age int,
+        address TEXT, 
+        birthday TEXT, 
+        signature TEXT,
         sp_id INT,
         source TEXT,
         deleted INT DEFAULT 0,
@@ -223,6 +246,11 @@ SQL_CREATE_TABLE_MESSAGE = '''
         link_content TEXT,
         link_image TEXT,
         link_from TEXT,
+        talker_name TEXT,
+        sender_name TEXT,
+        is_sender int,        
+        location_id int AUTO INCREMENT,
+        deal_id int AUTO INCREMENT,
         business_card_username TEXT,
         business_card_nickname TEXT,
         business_card_gender INT,
@@ -239,8 +267,9 @@ SQL_INSERT_TABLE_MESSAGE = '''
                         location_address, location_type, deal_money, deal_description, deal_remark, deal_status, deal_mode,
                         deal_create_time, deal_expire_time, link_url, link_title, link_content, link_image, link_from,
                         business_card_username, business_card_nickname, business_card_gender, business_card_photo,
-                        business_card_region, business_card_signature, source, deleted, repeated)
-        values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
+                        business_card_region, business_card_signature, talker_name,sender_name,
+                        is_sender,location_id ,deal_id,source, deleted, repeated)
+        values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
 
 SQL_CREATE_TABLE_FEED = '''
     create table if not exists feed(
@@ -643,6 +672,7 @@ class Friend(Column):
         self.region = None  # 地区[TEXT]
         self.signature = None  # 签名[TEXT]
         self.add_time = None  # 添加时间[INT]
+        
 
     def get_values(self):
         return (self.account_id, self.friend_id, self.friend_id_alias, self.nickname, self.remark, self.photo, self.type,
@@ -667,11 +697,12 @@ class Chatroom(Column):
         self.create_time = None  # 创建时间[INT]
         self.join_time = None  # 加入时间[INT]
         self.sp_id = g_chatroom_sp_id  # 群识别码(用于区别恢复数据、相同群ID)[INT]
+        self.chatroom_type = CHATROOM_TYPE_GROUP
         g_chatroom_sp_id += 1
 
     def get_values(self):
         return (self.account_id, self.chatroom_id, self.name, self.photo, self.is_saved, self.notice, self.owner_id,
-                self.create_time, self.join_time, self.sp_id) + super(Chatroom, self).get_values()
+                self.create_time, self.join_time, self.sp_id, self.chatroom_type) + super(Chatroom, self).get_values()
 
     def insert_db(self, im):
         if isinstance(im, IM):
@@ -728,6 +759,11 @@ class Message(Column):
         self.link_content = None  # 链接内容[TEXT]
         self.link_image = None  # 链接图片[TEXT]
         self.link_from = None  # 链接来源[TEXT]
+        self.talker_name = ""
+        self.sender_name= ""
+        self.is_sender = 0   
+        self.location_id = 0
+        self.deal_id = 0
         self.business_card_username = None  # 名片ID[TEXT]
         self.business_card_nickname = None  # 名片昵称[TEXT]
         self.business_card_gender = GENDER_NONE  # 名片性别[INT]
@@ -742,7 +778,8 @@ class Message(Column):
                 self.deal_description, self.deal_remark, self.deal_status, self.deal_mode, self.deal_create_time,
                 self.deal_expire_time, self.link_url, self.link_title, self.link_content, self.link_image, self.link_from,
                 self.business_card_username, self.business_card_nickname, self.business_card_gender, self.business_card_photo,
-                self.business_card_region, self.business_card_signature) + super(Message, self).get_values()
+                self.business_card_region, self.business_card_signature,self.talker_name, self.sender_name,self.is_sender,
+                self.location_id,self.deal_id) + super(Message, self).get_values()
 
     def insert_db(self, im):
         if isinstance(im, IM):
@@ -959,17 +996,59 @@ class ContactLabel(Column):
 
 
 class GenerateModel(object):
-    def __init__(self, cache_db, build='QQ'):
+    def __init__(self, cache_db, build='QQ',prog = None):
         self.cache_db = cache_db
-        self.build = build
+        self.build = build        
         self.account_models = {}
         self.friend_models = {}
         self.group_member_models= {}
         self.chatroom_models = {}
         self.models = []
         self.media_models = []
-        self.ar = AppResources()    
-        self.ar.set_thum_config("video_thum","Video")
+        self.progress = prog
+        self.analyzeProgress  = 0
+        self.ar = AppResources(build, DescripCategories.QQ)         
+        self.db = SQLite.SQLiteConnection('Data Source = {}'.format(self.cache_db))
+        self.db.Open()
+    def get_accounts_info(self):
+        if canceller.IsCancellationRequested:
+            return []
+        if not self._db_has_table('account'):
+            return []
+        accounts = []
+        sql = '''select account_id, account_id_alias, nickname, username, password, photo, telephone, email, gender, age, country,
+                        province, city, address, birthday, signature, source, deleted, repeated
+                 from account'''
+        try:
+            cmd = self.db.CreateCommand()
+            cmd.CommandText = sql
+            r = cmd.ExecuteReader()
+            while r.Read():
+                if canceller.IsCancellationRequested:
+                    break
+                deleted = 0
+                try:
+                    source = self._db_reader_get_string_value(r, 16)
+                    deleted = self._db_reader_get_int_value(r, 17, None)
+                    account_id = self._db_reader_get_string_value(r, 0)
+                    account_id_alias = self._db_reader_get_string_value(r, 1)
+                    nickname = self._db_reader_get_string_value(r, 2)
+                    username = self._db_reader_get_string_value(r, 3)
+                    password = self._db_reader_get_string_value(r, 4)
+                    photo = self._db_reader_get_string_value(r, 5, None)
+                    telephone = self._db_reader_get_string_value(r, 6)
+                    email = self._db_reader_get_string_value(r, 7)
+                    gender = self._db_reader_get_int_value(r, 8)
+                    country = self._db_reader_get_string_value(r, 10)
+                    signature = self._db_reader_get_string_value(r, 15)
+                    accounts.append(account_id)
+                except:
+                    pass
+        except:
+            pass
+        return accounts
+
+
     def add_model(self, model):
         if model is not None:
             self.models.append(model)
@@ -986,13 +1065,16 @@ class GenerateModel(object):
             self.models = []
 
     def set_progress(self, value):
-        progress.Value = value
-        #print('set_progress() %d' % value)
+        try:            
+            self.progress.Value = self.analyzeProgress + (100 - self.analyzeProgress)*value/100
+        except Exception as e:
+            pass        
 
     def get_models(self):
-        self.db = SQLite.SQLiteConnection('Data Source = {}'.format(self.cache_db))
-        self.db.Open()
-
+        try:
+            self.analyzeProgress  = self.progress.Value
+        except:
+            pass
         #print('%s model_qq() generate model account' % time.asctime(time.localtime(time.time())))
         self._get_account_models()
         self.set_progress(2)
@@ -1202,7 +1284,7 @@ class GenerateModel(object):
             return []
 
         sql = '''select account_id, chatroom_id, name, photo, is_saved, notice, owner_id, create_time, join_time,
-                        sp_id, source, deleted, repeated
+                        sp_id, source, deleted, repeated,chatroom_type 
                  from chatroom'''
         try:
             cmd = self.db.CreateCommand()
@@ -1225,11 +1307,13 @@ class GenerateModel(object):
                     create_time = self._db_reader_get_int_value(r, 7)
                     join_time = self._db_reader_get_int_value(r, 8)
                     sp_id = self._db_reader_get_int_value(r, 9)
-
+                    chatroom_type = self._db_reader_get_int_value(r, 13)
                     if account_id in [None, ''] or chatroom_id in [None, '']:
                         continue
-
-                    model = QQ.Group()
+                    if chatroom_type == CHATROOM_TYPE_GROUP:
+                        model = QQ.Group()
+                    else:
+                        model = QQ.DiscussionGroup()
                     model.SourceFile = source
                     model.Deleted = self._convert_deleted_status(deleted)
                     model.AppUserAccount = self.account_models.get(account_id)
@@ -1273,12 +1357,12 @@ class GenerateModel(object):
                 deleted = 0
                 try:
                     source = self._db_reader_get_string_value(r, 35)
-                    deleted = self._db_reader_get_int_value(r, 36, None)
+                    deleted = self._db_reader_get_int_value(r, 36, 0)
                     account_id = self._db_reader_get_string_value(r, 0)
                     talker_id = self._db_reader_get_string_value(r, 1)
                     talker_type = self._db_reader_get_int_value(r, 2)
                     sender_id = self._db_reader_get_string_value(r, 3)
-                    timestamp = self._db_reader_get_int_value(r, 4, None)
+                    timestamp = self._db_reader_get_int_value(r, 4, 0)
                     msg_type = self._db_reader_get_int_value(r, 6)
                     content = self._db_reader_get_string_value(r, 7)
                     media_path = self._db_reader_get_string_value(r, 8)
@@ -1316,7 +1400,22 @@ class GenerateModel(object):
                         model = QQ.GroupMessage()
                         model.Group = self.chatroom_models.get(self._gen_key(account_id, talker_id))                        
                         memmber = self.group_member_models.get(self._gen_key(talker_id, sender_id)) 
-                        if  memmber is not None:                                                    
+                        if  memmber is None:
+                            user = QQ.Friend()         
+                            source = "unknown"
+                            user.SourceFile = source
+                            deleted = 0
+                            user.Deleted = self._convert_deleted_status(deleted)
+                            user.AppUserAccount = self.account_models.get(account_id)
+                            user.Account = talker_id
+                            user.NickName = ""                                                                          
+                            user.Type = QQ.FriendType.None
+                            groupMember = GroupMember()
+                            groupMember.NickName =  ""    
+                            groupMember.User = user
+                            self.group_member_models[self._gen_key(talker_id, sender_id)] = groupMember
+                            model.Sender = groupMember.User
+                        else:
                             model.Sender = memmber.User
                          
                     elif talker_type == CHAT_TYPE_FRIEND:
@@ -1327,7 +1426,22 @@ class GenerateModel(object):
                         model = QQ.DiscussionGroupMessage()
                         model.DiscussionGroup = self.chatroom_models.get(self._gen_key(account_id, talker_id))
                         memmber = self.group_member_models.get(self._gen_key(talker_id, sender_id)) 
-                        if  memmber is not None:
+                        if  memmber is None:
+                            user = QQ.Friend()         
+                            source = "unknown"
+                            user.SourceFile = source
+                            deleted = 0
+                            user.Deleted = self._convert_deleted_status(deleted)
+                            user.AppUserAccount = self.account_models.get(account_id)
+                            user.Account = talker_id
+                            user.NickName = ""                                                                          
+                            user.Type = QQ.FriendType.None
+                            groupMember = GroupMember()
+                            groupMember.NickName =  ""    
+                            groupMember.User = user
+                            self.group_member_models[self._gen_key(talker_id, sender_id)] = groupMember
+                            model.Sender = groupMember.User
+                        else:
                             model.Sender = memmber.User
                     else:
                         return 
@@ -1445,7 +1559,7 @@ class GenerateModel(object):
             return []
         models = []
         #if sp_id not in [None, 0]: 155895693----2039940642
-        sql = '''select member_id, display_name,source,deleted,repeated,nick_name
+        sql = '''select member_id, display_name,source,deleted,repeated,nick_name 
                     from chatroom_member
                     where account_id='{0}' and chatroom_id='{1}' '''.format(account_id, chatroom_id)
         try:
@@ -1456,6 +1570,7 @@ class GenerateModel(object):
                 if canceller.IsCancellationRequested:
                     break
                 try:
+                    chatroom_type = self._db_reader_get_string_value(r, 6)  
                     member_id = self._db_reader_get_string_value(r, 0)                    
                     if member_id not in [None, '']:   
                         user = QQ.Friend()         
@@ -1467,7 +1582,7 @@ class GenerateModel(object):
                         user.Account = member_id
                         user.NickName = self._db_reader_get_string_value(r, 5)                        
                         #user.Gender = self._convert_gender(gender)                        
-                        user.Type = QQ.FriendType.None
+                        user.Type = QQ.FriendType.None                       
                         groupMember = GroupMember()
                         groupMember.NickName =  self._db_reader_get_string_value(r, 1)    
                         groupMember.User = user

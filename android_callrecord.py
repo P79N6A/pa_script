@@ -65,6 +65,9 @@ class CallsParse(MC):
             #vivo全盘通话记录存储在user_de/0/com.android.providers.contact/callllog.db中
             elif self.node.Parent.Parent.GetByPath('/databases/calllog.db'):
                 self.analyze_call_records_case2()
+            #三星案例
+            elif re.findall('logs.db', self.node.AbsolutePath):
+                self.analyze_call_records_sumsung()
             #通用全盘案例
             elif re.findall('contacts2.db', self.node.AbsolutePath):
                 #self.analyze_call_records_case3()
@@ -87,6 +90,38 @@ class CallsParse(MC):
         generate = Generate(self.cachedb)
         models = generate.get_models()
         return models
+
+    def analyze_call_records_sumsung(self):
+        '''解析三星通话记录'''
+        try:
+            node = self.node
+            db = SQLiteParser.Database.FromNode(node, canceller)
+            ts = SQLiteParser.TableSignature('logs')
+            ts.Add("number", SQLiteParser.Signatures.SignatureFactory.GetFieldSignature(SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull))
+            for rec in db.ReadTableRecords(ts, self.extractDeleted, True):
+                canceller.ThrowIfCancellationRequested()
+                try:
+                    message_id = self._db_record_get_string_value(rec, 'messageid')
+                    if message_id is not '':
+                        continue
+                    records = Records()
+                    records.id = self._db_record_get_int_value(rec, '_id')
+                    records.phone_number = self._db_record_get_string_value(rec, 'number')
+                    records.date = self._db_record_get_int_value(rec, 'date')
+                    records.duration = self._db_record_get_int_value(rec, 'duration')
+                    records.type = self._db_record_get_int_value(rec, 'type')
+                    name = self._db_record_get_string_value(rec, 'name')
+                    records.name = name if name is not '' else records.phone_number
+                    records.geocoded_location = self._db_record_get_string_value(rec, 'geocoded_location')
+                    records.country_code = self._db_record_get_string_value(rec, 'countryiso')
+                    records.source = node.AbsolutePath
+                    records.deleted = rec.IsDeleted
+                    self.db_insert_table_call_records(records)
+                except:
+                    traceback.print_exc()
+            self.db_commit()
+        except:
+            traceback.print_exc()
 
     def analyze_call_records_case1(self):
         '''解析callls.db'''
@@ -396,7 +431,12 @@ class CallsParse(MC):
 def analyze_android_calls(node, extractDeleted, extractSource):
     pr = ParserResults()
     try:
-        if len(list(node.Search('/com.android.providers.contacts/databases/contacts2.db$'))) != 0:
+        if len(list(node.Search('/com.sec.android.provider.logsprovider/databases/logs.db$'))) != 0:
+            progress.Start()
+            pr.Models.AddRange(CallsParse(node.Search('/com.sec.android.provider.logsprovider/databases/logs.db$')[0], extractDeleted, extractSource).parse())
+            pr.Build('通话记录')
+            return pr
+        elif len(list(node.Search('/com.android.providers.contacts/databases/contacts2.db$'))) != 0:
             progress.Start()
             pr.Models.AddRange(CallsParse(node.Search('/com.android.providers.contacts/databases/contacts2.db$')[0], extractDeleted, extractSource).parse())
             pr.Build('通话记录')

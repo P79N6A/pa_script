@@ -23,7 +23,7 @@ import bcp_browser
 
 
 # app数据库版本
-VERSION_APP_VALUE = 3
+VERSION_APP_VALUE = 4
 
 
 @parse_decorator
@@ -62,7 +62,7 @@ def analyze_oppo_browser_chrome(node, extract_deleted, extract_source):
                         db_name='OPPO')
 
 
-class AndroidChromeParser(BaseChromeParser, BaseAndroidParser):    
+class AndroidChromeParser(BaseChromeParser, BaseAndroidParser):
     def __init__(self, node, db_name):
         ''' Patterns: /com\.android\.chrome/app_chrome/Default/History$ 
             self.root: /com.android.chrome/app_chrome 
@@ -104,8 +104,8 @@ class SamsungBrowserParser(BaseChromeParser, BaseAndroidParser):
 
     def parse_main(self):
         accounts = self.parse_Account('app_sbrowser/Default/Preferences')
-        self.cur_account_name = accounts[0].get('email', 'default_account')
-
+        if len(accounts) > 0:
+            self.cur_account_name = accounts[0].get('email', 'default_account')
         self.parse_Bookmark('databases/SBrowser.db', 'BOOKMARKS')
         self.parse_Cookie(['app_sbrowser/Default/Cookies'], 'cookies')
 

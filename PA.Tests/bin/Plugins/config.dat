@@ -3160,6 +3160,30 @@
         </dict>
       </array>
     </dict>
+	
+	<dict>
+      <key>Module</key>
+      <string>android_wacaitally</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_wacaitally</string>
+          <key>RunnerType</key>
+          <integer>2</integer>
+          <key>Patterns</key>
+          <array>
+            <string>/com.wacai365/shared_prefs/com.wacai365_preferences.xml$</string>
+          </array>
+          <key>Category</key>
+          <string>WaCai</string>
+          <key>Name</key>
+          <string>挖财记账理财(安卓)</string>
+          <key>Filter</key>
+          <string>应用>金融理财</string>
+        </dict>
+      </array>
+    </dict>
 
     <dict>
       <key>Module</key>
@@ -3295,8 +3319,9 @@
           <integer>2</integer>
           <key>Patterns</key>
           <array>
-            <string>sim/sim.db$</string>
-            <string>com.android.providers.telephony/databases/telephony.db$</string>
+            <string>/sim/sim.db$</string>
+            <string>/com.android.providers.telephony/databases/telephony.db$</string>
+            <string>/simcardmanagement\.db$</string>
           </array>
           <key>Category</key>
           <string>Sim</string>
@@ -3369,6 +3394,7 @@
           <key>Patterns</key>
           <array>
             <string>/com\.android\.browser/databases/browser2\.db$</string>
+            <string>/com\.android\.browser/databases/browser\.db$</string>
           </array>
           <key>Category</key>
           <string>AndroidBrowser</string>
@@ -3693,7 +3719,7 @@
             <string>/com.umetrip.android.msky.app/shared_prefs/mqc_private.xml$</string>
           </array>
           <key>Category</key>
-          <string>Umetrip</string>
+          <string>纵横航旅</string>
           <key>Name</key>
           <string>航旅纵横(安卓)</string>
           <key>Filter</key>
