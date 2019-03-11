@@ -130,9 +130,7 @@ def startthread(root,extdata,extract_deleted,extract_source):
     try:
         sourceApp = extdata[0]
         resFloder = extdata[1]
-        Andriod_QQParser(root,sourceApp,resFloder, extract_deleted, extract_source).parse()
-        #pr.Models.AddRange(Andriod_QQParser(root,sourceApp, extract_deleted, extract_source).parse())
-        #pr.Build(sourceApp)    
+        Andriod_QQParser(root,sourceApp,resFloder, extract_deleted, extract_source).parse()   
     except Exception as e:
         pass
     
@@ -191,25 +189,51 @@ class Andriod_QQParser(object):
         self.im = IM()
         self.cachepath = ds.OpenCachePath("QQ")
         self.bcppath = ds.OpenCachePath("tmp")
-        m = hashlib.md5()
-        m.update(self.root.AbsolutePath.encode('utf-8'))
-        self.cachedb =  self.cachepath  + '/' + m.hexdigest().upper() + ".db"
         self.imei = ''
         self.imeilen = 15
         self.VERSION_APP_VALUE = 10000
         self.sourceApp = sourceApp
         self.resFolder = resFloder
-
-    def parse(self):        
-        if self.im.need_parse(self.cachedb, self.VERSION_APP_VALUE):
-            self.getImei()
+        self.cachedb = collections.defaultdict()        
+        self.accountsProg = collections.defaultdict()
+    def set_progress(self, acc_id,value):
+        try:
+            if self.accountsProg[acc_id] is not None and value != self.accountsProg[acc_id].Value:
+                self.accountsProg[acc_id].Value = value
+                print('set_progress() %d' % value)
+        except Exception as e:
+            pass
+    def insertaccount(self,ac):
+        try:
+            self.im.db_insert_table_account(ac)
+            self.im.db_commit()
+        except Exception as e:
+            pass
+    def parse(self):    
+        prog = progress['APP', self.sourceApp]
+        prog.Start() 
+        try:            
             self.decode_accounts()
-            if len(self.accinfo) != 0 :
-                self.im.db_create(self.cachedb)
-                self.insert_account()
-            else:
-                return
-            for acc_id in self.accounts:
+        except:
+            pass
+        for acc in self.accounts:
+            acc_id = acc.account_id
+            m = hashlib.md5()
+            accountPath = self.root.AbsolutePath + acc_id
+            m.update(accountPath.encode('utf-8'))        
+            cachedb =  self.cachepath  + '/' + m.hexdigest().upper() + ".db"
+            self.cachedb[acc_id] = cachedb
+            model = QQ.UserAccount()
+            model.SourceFile = acc.source                   
+            model.Account = acc.account_id                    
+            model.NickName = acc.nickname
+            accountprog = progress['APP', self.sourceApp]['ACCOUNT',acc_id , model]
+            accountprog.Start()                    
+            self.accountsProg[acc_id] = accountprog
+            if self.im.need_parse(cachedb, self.VERSION_APP_VALUE):
+                self.getImei()                                
+                self.im.db_create(cachedb)
+                self.insert_account(acc)               
                 try:
                     if canceller.IsCancellationRequested:
                         return
@@ -223,34 +247,50 @@ class Andriod_QQParser(object):
                     self.friendhash.clear()
                     self.friendmsgtables =set()
                     self.troopmsgtables =set()
+                    self.set_progress(acc_id,1)
                     self.decode_accounttables(acc_id)
+                    self.set_progress(acc_id,2)
                     self.decode_friends(acc_id)
+                    self.set_progress(acc_id,3)
                     self.decode_group_info(acc_id)
+                    self.set_progress(acc_id,6)
                     self.decode_groupMember_info(acc_id)
+                    self.set_progress(acc_id,10)
                     self.decode_friend_messages(acc_id)
+                    self.set_progress(acc_id,18)
                     self.decode_group_messages(acc_id)
+                    self.set_progress(acc_id,25)
                     self.recover_msg_from_friendtable(acc_id)
+                    self.set_progress(acc_id,28)
                     self.recover_msg_from_trooptable(acc_id)
+                    self.set_progress(acc_id,30)
                     self.decode_msg_ftstable(acc_id)
-                    self.recover_msg_ftstable(acc_id)
+                    self.set_progress(acc_id,32)
+                    self.recover_msg_ftstable(acc_id)              
+                    self.set_progress(acc_id,35)
+                    if canceller.IsCancellationRequested:
+                        return
+                    self.im.db_insert_table_version(VERSION_KEY_DB, VERSION_VALUE_DB)
+                    self.im.db_insert_table_version(VERSION_KEY_APP, self.VERSION_APP_VALUE)
+                    self.im.db_commit()
+                    self.im.db_close()
                 except Exception as e:
                     print(e)
-            if canceller.IsCancellationRequested:
-                return
-            self.im.db_insert_table_version(VERSION_KEY_DB, VERSION_VALUE_DB)
-            self.im.db_insert_table_version(VERSION_KEY_APP, self.VERSION_APP_VALUE)
-            self.im.db_commit()
-            self.im.db_close()
-        PA_runtime.save_cache_path(bcp_im.CONTACT_ACCOUNT_TYPE_IM_QQ,self.cachedb,self.bcppath)
-        gen = GenerateModel(self.cachedb,self.sourceApp)       
-        try:
-            gen.get_models()
-        except:
-            pass
+        for acc in self.accounts:
+            acc_id = acc.account_id
+            try:
+                PA_runtime.save_cache_path(bcp_im.CONTACT_ACCOUNT_TYPE_IM_QQ,self.cachedb[acc_id],self.bcppath)
+                gen = GenerateModel(self.cachedb[acc_id],self.sourceApp,self.accountsProg[acc_id])                     
+                gen.get_models()
+                self.set_progress(acc_id,100)
+                self.accountsProg[acc_id].Finish(True)
+            except:
+                pass
         try:
             self.get_qq_res(gen.ar)
         except Exception as e:
             TraceService.Trace(TraceLevel.Error, e)  
+        prog.Finish(True)
         return
 
     def get_qq_res(self, ar):
@@ -260,13 +300,7 @@ class Andriod_QQParser(object):
         for node in resnode:
             ar.save_res_folder(node, "Other")
         else:
-            return
-        res = ar.parse()
-        pr = ParserResults()
-        pr.Categories = DescripCategories.QQ
-        pr.Models.AddRange(res)
-        pr.Build(self.sourceApp)
-        ds.Add(pr)
+            return      
 
     def decode_accounttables(self,acc_id):
         node =  self.root.GetByPath('/databases/'+ acc_id + '.db')
@@ -322,9 +356,10 @@ class Andriod_QQParser(object):
                     if(re.match(pattern,f)):
                         dblist.append(f)
             #account
+            accounts = []
             for db in dblist:
                 acc_id = db[0:db.find('.db')]
-                self.accounts.append(acc_id)
+                accounts.append(acc_id)
             #nick
             nickfile =  self.root.GetByPath('/files/Properties')
             nickfilepath = nickfile.PathWithMountPoint
@@ -332,7 +367,7 @@ class Andriod_QQParser(object):
             nickdata = f.readlines()
             f.close()
             nickdata = sorted(nickdata)
-            for acc_id in self.accounts:
+            for acc_id in accounts:
                 for line in nickdata:
                     name = 'nickName'+ acc_id+ '='
                     t = acc_id +'_logintime='
@@ -346,23 +381,26 @@ class Andriod_QQParser(object):
                     if(postime != -1):
                         time = line[postime+len(t):len(line)-1]
                         time = time[:len(time) -3]
-                        self.accinfo[acc_id].append(time)
+                        self.accinfo[acc_id].append(time)      
+            for acc in self.accinfo:
+                try:
+                    ac = Account()
+                    ac.ServiceType = self.sourceApp
+                    ac.account_id = acc
+                    ac.source = nickfile.AbsolutePath
+                    ac.nickname = self.accinfo[acc][1]                    
+                    self.accounts.append(ac)
+                except Exception as e:
+                    pass
         except Exception as e:
             pass
         return
-    def insert_account(self):
-        nickfile =  self.root.GetByPath('/files/Properties')
-        for acc in self.accinfo:
-            try:
-                ac = Account()
-                ac.ServiceType = self.app_name
-                ac.account_id = acc
-                ac.source = nickfile.AbsolutePath
-                ac.nickname = self.accinfo[acc][1]
-            except Exception as e:
-                pass
-            self.im.db_insert_table_account(ac)
-        self.im.db_commit()
+    def insert_account(self,account):
+        try:
+            self.im.db_insert_table_account(account)
+            self.im.db_commit()
+        except:
+            pass
     def decode_friends(self,acc_id):
         node = self.root.GetByPath('/databases/'+ acc_id + '.db')
         if node is None:

@@ -161,20 +161,51 @@ class QQParser(object):
         self.im = IM()
         self.cachepath = ds.OpenCachePath(self.app_name) 
         self.bcppath = ds.OpenCachePath("tmp") 
-        m = hashlib.md5()
-        m.update(self.root.AbsolutePath.encode('utf-8'))        
-        self.cachedb =  self.cachepath  + '/' + m.hexdigest().upper() + ".db"    
+        self.cachedb = collections.defaultdict()
         self.VERSION_APP_VALUE = 10000   
         self.sourceApp = sourceApp
-        
-    def parse(self):        
-        if self.im.need_parse(self.cachedb, self.VERSION_APP_VALUE):
-            self.im.db_create(self.cachedb)
+        self.accountsProg = collections.defaultdict()
+    def set_progress(self, acc_id,value):
+        try:
+            if self.accountsProg[acc_id] is not None and value != self.accountsProg[acc_id].Value:
+                self.accountsProg[acc_id].Value = value
+                print('set_progress() %d' % value)
+        except Exception as e:
+            pass
+    def insert_account(self,ac):
+        try:
+            self.im.db_insert_table_account(ac)
+            self.im.db_commit()
+        except Exception as e:
+            pass
+    def parse(self):   
+        prog = progress['APP', self.sourceApp]
+        prog.Start() 
+        try:            
             self.decode_accounts()
-            for acc_id in self.accounts:
+        except:
+            pass
+        for acc in self.accounts:
+            acc_id = acc.account_id
+            m = hashlib.md5()
+            accountPath = self.root.AbsolutePath + acc_id
+            m.update(accountPath.encode('utf-8'))        
+            cachedb =  self.cachepath  + '/' + m.hexdigest().upper() + ".db"
+            self.cachedb[acc_id] = cachedb
+            model = QQ.UserAccount()
+            model.SourceFile = acc.source                   
+            model.Account = acc.account_id                    
+            model.NickName = acc.nickname
+            accountprog = progress['APP', self.sourceApp]['ACCOUNT',acc_id , model]
+            accountprog.Start()                    
+            self.accountsProg[acc_id] = accountprog
+            if self.im.need_parse(cachedb, self.VERSION_APP_VALUE):
+                self.im.db_create(cachedb)
+                self.insert_account(acc)            
                 try:
                     if canceller.IsCancellationRequested:
                         return
+                   
                     self.friendsNickname.clear()
                     self.friendsGroups.clear()
                     self.groupContact.clear()
@@ -183,47 +214,61 @@ class QQParser(object):
                     self.c2cmsgtables =set()
                     self.troopmsgtables =set() 
                     self.discussGrptables = set() 
-                    self.decode_favorites_info(acc_id)                  
+                    self.decode_favorites_info(acc_id)
+                    self.set_progress(acc_id,1)
                     self.decode_friends(acc_id)
+                    self.set_progress(acc_id,2)
                     self.decode_group_info(acc_id)                    
+                    self.set_progress(acc_id,3)
                     self.decode_groupMember_info(acc_id)
+                    self.set_progress(acc_id,4)
                     self.decode_discussGrp_info(acc_id)
+                    self.set_progress(acc_id,6)
                     self.decode_discussgroupMember_info(acc_id)
+                    self.set_progress(acc_id,8)
                     self.decode_discussGrp_messages(acc_id)
+                    self.set_progress(acc_id,10)
                     self.decode_friend_messages(acc_id)
+                    self.set_progress(acc_id,15)
                     self.decode_group_messages(acc_id)	                    
+                    self.set_progress(acc_id,20)
                     self.decode_fts_messages(acc_id)		                   
+                    self.set_progress(acc_id,25)
                     self.decode_recover_friends(acc_id)
+                    self.set_progress(acc_id,27)
                     self.decode_recover_group_info(acc_id)
+                    self.set_progress(acc_id,29)
                     self.decode_recover_groupMember_info(acc_id)
+                    self.set_progress(acc_id,30)
                     self.decode_recover_friend_messages(acc_id)
+                    self.set_progress(acc_id,32)
                     self.decode_recover_group_messages(acc_id)
-                    self.decode_recover_fts_messages(acc_id)                                                             
+                    self.set_progress(acc_id,34)
+                    self.decode_recover_fts_messages(acc_id)        
+                    self.set_progress(acc_id,35)
+                    if canceller.IsCancellationRequested:
+                        return
+                    self.im.db_insert_table_version(VERSION_KEY_DB, VERSION_VALUE_DB)
+                    self.im.db_insert_table_version(VERSION_KEY_APP, self.VERSION_APP_VALUE)
+                    self.im.db_commit()
+                    self.im.db_close()  
                 except Exception as e:
                     print(e)
-            if canceller.IsCancellationRequested:
-                return
-            self.im.db_insert_table_version(VERSION_KEY_DB, VERSION_VALUE_DB)
-            self.im.db_insert_table_version(VERSION_KEY_APP, self.VERSION_APP_VALUE)
-            self.im.db_commit()
-            self.im.db_close()
-        try:
-            PA_runtime.save_cache_path(bcp_im.CONTACT_ACCOUNT_TYPE_IM_QQ,self.cachedb,self.bcppath)
-        except Exception as e:
-            print (e)
-        gen = GenerateModel(self.cachedb,self.sourceApp)
-        if len(self.accounts) == 0:
-            self.accounts = gen.get_accounts_info()
-        try:
-            gen.get_models()
-        except:
-            pass
-        #gen res        
-        for acc_id in self.accounts:
+                   
+        for acc in self.accounts:
             try:
-                self.get_qq_res(acc_id,gen.ar)  
-            except:
-                pass
+                acc_id = acc.account_id
+                PA_runtime.save_cache_path(bcp_im.CONTACT_ACCOUNT_TYPE_IM_QQ,self.cachedb[acc_id],self.bcppath)
+                acc_id = acc.account_id            
+                gen = GenerateModel(self.cachedb[acc_id],self.sourceApp,self.accountsProg[acc_id])
+                gen.get_models()                
+                self.set_progress(acc_id,100)
+                self.accountsProg[acc_id].Finish(True)
+                self.get_qq_res(acc_id,gen.ar)
+            except Exception as e:
+                pass        
+        prog.Finish(True)
+        
     def get_qq_res(self,acc_id, ar):
         dicts = {}
         resnode = self.root.GetByPath('/Documents/' + acc_id)
@@ -697,10 +742,9 @@ class QQParser(object):
             self.nickname[ac.account_id] = ac.nickname
         except:
             pass
-        ac.source = source        
-        self.accounts.append(ac.account_id)
-        self.im.db_insert_table_account(ac)
-        self.im.db_commit()
+        ac.source = source         
+        self.accounts.append(ac)        
+
     def decode_friendlist(self,acc_id):
         try:
             node = self.root.GetByPath('/Documents/contents/' + acc_id + '/QQFriendList_v3.plist')

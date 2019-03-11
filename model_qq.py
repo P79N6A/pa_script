@@ -996,7 +996,7 @@ class ContactLabel(Column):
 
 
 class GenerateModel(object):
-    def __init__(self, cache_db, build='QQ'):
+    def __init__(self, cache_db, build='QQ',prog = None):
         self.cache_db = cache_db
         self.build = build        
         self.account_models = {}
@@ -1005,6 +1005,8 @@ class GenerateModel(object):
         self.chatroom_models = {}
         self.models = []
         self.media_models = []
+        self.progress = prog
+        self.analyzeProgress  = 0
         self.ar = AppResources(build, DescripCategories.QQ)         
         self.db = SQLite.SQLiteConnection('Data Source = {}'.format(self.cache_db))
         self.db.Open()
@@ -1063,12 +1065,16 @@ class GenerateModel(object):
             self.models = []
 
     def set_progress(self, value):
-        progress.Value = value
-        #print('set_progress() %d' % value)
+        try:            
+            self.progress.Value = self.analyzeProgress + (100 - self.analyzeProgress)*value/100
+        except Exception as e:
+            pass        
 
     def get_models(self):
-        
-
+        try:
+            self.analyzeProgress  = self.progress.Value
+        except:
+            pass
         #print('%s model_qq() generate model account' % time.asctime(time.localtime(time.time())))
         self._get_account_models()
         self.set_progress(2)
