@@ -2,6 +2,7 @@
 __author__ = 'YangLiyuan'
 
 import clr
+
 try:
     clr.AddReference('model_sim')
     clr.AddReference('bcp_basic')
@@ -14,10 +15,9 @@ import bcp_basic
 import model_sim
 from ScriptUtils import DEBUG, CASE_NAME, exc, tp, base_analyze, parse_decorator, BaseParser
 
-
-
 # app数据库版本
-VERSION_APP_VALUE = 2
+VERSION_APP_VALUE = 3
+
 
 @parse_decorator
 def analyze_sim(node, extract_deleted, extract_source):
@@ -26,26 +26,27 @@ def analyze_sim(node, extract_deleted, extract_source):
         user_de/0/com.android.providers.telephony/databases$
     """
     node_path = node.AbsolutePath
-    res = []
     tp(node.AbsolutePath)
+    _Parser = SIMParser
+
     if node_path.endswith('sim/sim.db'):
-        return base_analyze(SIMParser_no_tar, 
-                            node, 
-                            bcp_basic.BASIC_SIM_INFORMATION, 
-                            VERSION_APP_VALUE,
-                            build_name='SIM 卡',
-                            db_name='AndroidSIM')            
-    elif node_path.endswith('user_de/0/com.android.providers.telephony/databases/telephony.db'):
-        return base_analyze(SIMParser, 
-                            node, 
-                            bcp_basic.BASIC_SIM_INFORMATION, 
-                            VERSION_APP_VALUE,
-                            build_name='SIM 卡',
-                            db_name='AndroidSIM')            
+        _Parser = SIMParser_no_tar
+    elif node_path.endswith('com.android.providers.telephony/databases/telephony.db'):
+        _Parser = SIMParser
+    elif node_path.endswith('simcardmanagement.db'):
+        _Parser = OldSamsungSIMParser
+
+    return base_analyze(_Parser,
+                        node,
+                        bcp_basic.BASIC_SIM_INFORMATION,
+                        VERSION_APP_VALUE,
+                        build_name='SIM 卡',
+                        db_name='AndroidSIM')
 
 
 class SIMParser(BaseParser):
     """ \user_de\0\com.android.providers.telephony\databases\telephony.db """
+
     def __init__(self, node, db_name):
         super(SIMParser, self).__init__(node, db_name)
         self.root = node.Parent
@@ -89,18 +90,16 @@ class SIMParser(BaseParser):
                 self.csm.db_insert_table_sim(sim)
             except:
                 exc()
-        try:
-            self.csm.db_commit()
-        except:
-            exc()
-        
+        self.csm.db_commit()
+
+
 class SIMParser_no_tar(SIMParser):
     ''' 处理没有 tar 包的案例 '''
 
     def __init__(self, node, db_name):
         super(SIMParser_no_tar, self).__init__(node, db_name)
         self.root = node
-    
+
     def parse_main(self):
         if not self._read_db(node=self.root):
             return
@@ -128,3 +127,45 @@ class SIMParser_no_tar(SIMParser):
         except:
             exc()
 
+
+class OldSamsungSIMParser(SIMParser):
+    ''' com.android.simcardmanagement/databases/simcardmanagement.db - registerinfo'''
+
+    def __init__(self, node, db_name):
+        super(OldSamsungSIMParser, self).__init__(node, db_name)
+        self.root = node
+
+    def parse_main(self):
+        if not self._read_db(node=self.root):
+            return
+        self.parse_simcardmanagement()
+
+    def parse_simcardmanagement(self):
+        ''' simcardmanagement.db - registerinfo
+
+            FieldName	    SQLType
+            _id	            INTEGER     PK
+            card_id	        VARCHAR
+            card_iccid	    VARCHAR
+            card_type	    VARCHAR
+            card_name	    VARCHAR
+            card_number	    VARCHAR
+            slot_number	    INTEGER
+            icon_index	    INTEGER
+            icon_name	    VARCHAR
+        '''
+        for rec in self._read_table('registerinfo', read_delete=False):
+            if (self._is_empty(rec, 'card_iccid')
+                    or self._is_duplicate(rec, '_id')):
+                continue
+            try:
+                sim = model_sim.SIM()
+                sim.name = rec['card_name'].Value
+                sim.iccid = rec['card_iccid'].Value
+                if rec['card_number'].Value != 'UNKNOWN':
+                    sim.msisdn = rec['card_number'].Value
+                sim.source = self.cur_db_source
+                self.csm.db_insert_table_sim(sim)
+            except:
+                exc()
+        self.csm.db_commit()

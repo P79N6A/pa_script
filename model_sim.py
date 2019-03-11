@@ -5,38 +5,15 @@ from PA_runtime import *
 import clr
 try:
     clr.AddReference('System.Data.SQLite')
+    clr.AddReference('ScriptUtils')
 except:
     pass
 del clr
 
-import System.Data.SQLite as SQLite
-
-
 import sqlite3
-import hashlib
+import System.Data.SQLite as SQLite
+from ScriptUtils import exc
 
-DEBUG = True
-DEBUG = False
-
-CASE_NAME = ds.ProjectState.ProjectDir.Name
-
-def exc(e=''):
-    ''' Exception output '''
-    try:
-        if DEBUG:
-            py_name = os.path.basename(__file__)
-            msg = 'DEBUG {} case:<{}> :'.format(py_name, CASE_NAME)
-            TraceService.Trace(TraceLevel.Warning, (msg+'{}{}').format(traceback.format_exc(), e))
-    except:
-        pass   
-
-def test_p(*e):
-    ''' Highlight print in test environments vs console '''
-    if DEBUG:
-        TraceService.Trace(TraceLevel.Warning, "{}".format(e))
-    else:
-        pass
-          
 
 VERSION_KEY_DB  = 'db'
 VERSION_VALUE_DB = 1
@@ -75,9 +52,12 @@ SQL_INSERT_TABLE_SIM = '''
         name,
         msisdn,
         imsi,
+        iccid,
+        center_num,
+        is_use,
         source, deleted, repeated) 
         values(?, ?, ?, ?, ?, 
-               ?
+               ?, ?, ?, ?
             )
     '''
 
@@ -201,16 +181,22 @@ class Column(object):
 class SIM(Column):
     def __init__(self):
         super(SIM, self).__init__()
-        self.name = None   # sim 卡运营商名称
-        self.msisdn = None  # 
-        self.imsi = None  # 
+        self.name       = None    # TEXT  sim 卡运营商名称
+        self.msisdn     = None    # TEXT
+        self.imsi       = None    # TEXT
+        self.iccid      = None    # TEXT
+        self.center_num = None    # TEXT
+        self.is_use     = None    #  INT
 
     def get_values(self):
         return (
-            self.name,
-            self.msisdn,
-            self.imsi,
-            ) + super(SIM, self).get_values()
+           self.name,
+           self.msisdn,
+           self.imsi,
+           self.iccid,
+           self.center_num,
+           self.is_use,
+       ) + super(SIM, self).get_values()
 
 class GenerateModel(object):
     '''

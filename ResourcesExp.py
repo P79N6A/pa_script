@@ -1,18 +1,32 @@
 #coding:utf-8
 
+__author__ = "Xu Tao"
+
+import clr
+try:
+    clr.AddReference("model_res")
+except:
+    pass
 from PA_runtime import *
 from System.IO import Path
 from PA.InfraLib.ModelsV2.Base import *
 from PA.InfraLib.Utils import FileTypeChecker, FileDomain
 
 import os
-import random
+import hashlib
+import traceback
 from PIL import Image
 from PIL.ExifTags import TAGS
 
 
+import model_res
+
+VIDEOTHUMBNAILFILE = 3
+THUMBNAILFILE = 2
+IMAGEFILE = 1
+
 class AppResources(object):
-    
+   
     def __init__(self, bulid, categories):
         self.res_models = []
         self.path_list = {}
@@ -20,37 +34,39 @@ class AppResources(object):
         self.node_list = {}
         self.media_path_set = set()
         self.img_thum_suffix = set()
-        self.checker = FileTypeChecker()
         self.video_thum_suffix = set()
+        self.checker = FileTypeChecker()
         self.prog = progress['APP', bulid]['MEDIA', '多媒体']
         self.prog_value = 0
         self.step_value = None
+        self.cache_path = ds.OpenCachePath("AppResources") 
         self.descript_categories = categories
         self.build = bulid
+        self.appres = model_res.Resources()
+        self.unique_id = None
+        self.need_load_db = False
 
     def parse(self):
         if len(self.node_list) == 0:
             if self.prog:
                 self.prog.Skip()
             raise Exception("No multimedia resource directory was passed in")
-        if self.prog:
-            self.prog.Start()
-            self.prog.Value = 0
-        self.step_value = 100 / len(self.node_list)
-        if len(self.media_models) != 0:
-            self.path_list = self.return_model_index(self.media_models)
-        thread_list = []
-        start = time.time()
-        map(self.progress_search, self.node_list.keys())
-        self.res_models.extend(self.media_models)
-        self._push_models(self.media_models)
-        if self.prog:
-            self.prog.Value = 100
-            self.prog.Finish(True)
-        end = time.time()
-        TraceService.Trace(TraceLevel.Info, "搜索{0}多媒体共计耗时{1}s".format(self.build, int(end-start)))
-        # return self.res_models
-  
+        db_path = self._get_db_path()   
+        if db_path is None:
+            self._reparse()
+        else:
+            if self.appres.need_parse(db_path):
+                self.need_load_db = True
+                self.appres.db_create(db_path)
+                self._reparse()
+                self.appres.db_insert_table_version(model_res.VERSION_KEY_DB, model_res.VERSION_VALUE_DB)
+                self.appres.db_commit()
+                self.appres.db_close()
+            else:
+                self._progess_start()
+                model_res.ExportModel(db_path, self.build, self.descript_categories).get_model()
+                self._progess_end()
+                           
     def save_media_model(self, model):
         """
         Save media models
@@ -118,7 +134,7 @@ class AppResources(object):
                 
                 models.append(model)
                 # self._push_models(model)
-            if len(models) > int(random.uniform(600, 1200)):
+            if len(models) > 1000:
                 self._push_models(models)
                 models = []
         self._push_models(models)
@@ -329,3 +345,149 @@ class AppResources(object):
         pr.Models.AddRange(ar_models)
         pr.Build(self.build)
         ds.Add(pr)
+        if self.need_load_db:
+            self.assign_value_to_obj_from_model(ar_models)
+
+    def set_unique_id(self, v):
+        """
+        设置唯一id
+        """
+        self.unique_id = v
+
+    def _progess_start(self):
+        if self.prog:
+            self.prog.Start()
+            self.prog.Value = 0
+
+    def _progess_end(self):
+        if self.prog:
+            self.prog.Value = 100
+            self.prog.Finish(True)
+    
+    def _get_db_path(self):
+        try:
+            m = hashlib.md5()   
+            m.update(self.unique_id.encode(encoding = 'utf-8'))
+            _tmp = os.path.join(self.cache_path, self.build)
+            if not os.path.exists(_tmp):
+                os.makedirs(_tmp)
+            db_path = os.path.join(_tmp, m.hexdigest() + ".db")
+            return db_path
+        except:
+            return None
+    
+    def assign_value_to_obj_from_model(self, ar_models):
+        for model in ar_models:
+            if isinstance(model, (MediaFile.ImageFile, MediaFile.ThumbnailFile, MediaFile.VideoThumbnailFile)):
+                try:
+                    mediaimage = model_res.MediaImage()
+                    mediaimage.height = model.Height
+                    mediaimage.width = model.Width
+                    if model.Location:
+                        mediaimage.longitude = model.Location.Coordinate.Longitude
+                        mediaimage.latitude = model.Location.Coordinate.Latitude
+                    mediaimage.iso = model.ISO
+                    mediaimage.make = model.Make
+                    mediaimage.model = model.Model
+                    mediaimage.artist = model.Artist
+                    mediaimage.software = model.Software
+                    mediaimage.aperture = model.Aperture
+                    mediaimage.takenDate= model.TakenDate
+                    mediaimage.colorSpace = model.ColorSpace
+                    mediaimage.resolution = model.Resolution
+                    mediaimage.focalLength = model.FocalLength
+                    mediaimage.xresolution = model.XResolution
+                    mediaimage.yresolution = model.YResolution
+                    mediaimage.exifVersion = model.ExifVersion
+                    mediaimage.exposureTime = model.ExposureTime
+                    mediaimage.exposureProgram= model.ExposureProgram
+                    mediaimage.fileName = model.FileName
+                    mediaimage.fileExtention = model.FileExtention
+                    mediaimage.path = model.Path
+                    mediaimage.size = model.Size
+                    mediaimage.addTime = model.AddTime
+                    mediaimage.modifyTime = model.ModifyTime
+                    mediaimage.deleted = self._get_deleted_status(model.Deleted)
+                    mediaimage.type = self._get_media_type(model)
+
+                    self.appres.db_insert_table_image(mediaimage)
+                except Exception as e:
+                    TraceService.Trace(TraceLevel.Info, "assign_value_to_obj_from_model failed {0}".format(e))
+
+            elif isinstance(model, MediaFile.AudioFile):
+                try:
+                    mediaudio = model_res.MediaAudio()
+                    mediaudio.fileName = model.FileName
+                    mediaudio.fileExtention = model.FileExtention
+                    mediaudio.path = model.Path
+                    mediaudio.size = model.Size
+                    mediaudio.addTime = model.AddTime
+                    mediaudio.modifyTime = model.ModifyTime
+                    mediaudio.album = model.Album
+                    mediaudio.artist = model.Artist
+                    mediaudio.deleted = self._get_deleted_status(model.Deleted)
+
+                    self.appres.db_insert_table_audio(mediaudio)
+                except Exception as e:
+                    TraceService.Trace(TraceLevel.Info, "assign_value_to_obj_from_model failed {0}".format(e))
+
+            elif isinstance(model, MediaFile.VideoFile):
+                try:
+                    mediavideo = model_res.MediaVideo()
+                    mediavideo.fileName = model.FileName
+                    mediavideo.fileExtention = model.FileExtention
+                    mediavideo.path = model.Path
+                    mediavideo.size = model.Size
+                    mediavideo.addTime = model.AddTime
+                    mediavideo.modifyTime = model.ModifyTime
+                    mediavideo.deleted = self._get_deleted_status(model.Deleted)
+
+                    self.appres.db_insert_table_video(mediavideo)
+                except Exception as e:
+                    TraceService.Trace(TraceLevel.Info, "assign_value_to_obj_from_model failed {0}".format(e))
+            
+            else:
+                try:
+                    mediaother = model_res.MediaOther()
+                    mediaother.fileName = model.FileName
+                    mediaother.fileExtention = model.FileExtention
+                    mediaother.path = model.Path
+                    mediaother.size = model.Size
+                    mediaother.addTime = model.AddTime
+                    mediaother.modifyTime = model.ModifyTime
+                    mediaother.deleted = self._get_deleted_status(model.Deleted)
+
+                    self.appres.db_insert_table_other(mediaother)
+                except Exception as e:
+                    TraceService.Trace(TraceLevel.Info, "assign_value_to_obj_from_model failed {0}".format(e))
+        self.appres.db_commit()
+    
+    def _get_media_type(self, model):
+        if isinstance(model, MediaFile.VideoThumbnailFile):
+            return VIDEOTHUMBNAILFILE
+        elif isinstance(model, MediaFile.ThumbnailFile):
+            return THUMBNAILFILE
+        else:
+            return IMAGEFILE
+    
+    def _reparse(self):
+        self._progess_start()
+        self.step_value = 100 / len(self.node_list)
+        if len(self.media_models) != 0:
+            self.path_list = self.return_model_index(self.media_models)
+        start = time.time()
+        map(self.progress_search, self.node_list.keys())
+        self.res_models.extend(self.media_models)
+        self._push_models(self.media_models)
+        self._progess_end()
+        end = time.time()
+        TraceService.Trace(TraceLevel.Info, "搜索{0}多媒体共计耗时{1}s".format(self.build, int(end-start)))
+
+    @staticmethod
+    def _get_deleted_status(v):
+        if v == DeletedState.Deleted:
+            return 1
+        elif v == DeletedState.Intact:
+            return 0
+        else:
+            return 2

@@ -20,7 +20,7 @@ from collections import OrderedDict
 from ScriptUtils import DEBUG, CASE_NAME, exc, tp, BaseAndroidParser, parse_decorator
 
 
-VERSION_APP_VALUE = 3
+VERSION_APP_VALUE = 4
 
 MSG_TYPE_ALL    = 0
 MSG_TYPE_INBOX  = 1
@@ -41,11 +41,12 @@ PDUHEADERS_TO   = 151
 def analyze_sms(node, extract_deleted, extract_source):
     # 首先匹配 icing_mmssms, 然后剩下的只返回最先匹配到的, 不重复匹配
     SMS_PATTERNS = OrderedDict([
-        (r'(?i)/com.google.android.gms/databases/icing_mmssms\.db$', AndroidIcingParser),
-        (r'(?i)/com.android.providers.telephony/databases/mmssms\.db$', AndroidSMSParser), 
-        (r'(?i)/sms/sms.db$', AndroidSMSParserFsLogic), 
-        (r'(?i)/sms.vmsg', VMSGParser),                   # AutoBackup OPPO MEIZU
-        (r'(?i)/sms.db', AutoBackupHuaweiSMSParser),      # AutoBackup HuaWei
+        (r'(?i)/com\.google\.android\.gms/databases/icing_mmssms\.db$', AndroidIcingParser),
+        (r'(?i)/com.sec.android.provider.logsprovider/databases/logs\.db$', OldSamsungSMSMMSParser),
+        (r'(?i)/com\.android\.providers\.telephony/databases/mmssms\.db$', AndroidSMSParser),
+        (r'(?i)/sms/sms\.db$', AndroidSMSParserFsLogic),
+        (r'(?i)/sms\.vmsg$', VMSGParser),                   # AutoBackup OPPO MEIZU
+        (r'(?i)/sms\.db$', AutoBackupHuaweiSMSParser),      # AutoBackup HuaWei
     ])
     res = []
     hit_nodes = []
@@ -53,12 +54,11 @@ def analyze_sms(node, extract_deleted, extract_source):
     BCP_TYPE = bcp_basic.BASIC_SMS_INFORMATION
     db_name = 'AndroidSMS'
     try:
-
         for _pattern, _parser in SMS_PATTERNS.items():
             _nodes = node.FileSystem.Search(_pattern)
             if len(list(_nodes)) != 0:
                 hit_nodes.append((_parser, _nodes))
-                if _parser != AndroidIcingParser:
+                if _parser not in (AndroidIcingParser, OldSamsungSMSMMSParser):
                     break
 
         if hit_nodes:
@@ -78,7 +78,6 @@ def analyze_sms(node, extract_deleted, extract_source):
             pr.Models.AddRange(res)
             pr.Build('短信')
     except:
-        progress.Skip()
         if DEBUG:
             msg = '{} 解析新案例 <{}> 出错: {}'.format(db_name, CASE_NAME, traceback.format_exc())
             TraceService.Trace(TraceLevel.Debug, msg)
@@ -122,10 +121,10 @@ def analyze_mms(node, extract_deleted, extract_source):
             pr.Models.AddRange(res)
             pr.Build('彩信')
     except:
-        progress.Skip()
         if DEBUG:
             msg = '{} 解析新案例 <{}> 出错: {}'.format(db_name, CASE_NAME, traceback.format_exc())
             TraceService.Trace(TraceLevel.Debug, msg)
+
     return pr
 
 
@@ -146,7 +145,7 @@ class AndroidSMSParser(BaseAndroidParser):
             if 'sim_cards' in self.cur_db.Tables:
                 self.parse_sim_cards('sim_cards')
             self.parse_sms('sms')
-        
+
     def parse_sim_cards(self, table_name):
         """ 
             sms - 短信
@@ -262,10 +261,10 @@ class AndroidSMSParser(BaseAndroidParser):
         for rec in self._read_table(table_name):
             try:
                 if (self._is_empty(rec, 'type', 'body') or
-                    self._is_duplicate(rec, pk_name)):
+                        self._is_duplicate(rec, pk_name)):
                     continue
-                if (rec['address'].Value and 
-                    not self._is_num(rec['address'].Value)):
+                if (rec['address'].Value and
+                        not self._is_num(rec['address'].Value)):
                     continue
                 sms = model_sms.SMS()
                 # 华为没有的字段
@@ -276,11 +275,11 @@ class AndroidSMSParser(BaseAndroidParser):
                 sms._id            = rec[pk_name].Value
                 sms.read_status    = rec['read'].Value
                 sms.type           = rec['type'].Value    # MSG_TYPE
-                sms.subject        = rec['subject'].Value 
+                sms.subject        = rec['subject'].Value
                 sms.body           = rec['body'].Value
-                sms.send_time      = rec['date_sent'].Value
                 sms.delivered_date = rec['date'].Value
-                sms.is_sender   = 1 if sms.type in (MSG_TYPE_SENT, MSG_TYPE_OUTBOX, MSG_TYPE_DRAFT) else 0
+                sms.send_time      = rec['date_sent'].Value if 'date_sent' in rec.Keys else sms.delivered_date
+                sms.is_sender = 1 if sms.type in (MSG_TYPE_SENT, MSG_TYPE_OUTBOX, MSG_TYPE_DRAFT) else 0
                 if sms.is_sender == 1:  # 发
                     sms.sender_phonenumber = self.sim_phonenumber.get(sms.sim_id, None) if sms.sim_id else None
                     sms.sender_name        = self._get_contacts(sms.sender_phonenumber)
@@ -292,7 +291,7 @@ class AndroidSMSParser(BaseAndroidParser):
                     sms.recv_phonenumber   = self.sim_phonenumber.get(sms.sim_id, None) if sms.sim_id else None
                     sms.recv_name          = self._get_contacts(sms.recv_phonenumber)
 
-                sms.deleted = 1 if rec.IsDeleted or sms.deleted else 0         
+                sms.deleted = 1 if rec.IsDeleted or sms.deleted else 0
                 sms.source = self.cur_db_source
                 self.csm.db_insert_table_sms(sms)
             except:
@@ -472,8 +471,8 @@ class AndroidMMSParser(AndroidSMSParser):
                 mms.subject            = rec['sub'].Value
                 mms.read_status        = rec['read'].Value
                 # mms.body               = rec['body'].Value
-                mms.send_time          = rec['date_sent'].Value
                 mms.delivered_date     = rec['date'].Value
+                mms.send_time          = rec['date_sent'].Value if 'date_sent' in rec.Keys else mms.delivered_date
                 mms.type               = rec['msg_box'].Value        # MSG_TYPE
                 mms.is_sender          = 1 if mms.type in (MSG_TYPE_SENT, MSG_TYPE_OUTBOX) else 0
                 mms.deleted            = 1 if rec.IsDeleted else 0
@@ -798,3 +797,142 @@ class AndroidIcingParser(AndroidSMSParser):
             self.csm_mms.db_insert_table_mms(mms)
         except:
             exc()
+
+
+class OldSamsungSMSMMSParser(AndroidSMSParser):
+    def __init__(self, node, db_name):
+        super(OldSamsungSMSMMSParser, self).__init__(node, db_name)
+        self.root = node
+        self.csm = model_sms.ModelSMS()
+        self.Generate = model_sms.GenerateSMSModel
+
+        self.csm_mms = model_sms.ModelMMS()
+        self.mms_cache_db = self.cache_db.replace('.db', '_mms.db')
+        self.csm_mms.db_create(self.mms_cache_db)
+
+    def parse(self, BCP_TYPE, VERSION_APP_VALUE):
+        models = super(OldSamsungSMSMMSParser, self).parse(BCP_TYPE, VERSION_APP_VALUE)
+        self.csm_mms.db_close()
+        browser_models = model_sms.GenerateMMSModel(self.mms_cache_db).get_models()
+        models.extend(browser_models)
+        return models
+
+    def parse_main(self):
+        self.pre_parse_calls()
+        if self._read_db(node=self.root):
+            self.parse_logs('logs')
+
+    def parse_logs(self, table_name):
+        '''
+            FieldName	SQLType
+            _id
+            number	              TEXT
+            address	              TEXT
+            date	              INTEGER
+            duration	          INTEGER
+            type	              INTEGER
+            new
+            simnum	              INTEGER
+            name	              TEXT
+            name_reversed	      TEXT
+            numbertype	          INTEGER
+            numberlabel	          TEXT
+            messageid	          TEXT
+            threadid	          TEXT
+            logtype	              INTEGER
+            frequent	          INTEGER
+            contactid	          INTEGER
+            raw_contact_id	      INTEGER
+            m_subject	          TEXT
+            m_content	          TEXT
+            sns_tid	              TEXT
+            sns_pkey	          TEXT
+            account_name	      TEXT
+            account_id	          TEXT
+            sns_receiver_coun     TEXT
+            sp_type	              TEXT
+            cnap_name	          TEXT
+            cdnip_number	      TEXT
+            service_type	      INTEGER
+            sdn_alpha_id	      TEXT
+            real_phone_number     TEXT
+            call_out_duration     INTEGER
+            reject_flag	          INTEGER
+        '''
+        _sms_list = []
+        for rec in self._read_table(table_name):
+            try:
+                pk_name = '_id'
+                if (self._is_empty(rec, 'number', 'date')
+                    or self._is_duplicate(rec, pk_name)):
+                    continue
+
+                # logtype 200 是彩信， 300 是短信， 100 是通话记录
+                if rec['logtype'].Value == 300:
+                    self._parse_logs_sms(rec)
+                elif rec['logtype'].Value == 200:
+                    self._parse_logs_mms(rec)
+            except:
+                exc()
+        self.csm.db_commit()
+        self.csm_mms.db_commit()
+
+    def _parse_logs_sms(self, rec):
+        sms = model_sms.SMS()
+        sms._id = rec['_id'].Value
+        sms.sim_id = rec['simnum'].Value if rec.ContainsKey('simnum') else None
+        if rec.ContainsKey('is_read'):
+            sms.read_status = rec['is_read'].Value
+        sms.type           = rec['type'].Value    # MSG_TYPE
+        sms.body           = rec['m_content'].Value
+        sms.send_time      = rec['date'].Value
+        sms.delivered_date = rec['date'].Value if sms.type in [MSG_TYPE_INBOX, MSG_TYPE_SENT] else None
+        sms.is_sender = 1 if sms.type in (MSG_TYPE_SENT, MSG_TYPE_OUTBOX, MSG_TYPE_DRAFT) else 0
+        _number = rec['normalized_number'].Value if rec.ContainsKey('normalized_number') else rec['number'].Value
+        if sms.is_sender == 1:  # 发
+            sms.sender_phonenumber = self.sim_phonenumber.get(sms.sim_id, None) if sms.sim_id else None
+            sms.sender_name        = self._get_contacts(sms.sender_phonenumber)
+            sms.recv_phonenumber   = _number
+            sms.recv_name          = rec['name'].Value
+        else:                   # 收
+            sms.sender_phonenumber = _number
+            sms.sender_name        = rec['name'].Value
+            sms.recv_phonenumber   = self.sim_phonenumber.get(sms.sim_id, None) if sms.sim_id else None
+            sms.recv_name          = self._get_contacts(sms.recv_phonenumber)
+
+        sms.deleted = 1 if rec.IsDeleted else 0
+        sms.source = self.cur_db_source
+        self.csm.db_insert_table_sms(sms)
+
+    def _parse_logs_mms(self, rec):
+        try:
+            mms = model_sms.SMS()
+            mms.is_mms = 1
+            mms._id = rec['_id'].Value
+            mms.sim_id = rec['simnum'].Value if rec.ContainsKey('simnum') else None
+            mms.subject = rec['m_subject'].Value
+            if rec.ContainsKey('is_read'):
+                mms.read_status = rec['is_read'].Value
+            mms.type = rec['type'].Value  # MSG_TYPE
+            mms.body = rec['m_content'].Value
+            mms.send_time = rec['date'].Value
+            mms.delivered_date = rec['date'].Value if mms.type in [MSG_TYPE_INBOX, MSG_TYPE_SENT] else None
+            mms.is_sender = 1 if mms.type in (MSG_TYPE_SENT, MSG_TYPE_OUTBOX, MSG_TYPE_DRAFT) else 0
+            _number = rec['normalized_number'].Value if rec.ContainsKey('normalized_number') else rec['number'].Value
+            if mms.is_sender == 1:  # 发
+                mms.sender_phonenumber = self.sim_phonenumber.get(mms.sim_id, None) if mms.sim_id else None
+                mms.sender_name = self._get_contacts(mms.sender_phonenumber)
+                mms.recv_phonenumber = _number
+                mms.recv_name = rec['name'].Value
+            else:  # 收
+                mms.sender_phonenumber = _number
+                mms.sender_name = rec['name'].Value
+                mms.recv_phonenumber = self.sim_phonenumber.get(mms.sim_id, None) if mms.sim_id else None
+                mms.recv_name = self._get_contacts(mms.recv_phonenumber)
+
+            mms.deleted = 1 if rec.IsDeleted else 0
+            mms.source  = self.cur_db_source
+            self.csm_mms.db_insert_table_mms(mms)
+        except:
+            exc()
+

@@ -183,7 +183,7 @@ class WeChatParser(Wechat):
         for build in self.node_dict:
             prog = progress['APP', build]
             prog.Start()
-            self.ar = AppResources(progress['APP', build]['MEDIA', '多媒体'])
+            self.ar = AppResources(build, DescripCategories.Wechat)
             self.ar.set_thum_config("jpg", "Video")
             self.ar.set_thum_config("thumb", "Video")
             self.ar.set_thum_config("cover", "Video")
@@ -195,16 +195,10 @@ class WeChatParser(Wechat):
                 self.parse_user_node(node, build)
                 gc.collect()
 
-            pr = ParserResults()
-            pr.Categories = DescripCategories.Wechat
             try:
-                res = self.ar.parse()
+                self.ar.parse()
             except Exception as e:
                 print e
-                res = []
-            pr.Models.AddRange(res)
-            pr.Build(build)
-            ds.Add(pr)
 
             prog.Finish(True)
             self.ar = None
@@ -259,6 +253,8 @@ class WeChatParser(Wechat):
             mm_db_parser = None
             try:
                 # print('%s android_wechat() decrypt EnMicroMsg.db' % time.asctime(time.localtime(time.time())))
+                if self.imei is None:
+                    self.imei = 'A000002FD6B191'
                 if Decryptor.decrypt(node, self._get_db_key(self.imei, self.uin), mm_db_path):
                     # print('%s android_wechat() parse MicroMsg.db' % time.asctime(time.localtime(time.time())))
                     mm_db_parser = self._parse_mm_db(mm_db_path, node.AbsolutePath)
@@ -1520,6 +1516,8 @@ class WeChatParser(Wechat):
             content = self._process_parse_message_semi_xml(content)
         elif msg_type == MSG_TYPE_APP_MESSAGE:
             content = self._process_parse_message_app_message(content, model)
+        elif msg_type == MSG_TYPE_FRIEND_RECOMMEND or msg_type == MSG_TYPE_FRIEND_RECOMMEND_ONE:
+            content = self._process_parse_message_friend_recommend(content, model)
         else:  # MSG_TYPE_LINK
             content = self._process_parse_message_link(content, model)
 
@@ -1652,7 +1650,7 @@ class WeChatParser(Wechat):
             if model.deleted == 0:
                 TraceService.Trace(TraceLevel.Error, "base_wechat.py Error: LINE {} \nxml: {}".format(traceback.format_exc(), xml_str))
             model.type = model_wechat.MESSAGE_CONTENT_TYPE_TEXT
-            return
+            return xml_str
 
         if xml is not None:
             if xml.Name.LocalName == 'msg':

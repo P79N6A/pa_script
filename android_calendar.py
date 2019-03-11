@@ -141,8 +141,8 @@ class CalendarParser(object):
             self.mc.db_commit()
             sr.Close()
             self.db.Close()
-        except Exception as e:
-            print(e)
+        except:
+            pass
 
     def _extractData(self,s,subs):
         if s is not None:

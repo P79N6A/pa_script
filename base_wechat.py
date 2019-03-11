@@ -44,6 +44,8 @@ MSG_TYPE_POSITION_SHARE = -1879048186
 MSG_TYPE_TEXT = 1
 MSG_TYPE_IMAGE = 3
 MSG_TYPE_VOICE = 34
+MSG_TYPE_FRIEND_RECOMMEND_ONE = 37
+MSG_TYPE_FRIEND_RECOMMEND = 40
 MSG_TYPE_CONTACT_CARD = 42
 MSG_TYPE_VIDEO = 43
 MSG_TYPE_VIDEO_2 = 62
@@ -357,6 +359,34 @@ class Wechat(object):
                 model.business_card_signature = xml.Attribute('sign').Value
         return content
 
+    def _process_parse_message_friend_recommend(self, xml_str, model):
+        content = xml_str
+        xml = None
+        try:
+            xml = XElement.Parse(xml_str)
+        except Exception as e:
+            pass
+        if xml and xml.Name.LocalName == 'msg':
+            content = ''
+            if xml.Attribute('fromusername'):
+                model.business_card_username = xml.Attribute('fromusername').Value
+            if xml.Attribute('fromnickname'):
+                model.business_card_nickname = xml.Attribute('fromnickname').Value
+            if xml.Attribute('sex'):
+                try:
+                    model.business_card_gender = int(xml.Attribute('sex').Value)
+                except Exception as e:
+                    pass
+            if xml.Attribute('bigheadimgurl'):
+                model.business_card_photo = xml.Attribute('bigheadimgurl').Value
+            if model.business_card_photo in [None, ''] and xml.Attribute('smallheadimgurl'):
+                model.business_card_photo = xml.Attribute('smallheadimgurl').Value
+            if xml.Attribute('regionCode'):
+                model.business_card_region = xml.Attribute('regionCode').Value
+            if xml.Attribute('sign'):
+                model.business_card_signature = xml.Attribute('sign').Value
+        return content
+
     def _parse_segment(self, comment_row):
         try:
             sign_head_length = 0x0c
@@ -415,40 +445,40 @@ class Wechat(object):
 
     @staticmethod
     def _db_record_get_value(record, column, default_value=None):
-        if not record[column].IsDBNull:
-            return record[column].Value
-        return default_value
+        try:
+            if not record[column].IsDBNull:
+                return record[column].Value
+        except Exception as e:
+            return default_value
 
     @staticmethod
     def _db_record_get_string_value(record, column, default_value=''):
-        if not record[column].IsDBNull:
-            try:
+        try:
+
+            if not record[column].IsDBNull:
                 value = str(record[column].Value)
                 #if record.Deleted != DeletedState.Intact:
                 #    value = filter(lambda x: x in string.printable, value)
                 return value
-            except Exception as e:
-                return default_value
-        return default_value
+        except Exception as e:
+            return default_value
 
     @staticmethod
     def _db_record_get_int_value(record, column, default_value=0):
-        if not record[column].IsDBNull:
-            try:
+        try:
+            if not record[column].IsDBNull:
                 return int(record[column].Value)
-            except Exception as e:
+        except Exception as e:
                 return default_value
-        return default_value
 
     @staticmethod
     def _db_record_get_blob_value(record, column, default_value=None):
-        if not record[column].IsDBNull:
-            try:
+        try:
+            if not record[column].IsDBNull:
                 value = record[column].Value
                 return bytes(value)
-            except Exception as e:
-                return default_value
-        return default_value
+        except Exception as e:
+            return default_value
 
     @staticmethod
     def _db_column_get_string_value(column, default_value=''):
@@ -558,6 +588,8 @@ class Wechat(object):
             return model_wechat.MESSAGE_CONTENT_TYPE_APPMESSAGE
         elif msg_type == MSG_TYPE_LINK_SEMI:
             return model_wechat.MESSAGE_CONTENT_TYPE_LINK_SET
+        elif msg_type == MSG_TYPE_FRIEND_RECOMMEND or msg_type == MSG_TYPE_CONTACT_CARD or msg_type == MSG_TYPE_FRIEND_RECOMMEND_ONE:
+            return model_wechat.MESSAGE_CONTENT_TYPE_CONTACT_CARD
         else:
             return model_wechat.MESSAGE_CONTENT_TYPE_LINK
 
