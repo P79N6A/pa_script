@@ -3394,6 +3394,7 @@
           <key>Patterns</key>
           <array>
             <string>/com\.android\.browser/databases/browser2\.db$</string>
+            <string>/com\.android\.browser/databases/browser\.db$</string>
           </array>
           <key>Category</key>
           <string>AndroidBrowser</string>

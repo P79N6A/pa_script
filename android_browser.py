@@ -22,16 +22,17 @@ import bcp_browser
 
 
 # app数据库版本
-VERSION_APP_VALUE = 2
+VERSION_APP_VALUE = 4
 
 # 国产安卓手机预装浏览器类型
 NATIVE = bcp_browser.NETWORK_APP_OTHER
-XIAOMI  = bcp_browser.NETWORK_APP_XIAOMI
-HUAWEI  = bcp_browser.NETWORK_APP_HUAWEI
-VIVO    = bcp_browser.NETWORK_APP_VIVO
-OPPO    = bcp_browser.NETWORK_APP_OPPO
-LENOVO  = bcp_browser.NETWORK_APP_LENOVO
-MEIZU   = bcp_browser.NETWORK_APP_MEIZU
+XIAOMI = bcp_browser.NETWORK_APP_XIAOMI
+HUAWEI = bcp_browser.NETWORK_APP_HUAWEI
+VIVO   = bcp_browser.NETWORK_APP_VIVO
+OPPO   = bcp_browser.NETWORK_APP_OPPO
+LENOVO = bcp_browser.NETWORK_APP_LENOVO
+MEIZU  = bcp_browser.NETWORK_APP_MEIZU
+SAMSUNG = bcp_browser.NETWORK_APP_OTHER
 
 """ 安卓原生类 com.android.browser/databases/browser2.db
         # xiaomi, huawei, oppo
@@ -66,7 +67,7 @@ MEIZU   = bcp_browser.NETWORK_APP_MEIZU
 
             'created' is 'create_time' in lebrowser.db:
 
-    TODO 华为 OPPO 分不清, 暂时统一归为 安卓浏览器
+    TODO 华为 OPPO 魅族 分不清, 暂时统一归为 安卓浏览器
 """
 
 def analyze_android_browser(node, extract_deleted, extract_source):
@@ -82,8 +83,11 @@ def analyze_android_browser(node, extract_deleted, extract_source):
 
 @parse_decorator
 def analyze_native_android_browser(node, extract_deleted, extract_source):
-    return base_analyze(AndroidBrowserParser, node, NATIVE, VERSION_APP_VALUE, '安卓浏览器', 'Native')
- 
+    if node.AbsolutePath.endswith('browser2.db'):
+        return base_analyze(AndroidBrowserParser, node, NATIVE, VERSION_APP_VALUE, '安卓浏览器', 'Native')
+    elif node.AbsolutePath.endswith('browser.db'):
+        return base_analyze(AndroidOldBrowserParser, node, NATIVE, VERSION_APP_VALUE, '安卓浏览器', 'Native')
+
 @parse_decorator
 def analyze_meizu_browser(node, extract_deleted, extract_source):
     return base_analyze(AndroidBrowserParser, node, MEIZU, VERSION_APP_VALUE, '魅族浏览器', 'Meizu')
@@ -111,6 +115,7 @@ def analyze_vivo_browser(node, extract_deleted, extract_source):
 @parse_decorator
 def analyze_lenovo_browser(node, extract_deleted, extract_source):
     return base_analyze(AndroidBrowserParser, node, LENOVO, VERSION_APP_VALUE, '联想浏览器', 'Lenovo')
+
 
 
 class AndroidBrowserParser(model_browser.BaseBrowserParser, BaseAndroidParser):
@@ -174,6 +179,8 @@ class AndroidBrowserParser(model_browser.BaseBrowserParser, BaseAndroidParser):
                     bookmark.time  = rec['created'].Value
                 elif 'create_time' in rec.Keys:
                     bookmark.time  = rec['create_time'].Value
+                elif 'date' in rec.Keys:
+                    bookmark.time  = rec['date'].Value
                 bookmark.title     = rec['title'].Value
                 bookmark.url       = rec['url'].Value
                 bookmark.source    = self.cur_db_source
@@ -233,8 +240,8 @@ class AndroidBrowserParser(model_browser.BaseBrowserParser, BaseAndroidParser):
             _id	        INTEGER
             search	    TEXT
             date	    LONG
-            type	    INTEGER
-            extra	    TEXT
+            type	    INTEGER          # old android non
+            extra	    TEXT         # old android non
         '''
         for rec in self._read_table(table_name):
             try:
@@ -457,3 +464,202 @@ class AndroidBrowserParser(model_browser.BaseBrowserParser, BaseAndroidParser):
         except:
             tp('android_browser.py _conver_2_nodeapth error, raw_path:', raw_path)
             exc()
+
+
+class AndroidOldBrowserParser(AndroidBrowserParser):
+    def __init__(self, node, db_name):
+        super(AndroidBrowserParser, self).__init__(node, db_name)
+        self.root = node.Parent.Parent
+        self.model_db_name = db_name
+        self._max_id = 0
+
+    def parse_main(self):
+        self.cur_account_name = 'default_user'
+
+        if self._read_db('databases/browser.db'):
+            self.parse_bookmark('bookmarks')
+            self._parse_SearchHistory_vivo_huawei('searches')
+
+        if self._read_db('databases/webview.db'):
+            self.parse_old_cookie('cookies')
+            self.parse_old_browser_record('formurl')
+
+    def parse_old_browser_record(self, table_name):
+        for rec in self._read_table(table_name):
+            try:
+                if (self._is_duplicate(rec, '_id')
+                    or not self._is_url(rec, 'url')):
+                    continue
+                browser_record = model_browser.Browserecord()
+                if self._max_id:
+                    browser_record.id = self._max_id
+                    self._max_id += 1
+                else:
+                    browser_record.id = rec['_id'].Value
+                browser_record.url = rec['url'].Value
+                browser_record.source = self.cur_db_source
+                browser_record.deleted = 1 if rec.IsDeleted else 0
+                self.csm.db_insert_table_browserecords(browser_record)
+            except:
+                exc()
+        self.csm.db_commit()
+
+    def parse_old_cookie(self, table_name):
+        '''
+            CREATE TABLE cookies (
+                _id INTEGER PRIMARY KEY,
+                name TEXT,
+                value TEXT,
+                domain TEXT,
+                path TEXT,
+                expires INTEGER,
+                secure INTEGER
+            );
+        '''
+        for rec in self._read_table(table_name):
+            try:
+                if (self._is_empty(rec, 'name') or
+                        self._is_duplicate(rec, '_id')):
+                    continue
+                cookie = model_browser.Cookie()
+                cookie.id = rec['_id'].Value
+                # cookie.host_key = rec['host_key'].Value
+                cookie.name = rec['name'].Value
+                cookie.value = rec['value'].Value
+                # cookie.createdate = rec['creation_utc'].Value
+                cookie.expiredate = rec['expires'].Value
+                # cookie.lastaccessdate = rec['last_access_utc'].Value
+                # cookie.hasexipred = rec['has_expires'].Value
+                # cookie.owneruser      = self.cur_account_name
+                cookie.source = self.cur_db_source
+                cookie.deleted = 1 if rec.IsDeleted else 0
+                self.csm.db_insert_table_cookies(cookie)
+            except:
+                exc()
+        self.csm.db_commit()
+
+    def parse_bookmark(self, table_name):
+        ''' 'databases/browser2.db - bookmarks
+
+            CREATE TABLE bookmarks (
+                _id             INTEGER PRIMARY KEY,
+                title           TEXT,url TEXT DEFAULT NULL,
+                visits          INTEGER,date LONG,
+                created         LONG,
+                description     TEXT,
+                bookmark        INTEGER,
+                favicon         BLOB DEFAULT NULL,
+                thumbnail       BLOB DEFAULT NULL,
+                touch_icon      BLOB DEFAULT NULL,
+                user_entered    INTEGER,
+                folder          INTEGER DEFAULT 99
+            );
+        '''
+        for rec in self._read_table(table_name):
+            try:
+
+                if (self._is_empty(rec, 'url', 'title') or
+                    self._is_duplicate(rec, '_id')):
+                    continue
+                if 'folder' in rec.Keys and rec['folder'].Value == 1:
+                    continue
+
+                if not self._max_id:
+                    self._max_id = rec.Count
+
+                _time = 0
+                if 'created' in rec.Keys:
+                    _time = rec['created'].Value
+                elif 'create_time' in rec.Keys:
+                    _time = rec['create_time'].Value
+                elif 'date' in rec.Keys:
+                    _time = rec['date'].Value
+
+                if rec['bookmark'].Value == 1:
+                    bookmark = model_browser.Bookmark()
+                    bookmark.id = rec['_id'].Value
+                    bookmark.owneruser = self.cur_account_name
+                    bookmark.title = rec['title'].Value
+                    bookmark.time = _time
+                    bookmark.url = rec['url'].Value
+                    bookmark.source = self.cur_db_source
+                    bookmark.deleted = 1 if rec.IsDeleted else 0
+                    self.csm.db_insert_table_bookmarks(bookmark)
+
+                elif rec['bookmark'].Value == 0:
+                    self._parse_browser_record(rec)
+
+                self._insert_search_from_browser_record(rec, _time)
+            except:
+                exc()
+        self._max_id = rec['_id'].Value
+        self.csm.db_commit()
+
+
+    def _insert_search_from_browser_record(self, rec, _time):
+        '''SEARCH_ENGINES =
+            r'((?P<keyword1>.*?)( - Google 搜尋| - Google Search|- Google 搜索\
+            | - 百度| - 搜狗搜索|_360搜索| - 国内版 Bing)$)|(^网页搜索_(?P<keyword2>.*))|'
+        '''
+        SEARCH_ENGINES = r'((?P<keyword1>.*?)( - Google 搜尋| - Google Search|- Google 搜索| - 百度| - 搜狗搜索|_360搜索| - 国内版 Bing)$)|(^网页搜索_(?P<keyword2>.*))|'
+
+        browser_title = rec['title'].Value
+        try:
+            _search_item = self._search_from_browser_record(browser_title)
+            if not _search_item:
+                return
+            search_history = model_browser.SearchHistory()
+            search_history.name = _search_item
+            search_history.id = rec['_id'].Value
+            search_history.url = rec['url'].Value
+            search_history.datetime = _time
+            search_history.owneruser = self.cur_account_name
+            search_history.source = self.cur_db_source
+            search_history.deleted = 1 if rec.IsDeleted else 0
+            self.csm.db_insert_table_searchhistory(search_history)
+        except:
+            exc()
+            return ''
+
+    def _search_from_browser_record(self, browser_title):
+        '''SEARCH_ENGINES =
+            r'((?P<keyword1>.*?)( - Google 搜尋| - Google Search|- Google 搜索\
+            | - 百度| - 搜狗搜索|_360搜索| - 国内版 Bing)$)|(^网页搜索_(?P<keyword2>.*))|'
+        '''
+        SEARCH_ENGINES = r'((?P<keyword1>.*?)( - Google 搜尋| - Google Search|- Google 搜索| - 百度| - 搜狗搜索|_360搜索| - 国内版 Bing)$)|(^网页搜索_(?P<keyword2>.*))|'
+        try:
+            if browser_title and not IsDBNull(browser_title):
+                match_res = re.match(SEARCH_ENGINES, browser_title)
+                if (match_res and
+                    (match_res.group('keyword1') or match_res.group('keyword2'))):
+                    keyword1 = match_res.group('keyword1')
+                    keyword2 = match_res.group('keyword2')
+                    keyword = keyword1 if keyword1 else keyword2
+                    return keyword
+        except:
+            exc()
+            return ''
+
+    def _parse_browser_record(self, rec):
+        try:
+            browser_record = model_browser.Browserecord()
+            browser_record.id = rec['_id'].Value
+            browser_record.name = rec['title'].Value
+            browser_record.url = rec['url'].Value
+            for data_field in ['created', 'create_time', 'date']:
+                if data_field in rec.Keys and rec[data_field].Value > 0:
+                    browser_record.datetime = rec[data_field].Value
+                    break
+            browser_record.owneruser = self.cur_account_name
+            browser_record.visit_count = rec['visits'].Value if rec['visits'].Value > 0 else 1
+            browser_record.source = self.cur_db_source
+            browser_record.deleted = 1 if rec.IsDeleted else 0
+            self.csm.db_insert_table_browserecords(browser_record)
+        except:
+            exc()
+
+
+
+
+
+
