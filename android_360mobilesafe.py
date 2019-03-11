@@ -81,8 +81,8 @@ class QihooMobileSecureParser(model_secure.SM):
             data = {}
             for rec in db.ReadTableRecords(ts, self.extractDeleted, True):
                 try:
-                    if rec.IsDeleted:
-                        continue
+                    #if rec.IsDeleted:
+                    #    continue
                     id = self._db_record_get_int_value(rec, '_id')
                     contact_name = self._db_record_get_string_value(rec, 'contact_name')
                     phone_number = self._db_record_get_string_value(rec, 'phone_number')
@@ -112,8 +112,8 @@ class QihooMobileSecureParser(model_secure.SM):
             data = {}
             for rec in db.ReadTableRecords(ts, self.extractDeleted, True):
                 try:
-                    if rec.IsDeleted:
-                        continue
+                    #if rec.IsDeleted:
+                    #    continue
                     id = self._db_record_get_int_value(rec, '_id')
                     block_msg = self._db_record_get_string_value(rec, 'block_msg')
                     phone_number = self._db_record_get_string_value(rec, 'number')
@@ -127,10 +127,10 @@ class QihooMobileSecureParser(model_secure.SM):
                     blockedsms.deleted = rec.IsDeleted
                     self.db_insert_table_blockedsms(blockedsms)
                 except:
-                    traceback.print_exc()
+                    pass
             self.db_commit()
         except:
-            traceback.print_exc()
+            pass
 
     def mark(self):
         try:
@@ -164,10 +164,10 @@ class QihooMobileSecureParser(model_secure.SM):
                     if address not in self.mark2type:
                         self.mark2type[address] = marker_type
                 except:
-                    traceback.print_exc()
+                    pass
             self.db_commit()
         except:
-            traceback.print_exc()
+            pass
 
     def parse_blockedrecord(self):
         try:
@@ -179,10 +179,10 @@ class QihooMobileSecureParser(model_secure.SM):
             data = {}
             for rec in db.ReadTableRecords(ts, self.extractDeleted, True):
                 try:
-                    if rec.IsDeleted:
-                        continue
+                    #if rec.IsDeleted:
+                    #    continue
                     id = self._db_record_get_int_value(rec, '_id')
-                    phone_number = self._db_record_get_string_value(rec, 'address')
+                    phone_number = self.illegal_char(self._db_record_get_string_value(rec, 'address'))
                     block_date = self._db_record_get_int_value(rec, 'date')
                     call = model_secure.Callrecord()
                     call._id = id
@@ -198,6 +198,21 @@ class QihooMobileSecureParser(model_secure.SM):
             self.db_commit()
         except:
             traceback.print_exc()
+
+    @staticmethod
+    def illegal_char(s):
+        s = re \
+        .compile( \
+        u"[^"
+        u"\u4e00-\u9fa5"
+        u"\u0041-\u005A"
+        u"\u0061-\u007A"
+        u"\u0030-\u0039"
+        u"\u3002\uFF1F\uFF01\uFF0C\u3001\uFF1B\uFF1A\u300C\u300D\u300E\u300F\u2018\u2019\u201C\u201D\uFF08\uFF09\u3014\u3015\u3010\u3011\u2014\u2026\u2013\uFF0E\u300A\u300B\u3008\u3009"
+        u"\!\@\#\$\%\^\&\*\(\)\-\=\[\]\{\}\\\|\;\'\:\"\,\.\/\<\>\?\/\*\+"
+        u"]+") \
+        .sub('', s)
+        return s
 
     @staticmethod
     def _db_record_get_value(record, column, default_value=None):
