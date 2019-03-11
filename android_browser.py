@@ -22,7 +22,7 @@ import bcp_browser
 
 
 # app数据库版本
-VERSION_APP_VALUE = 2
+VERSION_APP_VALUE = 3
 
 # 国产安卓手机预装浏览器类型
 NATIVE = bcp_browser.NETWORK_APP_OTHER
