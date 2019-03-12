@@ -141,7 +141,7 @@ def get_build(node):
         if info and info.Name:
             return info.Name.Value
     except Exception as e:
-        TraceService.Trace(TraceLevel.Error, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
+        TraceService.Trace(TraceLevel.Error, "android_wechat.py Error: LINE {}".format(traceback.format_exc()))
     return build
 
 
@@ -518,7 +518,7 @@ class WeChatParser(Wechat):
                     self._parse_fav_db_with_value(deleted, node.AbsolutePath, fav_type, timestamp, from_user, xml)
                 except Exception as e:
                     TraceService.Trace(TraceLevel.Error,
-                                       "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
+                                       "android_wechat.py Error: LINE {}".format(traceback.format_exc()))
             self.im.db_commit()
             self.push_models()
         return True
@@ -546,7 +546,7 @@ class WeChatParser(Wechat):
             xml = XElement.Parse(xml_str)
         except Exception as e:
             if model.deleted == 0:
-                TraceService.Trace(TraceLevel.Error, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
+                TraceService.Trace(TraceLevel.Error, "android_wechat.py Error: LINE {}".format(traceback.format_exc()))
         if xml is not None and xml.Name.LocalName == 'favitem':
             try:
                 fav_type = int(xml.Attribute('type').Value) if xml.Attribute('type') else 0
