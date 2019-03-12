@@ -402,7 +402,7 @@ class AppResources(object):
                     mediaimage.exposureTime = model.ExposureTime
                     mediaimage.exposureProgram= model.ExposureProgram
                     mediaimage.fileName = model.FileName
-                    mediaimage.fileExtention = model.FileExtention
+                    mediaimage.fileExtention = model.FileSuffix
                     mediaimage.path = model.Path
                     mediaimage.size = model.Size
                     mediaimage.addTime = model.AddTime

@@ -20,7 +20,7 @@ from collections import OrderedDict
 from ScriptUtils import DEBUG, CASE_NAME, exc, tp, BaseAndroidParser, parse_decorator
 
 
-VERSION_APP_VALUE = 4
+VERSION_APP_VALUE = 5
 
 MSG_TYPE_ALL    = 0
 MSG_TYPE_INBOX  = 1
@@ -468,7 +468,7 @@ class AndroidMMSParser(AndroidSMSParser):
                 mms._id                = rec['_id'].Value
                 mms.sender_phonenumber = addr_dict.get(mms._id, {}).get('from_address')
                 mms.recv_phonenumber   = addr_dict.get(mms._id, {}).get('to_address')
-                mms.subject            = rec['sub'].Value
+                mms.subject            = self._decode_mms_subject(rec['sub'].Value)
                 mms.read_status        = rec['read'].Value
                 # mms.body               = rec['body'].Value
                 mms.delivered_date     = rec['date'].Value
@@ -511,6 +511,26 @@ class AndroidMMSParser(AndroidSMSParser):
             return raw_path
         except:
             exc()    
+
+    @staticmethod
+    def _decode_mms_subject(_rec_value):
+        ''' handle mms subject garbled '''
+        try:
+            tp(_rec_value)
+            if IsDBNull(_rec_value):
+                return 
+            _list = list(bytearray(_rec_value))
+            print(_list.count(0))
+            if _list.count(0) < 2 or _list[:1] != [0xff, 0xfe]:
+                _res = _rec_value.decode('utf8')
+            else:
+                # 去 0
+                stripped_list = _list[2:-1:2]
+                _res = str(bytearray(stripped_list)).decode('utf8')
+            return _res
+        except:
+            exc()
+            return _rec_value
 
 
 class AndroidSMSParserFsLogic(AndroidSMSParser):
@@ -773,7 +793,7 @@ class AndroidIcingParser(AndroidSMSParser):
             mms = model_sms.SMS()
             mms.is_mms         = 1
             mms._id            = rec['_id'].Value
-            mms.subject        = rec['subject'].Value
+            mms.subject        = AndroidMMSParser._decode_mms_subject(rec['subject'].Value)
             mms.read_status    = rec['read'].Value
             # mms.body           = rec['body'].Value
             mms.send_time      = rec['date'].Value

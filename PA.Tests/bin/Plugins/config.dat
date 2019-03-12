@@ -3719,7 +3719,7 @@
             <string>/com.umetrip.android.msky.app/shared_prefs/mqc_private.xml$</string>
           </array>
           <key>Category</key>
-          <string>纵横航旅</string>
+          <string>Umetrip</string>
           <key>Name</key>
           <string>航旅纵横(安卓)</string>
           <key>Filter</key>
