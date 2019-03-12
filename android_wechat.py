@@ -106,12 +106,19 @@ def process_nodes(nodes):
                     build = app_info.Name.Value  # app_info里获取app名称
                     if build in app_dict:  # app名称如果和app_dict里的冲突，使用微信+数字的模式命名节点
                         build = None
+                # if build in [None, '']:  # 没有获取到app名称，使用微信+数字的模式命名节点
+                #     build = get_build(app_path)
+                #     if build == '微信(第三方分身)':
+                #         if app_tail >= 2:
+                #             build = build[:-1] + str(app_tail) + ']'
+                #         app_tail += 1
+                # app_dict[app_path] = build
                 if build in [None, '']:  # 没有获取到app名称，使用微信+数字的模式命名节点
-                    build = get_build(app_path)
-                    if build == '微信(第三方分身)':
-                        if app_tail >= 2:
-                            build = build[:-1] + str(app_tail) + ']'
-                        app_tail += 1
+                    if app_tail < 2:
+                        build = '微信'
+                    else:
+                        build = '微信' + str(app_tail)
+                    app_tail += 1
                 app_dict[app_path] = build
 
             value = ret.get(build, [])
@@ -122,24 +129,40 @@ def process_nodes(nodes):
     return ret
 
 
-def get_build(app_path):
+def get_build(node):
     build = '微信'
-    if not app_path:
+    if node is None:
         return build
-    if app_path == r'/data/data/com.tencent.mm' or app_path == r'/Root/data/com.tencent.mm':
+    app_path = node.AbsolutePath
+    if app_path in [None, '']:
         return build
-
-    if re.match(r'/data/user/\d+/com.tencent.mm', app_path) is not None:
-        build = '微信(系统分身)'
-
-    if build != '微信(系统分身)':
-        build = '微信(第三方分身)'
-        for k, v in THIRDBUILDPARTTERN.items():
-            if re.match(v, app_path) is not None:
-                build = '微信({name})'.format(name=k)
-                break
-
+    try:
+        info = ds.GetApplication(node.AbsolutePath)
+        if info and info.Name:
+            return info.Name.Value
+    except Exception as e:
+        TraceService.Trace(TraceLevel.Error, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
     return build
+
+
+# def get_build(app_path):
+#     build = '微信'
+#     if not app_path:
+#         return build
+#     if app_path == r'/data/data/com.tencent.mm' or app_path == r'/Root/data/com.tencent.mm':
+#         return build
+#
+#     if re.match(r'/data/user/\d+/com.tencent.mm', app_path) is not None:
+#         build = '微信(系统分身)'
+#
+#     if build != '微信(系统分身)':
+#         build = '微信(第三方分身)'
+#         for k, v in THIRDBUILDPARTTERN.items():
+#             if re.match(v, app_path) is not None:
+#                 build = '微信({name})'.format(name=k)
+#                 break
+#
+#     return build
 
 
 def get_uin_from_cache(cache_path, user_hash):
