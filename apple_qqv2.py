@@ -264,6 +264,7 @@ class QQParser(object):
                 gen.get_models()                
                 self.set_progress(acc_id,100)
                 self.accountsProg[acc_id].Finish(True)
+                gen.ar.set_unique_id(self.cachedb[acc_id])
                 self.get_qq_res(acc_id,gen.ar)
             except Exception as e:
                 pass        

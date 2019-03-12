@@ -405,7 +405,7 @@ class ExportModel(object):
                 image.Size = size
                 image.AddTime = self._unixtime_to_timestamp(addTime)  # 还没有对时间处理
                 image.ModifyTime = self._unixtime_to_timestamp(modifyTime) # 还没有对时间处理
-                image.FileExtention = fileExtention
+                image.FileSuffix = fileExtention
                 # image.MimeType = mimeType
                 image.Height = height
                 image.Width = width
@@ -474,7 +474,7 @@ class ExportModel(object):
                 audio.Size = size
                 audio.AddTime = self._unixtime_to_timestamp(addTime)  # 还没有对时间处理
                 audio.ModifyTime = self._unixtime_to_timestamp(modifyTime) # 还没有对时间处理
-                audio.FileExtention = fileExtention
+                audio.FileSuffix = fileExtention
                 # audio.MimeType = mimeType
                 audio.Album = album
                 audio.Artist = artist
@@ -525,7 +525,7 @@ class ExportModel(object):
                 video.Size = size
                 video.AddTime = self._unixtime_to_timestamp(addTime)  # 还没有对时间处理
                 video.ModifyTime = self._unixtime_to_timestamp(modifyTime) # 还没有对时间处理
-                video.FileExtention = fileExtention
+                video.FileSuffix = fileExtention
                 # video.MimeType = mimeType
                 # video.Duration = duration
                 video.TakenDate = self._unixtime_to_timestamp(takenData)
@@ -574,7 +574,7 @@ class ExportModel(object):
                 other.Size = size
                 other.AddTime = self._unixtime_to_timestamp(addTime)  # 还没有对时间处理
                 other.ModifyTime = self._unixtime_to_timestamp(modifyTime) # 还没有对时间处理
-                other.FileExtention = fileExtention
+                other.FileSuffix = fileExtention
                 other.Deleted = self._convert_model_deleted_status(deleted)
                 # video.MimeType = mimeType
 

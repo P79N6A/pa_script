@@ -287,6 +287,7 @@ class Andriod_QQParser(object):
             except:
                 pass
         try:
+            gen.ar.set_unique_id(self.root.AbsolutePath)
             self.get_qq_res(gen.ar)
         except Exception as e:
             TraceService.Trace(TraceLevel.Error, e)  

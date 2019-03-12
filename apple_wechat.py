@@ -137,6 +137,7 @@ class WeChatParser(Wechat):
 
             # 每个app创建一个资源节点
             self.ar = AppResources(build, DescripCategories.Wechat)
+            self.ar.set_unique_id(build)
             self.ar.set_thum_config('pic_thum', 'Image')
             self.ar.set_thum_config('video_thum', 'Video')
 
