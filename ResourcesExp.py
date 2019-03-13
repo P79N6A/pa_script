@@ -418,7 +418,7 @@ class AppResources(object):
                 try:
                     mediaudio = model_res.MediaAudio()
                     mediaudio.fileName = model.FileName
-                    mediaudio.fileExtention = model.FileExtention
+                    mediaudio.fileExtention = model.FileSuffix
                     mediaudio.path = model.Path
                     mediaudio.size = model.Size
                     mediaudio.addTime = model.AddTime
@@ -435,7 +435,7 @@ class AppResources(object):
                 try:
                     mediavideo = model_res.MediaVideo()
                     mediavideo.fileName = model.FileName
-                    mediavideo.fileExtention = model.FileExtention
+                    mediavideo.fileExtention = model.FileSuffix
                     mediavideo.path = model.Path
                     mediavideo.size = model.Size
                     mediavideo.addTime = model.AddTime
@@ -450,7 +450,7 @@ class AppResources(object):
                 try:
                     mediaother = model_res.MediaOther()
                     mediaother.fileName = model.FileName
-                    mediaother.fileExtention = model.FileExtention
+                    mediaother.fileExtention = model.FileSuffix
                     mediaother.path = model.Path
                     mediaother.size = model.Size
                     mediaother.addTime = model.AddTime
