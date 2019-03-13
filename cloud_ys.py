@@ -290,5 +290,5 @@ def analyze_yinshi(node, extract_deleted, extract_source):
     results = YinShi(node, extract_deleted, extract_source).parse()
     if results:
         pr.Models.AddRange(results)
-        pr.Build("萤石云")
+        pr.Build("萤石云视频")
     return pr
