@@ -449,19 +449,20 @@ class Wechat(object):
             if not record[column].IsDBNull:
                 return record[column].Value
         except Exception as e:
-            return default_value
+            pass
+        return default_value
 
     @staticmethod
     def _db_record_get_string_value(record, column, default_value=''):
         try:
-
             if not record[column].IsDBNull:
                 value = str(record[column].Value)
                 #if record.Deleted != DeletedState.Intact:
                 #    value = filter(lambda x: x in string.printable, value)
                 return value
         except Exception as e:
-            return default_value
+            pass
+        return default_value
 
     @staticmethod
     def _db_record_get_int_value(record, column, default_value=0):
@@ -469,7 +470,8 @@ class Wechat(object):
             if not record[column].IsDBNull:
                 return int(record[column].Value)
         except Exception as e:
-                return default_value
+            pass
+        return default_value
 
     @staticmethod
     def _db_record_get_blob_value(record, column, default_value=None):
@@ -478,7 +480,8 @@ class Wechat(object):
                 value = record[column].Value
                 return bytes(value)
         except Exception as e:
-            return default_value
+            pass
+        return default_value
 
     @staticmethod
     def _db_column_get_string_value(column, default_value=''):
