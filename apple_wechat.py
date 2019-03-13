@@ -514,7 +514,7 @@ class WeChatParser(Wechat):
             friend.remark = remark
             friend.type = friend_type
             friend.photo = head
-            friend.gender = gender
+            friend.gender = self._convert_gender_type(gender)
             friend.region = region
             friend.signature = signature
             friend.insert_db(self.im)
@@ -628,6 +628,28 @@ class WeChatParser(Wechat):
             self.im.db_commit()
             self.push_models()
             self.set_progress(progress_start+1 + i * 100 / len(db.Tables) * (progress_end - progress_start+1) / 100)
+
+        for table in db.Tables:
+            if canceller.IsCancellationRequested:
+                break
+            if table.startswith('Hello_'):
+                ts = SQLiteParser.TableSignature(table)
+                SQLiteParser.Tools.AddSignatureToTable(ts, "Message", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
+                for rec in db.ReadTableRecords(ts, self.extract_deleted, False, ''):
+                    if canceller.IsCancellationRequested:
+                        break
+                    if rec is None:
+                        continue
+                    try:
+                        msg = self._db_record_get_string_value(rec, 'Message')
+                        is_sender = 1 if self._db_record_get_int_value(rec, 'Des') == 0 else 0
+                        timestamp = self._db_record_get_int_value(rec, 'CreateTime', None)
+                        deleted = 0 if rec.Deleted == DeletedState.Intact else 1
+                        self._parse_user_hello_db_with_value(deleted, node.AbsolutePath, msg, is_sender, timestamp)
+                    except Exception as e:
+                        TraceService.Trace(TraceLevel.Error, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
+                self.im.db_commit()
+                self.push_models()
         return True
 
     def _parse_user_mm_db_with_value(self, deleted, source, username, msg, msg_type, msg_local_id, is_sender, timestamp, user_hash, user_unknown):
@@ -677,6 +699,68 @@ class WeChatParser(Wechat):
             model, tl_model = self.get_message_model(revoke_message)
             self.add_model(model)
             self.add_model(tl_model)
+
+    def _parse_user_hello_db_with_value(self, deleted, source, msg, is_sender, timestamp):
+        user_model, content = self._parse_user_hello_xml(deleted, source, msg)
+        if user_model is not None:
+            message = model_wechat.Message()
+            message.deleted = deleted
+            message.source = source
+            message.account_id = self.user_account.account_id
+            message.type = model_wechat.MESSAGE_CONTENT_TYPE_TEXT
+            message.timestamp = timestamp
+            message.talker_id = user_model.Account
+            message.talker_type = model_wechat.CHAT_TYPE_FRIEND
+            message.sender_id = self.user_account.account_id if is_sender else user_model.Account
+            message.content = content
+            message.insert_db(self.im)
+            model, tl_model = self.get_message_model(message)
+            self.add_model(model)
+            self.add_model(tl_model)
+
+    def _parse_user_hello_xml(self, deleted, source, xml_str):
+        xml = None
+        user_model = None
+        content = None
+        try:
+            xml = XElement.Parse(xml_str)
+        except Exception as e:
+            if deleted != 0:
+                TraceService.Trace(TraceLevel.Error, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
+        if xml is not None:
+            if xml.Attribute('content'):
+                content = xml.Attribute('content').Value
+            if xml.Attribute('fromusername'):
+                username = xml.Attribute('fromusername').Value
+                if username in self.friend_models:
+                    user_model = self.friend_models.get(username)
+                else:
+                    friend = model_wechat.Friend()
+                    friend.deleted = deleted
+                    friend.source = source
+                    friend.account_id = self.user_account.account_id
+                    friend.friend_id = username
+                    if xml.Attribute('alias'):
+                        friend.friend_id_alias = xml.Attribute('alias').Value
+                    if xml.Attribute('fromnickname'):
+                        friend.nickname = xml.Attribute('fromnickname').Value
+                    friend.type = model_wechat.FRIEND_TYPE_NONE
+                    if xml.Attribute('bigheadimgurl'):
+                        friend.photo = xml.Attribute('bigheadimgurl').Value
+                    elif xml.Attribute('smallheadimgurl'):
+                        friend.photo = xml.Attribute('smallheadimgurl').Value
+                    if xml.Attribute('sex'):
+                        try:
+                            friend.gender = self._convert_gender_type(int(xml.Attribute('sex').Value))
+                        except Exception as e:
+                            pass
+                    if xml.Attribute('sign'):
+                        friend.signature = xml.Attribute('sign').Value
+                    friend.insert_db(self.im)
+                    user_model = self.get_friend_model(friend)
+                    self.add_model(user_model)
+                    self.friend_models[username] = user_model
+        return user_model, content
 
     def _parse_user_wc_db(self, node):
         if node is None:
