@@ -139,11 +139,6 @@ def analyze_andriod_qq(root, extract_deleted, extract_source):
     try:             
         nodes = checkhit(root)
         threads = []
-        if len(nodes) != 0:
-            progress.Start()
-        else:
-            progress.Skip()
-            return pr
         for node in nodes:
             i = 1
             for root in node[0]:
@@ -210,12 +205,17 @@ class Andriod_QQParser(object):
         except Exception as e:
             pass
     def parse(self):    
-        prog = progress['APP', self.sourceApp]
-        prog.Start() 
         try:            
             self.decode_accounts()
         except:
             pass
+        if(len(self.accounts) != 0):                    
+            progress.Start()
+        else:
+            progress.Skip()            
+            return
+        prog = progress['APP', self.sourceApp]
+        prog.Start() 
         for acc in self.accounts:
             acc_id = acc.account_id
             m = hashlib.md5()
