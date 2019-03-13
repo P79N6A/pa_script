@@ -818,6 +818,7 @@ class FrequentLocationsParser(object):
     
     def get_recent_one_week_location(self):
         results = []
+        reader = None
         dbNodes = self.root.Files
         if dbNodes is None:
             return
