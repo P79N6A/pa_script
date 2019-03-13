@@ -598,10 +598,12 @@ class Wechat(object):
 
     @staticmethod
     def _convert_gender_type(gender_type):
-        if gender_type != 0:
+        if gender_type == 1:
+            return model_wechat.GENDER_MALE
+        elif gender_type == 2:
             return model_wechat.GENDER_FEMALE
         else:
-            return model_wechat.GENDER_MALE
+            return model_wechat.GENDER_NONE
 
     @staticmethod
     def db_mapping(src_path, dst_path):
