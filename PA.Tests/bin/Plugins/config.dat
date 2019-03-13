@@ -4131,6 +4131,31 @@
         </dict>
       </array>
     </dict>
+	
+	<dict>
+      <key>Module</key>
+      <string>cloud_whatsapp</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_whatsapp</string>
+          <key>RunnerType</key>
+          <integer>4</integer>
+          <key>Patterns</key>
+          <array>
+            <string>^/whatsapp$</string>
+          </array>
+          <key>Category</key>
+          <string>WhatsApp</string>
+          <key>Name</key>
+          <string>WhatsApp(云勘)</string>
+          <key>Filter</key>
+          <string>应用>社交</string>
+        </dict>
+      </array>
+    </dict>
+
 
   </array>
 </plist>
