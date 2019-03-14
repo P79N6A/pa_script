@@ -10,7 +10,7 @@ import time
 import traceback
 
 
-class YinShi(object):
+class YingShi(object):
 
     def __init__(self, node, extract_deleted, extract_source):
         self.root = node
@@ -285,9 +285,9 @@ class YinShi(object):
             return None
 
 
-def analyze_yinshi(node, extract_deleted, extract_source):
+def analyze_yingshi(node, extract_deleted, extract_source):
     pr = ParserResults()
-    results = YinShi(node, extract_deleted, extract_source).parse()
+    results = YingShi(node, extract_deleted, extract_source).parse()
     if results:
         pr.Models.AddRange(results)
         pr.Build("萤石云视频")

@@ -4115,7 +4115,7 @@
       <array>
         <dict>
           <key>EntryPoint</key>
-          <string>analyze_yinshi</string>
+          <string>analyze_yingshi</string>
           <key>RunnerType</key>
           <integer>4</integer>
           <key>Patterns</key>
@@ -4344,6 +4344,150 @@
           <string>百度云盘(云勘)</string>
           <key>Filter</key>
           <string>应用>网络共享</string>
+        </dict>
+      </array>
+    </dict>
+
+    <dict>
+      <key>Module</key>
+      <string>cloud_huawei</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_cloud_huawei</string>
+          <key>RunnerType</key>
+          <integer>4</integer>
+          <key>Patterns</key>
+          <array>
+            <string>^/huaweicloud$</string>
+          </array>
+          <key>Category</key>
+          <string>HuaweiCloudBackup</string>
+          <key>Name</key>
+          <string>华为云备份(云勘)</string>
+          <key>Filter</key>
+          <string>应用>基础数据</string>
+        </dict>
+      </array>
+    </dict>
+
+    <dict>
+      <key>Module</key>
+      <string>cloud_qqpim</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_cloud_qqpim</string>
+          <key>RunnerType</key>
+          <integer>4</integer>
+          <key>Patterns</key>
+          <array>
+            <string>^/qqpim$</string>
+          </array>
+          <key>Category</key>
+          <string>QQpim</string>
+          <key>Name</key>
+          <string>qq同步助手(云勘)</string>
+          <key>Filter</key>
+          <string>应用>基础数据</string>
+        </dict>
+      </array>
+    </dict>
+
+    <dict>
+      <key>Module</key>
+      <string>cloud_qqmail</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_cloud_qqmail</string>
+          <key>RunnerType</key>
+          <integer>4</integer>
+          <key>Patterns</key>
+          <array>
+            <string>^/qqmail$</string>
+          </array>
+          <key>Category</key>
+          <string>QQMail</string>
+          <key>Name</key>
+          <string>qq邮箱(云勘)</string>
+          <key>Filter</key>
+          <string>应用>邮箱</string>
+        </dict>
+      </array>
+    </dict>
+
+    <dict>
+      <key>Module</key>
+      <string>cloud_mail126</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_cloud_mail126</string>
+          <key>RunnerType</key>
+          <integer>4</integer>
+          <key>Patterns</key>
+          <array>
+            <string>^/mail126$</string>
+          </array>
+          <key>Category</key>
+          <string>Email126</string>
+          <key>Name</key>
+          <string>126邮箱(云勘)</string>
+          <key>Filter</key>
+          <string>应用>邮箱</string>
+        </dict>
+      </array>
+    </dict>
+
+    <dict>
+      <key>Module</key>
+      <string>cloud_mail163</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_cloud_mail163</string>
+          <key>RunnerType</key>
+          <integer>4</integer>
+          <key>Patterns</key>
+          <array>
+            <string>^/mail163$</string>
+          </array>
+          <key>Category</key>
+          <string>NeteaseMail</string>
+          <key>Name</key>
+          <string>163邮箱(云勘)</string>
+          <key>Filter</key>
+          <string>应用>邮箱</string>
+        </dict>
+      </array>
+    </dict>
+
+    <dict>
+      <key>Module</key>
+      <string>cloud_mailyeah</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_cloud_mailyeah</string>
+          <key>RunnerType</key>
+          <integer>4</integer>
+          <key>Patterns</key>
+          <array>
+            <string>^/mailYeah$</string>
+          </array>
+          <key>Category</key>
+          <string>YeahEmail</string>
+          <key>Name</key>
+          <string>Yeah邮箱(云勘)</string>
+          <key>Filter</key>
+          <string>应用>邮箱</string>
         </dict>
       </array>
     </dict>

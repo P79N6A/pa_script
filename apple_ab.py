@@ -416,6 +416,7 @@ def generate_mid_db(node, results):
     db_cache = SQLite.SQLiteConnection('Data Source = {}'.format(db_path))
     db_cache.Open()
     db_cmd = SQLite.SQLiteCommand(db_cache)
+    db_trans = db_cache.BeginTransaction()
     #创建表
     if db_cmd is not None:
         db_cmd.CommandText = SQL_CREATE_TABLE_CONTACT
@@ -430,28 +431,31 @@ def generate_mid_db(node, results):
         name = result.Name.Value
         addr = ''
         for address in result.Addresses:
-            addr = addr + ',' + address.FullName.Value
+            if address.FullName.Value is not None:
+                addr = addr + ',' + address.FullName.Value
         addr = addr[1::]
         note = ''
         for n in result.Notes:
-            note = note + ',' + str(n)
+            if result.Notes is not None:
+                note = note + ',' + str(n)
         note = note[1::]
         time_contacted = result.TimeContacted.Value
         time_modified = result.TimeModified.Value
         times_contacted = result.TimesContacted.Value
         phone_number = ''
         for number in result.Entries:
-            phone_number = phone_number + ',' + number.Value.Value
+            if result.Entries is not None:
+                phone_number = phone_number + ',' + number.Value.Value
         phone_number = phone_number[1::]
         source = node.AbsolutePath
         deleted = 0 if result.Deleted == DeletedState.Intact else 1 if result.Deleted == DeletedState.Deleted else None
         repeated = 0
         param = (id, None, None, None, None, time_contacted, time_modified, times_contacted, phone_number, name, addr, note, None, source, deleted, repeated)
         db_insert_table(db_cache, SQL_INSERT_TABLE_CONTACT, param)
+    db_trans.Commit()
     db_cmd.Dispose()
     db_cache.Close()
     #bcp entry
-    print('-'*15 + 'enter bcp' + '-'*15)
     temp_dir = ds.OpenCachePath('tmp')
     PA_runtime.save_cache_path(bcp_basic.BASIC_RECORD_INFORMATION, db_path, temp_dir)
 
