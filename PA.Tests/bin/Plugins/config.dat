@@ -3355,7 +3355,7 @@
           <string>基础数据</string>
           <key>Dependents</key>
           <array>
-            <string>analyze_android_calls#2#0@android_contact</string>
+            <string>analyze_android_contact#2#0@android_contact</string>
           </array>
         </dict>
         <dict>
@@ -3375,7 +3375,7 @@
           <string>基础数据</string>
           <key>Dependents</key>
           <array>
-            <string>analyze_android_calls#2#0@android_contact</string>
+            <string>analyze_android_contact#2#0@android_contact</string>
           </array>
         </dict>
       </array>
