@@ -330,18 +330,30 @@ class ExportModel(object):
         self.build = build
         self.categories = categories
         self.model_max_count = 1000
+        self.progress = None
 
     def get_model(self):
         self.db = sqlite3.connect(self.db_path)
         self.cursor = self.db.cursor()
 
         self._get_image_models()
+        self.set_progress_value(30)
         self._get_audio_models()
+        self.set_progress_value(43)
         self._get_video_models()
+        self.set_progress_value(56)
         self._get_other_models()
+        self.set_progress_value(72)
 
         self.cursor.close()
         self.db.close()
+
+    def set_progress(self, v):
+        self.progress = v
+
+    def set_progress_value(self, v):
+        if self.progress is not None:
+            self.progress.Value = v
 
     def _get_image_models(self):
         models = []

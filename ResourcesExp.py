@@ -44,7 +44,7 @@ class AppResources(object):
         self.build = bulid
         self.appres = model_res.Resources()
         self.unique_id = None
-        self.need_load_db = False
+        self.need_load_db = False   # 是否需要存数据库
 
     def parse(self):
         if len(self.node_list) == 0:
@@ -64,7 +64,10 @@ class AppResources(object):
                 self.appres.db_close()
             else:
                 self._progess_start()
-                model_res.ExportModel(db_path, self.build, self.descript_categories).get_model()
+                exp = model_res.ExportModel(db_path, self.build, self.descript_categories)
+                exp.set_progress(self.prog)
+                exp.get_model()
+                self._progress_media_models(self.media_models)
                 self._progess_end()
                            
     def save_media_model(self, model):
@@ -106,7 +109,8 @@ class AppResources(object):
         return all_files
 
     def progress_search(self, node):
-        models = []
+        search_models = []  # create model by search
+        cached_model = []  # cached model
         res_lists = self._get_all_files(node, [])
         if len(res_lists) == 0:
             return
@@ -117,27 +121,29 @@ class AppResources(object):
             model.Size = res.Size
             model.AddTime = res.CreationTime
             model.ModifyTime = res.ModifyTime
-            if isinstance(model, MediaFile.ImageFile):
-                # 调用model_media方法，获取图片信息
-                # 如果model有path属性，则取出path值
-                path = None
-                if model.Path is not None:
-                    path = model.Path
-                    self.assign_value_to_model(model, path)
-                else:
-                    model.Path = res.AbsolutePath
-                models.append(model)
-                # self._push_models(model)
+            if model.Path is None:
+                # 如果是空的话,是通过search创建
+                model.Path = res.AbsolutePath
+                if self._is_mediafile_model(model):
+                    path = res.AbsolutePath
+                    model = self.assign_value_to_model(model, path)
+                search_models.append(model)
+                if len(search_models) >= 1000:
+                    self._push_models(search_models)
+                    search_models = []
             else:
-                if model.Path is None:
-                    model.Path = res.AbsolutePath
-                
-                models.append(model)
-                # self._push_models(model)
-            if len(models) > 1000:
-                self._push_models(models)
-                models = []
-        self._push_models(models)
+                # path不为空,则是已经创建过的model
+                if self._is_mediafile_model(model):
+                    path = model.Path
+                    model = self.assign_value_to_model(model, path)
+                cached_model.append(model)
+                if len(cached_model) >= 100:
+                    self._push_models(cached_model, False)
+                    cached_model = []
+        if search_models:
+            self._push_models(search_models)
+        if cached_model:
+            self._push_models(cached_model, False)
         self._set_progess_value()
 
     def _is_created(self, node, ntype):
@@ -200,8 +206,8 @@ class AppResources(object):
         ret = {}
         try:
             # 把path从相对路径变成绝对路径
-            path = Path.Combine(ds.FileSystem.MountPoint, path)
-            img = Image.open(path)
+            _tmp = os.path.join(ds.FileSystem.MountPoint, path)
+            img = Image.open(_tmp)
             if hasattr(img, '_getexif'):
                 exifinfo = img._getexif()
                 if exifinfo != None:
@@ -224,9 +230,9 @@ class AppResources(object):
         """
         try:
             ret = self._get_exif_data(path)
-            if ret is {}:
+            if not ret:
                 return
-            abs_path = Path.Combine(ds.FileSystem.MountPoint, path)
+            abs_path = os.path.join(ds.FileSystem.MountPoint, path)
             image.FileName = os.path.basename(abs_path)
             image.Size = os.path.getsize(abs_path)
             image.Path = path
@@ -234,43 +240,33 @@ class AppResources(object):
             image.FileSuffix = 'jpg'
             image.MimeType = 'image'
             image.AddTime = self._get_timestamp(addTime)
-            location = Base.Location(image)
-            coordinate = Base.Coordinate()
-            try:
-                latitude = None
-                longitude = None
-                if 'GPSInfo' in ret.keys():
-                    latitude = 0.0
-                    longitude = 0.0
-                    try:
-                        GPSInfo = ret['GPSInfo']
-                        latitudeFlag = GPSInfo[1]
-                        latitude = float(GPSInfo[2][0][0])/float(GPSInfo[2][0][1]) + float(GPSInfo[2][1][0])/float(GPSInfo[2][1][1])/float(60) + float(GPSInfo[2][2][0])/float(GPSInfo[2][2][1])/float(3600)
-                        longitudeFlag = GPSInfo[3]
-                        longitude = float(GPSInfo[4][0][0])/float(GPSInfo[4][0][1]) + float(GPSInfo[4][1][0])/float(GPSInfo[4][1][1])/float(60) + float(GPSInfo[4][2][0])/float(GPSInfo[4][2][1])/float(3600)
-                    except:
-                        pass
-                coordinate.Longitude = longitude
-                coordinate.Latitude = latitude
-                coordinate.Type = CoordinateType.GPS
-            except:
-                pass
-            location.Coordinate = coordinate
+            location = Location(image)
+            coordinate = Coordinate()
+            if 'GPSInfo' in ret.keys():
+                latitude = 0.0
+                longitude = 0.0
+                try:
+                    GPSInfo = ret['GPSInfo']
+                    latitudeFlag = GPSInfo[1]
+                    latitude = float(GPSInfo[2][0][0])/float(GPSInfo[2][0][1]) + float(GPSInfo[2][1][0])/float(GPSInfo[2][1][1])/float(60) + float(GPSInfo[2][2][0])/float(GPSInfo[2][2][1])/float(3600)
+                    longitudeFlag = GPSInfo[3]
+                    longitude = float(GPSInfo[4][0][0])/float(GPSInfo[4][0][1]) + float(GPSInfo[4][1][0])/float(GPSInfo[4][1][1])/float(60) + float(GPSInfo[4][2][0])/float(GPSInfo[4][2][1])/float(3600)
+                    coordinate.Longitude = longitude
+                    coordinate.Latitude = latitude
+                    coordinate.Type = CoordinateType.GPS
+                    location.Coordinate = coordinate
+                except:
+                    pass
             location.Time = image.AddTime
             location.SourceType = LocationSourceType.Media
             image.Location = location
             modifyTime = os.path.getmtime(abs_path)
             image.ModifyTime = self._get_timestamp(modifyTime)
-            try:
-                width = None
-                height = None
-                if 'ExifImageWidth' in ret.keys() and 'ImageLength' in ret.keys():
-                    width = ret['ExifImageWidth']
-                    height = ret['ImageLength']
+            if 'ExifImageWidth' in ret.keys() and 'ImageLength' in ret.keys():
+                width = ret['ExifImageWidth']
+                height = ret['ImageLength']
                 image.Height = height
                 image.Width = width
-            except:
-                pass
             takenDate = os.path.getctime(abs_path)
             image.TakenDate = self._get_timestamp(takenDate)
             if '42036' in ret:
@@ -339,13 +335,16 @@ class AppResources(object):
             self.prog_value += self.step_value
             self.prog.Value = self.prog_value
 
-    def _push_models(self, ar_models):
+    def _push_models(self, ar_models, save_db=True):
         pr = ParserResults()
         pr.Categories = self.descript_categories
         pr.Models.AddRange(ar_models)
-        pr.Build(self.build)
+        try:         
+            pr.Build(self.build)
+        except Exception as e:
+            pass
         ds.Add(pr)
-        if self.need_load_db:
+        if self.need_load_db and save_db:
             self.assign_value_to_obj_from_model(ar_models)
 
     def set_unique_id(self, v):
@@ -470,6 +469,21 @@ class AppResources(object):
         else:
             return IMAGEFILE
     
+    def _is_mediafile_model(self, model):
+        """
+        VideoThumbnailFile和ThumbnailFile都是继承于MediaFile.ImageFile
+        但是只有MediaFile.ImageFile可能有exif信息,所以需要判断一下,
+        如果是MediaFile.ImageFile 返回True, 否则返回False
+        """
+        if isinstance(model, MediaFile.VideoThumbnailFile):
+            return False
+        elif isinstance(model, MediaFile.ThumbnailFile):
+            return False
+        elif isinstance(model, MediaFile.ImageFile):
+            return True
+        else:
+            return False
+    
     def _reparse(self):
         self._progess_start()
         self.step_value = 100 / len(self.node_list)
@@ -482,6 +496,20 @@ class AppResources(object):
         self._progess_end()
         end = time.time()
         TraceService.Trace(TraceLevel.Info, "搜索{0}多媒体共计耗时{1}s".format(self.build, int(end-start)))
+
+    def _progress_media_models(self, models):
+        cache_model = []
+        for model in models:
+            path = model.Path
+            if path is None:
+                continue
+            if self._is_mediafile_model(model):
+                model = self.assign_value_to_model(model, path)
+            cache_model.append(model)
+            if len(cache_model) > 100:
+                self._push_models(cache_model, False)  # 不需要存到数据库,直接push
+                cache_model = []
+        self._push_models(cache_model, False)
 
     @staticmethod
     def _get_deleted_status(v):
