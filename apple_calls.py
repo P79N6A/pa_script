@@ -56,6 +56,7 @@ def analyze_call_history(node, extractDeleted, extractSource):
     db_cache = SQLite.SQLiteConnection('Data Source = {}'.format(db_path))
     db_cache.Open()
     db_cmd = SQLite.SQLiteCommand(db_cache)
+    db_trans = db_cache.BeginTransaction()
     if db_cmd is not None:
         db_cmd.CommandText = SQL_CREATE_TABLE_RECORDS
         db_cmd.ExecuteNonQuery()
@@ -142,6 +143,7 @@ def analyze_call_history(node, extractDeleted, extractSource):
             pr.Models.Add(c)
             param = (datas[0],datas[5],datas[4],datas[2],datas[1],datas[6],rec['ZLOCATION'].Value, None, None, None,datas[3],node.AbsolutePath,rec.Deleted,0)
             db_insert_table(db_cache, SQL_INSERT_TABLE_RECORDS, param)
+        db_trans.Commit()
         db_cache.Close()
         #bcp entry
         temp_dir = ds.OpenCachePath('tmp')
