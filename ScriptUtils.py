@@ -1282,6 +1282,92 @@ class SemiXmlNode(object):
         return default
 
 
+class HtmlNode(object):
+    def __init__(self, tag):
+        self.tag_name = tag
+        self.property = {}
+        self.child = []
+        self.data = None
+
+    def __getitem__(self, item):
+        """暂时只支持返回找到的第一个元素"""
+        for node in self.child:
+            if node.tag_name == item:
+                return node
+
+    def get_all(self, tag_name):
+        answer = []
+        for node in self.child:
+            if node.tag_name == tag_name:
+                answer.append(node)
+        return answer
+
+    def get(self, key, default=None):
+        for node in self.child:
+            if node.tag_name == key:
+                return node
+        return default
+
+
+class PaHtmlParser(HTMLParser):
+    def __init__(self):
+        HTMLParser.__init__(self)
+        self.__inner_node_list = []
+        self.body = {}
+        self.root = HtmlNode(tag="html")
+
+    def handle_starttag(self, tag, attrs):
+        node = HtmlNode(tag)
+        node.property = {k: v for k, v in attrs}
+        self.__inner_node_list.append(node)
+
+    def handle_data(self, data):
+        if not self.__inner_node_list:
+            return
+        self.__inner_node_list[-1].data = data
+
+    def handle_endtag(self, tag):
+        node = self.__inner_node_list.pop()
+        if len(self.__inner_node_list) != 0:
+            self.__inner_node_list[-1].child.append(node)
+        else:
+            self.root.child.append(node)
+
+    @property
+    def first_dom(self):
+        if len(self.root.child) == 0:
+            return
+        return self.root.child[0]
+
+
+
+class YunkanParserBase(object):
+    def __init__(self, node, extract_deleted, extract_source, app_name):
+        self.root = node
+        self.app_name = app_name
+        self.extract_deleted = extract_deleted
+        self.extract_source = extract_source
+        self.cache_db = self._get_cache_db()
+
+    def _get_cache_db(self):
+        """获取中间数据库的db路径"""
+        self.cache_path = ds.OpenCachePath(self.app_name)
+        m = hashlib.md5()
+        m.update(self.root.AbsolutePath.encode('utf-8'))
+        return os.path.join(self.cache_path, m.hexdigest().upper())
+
+    @staticmethod
+    def _open_json_file(node):
+        if not node:
+            return
+        try:
+            path = node.PathWithMountPoint
+            with open(path, 'r') as f:
+                data = json.load(f)
+                return data
+        except Exception as e:
+            return {}
+
 
 ################################################################################################################
 ##                                    __author__ = "Yangliyuan"                                               ##
