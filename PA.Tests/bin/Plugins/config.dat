@@ -4156,6 +4156,29 @@
       </array>
     </dict>
 
+    <dict>
+      <key>Module</key>
+      <string>cloud_12306</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_cloud_12306</string>
+          <key>RunnerType</key>
+          <integer>4</integer>
+          <key>Patterns</key>
+          <array>
+            <string>^/12306$</string>
+          </array>
+          <key>Category</key>
+          <string>Railway12306</string>
+          <key>Name</key>
+          <string>铁路12306(云勘)</string>
+          <key>Filter</key>
+          <string>应用>商旅</string>
+        </dict>
+      </array>
+    </dict>
 
   </array>
 </plist>
