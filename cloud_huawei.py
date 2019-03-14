@@ -308,7 +308,7 @@ class HuaweiParser(model_contact.MC, model_media.MM, model_soundrecord.MS, model
                         attach_url = self.node.Search(first_attachment + '$')
                         if len(list(attach_url)) != 0:
                             note.attach_url = attach_url[0].AbsolutePath
-                    note.modified = self.time2timestamp(modify_date)
+                    note.modified = modify_date
                     note.source = self.file_node.AbsolutePath
                     self.db_insert_table_notes(note)
                 self.db_commit()
