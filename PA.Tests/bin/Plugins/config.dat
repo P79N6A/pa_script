@@ -4115,7 +4115,7 @@
       <array>
         <dict>
           <key>EntryPoint</key>
-          <string>analyze_yinshi</string>
+          <string>analyze_yingshi</string>
           <key>RunnerType</key>
           <integer>4</integer>
           <key>Patterns</key>
