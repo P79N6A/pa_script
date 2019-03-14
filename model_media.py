@@ -390,6 +390,22 @@ class Generate(object):
         except:
             return {}
 
+    def get_video_info(self, node):
+        '''获取视频文件信息'''
+        try:
+            video = MediaFile.VideoFile()
+            path = node.PathWithMountPoint
+            video.FileName = os.path.basename(path)
+            video.Path = node.AbsolutePath
+            video.Size = os.path.getsize(path)
+            addTime = os.path.getctime(path)
+            video.FileSuffix = re.sub('.*\.', '', node.AbsolutePath)
+            video.MimeType = 'video'
+            video.AddTime = self._get_timestamp(addTime)
+            return video
+        except:
+            pass
+
     def get_exif_info(self, ret, node):
         '''获取媒体文件的exif信息'''
         try:
@@ -402,7 +418,7 @@ class Generate(object):
             image.Path = node.AbsolutePath
             image.Size = os.path.getsize(path)
             addTime = os.path.getctime(path)
-            image.FileSuffix = 'jpg'
+            image.FileSuffix = re.sub('.*\.', '', node.AbsolutePath)
             image.MimeType = 'image'
             image.AddTime = self._get_timestamp(addTime)
             location = None
