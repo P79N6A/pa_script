@@ -115,44 +115,56 @@ class HuaweiParser(model_contact.MC, model_media.MM, model_soundrecord.MS, model
                 pr1 = ParserResults()
                 prog1 = progress.GetBackgroundProgress("云勘华为备份", DescripCategories.HuaweiCloudBackup)
                 prog1.Start()
-                account_models = self.parse_user(filename)
-                pr1.Models.Add(account_models)
-                pr1.Categories = DescripCategories.HuaweiCloudBackup
-                pr1.Build('云勘华为备份')
-                ds.Add(pr1)
+                try:
+                    account_models = self.parse_user(filename)
+                    pr1.Models.Add(account_models)
+                    pr1.Categories = DescripCategories.HuaweiCloudBackup
+                    pr1.Build('云勘华为备份')
+                    ds.Add(pr1)
+                except:
+                    pass
                 prog1.Finish(True)
             elif re.findall('simpleContacts', filename):
                 pr2 = ParserResults()
                 prog2 = progress.GetBackgroundProgress("云勘华为备份-联系人", DescripCategories.Contacts)
                 prog2.Start()
-                self.parse_contact(filename)
-                contact_models = model_contact.Generate(self.cachedb).get_models()
-                pr2.Models.AddRange(contact_models)
-                pr2.Categories = DescripCategories.Contacts
-                pr2.Build('云勘华为备份')
-                ds.Add(pr2)
+                try:
+                    self.parse_contact(filename)
+                    contact_models = model_contact.Generate(self.cachedb).get_models()
+                    pr2.Models.AddRange(contact_models)
+                    pr2.Categories = DescripCategories.Contacts
+                    pr2.Build('云勘华为备份')
+                    ds.Add(pr2)
+                except:
+                    pass
                 prog2.Finish(True)
             elif re.findall('defaultRecordingDevice.json', filename):
                 pr3 = ParserResults()
                 prog3 = progress.GetBackgroundProgress("云勘华为备份-录音", DescripCategories.Recordings)
                 prog3.Start()
-                self.parse_recording(filename)
-                record_models = model_soundrecord.Generate(self.cachedb).get_models()
-                pr3.Models.AddRange(record_models)
-                pr3.Categories = DescripCategories.Recordings
-                pr3.Build('云勘华为备份')
-                ds.Add(pr3)
+                try:
+                    self.parse_recording(filename)
+                    record_models = model_soundrecord.Generate(self.cachedb).get_models()
+                    pr3.Models.AddRange(record_models)
+                    pr3.Categories = DescripCategories.Recordings
+                    pr3.Build('云勘华为备份')
+                    ds.Add(pr3)
+                except:
+                    pass
                 prog3.Finish(True)
             elif re.findall('simplenote', filename):
                 pr4 = ParserResults()
                 prog4 = progress.GetBackgroundProgress("云勘华为备份-备忘录", DescripCategories.Notes)
                 prog4.Start()
-                self.parse_note(filename)
-                note_models = model_notes.Generate(self.cachedb).get_models()
-                pr4.Models.AddRange(note_models)
-                pr4.Categories = DescripCategories.Notes
-                pr4.Build('云勘华为备份')
-                ds.Add(pr4)
+                try:
+                    self.parse_note(filename)
+                    note_models = model_notes.Generate(self.cachedb).get_models()
+                    pr4.Models.AddRange(note_models)
+                    pr4.Categories = DescripCategories.Notes
+                    pr4.Build('云勘华为备份')
+                    ds.Add(pr4)
+                except:
+                    pass
                 prog4.Finish(True)
             video_suffix = dic2['video']
             image_suffix = dic2['image']
