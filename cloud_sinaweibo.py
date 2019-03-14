@@ -8,7 +8,7 @@ import clr
 clr.AddReference('PNFA.Common')
 
 from PA_runtime import *
-#from PA.InfraLib.ModelsV2.SafeCloud import *
+from PA.InfraLib.ModelsV2.SafeCloud import *
 
 
 try:
