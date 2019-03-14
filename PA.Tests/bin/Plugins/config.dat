@@ -4182,70 +4182,22 @@
 
     <dict>
       <key>Module</key>
-      <string>cloud_skype</string>
+      <string>cloud_alipay</string>
       <key>Runners</key>
       <array>
         <dict>
           <key>EntryPoint</key>
-          <string>parse_yunkan_skype</string>
+          <string>analyze_cloud_alipay</string>
           <key>RunnerType</key>
           <integer>4</integer>
           <key>Patterns</key>
           <array>
-            <string>^/skype$</string>
+            <string>^/alipay$</string>
           </array>
           <key>Category</key>
-          <string>Skype</string>
+          <string>Alipay</string>
           <key>Name</key>
-          <string>Skype(云堪)</string>
-          <key>Filter</key>
-          <string>应用>即时通讯</string>
-        </dict>
-      </array>
-    </dict>
-
-    <dict>
-      <key>Module</key>
-      <string>cloud_micloud</string>
-      <key>Runners</key>
-      <array>
-        <dict>
-          <key>EntryPoint</key>
-          <string>parse_yunkan_micloud</string>
-          <key>RunnerType</key>
-          <integer>4</integer>
-          <key>Patterns</key>
-          <array>
-            <string>^/miCloud$</string>
-          </array>
-          <key>Category</key>
-          <string>Railway12306</string>
-          <key>Name</key>
-          <string>小米云备份(云勘)</string>
-          <key>Filter</key>
-          <string>应用>商旅</string>
-        </dict>
-      </array>
-    </dict>
-
-    <dict>
-      <key>Module</key>
-      <string>cloud_umetrip</string>
-      <key>Runners</key>
-      <array>
-        <dict>
-          <key>EntryPoint</key>
-          <string>parse_yunkan_umetrip</string>
-          <key>RunnerType</key>
-          <integer>4</integer>
-          <key>Patterns</key>
-          <array>
-            <string>^/umetrip$</string>
-          </array>
-          <key>Category</key>
-          <string>Umetrip</string>
-          <key>Name</key>
-          <string>航旅纵横(云勘)</string>
+          <string>支付宝(云勘)</string>
           <key>Filter</key>
           <string>应用>电子商务</string>
         </dict>
@@ -4254,26 +4206,51 @@
 
     <dict>
       <key>Module</key>
-      <string>cloud_baidupan</string>
+      <string>cloud_sinaweibo</string>
       <key>Runners</key>
       <array>
         <dict>
           <key>EntryPoint</key>
-          <string>parse_yunkan_baidupan</string>
+          <string>analyze_cloud_sinaweibo</string>
           <key>RunnerType</key>
           <integer>4</integer>
           <key>Patterns</key>
           <array>
-            <string>^/baidupan$</string>
+            <string>^/sinaweibo$</string>
           </array>
           <key>Category</key>
-          <string>BDY</string>
+          <string>Weibo</string>
           <key>Name</key>
-          <string>百度云盘(云勘)</string>
+          <string>新浪微博(云勘)</string>
           <key>Filter</key>
-          <string>应用>网络共享</string>
+          <string>应用>社交</string>
         </dict>
       </array>
     </dict>
+
+    <dict>
+      <key>Module</key>
+      <string>cloud_jd</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_cloud_jd</string>
+          <key>RunnerType</key>
+          <integer>4</integer>
+          <key>Patterns</key>
+          <array>
+            <string>^/jd$</string>
+          </array>
+          <key>Category</key>
+          <string>JingDong</string>
+          <key>Name</key>
+          <string>手机京东(云勘)</string>
+          <key>Filter</key>
+          <string>应用>电子商务</string>
+        </dict>
+      </array>
+    </dict>
+
   </array>
 </plist>
