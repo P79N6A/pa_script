@@ -33,6 +33,7 @@ import os
 import plistlib
 import sys
 reload(sys)
+from HTMLParser import HTMLParser
 sys.setdefaultencoding("utf8")
 
 import model_im
