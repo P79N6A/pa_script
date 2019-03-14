@@ -26,6 +26,7 @@ from PA.InfraLib.ModelsV2.IM import *
 
 import os
 import sqlite3
+import json
 import time
 
 from ResourcesExp import AppResources
@@ -1622,7 +1623,7 @@ class GenerateModel(object):
                             elif is_valid_media_model_path(media_thum_path):
                                 media_model = Base.MediaFile.VideoThumbnailFile(model)
                                 media_model.Deleted = self._convert_deleted_status(1)
-                                media_model.Path = media_path
+                                media_model.Path = media_thum_path
                                 model.Content.Value = media_model
                                 self.ar.save_media_model(media_model)
                             else:
@@ -1640,7 +1641,7 @@ class GenerateModel(object):
                             model.Content.Value.Signature = business_card_signature
                         elif msg_type == MESSAGE_CONTENT_TYPE_LOCATION:
                             model.Content = Base.Content.LocationContent(model)
-                            model.Content.Value = Base.Location()
+                            model.Content.Value = Base.Location(model)
                             model.Content.Value.SourceType = LocationSourceType.App
                             model.Content.Value.Time = model.CreateTime
                             model.Content.Value.AddressName = location_address
@@ -1648,7 +1649,7 @@ class GenerateModel(object):
                             self.add_model(model.Content.Value)
                         elif msg_type == MESSAGE_CONTENT_TYPE_LINK:
                             model.Content = Base.Content.LinkContent(model)
-                            model.Content.Value = Base.Link()
+                            model.Content.Value = Base.Link(model)
                             model.Content.Value.Title = link_title
                             model.Content.Value.Description = link_content
                             model.Content.Value.Url = link_url

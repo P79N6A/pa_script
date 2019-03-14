@@ -970,7 +970,7 @@ class Wechat(object):
                 model.Content.Value.Signature = message.business_card_signature
             elif message.type == model_wechat.MESSAGE_CONTENT_TYPE_LOCATION:
                 model.Content = Base.Content.LocationContent(model)
-                model.Content.Value = Base.Location()
+                model.Content.Value = Base.Location(model)
                 model.Content.Value.SourceType = LocationSourceType.App
                 model.Content.Value.Time = model.CreateTime
                 model.Content.Value.AddressName = message.location_address
@@ -978,7 +978,7 @@ class Wechat(object):
                 timeline_model = model.Content.Value
             elif message.type == model_wechat.MESSAGE_CONTENT_TYPE_LINK:
                 model.Content = Base.Content.LinkContent(model)
-                model.Content.Value = Base.Link()
+                model.Content.Value = Base.Link(model)
                 model.Content.Value.Title = message.link_title
                 model.Content.Value.Description = message.link_content
                 model.Content.Value.Url = message.link_url
