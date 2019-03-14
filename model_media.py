@@ -406,10 +406,27 @@ class Generate(object):
         except:
             pass
 
+    def get_normal_image_info(self, node):
+        '''获取非jpg图片文件信息'''
+        try:
+            image = MediaFile.ImageFile()
+            path = node.PathWithMountPoint
+            image.FileName = os.path.basename(path)
+            image.Path = node.AbsolutePath
+            image.Size = os.path.getsize(path)
+            addTime = os.path.getctime(path)
+            image.FileSuffix = re.sub('.*\.', '', node.AbsolutePath)
+            image.MimeType = 'image'
+            image.AddTime = self._get_timestamp(addTime)
+            image.SourceFile = node.AbsolutePath
+            return image
+        except:
+            return
+
     def get_exif_info(self, ret, node):
         '''获取媒体文件的exif信息'''
         try:
-            if ret != {}:
+            if not ret:
                 return
             model = []
             image = MediaFile.ImageFile()
@@ -491,7 +508,7 @@ class Generate(object):
                     if image.YResolution is not '' and image.YResolution is not None:
                         image.YResolution = image.YResolution + ' dpi'
             image.SourceFile = node.AbsolutePath
-            if location.Coordinate is not None:
+            if location is not None:
                 model.append(location)
             model.append(image)
             return model
