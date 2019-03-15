@@ -250,9 +250,9 @@ class Generate(object):
                         entry.Value.Value = phone[e]
                         contact.Entries.Add(entry)
                 if not IsDBNull(sr[13]):
-                    contact.SourceFile.Value = self._get_source_file(str(sr[14]))
+                    contact.SourceFile.Value = self._get_source_file(str(sr[13]))
                 if not IsDBNull(sr[14]):
-                    contact.Deleted = self._convert_deleted_status(sr[15])
+                    contact.Deleted = self._convert_deleted_status(sr[14])
                 model.append(contact)
             sr.Close()
             return model

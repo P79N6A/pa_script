@@ -32,8 +32,15 @@ from System.Xml.XPath import Extensions as XPathExtensions
 from ScriptUtils import TimeHelper, YunkanParserBase
 
 # const
-DEBUG = True
+DEBUG = False
 UMETRIPVERSION = 1
+
+
+TICKET_STATUS_UNKNOWN = "0"
+TICKET_STATUS_USED = "1"
+TICKET_STATUS_UNUSE = "2"
+TICKET_STATUS_REFUND = "3"
+TICKET_STATUS_OTHER = "9"
 
 
 class YunkanUmetripParser(YunkanParserBase):
@@ -90,7 +97,7 @@ class YunkanUmetripParser(YunkanParserBase):
                 activity_info = ticket_info.get('activityInfo', {})
                 ticket = model_map.LocationJourney()
                 ticket.account_id = account_id
-                ticket.flightid = activity_info.get('tktNo', None)
+                ticket.flightid = activity_info.get('flightNo', None)
                 start_time = '{} {}'.format(activity_info.get('deptDateTz', ''), activity_info.get('deptTimeTz', ''))
                 ticket.start_time = TimeHelper.str_to_ts(start_time, _format='%Y-%m-%d %H:%M')
                 ticket.depart = activity_info.get('deptCityCode', None)
@@ -101,8 +108,11 @@ class YunkanUmetripParser(YunkanParserBase):
                 ticket.destination_address = activity_info.get('destCityName', None)
                 ticket.purchase_price = activity_info.get('priceJointWithUnit', None)
                 ticket.ticket_status = activity_info.get('tktStatusDesc', None)
-                ticket.order_time = activity_info.get('createTime', None)
-                ticket.latest_mod_time = activity_info.get('modifyTime', None)
+                # Nov 16, 2017 8:44:03 PM
+                ticket.order_time = TimeHelper.str_to_ts(activity_info.get('createTime', None),
+                                                         _format='%b %d, %Y %H:%M:%S %p')
+                ticket.latest_mod_time = TimeHelper.str_to_ts(activity_info.get('modifyTime', None),
+                                                         _format='%b %d, %Y %H:%M:%S %p')
                 self.csm.db_insert_table_journey(ticket)
             except Exception as e:
                 print e

@@ -219,21 +219,25 @@ class YunkanSkypePanParser(YunkanParserBase):
         messages = self._open_json_file(node).get('messages', [])
 
         for m in messages:
-            message = model_im.Message()
-            message.source = source
-            message.msg_id = m.get("clientmessageid", None)
-            message.account_id = account_id
-            message.talker_id = m.get("conversationid")
-            message.sender_id = message.sender_name = sender_id
-            message.is_sender = 1
-            content = self.convert_message_content(m.get("content", None), message)
-            message.content = content
-            send_time = TimeHelper.str_to_ts(m.get('originalarrivaltime', None), _format="%Y-%m-%dT%H:%M:%S")
-            message.send_time = send_time
-            message.type = self.convert_message_content_type(m.get("messagetype", None))
-            message.talker_type = model_im.CHAT_TYPE_GROUP if "@" in message.talker_id else model_im.CHAT_TYPE_FRIEND
+            try:
+                message = model_im.Message()
+                message.source = source
+                message.msg_id = m.get("clientmessageid", None)
+                message.account_id = account_id
+                message.talker_id = m.get("conversationid")
+                message.sender_id = message.sender_name = sender_id
+                message.is_sender = 1
+                content = self.convert_message_content(m.get("content", None), message)
+                message.content = content
+                send_time = TimeHelper.str_to_ts(m.get('originalarrivaltime', None), _format="%Y-%m-%dT%H:%M:%S")
+                message.send_time = send_time
+                message.type = self.convert_message_content_type(m.get("messagetype", None))
+                message.talker_type = model_im.CHAT_TYPE_GROUP if "@" in message.talker_id else model_im.CHAT_TYPE_FRIEND
+                self.model_im_col.db_insert_table_message(message)
+            except Exception as e:
+                print m.get('originalarrivaltime', None)
+                print e
             # TODO media path 无法添加，案例数据没有
-            self.model_im_col.db_insert_table_message(message)
         self.model_im_col.db_commit()
 
     def _parse_account(self, node):
