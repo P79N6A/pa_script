@@ -9,6 +9,7 @@ import shutil
 import xml.etree.ElementTree as ET
 import clr
 
+
 try:
     clr.AddReference('model_im')
     clr.AddReference('bcp_im')
@@ -24,6 +25,7 @@ import time
 
 import model_im
 import PA_runtime
+import bcp_im
 import re
 import System
 from PA_runtime import *
@@ -803,7 +805,7 @@ class SkypeParser(object):
 
         generate = model_im.GenerateModel(self.cache_db)
         results = generate.get_models()
-
+        PA_runtime.save_cache_path(bcp_im.CONTACT_ACCOUNT_TYPE_IM_SKYPE,  self.cache_db, ds.OpenCachePath("tmp"))
         return results
 
 
