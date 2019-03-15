@@ -447,6 +447,8 @@ class AppResources(object):
             
             else:
                 try:
+                    if model is None:
+                        continue
                     mediaother = model_res.MediaOther()
                     mediaother.fileName = model.FileName
                     mediaother.fileExtention = model.FileSuffix

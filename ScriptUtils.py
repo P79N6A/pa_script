@@ -776,11 +776,15 @@ class TaoUtils(object):
 class TimeHelper(object):
     @staticmethod
     def str_to_ts(stringify_time, _format="%Y-%m-%d"):
-        if not stringify_time:
-            return
-        time_tuple = time.strptime(stringify_time, _format)
-        ts = int(time.mktime(time_tuple))
-        return ts
+        try:
+            if not stringify_time:
+                return
+            time_tuple = time.strptime(stringify_time, _format)
+            ts = int(time.mktime(time_tuple))
+            return ts
+        except Exception as e:
+            print (e)
+            return None
 
     @staticmethod
     def convert_timestamp(ts):
