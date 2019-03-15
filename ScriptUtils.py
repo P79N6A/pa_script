@@ -1386,9 +1386,9 @@ try:
     CASE_NAME = ds.ProjectState.ProjectDir.Name
 except:
     CASE_NAME = ''
-DEBUG = True
+# DEBUG = True
 DEBUG = False
-DEBUG_RUN_TIME = True
+# DEBUG_RUN_TIME = True
 DEBUG_RUN_TIME = False
 
 
@@ -1924,11 +1924,18 @@ SQL_INSERT_TABLE_VERSION = '''
 
 
 class MiddleDataModel(DataModel):
-    source = Fields.CharField(column_name='source')
-    deleted = Fields.IntegerField(column_name='deleted')
-    
 
-class VersionDB(DataModel):
+    def __init__(self):
+        '''setattr from Fields to None when instantiate '''
+        for attr, value in self.__attr_map__.items():
+            setattr(self, attr, None)
+
+    def get_values(self, attr_keys):
+        res = [getattr(self, key) for key in attr_keys]
+        return res
+
+
+class VersionDB(MiddleDataModel):
     __table__ = 'version'
 
     key = Fields.CharField(column_name='key')
@@ -1945,8 +1952,8 @@ class SQLCompiler(object):
             'FloatField': 'REAL',
             'BlobField': '',
         }
-        sql_create_table_pattern = '''
-            CREATE TABLE IF NOT EXISTS {table_name}({fields})
+        sql_pattern = '''
+            CREATE TABLE IF NOT EXISTS {table_name} ({fields})
         '''
         sql_values = []
         for attr, field in data_model.__attr_map__.items():
@@ -1955,9 +1962,34 @@ class SQLCompiler(object):
             _field = field_name + ' ' + field_type
             sql_values.append(_field)
         sql_values.reverse()
-        create_sql = sql_create_table_pattern.format(table_name=data_model.__table__,
-                                                    fields=', '.join(sql_values))
+        create_sql = sql_pattern.format(table_name=data_model.__table__,
+                                        fields=', '.join(sql_values))
         return create_sql
+
+    @staticmethod
+    def insert_sql_from_model(data_model):
+        ''''
+            INSERT INTO account(
+                id,
+                name,
+                logindate,
+                source, 
+                deleted,
+                repeated)
+            values(? ,? ,? ,? ,? ,?)
+        '''
+        sql_pattern = '''
+            INSERT INTO {table_name} ({fields}) values({question_mark})
+        '''
+        field_names = []
+        attr_keys = []
+        for attr, field in data_model.__attr_map__.items():
+            attr_keys.append(attr)
+            field_names.append(field.name)
+        insert_sql = sql_pattern.format(table_name=data_model.__table__,
+                                        fields=', '.join(field_names),
+                                        question_mark=', '.join(['?' for _ in range(len(field_names))]))
+        return attr_keys, insert_sql
 
 
 class BaseDBModel(object):
@@ -2011,10 +2043,17 @@ class BaseDBModel(object):
                 self.db_cmd.CommandText = ''
                 if isinstance(create_sql, str):
                     self.db_cmd.CommandText = create_sql
-                elif inspect.isclass(MiddleDataModel):
-                    _sql = SQLCompiler.create_sql_from_model(create_sql)
+                elif inspect.isclass(create_sql):
+                    _sql = SQLCompiler.create_sql_from_model(data_model=create_sql)
                     self.db_cmd.CommandText = _sql
                 self.db_cmd.ExecuteNonQuery()
+
+    def db_insert_tb_from_datamodel(self, data_model):
+        if not isinstance(data_model, MiddleDataModel):
+            return
+        attr_keys, _sql = SQLCompiler.insert_sql_from_model(data_model)
+        values = data_model.get_values(attr_keys)
+        self.db_insert_table(_sql, values)
 
     def db_insert_table(self, sql, values):
         if self.db_cmd is not None:
