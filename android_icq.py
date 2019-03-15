@@ -9,6 +9,7 @@ try:
     clr.AddReference('System.Xml.Linq')
     clr.AddReference('System.Data.SQLite')
     clr.AddReference('model_im')
+    clr.AddReference('bcp_im')
 except:
     pass
 del clr
@@ -19,6 +20,7 @@ import xml.etree.ElementTree as ET
 import model_im
 import PA_runtime
 import System
+import bcp_im
 from PA_runtime import *
 from System.Data.SQLite import *
 from System.Xml.Linq import *
@@ -520,7 +522,7 @@ class ICQParser(object):
 
         generate = model_im.GenerateModel(self.cache_db)
         results = generate.get_models()
-
+        PA_runtime.save_cache_path(bcp_im.CONTACT_ACCOUNT_TYPE_IM_ICQ, self.cache_db, ds.OpenCachePath("tmp"))
         return results
 
 
