@@ -111,11 +111,11 @@ def readVarInt(data):
                 return l
             i = i + 7
 
-hitdict =  { '(?i)com.tencent.mobileqq/databases$':('QQ','mobileqq'),
-            '(?i)com.tencent.qqlite/databases$':('QQ轻聊版','qqlite'),           
-            '(?i)com.tencent.mobileqqi/databases$':('QQ国际版','mobileqqi'),
-            '(?i)com.tencent.tim/databases$':('QQ TIM','tim'),
-            '(?i)com.tencent.minihd.qq/databases$':('平板QQ','minihd')
+hitdict =  { '(?i)com.tencent.mobileqq/.*databases$':['QQ','mobileqq'],
+            '(?i)com.tencent.qqlite/.*databases$':['QQ轻聊版','qqlite'],           
+            '(?i)com.tencent.mobileqqi/.*databases$':['QQ国际版','mobileqqi'],
+            '(?i)com.tencent.tim/.*databases$':['QQ TIM','tim'],
+            '(?i)com.tencent.minihd.qq/.*databases$':['平板QQ','minihd']
             }    
 def checkhit(root):
     nodes = []
@@ -123,7 +123,15 @@ def checkhit(root):
     for re in hitdict.keys():                 
         node = root.FileSystem.Search(re)
         if(len(list(node)) != 0):
-            nodes.append((node,hitdict[re]))
+            if len(node) > 1 : 
+                i = 1
+                for d in node:                                                             
+                    data = [hitdict[re][0] +  "-分身版本-" + str(i), hitdict[re][1]]
+                    i = i+ 1
+                    nodes.append((d,data))                    
+            else:
+                nodes.append((node[0],hitdict[re]))
+
     return nodes
    
 def startthread(root,extdata,extract_deleted,extract_source):        
@@ -139,19 +147,13 @@ def analyze_andriod_qq(root, extract_deleted, extract_source):
     try:             
         nodes = checkhit(root)
         threads = []
-        for node in nodes:
-            i = 1
-            for root in node[0]:
-                try:                    
-                    global hitdict                    
-                    if len(node[0]) > 1 :                        
-                        node[1][0] = node[1][0] + "-分身版本-" + str(i)
-                        i = i+ 1
-                    arg = (root,node[1],extract_deleted,extract_source)                    
-                    t = threading.Thread(target=startthread,args= arg)   
-                    threads.append(t)                                  
-                except:                    
-                    pass 
+        for node in nodes:            
+            try:                                                             
+                arg = (node[0],node[1],extract_deleted,extract_source)                    
+                t = threading.Thread(target=startthread,args= arg)   
+                threads.append(t)                                  
+            except:                    
+                pass 
         for th in threads:
             th.start()
         for th in threads:

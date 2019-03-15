@@ -86,9 +86,9 @@ def SafeGetValue(reader,i):
             return None
     except:
         return None
-hitdict =  {'(?i)Library/Preferences/com.tencent.mqq.plist$':('QQ',ParserResults()),
-            '(?i)Library/Preferences/com.tencent.mQQi.plist$':('mQQi',ParserResults()),
-            '(?i)Library/Preferences/com.tencent.tim.plist$':('QQ TIM',ParserResults()),
+hitdict =  {'(?i)Library/Preferences/com.tencent.mqq.plist$':['QQ',ParserResults()],
+            '(?i)Library/Preferences/com.tencent.mQQi.plist$':['mQQi',ParserResults()],
+            '(?i)Library/Preferences/com.tencent.tim.plist$':['QQ TIM',ParserResults()],
             }
 def checkhit(root):
     nodes = []
@@ -96,7 +96,15 @@ def checkhit(root):
     for re in hitdict.keys():                 
         node = root.FileSystem.Search(re)
         if(len(list(node)) != 0):
-            nodes.append((node,hitdict[re]))
+            if len(node) > 1 : 
+                i = 1
+                for d in node:                                                             
+                    data = [hitdict[re][0] +  "-分身版本-" + str(i), hitdict[re][1]]
+                    i = i+ 1
+                    nodes.append((d,data))                    
+            else:
+                nodes.append((node[0],hitdict[re]))
+
     return nodes
    
 def startthread(root,extdata,extract_deleted,extract_source):        
@@ -113,18 +121,12 @@ def analyze_qq(root, extract_deleted, extract_source):
         nodes = checkhit(root)
         threads = []      
         for node in nodes:
-            i = 1
-            for root in node[0]:
-                try:                    
-                    global hitdict                    
-                    if len(node[0]) > 1 :                        
-                        node[1][0] = node[1][0] + "-分身版本-" + str(i)
-                        i = i+ 1
-                    arg = (root,node[1],extract_deleted,extract_source)                    
-                    t = threading.Thread(target=startthread,args= arg)   
-                    threads.append(t)                                  
-                except:                    
-                    pass 
+            try:                                                             
+                arg = (node[0],node[1],extract_deleted,extract_source)                    
+                t = threading.Thread(target=startthread,args= arg)   
+                threads.append(t)                                  
+            except:                    
+                pass 
         for th in threads:
             th.start()
         for th in threads:
@@ -726,6 +728,7 @@ class QQParser(object):
             if acc_ind is None:
                 break
             self.decode_account(bp['$objects'], acc_ind.Value,node.AbsolutePath)
+
     def decode_account(self, bp, dict_ind,source):
         values = self.get_dict_from_bplist(bp, dict_ind)
         ac = Account()
