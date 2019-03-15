@@ -221,38 +221,41 @@ class Generate(object):
 
     def _get_model_contacts(self):
         model = []
-        sql = '''select distinct * from contacts'''
+        sql = '''select distinct * from (select mail, company, 
+                title, last_time_contact, last_time_modify, times_contacted, 
+                phone_number, name, address, notes, head_pic, source, 
+                deleted, repeated from contacts)'''
         try:
             self.db_cmd.CommandText = sql
             sr = self.db_cmd.ExecuteReader()
             while(sr.Read()):
                 contact = Contacts.Contact()
-                if not IsDBNull(sr[10]):
-                    addresses = sr[10].split(',')
+                if not IsDBNull(sr[3]):
+                    contact.TimeContacted.Value = self._get_timestamp(sr[3])
+                if not IsDBNull(sr[4]):
+                    contact.TimeModified.Value = self._get_timestamp(sr[4])
+                if not IsDBNull(sr[5]):
+                    contact.TimesContacted.Value = sr[5]
+                if not IsDBNull(sr[6]):
+                    phone = sr[6].split(',')
+                    for e in range(len(phone)):
+                        entry = Contacts.ContactEntry()
+                        entry.Value.Value = phone[e]
+                        contact.Entries.Add(entry)
+                if not IsDBNull(sr[7]):
+                    contact.Name.Value = sr[7]
+                if not IsDBNull(sr[8]):
+                    addresses = sr[8].split(',')
                     for a in range(len(addresses)):
                         addr = Contacts.StreetAddress()
                         addr.FullName.Value = addresses[a]
                         contact.Addresses.Add(addr)
                 if not IsDBNull(sr[9]):
-                    contact.Name.Value = sr[9]
+                    contact.Notes.Add(sr[9])
                 if not IsDBNull(sr[11]):
-                    contact.Notes.Add(sr[11])
-                if not IsDBNull(sr[5]):
-                    contact.TimeContacted.Value = self._get_timestamp(sr[5])
-                if not IsDBNull(sr[6]):
-                    contact.TimeModified.Value = self._get_timestamp(sr[6])
-                if not IsDBNull(sr[7]):
-                    contact.TimesContacted.Value = sr[7]
-                if not IsDBNull(sr[8]):
-                    phone = sr[8].split(',')
-                    for e in range(len(phone)):
-                        entry = Contacts.ContactEntry()
-                        entry.Value.Value = phone[e]
-                        contact.Entries.Add(entry)
-                if not IsDBNull(sr[13]):
-                    contact.SourceFile.Value = self._get_source_file(str(sr[14]))
-                if not IsDBNull(sr[14]):
-                    contact.Deleted = self._convert_deleted_status(sr[15])
+                    contact.SourceFile.Value = self._get_source_file(str(sr[11]))
+                if not IsDBNull(sr[12]):
+                    contact.Deleted = self._convert_deleted_status(sr[12])
                 model.append(contact)
             sr.Close()
             return model
