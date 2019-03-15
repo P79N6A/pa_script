@@ -3355,7 +3355,7 @@
           <string>基础数据</string>
           <key>Dependents</key>
           <array>
-            <string>analyze_android_calls#2#0@android_contact</string>
+            <string>analyze_android_contact#2#0@android_contact</string>
           </array>
         </dict>
         <dict>
@@ -3375,7 +3375,7 @@
           <string>基础数据</string>
           <key>Dependents</key>
           <array>
-            <string>analyze_android_calls#2#0@android_contact</string>
+            <string>analyze_android_contact#2#0@android_contact</string>
           </array>
         </dict>
       </array>
@@ -4115,7 +4115,7 @@
       <array>
         <dict>
           <key>EntryPoint</key>
-          <string>analyze_yinshi</string>
+          <string>analyze_yingshi</string>
           <key>RunnerType</key>
           <integer>4</integer>
           <key>Patterns</key>
@@ -4128,6 +4128,390 @@
           <string>萤石云视频(云勘)</string>
           <key>Filter</key>
           <string>应用>社交</string>
+        </dict>
+      </array>
+    </dict>
+	
+	<dict>
+      <key>Module</key>
+      <string>android_system_log</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_system_log</string>
+          <key>RunnerType</key>
+          <integer>2</integer>
+          <key>Patterns</key>
+          <array>
+            <string>/system/dropbox$</string>
+          </array>
+          <key>Category</key>
+          <string>PoweringEvent</string>
+          <key>Name</key>
+          <string>开关机事件(安卓)</string>
+          <key>Filter</key>
+          <string>基础数据</string>
+        </dict>
+      </array>
+    </dict>
+	
+	<dict>
+      <key>Module</key>
+      <string>cloud_whatsapp</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_whatsapp</string>
+          <key>RunnerType</key>
+          <integer>4</integer>
+          <key>Patterns</key>
+          <array>
+            <string>^/whatsapp$</string>
+          </array>
+          <key>Category</key>
+          <string>WhatsApp</string>
+          <key>Name</key>
+          <string>WhatsApp(云勘)</string>
+          <key>Filter</key>
+          <string>应用>社交</string>
+        </dict>
+      </array>
+    </dict>
+
+    <dict>
+      <key>Module</key>
+      <string>cloud_12306</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_cloud_12306</string>
+          <key>RunnerType</key>
+          <integer>4</integer>
+          <key>Patterns</key>
+          <array>
+            <string>^/12306$</string>
+          </array>
+          <key>Category</key>
+          <string>Railway12306</string>
+          <key>Name</key>
+          <string>铁路12306(云勘)</string>
+          <key>Filter</key>
+          <string>应用>商旅</string>
+        </dict>
+      </array>
+    </dict>
+
+    <dict>
+      <key>Module</key>
+      <string>cloud_alipay</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_cloud_alipay</string>
+          <key>RunnerType</key>
+          <integer>4</integer>
+          <key>Patterns</key>
+          <array>
+            <string>^/alipay$</string>
+          </array>
+          <key>Category</key>
+          <string>Alipay</string>
+          <key>Name</key>
+          <string>支付宝(云勘)</string>
+          <key>Filter</key>
+          <string>应用>电子商务</string>
+        </dict>
+      </array>
+    </dict>
+
+    <dict>
+      <key>Module</key>
+      <string>cloud_sinaweibo</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_cloud_sinaweibo</string>
+          <key>RunnerType</key>
+          <integer>4</integer>
+          <key>Patterns</key>
+          <array>
+            <string>^/sinaweibo$</string>
+          </array>
+          <key>Category</key>
+          <string>Weibo</string>
+          <key>Name</key>
+          <string>新浪微博(云勘)</string>
+          <key>Filter</key>
+          <string>应用>社交</string>
+        </dict>
+      </array>
+    </dict>
+
+    <dict>
+      <key>Module</key>
+      <string>cloud_jd</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_cloud_jd</string>
+          <key>RunnerType</key>
+          <integer>4</integer>
+          <key>Patterns</key>
+          <array>
+            <string>^/jd$</string>
+          </array>
+          <key>Category</key>
+          <string>JingDong</string>
+          <key>Name</key>
+          <string>手机京东(云勘)</string>
+          <key>Filter</key>
+          <string>应用>电子商务</string>
+        </dict>
+      </array>
+    </dict>
+
+    <dict>
+      <key>Module</key>
+      <string>cloud_skype</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>parse_yunkan_skype</string>
+          <key>RunnerType</key>
+          <integer>4</integer>
+          <key>Patterns</key>
+          <array>
+            <string>^/skype$</string>
+          </array>
+          <key>Category</key>
+          <string>Skype</string>
+          <key>Name</key>
+          <string>Skype(云堪)</string>
+          <key>Filter</key>
+          <string>应用>即时通讯</string>
+        </dict>
+      </array>
+    </dict>
+
+    <dict>
+      <key>Module</key>
+      <string>cloud_micloud</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>parse_yunkan_micloud</string>
+          <key>RunnerType</key>
+          <integer>4</integer>
+          <key>Patterns</key>
+          <array>
+            <string>^/miCloud$</string>
+          </array>
+          <key>Category</key>
+          <string>Railway12306</string>
+          <key>Name</key>
+          <string>小米云备份(云勘)</string>
+          <key>Filter</key>
+          <string>应用>商旅</string>
+        </dict>
+      </array>
+    </dict>
+
+    <dict>
+      <key>Module</key>
+      <string>cloud_umetrip</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>parse_yunkan_umetrip</string>
+          <key>RunnerType</key>
+          <integer>4</integer>
+          <key>Patterns</key>
+          <array>
+            <string>^/umetrip$</string>
+          </array>
+          <key>Category</key>
+          <string>Umetrip</string>
+          <key>Name</key>
+          <string>航旅纵横(云勘)</string>
+          <key>Filter</key>
+          <string>应用>电子商务</string>
+        </dict>
+      </array>
+    </dict>
+
+    <dict>
+      <key>Module</key>
+      <string>cloud_baidupan</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>parse_yunkan_baidupan</string>
+          <key>RunnerType</key>
+          <integer>4</integer>
+          <key>Patterns</key>
+          <array>
+            <string>^/baidupan$</string>
+          </array>
+          <key>Category</key>
+          <string>BDY</string>
+          <key>Name</key>
+          <string>百度云盘(云勘)</string>
+          <key>Filter</key>
+          <string>应用>网络共享</string>
+        </dict>
+      </array>
+    </dict>
+
+    <dict>
+      <key>Module</key>
+      <string>cloud_huawei</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_cloud_huawei</string>
+          <key>RunnerType</key>
+          <integer>4</integer>
+          <key>Patterns</key>
+          <array>
+            <string>^/huaweicloud$</string>
+          </array>
+          <key>Category</key>
+          <string>HuaweiCloudBackup</string>
+          <key>Name</key>
+          <string>华为云备份(云勘)</string>
+          <key>Filter</key>
+          <string>应用>基础数据</string>
+        </dict>
+      </array>
+    </dict>
+
+    <dict>
+      <key>Module</key>
+      <string>cloud_qqpim</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_cloud_qqpim</string>
+          <key>RunnerType</key>
+          <integer>4</integer>
+          <key>Patterns</key>
+          <array>
+            <string>^/qqpim$</string>
+          </array>
+          <key>Category</key>
+          <string>QQpim</string>
+          <key>Name</key>
+          <string>qq同步助手(云勘)</string>
+          <key>Filter</key>
+          <string>应用>基础数据</string>
+        </dict>
+      </array>
+    </dict>
+
+    <dict>
+      <key>Module</key>
+      <string>cloud_qqmail</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_cloud_qqmail</string>
+          <key>RunnerType</key>
+          <integer>4</integer>
+          <key>Patterns</key>
+          <array>
+            <string>^/qqmail$</string>
+          </array>
+          <key>Category</key>
+          <string>QQMail</string>
+          <key>Name</key>
+          <string>qq邮箱(云勘)</string>
+          <key>Filter</key>
+          <string>应用>邮箱</string>
+        </dict>
+      </array>
+    </dict>
+
+    <dict>
+      <key>Module</key>
+      <string>cloud_mail126</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_cloud_mail126</string>
+          <key>RunnerType</key>
+          <integer>4</integer>
+          <key>Patterns</key>
+          <array>
+            <string>^/mail126$</string>
+          </array>
+          <key>Category</key>
+          <string>Email126</string>
+          <key>Name</key>
+          <string>126邮箱(云勘)</string>
+          <key>Filter</key>
+          <string>应用>邮箱</string>
+        </dict>
+      </array>
+    </dict>
+
+    <dict>
+      <key>Module</key>
+      <string>cloud_mail163</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_cloud_mail163</string>
+          <key>RunnerType</key>
+          <integer>4</integer>
+          <key>Patterns</key>
+          <array>
+            <string>^/mail163$</string>
+          </array>
+          <key>Category</key>
+          <string>NeteaseMail</string>
+          <key>Name</key>
+          <string>163邮箱(云勘)</string>
+          <key>Filter</key>
+          <string>应用>邮箱</string>
+        </dict>
+      </array>
+    </dict>
+
+    <dict>
+      <key>Module</key>
+      <string>cloud_mailyeah</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_cloud_mailyeah</string>
+          <key>RunnerType</key>
+          <integer>4</integer>
+          <key>Patterns</key>
+          <array>
+            <string>^/mailYeah$</string>
+          </array>
+          <key>Category</key>
+          <string>YeahEmail</string>
+          <key>Name</key>
+          <string>Yeah邮箱(云勘)</string>
+          <key>Filter</key>
+          <string>应用>邮箱</string>
         </dict>
       </array>
     </dict>

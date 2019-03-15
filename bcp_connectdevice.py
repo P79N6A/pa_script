@@ -419,7 +419,7 @@ class GenerateBcp(ConnectDeviceBcp):
                     base.LONGITUDE         = self._db_reader_get_string_value(sr, 11)
                     base.LATITUDE          = self._db_reader_get_string_value(sr, 12)
                     base.ABOVE_SEALEVEL    = self._db_reader_get_string_value(sr, 13)
-                    base.START_TIME        = self._db_reader_get_string_value(sr, 14)
+                    base.START_TIME        = str(sr[14]) if sr[14] is not None else None
                     base.END_TIME          = self._db_reader_get_string_value(sr, 15)
                     base.DELETE_STATUS     = self._db_reader_get_string_value(sr, 16)
                     base.DELETE_TIME       = self._db_reader_get_int_value(sr, 17)

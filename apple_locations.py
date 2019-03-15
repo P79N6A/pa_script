@@ -285,19 +285,19 @@ class LocationsParser(object):
             self.get_mac_from_record(record, result.Description)
             self.get_coordinate_and_data_from_record(record, result)
             results.append(result)
-            try:
-                mcc = None
-                mnc = None
-                lac = None
-                ci = None
-                latitude = self._db_record_get_string_value(record, 'Latitude')
-                longitude = self._db_record_get_string_value(record, 'Longitude')
-                sid = None
-                nid = None
-                bsid = None
-                self.insert_cache(mcc, mnc, lac, ci, latitude, longitude, sid, nid, bsid)
-            except:
-                pass
+            #try:
+            #    mcc = None
+            #    mnc = None
+            #    lac = None
+            #    ci = None
+            #    latitude = self._db_record_get_string_value(record, 'Latitude')
+            #    longitude = self._db_record_get_string_value(record, 'Longitude')
+            #    sid = None
+            #    nid = None
+            #    bsid = None
+            #    self.insert_cache(mcc, mnc, lac, ci, latitude, longitude, sid, nid, bsid)
+            #except:
+            #    pass
         return results
 
     def parse_location_harvest(self):
@@ -818,6 +818,7 @@ class FrequentLocationsParser(object):
     
     def get_recent_one_week_location(self):
         results = []
+        reader = None
         dbNodes = self.root.Files
         if dbNodes is None:
             return
@@ -2077,7 +2078,7 @@ def convert_to_timestamp(mac_time, v=10):
     except:
         return None
 
-def _get_cdma_cell_location(node, extract_deleted):
+def _get_cdma_cell_location(node, extract_deleted, cd):
     models = []
     if node is None:
         return
@@ -2113,14 +2114,17 @@ def _get_cdma_cell_location(node, extract_deleted):
                 cell.Position.Value = c
             if timestamp:
                 cell.TimeStamp.Value = convert_to_timestamp(timestamp)
+                timestamp = format_mac_timestamp(timestamp)
             if mcc and sid and nid:
                 models.append(cell)
+                insert_cache(cd, mcc, None, None, None, latitude, longitude, sid, nid, BSID, timestamp)
         except Exception as e:
             print(e)
+    cd.db_commit()
     return models
 
 
-def _get_cell_location(node, extract_deleted):
+def _get_cell_location(node, extract_deleted, cd):
     models = []
     if node is None:
         return
@@ -2156,13 +2160,16 @@ def _get_cell_location(node, extract_deleted):
                 cell.Position.Value = c
             if timestamp:
                 cell.TimeStamp.Value = convert_to_timestamp(timestamp)
+                timestamp = format_mac_timestamp(timestamp)
             if mcc and mnc and lac:
                 models.append(cell)
+                insert_cache(cd, mcc, mnc, lac, ci, latitude, longitude, None, None, None, timestamp)
         except Exception as e:
             print(e)
+    cd.db_commit()
     return models
 
-def _get_lte_cell_location(node, extract_deleted):
+def _get_lte_cell_location(node, extract_deleted, cd):
     models = []
     if node is None:
         return
@@ -2197,13 +2204,16 @@ def _get_lte_cell_location(node, extract_deleted):
                 cell.Position.Value = c
             if timestamp:
                 cell.TimeStamp.Value = convert_to_timestamp(timestamp)
+                timestamp = format_mac_timestamp(timestamp)
             if mcc and mnc and tac:
                 models.append(cell)
+                insert_cache(cd, mcc, mnc, tac, ci, latitude, longitude, None, None, None, timestamp)
         except Exception as e:
             print(e)
+    cd.db_commit()
     return models
 
-def _get_scdma_cell_location(node, extract_deleted):
+def _get_scdma_cell_location(node, extract_deleted, cd):
     models = []
     if node is None:
         return
@@ -2238,20 +2248,24 @@ def _get_scdma_cell_location(node, extract_deleted):
                 cell.Position.Value = c
             if timestamp:
                 cell.TimeStamp.Value = convert_to_timestamp(timestamp)
+                timestamp = format_mac_timestamp(timestamp)
             if mcc and mnc and lac:
                 models.append(cell)
+                insert_cache(cd, mcc, mnc, lac, ci, latitude, longitude, None, None, None, timestamp)
         except Exception as e:
             print(e)
+    cd.db_commit()
     return models
     
 
 def analyze_apple_cell_location(node, extract_deleted, extract_source):
     pr = ParserResults()
     results = []
-    cdma_res = _get_cdma_cell_location(node, extract_deleted)
-    cell_res = _get_cell_location(node, extract_deleted)
-    lte_res = _get_lte_cell_location(node, extract_deleted)
-    scdma_res = _get_scdma_cell_location(node, extract_deleted)
+    db_path, cd = create_cache()
+    cdma_res = _get_cdma_cell_location(node, extract_deleted, cd)
+    cell_res = _get_cell_location(node, extract_deleted, cd)
+    lte_res = _get_lte_cell_location(node, extract_deleted, cd)
+    scdma_res = _get_scdma_cell_location(node, extract_deleted, cd)
     if cdma_res:
         results.extend(cdma_res)
     if cell_res:
@@ -2263,4 +2277,59 @@ def analyze_apple_cell_location(node, extract_deleted, extract_source):
     if results:
         pr.Models.AddRange(results)
         pr.Build("苹果基站")
+    close_cache(cd)
     return pr
+
+def create_cache():
+    '''创建中间数据库'''
+    cd = bcp_connectdevice.ConnectDeviceBcp()
+    cachepath = ds.OpenCachePath("基站信息")
+    md5_db = hashlib.md5()
+    db_name = 'radio_log'
+    md5_db.update(db_name.encode(encoding = 'utf-8'))
+    db_path = cachepath + '\\' + md5_db.hexdigest().upper() + '.db'
+    cd.db_create(db_path)
+    return db_path, cd
+
+def insert_cache(cd, mcc, mnc, lac, ci, latitude, longitude, sid, nid, bsid, stime):
+    '''插入数据'''
+    base = bcp_connectdevice.BasestationInfo()
+    base.MCC = mcc
+    base.MNC = mnc
+    base.LAC = lac
+    base.CellID = ci
+    base.LATITUDE = latitude
+    base.LONGITUDE = longitude
+    base.SID = sid
+    base.NID = nid
+    base.BASE_STATION_ID = bsid
+    base.START_TIME = stime
+    cd.db_insert_table_basestation_information(base)
+
+def close_cache(cd):
+    '''关闭数据库,导出bcp'''
+    try:
+        cd.db_commit()
+        cd.db_close()
+        #bcp entry
+        temp_dir = ds.OpenCachePath('tmp')
+        PA_runtime.save_cache_path(bcp_connectdevice.BASESTATION_INFORMATION, self.db_path, temp_dir)
+    except:
+        pass
+
+def format_mac_timestamp(mac_time, v = 10):
+    """
+    from mac-timestamp generate unix time stamp
+    """
+    try:
+        date = 0
+        date_2 = mac_time
+        if mac_time < 1000000000:
+            date = mac_time + 978307200
+        else:
+            date = mac_time
+            date_2 = date_2 - 978278400 - 8 * 3600
+        s_ret = date if v > 5 else date_2
+        return int(s_ret)
+    except:
+        return None

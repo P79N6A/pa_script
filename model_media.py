@@ -382,7 +382,7 @@ class Generate(object):
             img = Image.open(fname)
             if hasattr(img, '_getexif'):
                 exifinfo = img._getexif()
-                if exifinfo != None:
+                if exifinfo is not None:
                     for tag, value in exifinfo.items():
                         decoded = TAGS.get(tag, tag)
                         ret[decoded] = value
@@ -390,10 +390,43 @@ class Generate(object):
         except:
             return {}
 
+    def get_video_info(self, node):
+        '''获取视频文件信息'''
+        try:
+            video = MediaFile.VideoFile()
+            path = node.PathWithMountPoint
+            video.FileName = os.path.basename(path)
+            video.Path = node.AbsolutePath
+            video.Size = os.path.getsize(path)
+            addTime = os.path.getctime(path)
+            video.FileSuffix = re.sub('.*\.', '', node.AbsolutePath)
+            video.MimeType = 'video'
+            video.AddTime = self._get_timestamp(addTime)
+            return video
+        except:
+            pass
+
+    def get_normal_image_info(self, node):
+        '''获取非jpg图片文件信息'''
+        try:
+            image = MediaFile.ImageFile()
+            path = node.PathWithMountPoint
+            image.FileName = os.path.basename(path)
+            image.Path = node.AbsolutePath
+            image.Size = os.path.getsize(path)
+            addTime = os.path.getctime(path)
+            image.FileSuffix = re.sub('.*\.', '', node.AbsolutePath)
+            image.MimeType = 'image'
+            image.AddTime = self._get_timestamp(addTime)
+            image.SourceFile = node.AbsolutePath
+            return image
+        except:
+            return
+
     def get_exif_info(self, ret, node):
         '''获取媒体文件的exif信息'''
         try:
-            if ret is {}:
+            if not ret:
                 return
             model = []
             image = MediaFile.ImageFile()
@@ -402,46 +435,35 @@ class Generate(object):
             image.Path = node.AbsolutePath
             image.Size = os.path.getsize(path)
             addTime = os.path.getctime(path)
-            image.FileSuffix = 'jpg'
+            image.FileSuffix = re.sub('.*\.', '', node.AbsolutePath)
             image.MimeType = 'image'
             image.AddTime = self._get_timestamp(addTime)
-            location = Base.Location(image)
-            coordinate = Base.Coordinate()
-            try:
-                latitude = None
-                longitude = None
-                if 'GPSInfo' in ret.keys():
-                    latitude = 0.0
-                    longitude = 0.0
-                    try:
-                        GPSInfo = ret['GPSInfo']
-                        latitudeFlag = GPSInfo[1]
-                        latitude = float(GPSInfo[2][0][0])/float(GPSInfo[2][0][1]) + float(GPSInfo[2][1][0])/float(GPSInfo[2][1][1])/float(60) + float(GPSInfo[2][2][0])/float(GPSInfo[2][2][1])/float(3600)
-                        longitudeFlag = GPSInfo[3]
-                        longitude = float(GPSInfo[4][0][0])/float(GPSInfo[4][0][1]) + float(GPSInfo[4][1][0])/float(GPSInfo[4][1][1])/float(60) + float(GPSInfo[4][2][0])/float(GPSInfo[4][2][1])/float(3600)
-                    except:
-                        pass
-                coordinate.Longitude = longitude
-                coordinate.Latitude = latitude
-                coordinate.Type = CoordinateType.Google if self.coordinate_type == COORDINATE_TYPE_GOOGLE else CoordinateType.GPS
-            except:
-                pass
-            location.Coordinate = coordinate
-            location.Time = image.AddTime
-            location.SourceType = LocationSourceType.Media
-            image.Location = location
+            location = None
+            if 'GPSInfo' in ret.keys():
+                try:
+                    location = Base.Location(image)
+                    coordinate = Base.Coordinate()
+                    GPSInfo = ret['GPSInfo']
+                    latitudeFlag = GPSInfo[1]
+                    latitude = float(GPSInfo[2][0][0])/float(GPSInfo[2][0][1]) + float(GPSInfo[2][1][0])/float(GPSInfo[2][1][1])/float(60) + float(GPSInfo[2][2][0])/float(GPSInfo[2][2][1])/float(3600)
+                    longitudeFlag = GPSInfo[3]
+                    longitude = float(GPSInfo[4][0][0])/float(GPSInfo[4][0][1]) + float(GPSInfo[4][1][0])/float(GPSInfo[4][1][1])/float(60) + float(GPSInfo[4][2][0])/float(GPSInfo[4][2][1])/float(3600)
+                    coordinate.Longitude = longitude
+                    coordinate.Latitude = latitude
+                    coordinate.Type = CoordinateType.Google if self.coordinate_type == COORDINATE_TYPE_GOOGLE else CoordinateType.GPS
+                    location.Coordinate = coordinate
+                    location.Time = image.AddTime
+                    location.SourceType = LocationSourceType.Media
+                    image.Location = location
+                except:
+                    pass
             modifyTime = os.path.getmtime(path)
             image.ModifyTime = self._get_timestamp(modifyTime)
-            try:
-                width = None
-                height = None
-                if 'ExifImageWidth' in ret.keys() and 'ImageLength' in ret.keys():
-                    width = ret['ExifImageWidth']
-                    height = ret['ImageLength']
+            if 'ExifImageWidth' in ret.keys() and 'ImageLength' in ret.keys():
+                width = ret['ExifImageWidth']
+                height = ret['ImageLength']
                 image.Height = height
                 image.Width = width
-            except:
-                pass
             takenDate = os.path.getctime(path)
             image.TakenDate = self._get_timestamp(takenDate)
             if '42036' in ret:
@@ -486,7 +508,7 @@ class Generate(object):
                     if image.YResolution is not '' and image.YResolution is not None:
                         image.YResolution = image.YResolution + ' dpi'
             image.SourceFile = node.AbsolutePath
-            if location.Coordinate is not None:
+            if location is not None:
                 model.append(location)
             model.append(image)
             return model

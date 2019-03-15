@@ -8,6 +8,7 @@ import shutil
 
 import clr
 
+
 clr.AddReference('System.Core')
 clr.AddReference('System.Xml.Linq')
 clr.AddReference('System.Data.SQLite')
@@ -23,6 +24,7 @@ del clr
 import model_im
 import PA_runtime
 import re
+import bcp_im
 import System
 from PA_runtime import *
 from System.Data.SQLite import *
@@ -819,6 +821,7 @@ class SkypeParser(object):
 
         generate = model_im.GenerateModel(self.cache_db)
         results = generate.get_models()
+        PA_runtime.save_cache_path(bcp_im.CONTACT_ACCOUNT_TYPE_IM_SKYPE, self.cache_db, ds.OpenCachePath("tmp"))
 
         return results
 

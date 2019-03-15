@@ -66,7 +66,7 @@ SQL_INSERT_TABLE_RECORDS = '''
     '''
 
 SQL_FIND_TABLE_RECORDS = '''
-    SELECT * FROM RECORDS ORDER BY deleted ASC
+    SELECT * FROM records ORDER BY deleted ASC
     '''
 
 SQL_CREATE_TABLE_VERSION = '''
@@ -238,10 +238,10 @@ class Generate(object):
             while(sr.Read()):
                 if sr[0] == 0:
                     continue
-                if sr[2] not in self.id:
-                    self.id.append(sr[2])
-                else:
-                    continue
+                #if sr[2] not in self.id:
+                #    self.id.append(sr[2])
+                #else:
+                #    continue
                 c = Call()
                 if not IsDBNull(sr[10]):
                     c.CountryCode = sr[10]
@@ -277,6 +277,7 @@ class Generate(object):
                 if not IsDBNull(sr[12]):
                     c.Deleted = self._convert_deleted_status(sr[12])
                 model.append(c)
+            print(flag)
             sr.Close()
             return model
         except Exception as e:

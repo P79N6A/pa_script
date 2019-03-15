@@ -32,7 +32,10 @@ import codecs
 import os
 import plistlib
 import sys
+import inspect
+
 reload(sys)
+from HTMLParser import HTMLParser
 sys.setdefaultencoding("utf8")
 
 import model_im
@@ -775,11 +778,15 @@ class TaoUtils(object):
 class TimeHelper(object):
     @staticmethod
     def str_to_ts(stringify_time, _format="%Y-%m-%d"):
-        if not stringify_time:
-            return
-        time_tuple = time.strptime(stringify_time, _format)
-        ts = int(time.mktime(time_tuple))
-        return ts
+        try:
+            if not stringify_time:
+                return
+            time_tuple = time.strptime(stringify_time, _format)
+            ts = int(time.mktime(time_tuple))
+            return ts
+        except Exception as e:
+            print (e)
+            return None
 
     @staticmethod
     def convert_timestamp(ts):
@@ -1282,6 +1289,92 @@ class SemiXmlNode(object):
         return default
 
 
+class HtmlNode(object):
+    def __init__(self, tag):
+        self.tag_name = tag
+        self.property = {}
+        self.child = []
+        self.data = None
+
+    def __getitem__(self, item):
+        """暂时只支持返回找到的第一个元素"""
+        for node in self.child:
+            if node.tag_name == item:
+                return node
+
+    def get_all(self, tag_name):
+        answer = []
+        for node in self.child:
+            if node.tag_name == tag_name:
+                answer.append(node)
+        return answer
+
+    def get(self, key, default=None):
+        for node in self.child:
+            if node.tag_name == key:
+                return node
+        return default
+
+
+class PaHtmlParser(HTMLParser):
+    def __init__(self):
+        HTMLParser.__init__(self)
+        self.__inner_node_list = []
+        self.body = {}
+        self.root = HtmlNode(tag="html")
+
+    def handle_starttag(self, tag, attrs):
+        node = HtmlNode(tag)
+        node.property = {k: v for k, v in attrs}
+        self.__inner_node_list.append(node)
+
+    def handle_data(self, data):
+        if not self.__inner_node_list:
+            return
+        self.__inner_node_list[-1].data = data
+
+    def handle_endtag(self, tag):
+        node = self.__inner_node_list.pop()
+        if len(self.__inner_node_list) != 0:
+            self.__inner_node_list[-1].child.append(node)
+        else:
+            self.root.child.append(node)
+
+    @property
+    def first_dom(self):
+        if len(self.root.child) == 0:
+            return
+        return self.root.child[0]
+
+
+
+class YunkanParserBase(object):
+    def __init__(self, node, extract_deleted, extract_source, app_name):
+        self.root = node
+        self.app_name = app_name
+        self.extract_deleted = extract_deleted
+        self.extract_source = extract_source
+        self.cache_db = self._get_cache_db()
+
+    def _get_cache_db(self):
+        """获取中间数据库的db路径"""
+        self.cache_path = ds.OpenCachePath(self.app_name)
+        m = hashlib.md5()
+        m.update(self.root.AbsolutePath.encode('utf-8'))
+        return os.path.join(self.cache_path, m.hexdigest().upper())
+
+    @staticmethod
+    def _open_json_file(node):
+        if not node:
+            return
+        try:
+            path = node.PathWithMountPoint
+            with open(path, 'r') as f:
+                data = json.load(f)
+                return data
+        except Exception as e:
+            return {}
+
 
 ################################################################################################################
 ##                                    __author__ = "Yangliyuan"                                               ##
@@ -1521,6 +1614,7 @@ class BaseParser(object):
             self.cur_json_source = json_node.AbsolutePath
             return json_data
         except:
+            tp(json_path, json_node.AbsolutePath)
             exc()
             return False
 
@@ -1595,6 +1689,17 @@ class BaseParser(object):
     def _is_contains(self, rec, *keys):
         return False not in [rec.ContainsKey(key) for key in keys]
 
+    def _include_garbled_str(self, rec_value):
+        try:
+            if isinstance(rec_value, str):
+                _pattern = u"[\\x00-\\x08\\x0b-\\x0c\\x0e-\\x1f]"
+                if re.search(_pattern, rec_value) is not None:
+                    return True
+            return False
+        except:
+            exc()
+            return False
+
     @staticmethod
     def _is_url(rec, *args):
         ''' 匹配 URL IP
@@ -1629,22 +1734,22 @@ class BaseParser(object):
                 reg_str = r'^((\+86)|(86))?(1)\d{10}$'
                 match_obj = re.match(reg_str, s)
                 if match_obj is None:
-                    return False      
+                    return False
             except:
                 exc()
-                return False    
+                return False
 
     @staticmethod
     def _is_email_format(rec=None, key=None, email_str=''):
-        """ 匹配邮箱地址 
+        """ 匹配邮箱地址
 
         Args:
-            rec (rec): 
-            key (str): 
-            email_str (str): 
-            
+            rec (rec):
+            key (str):
+            email_str (str):
+
         Returns:
-            bool: is valid email address      
+            bool: is valid email address
         """
         try:
             if email_str is '' and rec is not None:
@@ -1663,10 +1768,10 @@ class BaseParser(object):
     @staticmethod
     def _convert_strtime_2_ts(format_time):
         ''' "2018/8/15 15:27:20" -> 10位 时间戳 1534318040.0
-            
+
         Args:
             format_time (str)
-            
+
         Returns:
             (int/float): timastamp e.g. 1534318040.0
         '''
@@ -1692,12 +1797,11 @@ class BaseParser(object):
             return 0
 
 
-
 class BaseAndroidParser(BaseParser):
     def __init__(self, node, db_name):
         super(BaseAndroidParser, self).__init__(node, db_name)
         if node.FileSystem.Name == 'data.tar':
-            self.rename_file_path = ['/storage/emulated', '/data/media'] 
+            self.rename_file_path = ['/storage/emulated', '/data/media']
         else:
             self.rename_file_path = None
 
@@ -1815,13 +1919,45 @@ class ProtobufDecoder(object):
 
 ########## DB ###########
 
-SQL_CREATE_TABLE_VERSION = '''
-    create table if not exists version(
-        key TEXT primary key,
-        version INT)'''
-
 SQL_INSERT_TABLE_VERSION = '''
     insert or REPLACE into version(key, version) values(?, ?)'''
+
+
+class MiddleDataModel(DataModel):
+    source = Fields.CharField(column_name='source')
+    deleted = Fields.IntegerField(column_name='deleted')
+    
+
+class VersionDB(DataModel):
+    __table__ = 'version'
+
+    key = Fields.CharField(column_name='key')
+    version = Fields.IntegerField(column_name='version')
+
+
+class SQLCompiler(object):
+    ''' BaseField object -> SQL'''
+    @staticmethod
+    def create_sql_from_model(data_model):
+        cls_name_2_field_name = {
+            'CharField': 'TEXT',
+            'IntegerField': 'INTEGER',
+            'FloatField': 'REAL',
+            'BlobField': '',
+        }
+        sql_create_table_pattern = '''
+            CREATE TABLE IF NOT EXISTS {table_name}({fields})
+        '''
+        sql_values = []
+        for attr, field in data_model.__attr_map__.items():
+            field_name = field.name
+            field_type = cls_name_2_field_name.get(field.__class__.__name__, '')
+            _field = field_name + ' ' + field_type
+            sql_values.append(_field)
+        sql_values.reverse()
+        create_sql = sql_create_table_pattern.format(table_name=data_model.__table__,
+                                                    fields=', '.join(sql_values))
+        return create_sql
 
 
 class BaseDBModel(object):
@@ -1830,7 +1966,7 @@ class BaseDBModel(object):
         self.db_cmd = None
         self.db_trans = None
         self.VERSION_VALUE_DB = 1
-        self.create_sql_list = [SQL_CREATE_TABLE_VERSION]
+        self.create_sql_list = []
 
     def db_create(self, db_path):
         if os.path.exists(db_path):
@@ -1863,10 +1999,21 @@ class BaseDBModel(object):
             self.db.Close()
             self.db = None
 
+    def db_create_table_from_dbmodel(self, data_model):
+        create_sql = SQLCompiler.create_sql_from_model(data_model)
+        self.db_cmd.CommandText = create_sql
+        self.db_cmd.ExecuteNonQuery()
+
     def db_create_table(self):
+        self.db_create_table_from_dbmodel(VersionDB)
         if self.db_cmd is not None:
             for create_sql in self.create_sql_list:
-                self.db_cmd.CommandText = create_sql
+                self.db_cmd.CommandText = ''
+                if isinstance(create_sql, str):
+                    self.db_cmd.CommandText = create_sql
+                elif inspect.isclass(MiddleDataModel):
+                    _sql = SQLCompiler.create_sql_from_model(create_sql)
+                    self.db_cmd.CommandText = _sql
                 self.db_cmd.ExecuteNonQuery()
 
     def db_insert_table(self, sql, values):
@@ -1888,7 +2035,6 @@ class BaseDBModel(object):
     如果app增加了新的内容，需要修改app_version
     只有db_version和app_version都没有变化时，才不需要重新解析
     '''
-
     @staticmethod
     def need_parse(cache_db, app_version):
         if not os.path.exists(cache_db):

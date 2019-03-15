@@ -392,7 +392,6 @@ class TantanParser(model_im.IM):
                             if tree is None:
                                 break
                             video_json = self.bplist2json(tree)
-                            print(video_json)
                             if local_dic is not None:
                                 local_info = json.loads(local_dic)
                                 media_name = local_info['url'] if 'url' in local_info else ''
