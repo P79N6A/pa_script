@@ -34,6 +34,7 @@ class AppResources(object):
         self.node_list = {}
         self.media_path_set = set()
         self.img_thum_suffix = set()
+        self.audio_thum_suffix = set()
         self.video_thum_suffix = set()
         self.checker = FileTypeChecker()
         self.prog = progress['APP', bulid]['MEDIA', '多媒体']
@@ -91,10 +92,12 @@ class AppResources(object):
             self.node_list[node] = ntype
 
     def set_thum_config(self, thum, rtype):
-        if rtype == "Image":
+        if rtype.lower() == "image":
             self.img_thum_suffix.add(thum)
-        elif rtype == "Video":
+        elif rtype.lower() == "video":
             self.video_thum_suffix.add(thum)
+        elif rtype.lower() == "audio":
+            self.audio_thum_suffix.add(thum)
 
     def _get_all_files(self, node, all_files):
         """
@@ -167,6 +170,8 @@ class AppResources(object):
                 else:
                     return MediaFile.VideoFile()
             elif ntype == "Audio":
+                if suffix in self.audio_thum_suffix:
+                    return
                 return MediaFile.AudioFile()
             elif ntype == "Other":
                 obj = self.checker.GetFileType(node.Data)  # 调用c#方法检查类型
@@ -176,6 +181,8 @@ class AppResources(object):
                     else:
                         return MediaFile.ImageFile()
                 elif obj.Domain == FileDomain.Audio:
+                    if suffix in self.audio_thum_suffix:
+                        return
                     return MediaFile.AudioFile()
                 elif obj.Domain == FileDomain.Video:
                     if suffix in self.video_thum_suffix:
