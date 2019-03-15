@@ -4134,6 +4134,30 @@
 	
 	<dict>
       <key>Module</key>
+      <string>android_system_log</string>
+      <key>Runners</key>
+      <array>
+        <dict>
+          <key>EntryPoint</key>
+          <string>analyze_system_log</string>
+          <key>RunnerType</key>
+          <integer>2</integer>
+          <key>Patterns</key>
+          <array>
+            <string>/system/dropbox$</string>
+          </array>
+          <key>Category</key>
+          <string>PoweringEvent</string>
+          <key>Name</key>
+          <string>开关机事件(安卓)</string>
+          <key>Filter</key>
+          <string>基础数据</string>
+        </dict>
+      </array>
+    </dict>
+	
+	<dict>
+      <key>Module</key>
       <string>cloud_whatsapp</string>
       <key>Runners</key>
       <array>
