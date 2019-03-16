@@ -17,8 +17,7 @@ import re
 import model_browser 
 import bcp_browser
 from ScriptUtils import tp, exc, print_run_time, CASE_NAME, BaseAndroidParser
-from ResourcesExp import AppResources
-ar = AppResources()
+# from ResourcesExp import AppResources
 
 
 # app数据库版本
