@@ -277,7 +277,6 @@ class Generate(object):
                 if not IsDBNull(sr[12]):
                     c.Deleted = self._convert_deleted_status(sr[12])
                 model.append(c)
-            print(flag)
             sr.Close()
             return model
         except Exception as e:
