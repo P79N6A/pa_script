@@ -147,5 +147,5 @@ def parse_yunkan_umetrip(root, extract_deleted, extract_source):
     results = YunkanUmetripParser(root, extract_deleted, extract_source).parse()
     if results:
         pr.Models.AddRange(results)
-        pr.Build("Umetrip")
+        pr.Build("航旅纵横")
     return pr

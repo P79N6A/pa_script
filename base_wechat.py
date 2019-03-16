@@ -1196,6 +1196,7 @@ class Wechat(object):
                 model.Content.Value.Time = model_wechat.GenerateModel._get_timestamp(favorite_item.timestamp)
                 model.Content.Value.AddressName = favorite_item.location_address
                 model.Content.Value.Coordinate = Base.Coordinate(favorite_item.location_longitude, favorite_item.location_latitude, model_wechat.GenerateModel._convert_location_type(favorite_item.location_type))
+                self.add_model(model.Content)
             elif favorite_item.type == model_wechat.FAV_TYPE_ATTACHMENT:
                 model.Content = Base.Content.AttachmentContent(model)
                 model.Content.Value = Base.Attachment()
