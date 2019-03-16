@@ -217,6 +217,8 @@ class AppResources(object):
                 return 
             # 把path从相对路径变成绝对路径
             _tmp = os.path.join(ds.FileSystem.MountPoint, path)
+            if not self._is_jpeg_file(_tmp):
+                return
             img = Image.open(_tmp)
             if hasattr(img, '_getexif'):
                 exifinfo = img._getexif()
@@ -522,6 +524,15 @@ class AppResources(object):
                 self._push_models(cache_model, False)  # 不需要存到数据库,直接push
                 cache_model = []
         self._push_models(cache_model, False)
+
+    def _is_jpeg_file(path):
+        with open(path, "r") as f:
+            data = f.read(11)
+            if data[:4] != b'\xff\xd8\xff\xe0': 
+                return False
+            if data[6:] != b'JFIF\0': 
+                return False
+            return True
 
     @staticmethod
     def _get_deleted_status(v):
