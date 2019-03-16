@@ -33,6 +33,7 @@ import os
 import plistlib
 import sys
 import inspect
+import collections
 
 reload(sys)
 from HTMLParser import HTMLParser
@@ -1923,10 +1924,28 @@ SQL_INSERT_TABLE_VERSION = '''
     insert or REPLACE into version(key, version) values(?, ?)'''
 
 
-class MiddleDataModel(DataModel):
+class MiddleDBModelMeta(type):
+    def __new__(mcs, name, bases, attrs):
+        if not attrs.get('__table__', None):
+            return super(MiddleDBModelMeta, mcs).__new__(mcs, name, bases, attrs)
+        # table_name = attrs['__table__']
+        # config = mcs.get_table_config(table_name, attrs)
+        instance = super(MiddleDBModelMeta, mcs).__new__(mcs, name, bases, attrs)
+        # instance.__config__ = config
+        instance.__attr_map__ = collections.OrderedDict([
+            (k, v) for k, v in attrs.items() if isinstance(v, BaseField)
+        ])
+        return instance
+
+class MiddleDBModel(object):
+    '''用于中间数据库 Model'''
+    __metaclass__ = MiddleDBModelMeta
+    __attr_map__ = None
+    # __config__ = None
+    objects = None
 
     def __init__(self):
-        '''setattr from Fields to None when instantiate '''
+        '''None when instantiate instance  '''
         for attr, value in self.__attr_map__.items():
             setattr(self, attr, None)
 
@@ -1935,7 +1954,7 @@ class MiddleDataModel(DataModel):
         return res
 
 
-class VersionDB(MiddleDataModel):
+class VersionDB(MiddleDBModel):
     __table__ = 'version'
 
     key = Fields.CharField(column_name='key')
@@ -1968,16 +1987,6 @@ class SQLCompiler(object):
 
     @staticmethod
     def insert_sql_from_model(data_model):
-        ''''
-            INSERT INTO account(
-                id,
-                name,
-                logindate,
-                source, 
-                deleted,
-                repeated)
-            values(? ,? ,? ,? ,? ,?)
-        '''
         sql_pattern = '''
             INSERT INTO {table_name} ({fields}) values({question_mark})
         '''
@@ -2031,13 +2040,18 @@ class BaseDBModel(object):
             self.db.Close()
             self.db = None
 
-    def db_create_table_from_dbmodel(self, data_model):
+    def db_create_tb_from_mdbmodel(self, data_model):
+        ''' create table from MiddleDBModel
+
+        Args:
+            data_model: MiddleDBModel
+        '''
         create_sql = SQLCompiler.create_sql_from_model(data_model)
         self.db_cmd.CommandText = create_sql
         self.db_cmd.ExecuteNonQuery()
 
     def db_create_table(self):
-        self.db_create_table_from_dbmodel(VersionDB)
+        self.db_create_tb_from_mdbmodel(VersionDB)
         if self.db_cmd is not None:
             for create_sql in self.create_sql_list:
                 self.db_cmd.CommandText = ''
@@ -2048,22 +2062,25 @@ class BaseDBModel(object):
                     self.db_cmd.CommandText = _sql
                 self.db_cmd.ExecuteNonQuery()
 
-    def db_insert_tb_from_datamodel(self, data_model):
-        if not isinstance(data_model, MiddleDataModel):
+    def db_insert_tb_from_mdbmodel(self, data_model):
+        if not isinstance(data_model, MiddleDBModel):
             return
         attr_keys, _sql = SQLCompiler.insert_sql_from_model(data_model)
         values = data_model.get_values(attr_keys)
         self.db_insert_table(_sql, values)
 
     def db_insert_table(self, sql, values):
-        if self.db_cmd is not None:
-            self.db_cmd.CommandText = sql
-            self.db_cmd.Parameters.Clear()
-            for value in values:
-                param = self.db_cmd.CreateParameter()
-                param.Value = value
-                self.db_cmd.Parameters.Add(param)
-            self.db_cmd.ExecuteNonQuery()
+        try:
+            if self.db_cmd is not None:
+                self.db_cmd.CommandText = sql
+                self.db_cmd.Parameters.Clear()
+                for value in values:
+                    param = self.db_cmd.CreateParameter()
+                    param.Value = value
+                    self.db_cmd.Parameters.Add(param)
+                self.db_cmd.ExecuteNonQuery()
+        except:
+            exc()
 
     def db_insert_table_version(self, key, version):
         self.db_insert_table(SQL_INSERT_TABLE_VERSION, (key, version))

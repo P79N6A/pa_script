@@ -19,7 +19,7 @@ from PA.InfraLib.Utils import ConvertHelper
 import PA.InfraLib.ModelsV2.Base.BrowserFormData as BrowserFormData
 from PA.InfraLib.ModelsV2.CommonEnum import FormType
 
-from ScriptUtils import exc, tp, BaseParser, MiddleDataModel, Fields, BaseDBModel
+from ScriptUtils import exc, tp, BaseParser, MiddleDBModel, Fields, BaseDBModel
 
 
 
@@ -39,7 +39,7 @@ VERSION_VALUE_DB = 6
 VERSION_KEY_APP = 'app'
 
 
-class Formdata(MiddleDataModel):
+class Formdata(MiddleDBModel):
     __table__ = 'form_data'
 
     url = Fields.CharField(column_name='url')
@@ -50,6 +50,9 @@ class Formdata(MiddleDataModel):
     visited_count = Fields.IntegerField(column_name='visited_count')
     source = Fields.CharField(column_name='source')
     deleted = Fields.IntegerField(column_name='deleted')
+    
+    def get_values(self, attr_keys):
+        return super(Formdata, self).get_values(attr_keys)
 
 
 SQL_CREATE_TABLE_BOOKMARK = '''
@@ -245,16 +248,15 @@ class MB(BaseDBModel):
             SQL_CREATE_TABLE_COOKIES,
         ])
 
-    def db_insert_table(self, sql, values):
-        if self.db_cmd is not None:
-            self.db_cmd.CommandText = sql
-            self.db_cmd.Parameters.Clear()
-            for value in values:
-                param = self.db_cmd.CreateParameter()
-                param.Value = value
-                self.db_cmd.Parameters.Add(param)
-            self.db_cmd.ExecuteNonQuery()
+    def db_create_table(self):
+        super(MB, self).db_create_table()
 
+    def db_create_tb_from_mdbmodel(self, data_model):
+        super(MB, self).db_create_tb_from_mdbmodel(data_model)
+        
+    def db_insert_tb_from_mdbmodel(self, data_model):
+        super(MB, self).db_insert_tb_from_mdbmodel(data_model)
+            
     def db_insert_table_accounts(self, Account):
         self.db_insert_table(SQL_INSERT_TABLE_ACCOUNTS, Account.get_values())
 
