@@ -46,8 +46,7 @@ class Cloud12306Parser(BaseParser):
         self.VERSION_VALUE_DB = model_ticketing.VERSION_VALUE_DB
         self.Generate = model_ticketing.GenerateModel
         self.csm = model_ticketing.Ticketing()
-        if (node.Children.Count == 1
-                and node.Children[0].Name.isalnum()):
+        if node.Children.Count == 1:
             self.root = node.Children[0]
         else:
             self.root = node
@@ -56,7 +55,6 @@ class Cloud12306Parser(BaseParser):
         self.cur_account_id = 'default_account'
 
     def parse(self, BCP_TYPE, VERSION_APP_VALUE):
-
         models = super(Cloud12306Parser, self).parse(BCP_TYPE, VERSION_APP_VALUE)
         map_models = model_map.Genetate(self.cache_db).get_models()
         models.extend(map_models)
