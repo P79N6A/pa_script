@@ -202,7 +202,7 @@ class YunkanSkypePanParser(YunkanParserBase):
         return account_id
 
     def _generate_friend_table(self, node, account_id):
-        friend_id = node
+        friend_id = node.Name.split('.')[0]
         source = node.AbsolutePath
 
         friend = model_im.Friend()
@@ -214,6 +214,7 @@ class YunkanSkypePanParser(YunkanParserBase):
         self.model_im_col.db_commit()
 
     def _generate_message_table(self, node, account_id):
+        sender_id = node
         source = node.AbsolutePath
         messages = self._open_json_file(node).get('messages', [])
 
@@ -223,11 +224,11 @@ class YunkanSkypePanParser(YunkanParserBase):
             message.msg_id = m.get("clientmessageid", None)
             message.account_id = account_id
             message.talker_id = m.get("conversationid")
-            message.sender_id = message.sender_name = sender_id = m.get('from').split('/')[-1]
+            message.sender_id = message.sender_name = sender_id = message.sender_name = sender_id = m.get('from').split('/')[-1]
             message.is_sender = 1
             content = self.convert_message_content(m.get("content", None), message)
             message.content = content
-            send_time = TimeHelper.str_to_ts(m.get('originalarrivaltime', None)[:-2], _format="%Y-%m-%dT%H:%M:%S")
+            send_time = TimeHelper.str_to_ts(m.get('originalarrivaltime', None)[:-5].replace('T', " "), _format="%Y-%m-%d %H:%M:%S")
             message.send_time = send_time
             message.type = self.convert_message_content_type(m.get("messagetype", None))
             message.talker_type = model_im.CHAT_TYPE_GROUP if "@" in message.talker_id else model_im.CHAT_TYPE_FRIEND
