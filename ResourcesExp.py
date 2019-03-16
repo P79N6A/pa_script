@@ -212,13 +212,12 @@ class AppResources(object):
         '''获取图片metadata'''
         ret = {}
         try:
-            # 判断是否是jpg文件
-            if os.path.splitext(path)[1] != ".jpeg":
-                return 
             # 把path从相对路径变成绝对路径
             _tmp = os.path.join(ds.FileSystem.MountPoint, path)
-            if not self._is_jpeg_file(_tmp):
-                return
+            # 判断是否是jpeg文件
+            if os.path.splitext(_tmp)[1] != ".jpeg":
+                if not self._is_jpeg_file(_tmp):
+                    return
             img = Image.open(_tmp)
             if hasattr(img, '_getexif'):
                 exifinfo = img._getexif()
