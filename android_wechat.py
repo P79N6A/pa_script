@@ -206,8 +206,8 @@ class WeChatParser(Wechat):
         for build in self.node_dict:
             prog = progress['APP', build]
             prog.Start()
-            self.ar.set_unique_id(build)
             self.ar = AppResources(build, DescripCategories.Wechat)
+            self.ar.set_unique_id(build)
             self.ar.set_thum_config("jpg", "Video")
             self.ar.set_thum_config("thumb", "Video")
             self.ar.set_thum_config("cover", "Video")
