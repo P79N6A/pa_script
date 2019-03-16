@@ -1,24 +1,24 @@
 ﻿# coding=utf-8
 __author__ = 'YangLiyuan'
 
-import re
-import time
-import hashlib
-
+from PA_runtime import *
 import clr
 try:
     clr.AddReference('model_browser')
     clr.AddReference('bcp_browser')
     clr.AddReference('ScriptUtils')
+    clr.AddReference('ResourcesExp')
 except:
     pass
 del clr
 
-from PA_runtime import *
-import model_browser
-from model_browser import tp, exc, print_run_time, CASE_NAME
-from ScriptUtils import BaseAndroidParser
+import re
+
+import model_browser 
 import bcp_browser
+from ScriptUtils import tp, exc, print_run_time, CASE_NAME, BaseAndroidParser
+from ResourcesExp import AppResources
+ar = AppResources()
 
 
 # app数据库版本
@@ -248,6 +248,9 @@ class AndroidUCParser(model_browser.BaseBrowserParser, BaseAndroidParser):
 
     def _convert_nodepath(self, raw_path):
         ''' huawei: /data/user/0/com.baidu.searchbox/files/template/profile.zip
+            
+            ar.save_res_folder
+            ar.save_media_model
         '''
         try:
             if not raw_path:
@@ -257,7 +260,7 @@ class AndroidUCParser(model_browser.BaseBrowserParser, BaseAndroidParser):
 
             fs = self.root.FileSystem
             for prefix in ['', '/data', ]:
-                '/storage/emulated'
+                # '/storage/emulated'
                 file_node = fs.GetByPath(prefix + raw_path)
                 if file_node and file_node.Type == NodeType.File:
                     return file_node.AbsolutePath

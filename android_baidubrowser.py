@@ -1,20 +1,20 @@
 ﻿# coding=utf-8
 __author__ = 'YangLiyuan'
 
-import hashlib
+from PA_runtime import *
 
 import clr
 try:
     clr.AddReference('model_browser')
     clr.AddReference('bcp_browser')
+    clr.AddReference('ScriptUtils')
 except:
     pass
 del clr
 
-from PA_runtime import *
-import model_browser
-from model_browser import tp, exc, print_run_time, CASE_NAME
 import bcp_browser
+import model_browser
+from ScriptUtils import tp, exc, print_run_time, CASE_NAME
 
 
 # app数据库版本
