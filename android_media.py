@@ -271,7 +271,8 @@ class MediaParse(object):
     def get_exif_data(self, fname):
         '''获取图片metadata'''
         ret = {}
-        try:
+        return ret
+        """ try:
             img = Image.open(fname)
             if hasattr(img, '_getexif'):
                 exifinfo = img._getexif()
@@ -281,7 +282,7 @@ class MediaParse(object):
                         ret[decoded] = value
                 return ret
         except:
-            return {}
+            return {} """
 
     def assignment(self, media):
         '''给media详细信息赋值'''

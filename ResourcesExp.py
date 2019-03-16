@@ -211,19 +211,20 @@ class AppResources(object):
     def _get_exif_data(self, path):
         '''获取图片metadata'''
         ret = {}
-        try:
-            # 把path从相对路径变成绝对路径
-            _tmp = os.path.join(ds.FileSystem.MountPoint, path)
-            img = Image.open(_tmp)
-            if hasattr(img, '_getexif'):
-                exifinfo = img._getexif()
-                if exifinfo != None:
-                    for tag, value in exifinfo.items():
-                        decoded = TAGS.get(tag, tag)
-                        ret[decoded] = value
-                return ret
-        except:
-            return {}
+        return ret
+        # try:
+        #     # 把path从相对路径变成绝对路径
+        #     _tmp = os.path.join(ds.FileSystem.MountPoint, path)
+        #     img = Image.open(_tmp)
+        #     if hasattr(img, '_getexif'):
+        #         exifinfo = img._getexif()
+        #         if exifinfo != None:
+        #             for tag, value in exifinfo.items():
+        #                 decoded = TAGS.get(tag, tag)
+        #                 ret[decoded] = value
+        #         return ret
+        # except:
+        #     return {}
 
     def assign_value_to_model(self, image, path):
         """[get pics exif infomation]
