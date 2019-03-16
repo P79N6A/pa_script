@@ -378,7 +378,8 @@ class Generate(object):
     def get_exif_data(self, fname):
         '''获取图片metadata'''
         ret = {}
-        try:
+        return ret
+        """ try:
             img = Image.open(fname)
             if hasattr(img, '_getexif'):
                 exifinfo = img._getexif()
@@ -388,7 +389,7 @@ class Generate(object):
                         ret[decoded] = value
                 return ret
         except:
-            return {}
+            return {} """
 
     def get_video_info(self, node):
         '''获取视频文件信息'''
