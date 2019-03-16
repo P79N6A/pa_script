@@ -211,20 +211,22 @@ class AppResources(object):
     def _get_exif_data(self, path):
         '''获取图片metadata'''
         ret = {}
-        return ret
-        # try:
-        #     # 把path从相对路径变成绝对路径
-        #     _tmp = os.path.join(ds.FileSystem.MountPoint, path)
-        #     img = Image.open(_tmp)
-        #     if hasattr(img, '_getexif'):
-        #         exifinfo = img._getexif()
-        #         if exifinfo != None:
-        #             for tag, value in exifinfo.items():
-        #                 decoded = TAGS.get(tag, tag)
-        #                 ret[decoded] = value
-        #         return ret
-        # except:
-        #     return {}
+        try:
+            # 判断是否是jpg文件
+            if os.path.splitext(path)[1] != ".jpeg":
+                return 
+            # 把path从相对路径变成绝对路径
+            _tmp = os.path.join(ds.FileSystem.MountPoint, path)
+            img = Image.open(_tmp)
+            if hasattr(img, '_getexif'):
+                exifinfo = img._getexif()
+                if exifinfo is not None:
+                    for tag, value in exifinfo.items():
+                        decoded = TAGS.get(tag, tag)
+                        ret[decoded] = value
+                return ret
+        except:
+            return {}
 
     def assign_value_to_model(self, image, path):
         """[get pics exif infomation]
@@ -239,13 +241,13 @@ class AppResources(object):
         try:
             ret = self._get_exif_data(path)
             if not ret:
-                return
+                return image
             abs_path = os.path.join(ds.FileSystem.MountPoint, path)
             image.FileName = os.path.basename(abs_path)
             image.Size = os.path.getsize(abs_path)
             image.Path = path
             addTime = os.path.getctime(abs_path)
-            image.FileSuffix = 'jpg'
+            image.FileSuffix = 'jpeg'
             image.MimeType = 'image'
             image.AddTime = self._get_timestamp(addTime)
             location = Location(image)
