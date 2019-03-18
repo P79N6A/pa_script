@@ -42,10 +42,12 @@ def analyze_sms(node, extract_deleted, extract_source):
     SMS_PATTERNS = OrderedDict([
         (r'(?i)/com\.google\.android\.gms/databases/icing_mmssms\.db$', AndroidIcingParser),
         (r'(?i)/com.sec.android.provider.logsprovider/databases/logs\.db$', OldSamsungSMSMMSParser),
-        (r'(?i)/com\.android\.providers\.telephony/databases/mmssms\.db$', AndroidSMSParser),
+        (r'(?i)/com.android.providers.telephony/databases/mmssms\.db$', AndroidSMSParser),
+        (r'(?i)/com.android.mms/databases/mmssms\.db$', AndroidSMSParser),
         (r'(?i)/sms/sms\.db$', AndroidSMSParserFsLogic),
         (r'(?i)/sms\.vmsg$', VMSGParser),                   # AutoBackup OPPO MEIZU
         (r'(?i)/sms\.db$', AutoBackupHuaweiSMSParser),      # AutoBackup HuaWei
+        
     ])
     res = []
     hit_nodes = []
@@ -57,7 +59,7 @@ def analyze_sms(node, extract_deleted, extract_source):
             _nodes = node.FileSystem.Search(_pattern)
             if len(list(_nodes)) != 0:
                 hit_nodes.append((_parser, _nodes))
-                if _parser not in (AndroidIcingParser, OldSamsungSMSMMSParser):
+                if _parser not in (AndroidIcingParser, OldSamsungSMSMMSParser, AndroidSMSParser):
                     break
 
         if hit_nodes:
@@ -518,18 +520,16 @@ class AndroidMMSParser(AndroidSMSParser):
             tp(_rec_value)
             if IsDBNull(_rec_value):
                 return
-            _list = list(bytearray(_rec_value))
-            print(_list.count(0))
+            _list = list(bytearray(_rec_value, 'utf8', 'ignore'))
             if _list.count(0) < 2 or _list[:2] != [0xff, 0xfe]:
-                _res = _rec_value.decode('utf8')
+                _res = _rec_value.decode('utf8', 'ignore')
             else:
                 # 去 0
                 stripped_list = _list[2:-1:2]
-                _res = str(bytearray(stripped_list)).decode('utf8')
+                _res = str(bytearray(stripped_list, 'utf8', 'ignore')).decode('utf8')
             return _res
         except:
-            tp(_rec_value)
-            exc()
+            tp('_decode_mms_subject'+_rec_value)
             return _rec_value
 
 
