@@ -1414,7 +1414,7 @@ def exc(e=''):
 
 
 def tp(*e):
-    ''' Highlight log output in vs
+    ''' Highlight log output in vs, 不会 catch error, 相当于封装了一下 print()
 
         开发环境打印日志 TraceLevel 为 Warning, 生产环境不输出
 
@@ -1423,7 +1423,7 @@ def tp(*e):
                 ...
                 tp('xxx', 'ooo')
             except:
-                tp()
+                tp('xx 解析失败')
     '''
     if DEBUG:
         TraceService.Trace(TraceLevel.Warning, '{}'.format(e))
