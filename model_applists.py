@@ -177,6 +177,8 @@ class Generate(object):
                                 application.Permissions.Add(per.strip().replace(",","").replace('\"',""))
                             except Exception as e:
                                 pass
+            if row[4]:
+                application.InstallPath = row[4]
             if row[5]:
                 try:
                     # Convert.FromBase64String(base64)
@@ -185,9 +187,9 @@ class Generate(object):
                 except Exception as e:
                     pass
             if row[6]:
-                application.PurchaseDate.Value = TimeStamp.FromUnixTime(row[6], False)
+                application.InstallDate.Value = TimeStamp.FromUnixTime(row[6], False)
             if row[7]:
-                application.DeletedDate.Value = TimeStamp.FromUnixTime(row[7], False)
+                application.UpdateDate.Value = TimeStamp.FromUnixTime(row[7], False)
             if row[8]:
                 application.Description.Value = row[8]
             if row[10]:
