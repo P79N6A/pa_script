@@ -1040,31 +1040,31 @@ class ParserBase(object):
 
 
 class BaseField(object):
-    def __init__(self, column_name, null=True):
+    def __init__(self, column_name='', null=True):
         self.name = column_name
         self.constraint = FieldConstraints.NotNull if null is True else FieldConstraints.None
 
 
 class CharField(BaseField):
-    def __init__(self, column_name, null=True):
+    def __init__(self, column_name='', null=True):
         super(CharField, self).__init__(column_name, null)
         self.type = FieldType.Text
 
 
 class IntegerField(BaseField):
-    def __init__(self, column_name, null=True):
+    def __init__(self, column_name='', null=True):
         super(IntegerField, self).__init__(column_name, null)
         self.type = FieldType.Int
 
 
 class FloatField(BaseField):
-    def __init__(self, column_name, null=True):
+    def __init__(self, column_name='', null=True):
         super(FloatField, self).__init__(column_name, null)
         self.type = FieldType.Float
 
 
 class BlobField(BaseField):
-    def __init__(self, column_name, null=True):
+    def __init__(self, column_name='', null=True):
         super(BlobField, self).__init__(column_name, null)
         self.type = FieldType.Blob
 
@@ -1387,9 +1387,9 @@ try:
     CASE_NAME = ds.ProjectState.ProjectDir.Name
 except:
     CASE_NAME = ''
-# DEBUG = True
+
 DEBUG = False
-# DEBUG_RUN_TIME = True
+
 DEBUG_RUN_TIME = False
 
 
@@ -1976,11 +1976,10 @@ class SQLCompiler(object):
         '''
         sql_values = []
         for attr, field in data_model.__attr_map__.items():
-            field_name = field.name
+            field_name = attr
             field_type = cls_name_2_field_name.get(field.__class__.__name__, '')
             _field = field_name + ' ' + field_type
             sql_values.append(_field)
-        sql_values.reverse()
         create_sql = sql_pattern.format(table_name=data_model.__table__,
                                         fields=', '.join(sql_values))
         return create_sql
@@ -1994,7 +1993,7 @@ class SQLCompiler(object):
         attr_keys = []
         for attr, field in data_model.__attr_map__.items():
             attr_keys.append(attr)
-            field_names.append(field.name)
+            field_names.append(attr)
         insert_sql = sql_pattern.format(table_name=data_model.__table__,
                                         fields=', '.join(field_names),
                                         question_mark=', '.join(['?' for _ in range(len(field_names))]))
@@ -2055,12 +2054,15 @@ class BaseDBModel(object):
         if self.db_cmd is not None:
             for create_sql in self.create_sql_list:
                 self.db_cmd.CommandText = ''
-                if isinstance(create_sql, str):
+                if isinstance(create_sql, str):  # SQL
                     self.db_cmd.CommandText = create_sql
-                elif inspect.isclass(create_sql):
+                elif inspect.isclass(create_sql): # MiddleDBModel
                     _sql = SQLCompiler.create_sql_from_model(data_model=create_sql)
                     self.db_cmd.CommandText = _sql
-                self.db_cmd.ExecuteNonQuery()
+                try:
+                    self.db_cmd.ExecuteNonQuery()
+                except:
+                    exc()
 
     def db_insert_tb_from_mdbmodel(self, data_model):
         if not isinstance(data_model, MiddleDBModel):

@@ -42,14 +42,14 @@ VERSION_KEY_APP = 'app'
 class Formdata(MiddleDBModel):
     __table__ = 'form_data'
 
-    url = Fields.CharField(column_name='url')
-    key = Fields.CharField(column_name='key')
-    value = Fields.CharField(column_name='value')
-    form_type = Fields.IntegerField(column_name='form_type')
-    last_visited = Fields.CharField(column_name='last_visited')
-    visited_count = Fields.IntegerField(column_name='visited_count')
-    source = Fields.CharField(column_name='source')
-    deleted = Fields.IntegerField(column_name='deleted')
+    url = Fields.CharField()
+    key = Fields.CharField()
+    value = Fields.CharField()
+    form_type = Fields.IntegerField()
+    last_visited = Fields.CharField()
+    visited_count = Fields.IntegerField()
+    source = Fields.CharField()
+    deleted = Fields.IntegerField()
     
     def get_values(self, attr_keys):
         return super(Formdata, self).get_values(attr_keys)
