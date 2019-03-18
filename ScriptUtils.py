@@ -33,6 +33,7 @@ import os
 import plistlib
 import sys
 import inspect
+import collections
 
 reload(sys)
 from HTMLParser import HTMLParser
@@ -41,6 +42,9 @@ sys.setdefaultencoding("utf8")
 import model_im
 import model_nd
 import model_eb
+
+# 是否为开发调试环境
+DEBUG = False
 
 
 ################################################################################################################
@@ -1039,31 +1043,31 @@ class ParserBase(object):
 
 
 class BaseField(object):
-    def __init__(self, column_name, null=True):
+    def __init__(self, column_name='', null=True):
         self.name = column_name
         self.constraint = FieldConstraints.NotNull if null is True else FieldConstraints.None
 
 
 class CharField(BaseField):
-    def __init__(self, column_name, null=True):
+    def __init__(self, column_name='', null=True):
         super(CharField, self).__init__(column_name, null)
         self.type = FieldType.Text
 
 
 class IntegerField(BaseField):
-    def __init__(self, column_name, null=True):
+    def __init__(self, column_name='', null=True):
         super(IntegerField, self).__init__(column_name, null)
         self.type = FieldType.Int
 
 
 class FloatField(BaseField):
-    def __init__(self, column_name, null=True):
+    def __init__(self, column_name='', null=True):
         super(FloatField, self).__init__(column_name, null)
         self.type = FieldType.Float
 
 
 class BlobField(BaseField):
-    def __init__(self, column_name, null=True):
+    def __init__(self, column_name='', null=True):
         super(BlobField, self).__init__(column_name, null)
         self.type = FieldType.Blob
 
@@ -1386,27 +1390,44 @@ try:
     CASE_NAME = ds.ProjectState.ProjectDir.Name
 except:
     CASE_NAME = ''
-# DEBUG = True
-DEBUG = False
-# DEBUG_RUN_TIME = True
-DEBUG_RUN_TIME = False
 
+DEBUG_RUN_TIME = False
 
 ######### LOG FUNC #########
 def exc(e=''):
-    ''' Exception log output '''
+    ''' Exception log output, 开发环境 TraceLevel 为 Error, 生产环境 TraceLevel 为 Debug
+
+     example:
+        clr.AddReference('ScriptUtils')
+        from ScriptUtils import exc 
+        
+        try:
+            ...
+        except:
+            exc()
+            # 也可以添加自定义信息:
+            exc('xx 解析失败')
+     '''
     try:
-        if DEBUG:
-            py_name = os.path.basename(__file__)
-            msg = 'DEBUG {} New Case:<{}> :'.format(py_name, CASE_NAME)
-            TraceService.Trace(TraceLevel.Warning,
-                               (msg+'{}{}').format(traceback.format_exc(), e))
+        msg = 'DEBUG New Case:<{}>: {} {}'.format(CASE_NAME, e, traceback.format_exc())
+        log_level = TraceLevel.Error if DEBUG else TraceLevel.Debug
+        TraceService.Trace(log_level, msg)
     except:
         pass
 
 
 def tp(*e):
-    ''' Highlight log output in vs '''
+    ''' Highlight log output in vs, 不会 catch error, 相当于封装了一下 print()
+
+        开发环境打印日志 TraceLevel 为 Warning, 生产环境不打印
+
+        example:
+            try:
+                ...
+                tp('xxx', 'ooo')
+            except:
+                tp('xx 解析失败')
+    '''
     if DEBUG:
         TraceService.Trace(TraceLevel.Warning, '{}'.format(e))
     else:
@@ -1923,10 +1944,28 @@ SQL_INSERT_TABLE_VERSION = '''
     insert or REPLACE into version(key, version) values(?, ?)'''
 
 
-class MiddleDataModel(DataModel):
+class MiddleDBModelMeta(type):
+    def __new__(mcs, name, bases, attrs):
+        if not attrs.get('__table__', None):
+            return super(MiddleDBModelMeta, mcs).__new__(mcs, name, bases, attrs)
+        # table_name = attrs['__table__']
+        # config = mcs.get_table_config(table_name, attrs)
+        instance = super(MiddleDBModelMeta, mcs).__new__(mcs, name, bases, attrs)
+        # instance.__config__ = config
+        instance.__attr_map__ = collections.OrderedDict([
+            (k, v) for k, v in attrs.items() if isinstance(v, BaseField)
+        ])
+        return instance
+
+class MiddleDBModel(object):
+    '''用于中间数据库 Model'''
+    __metaclass__ = MiddleDBModelMeta
+    __attr_map__ = None
+    # __config__ = None
+    objects = None
 
     def __init__(self):
-        '''setattr from Fields to None when instantiate '''
+        '''None when instantiate instance  '''
         for attr, value in self.__attr_map__.items():
             setattr(self, attr, None)
 
@@ -1935,7 +1974,7 @@ class MiddleDataModel(DataModel):
         return res
 
 
-class VersionDB(MiddleDataModel):
+class VersionDB(MiddleDBModel):
     __table__ = 'version'
 
     key = Fields.CharField(column_name='key')
@@ -1957,27 +1996,16 @@ class SQLCompiler(object):
         '''
         sql_values = []
         for attr, field in data_model.__attr_map__.items():
-            field_name = field.name
+            field_name = attr
             field_type = cls_name_2_field_name.get(field.__class__.__name__, '')
             _field = field_name + ' ' + field_type
             sql_values.append(_field)
-        sql_values.reverse()
         create_sql = sql_pattern.format(table_name=data_model.__table__,
                                         fields=', '.join(sql_values))
         return create_sql
 
     @staticmethod
     def insert_sql_from_model(data_model):
-        ''''
-            INSERT INTO account(
-                id,
-                name,
-                logindate,
-                source, 
-                deleted,
-                repeated)
-            values(? ,? ,? ,? ,? ,?)
-        '''
         sql_pattern = '''
             INSERT INTO {table_name} ({fields}) values({question_mark})
         '''
@@ -1985,7 +2013,7 @@ class SQLCompiler(object):
         attr_keys = []
         for attr, field in data_model.__attr_map__.items():
             attr_keys.append(attr)
-            field_names.append(field.name)
+            field_names.append(attr)
         insert_sql = sql_pattern.format(table_name=data_model.__table__,
                                         fields=', '.join(field_names),
                                         question_mark=', '.join(['?' for _ in range(len(field_names))]))
@@ -2031,39 +2059,50 @@ class BaseDBModel(object):
             self.db.Close()
             self.db = None
 
-    def db_create_table_from_dbmodel(self, data_model):
+    def db_create_tb_from_mdbmodel(self, data_model):
+        ''' create table from MiddleDBModel
+
+        Args:
+            data_model: MiddleDBModel
+        '''
         create_sql = SQLCompiler.create_sql_from_model(data_model)
         self.db_cmd.CommandText = create_sql
         self.db_cmd.ExecuteNonQuery()
 
     def db_create_table(self):
-        self.db_create_table_from_dbmodel(VersionDB)
+        self.db_create_tb_from_mdbmodel(VersionDB)
         if self.db_cmd is not None:
             for create_sql in self.create_sql_list:
                 self.db_cmd.CommandText = ''
-                if isinstance(create_sql, str):
+                if isinstance(create_sql, str):  # SQL
                     self.db_cmd.CommandText = create_sql
-                elif inspect.isclass(create_sql):
+                elif inspect.isclass(create_sql): # MiddleDBModel
                     _sql = SQLCompiler.create_sql_from_model(data_model=create_sql)
                     self.db_cmd.CommandText = _sql
-                self.db_cmd.ExecuteNonQuery()
+                try:
+                    self.db_cmd.ExecuteNonQuery()
+                except:
+                    exc()
 
-    def db_insert_tb_from_datamodel(self, data_model):
-        if not isinstance(data_model, MiddleDataModel):
+    def db_insert_tb_from_mdbmodel(self, data_model):
+        if not isinstance(data_model, MiddleDBModel):
             return
         attr_keys, _sql = SQLCompiler.insert_sql_from_model(data_model)
         values = data_model.get_values(attr_keys)
         self.db_insert_table(_sql, values)
 
     def db_insert_table(self, sql, values):
-        if self.db_cmd is not None:
-            self.db_cmd.CommandText = sql
-            self.db_cmd.Parameters.Clear()
-            for value in values:
-                param = self.db_cmd.CreateParameter()
-                param.Value = value
-                self.db_cmd.Parameters.Add(param)
-            self.db_cmd.ExecuteNonQuery()
+        try:
+            if self.db_cmd is not None:
+                self.db_cmd.CommandText = sql
+                self.db_cmd.Parameters.Clear()
+                for value in values:
+                    param = self.db_cmd.CreateParameter()
+                    param.Value = value
+                    self.db_cmd.Parameters.Add(param)
+                self.db_cmd.ExecuteNonQuery()
+        except:
+            exc()
 
     def db_insert_table_version(self, key, version):
         self.db_insert_table(SQL_INSERT_TABLE_VERSION, (key, version))

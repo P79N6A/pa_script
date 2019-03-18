@@ -549,7 +549,7 @@ class AndroidOldBrowserParser(AndroidBrowserParser):
                     form_data.form_type = self._convert_form_data_type(_name)
                     form_data.source = self.cur_db_source
                     form_data.deleted = 1 if rec.IsDeleted else 0
-                    self.csm.db_insert_tb_from_datamodel(form_data)
+                    self.csm.db_insert_tb_from_mdbmodel(form_data)
             except:
                 exc()
         self.csm.db_commit()
