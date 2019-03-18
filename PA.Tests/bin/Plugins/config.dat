@@ -3065,7 +3065,7 @@
           <integer>2</integer>
           <key>Patterns</key>
           <array>
-            <string>/data/misc/wifi/wpa_supplicant\.conf$</string>
+            <string>/misc/wifi/wpa_supplicant\.conf$</string>
           </array>
           <key>Category</key>
           <string>Keychains</string>
