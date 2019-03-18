@@ -427,7 +427,6 @@ class Ding(object):
                     msg.send_time = GetInt64(reader, 2)
                     msg.msg_id = GetInt64(reader, 0)
                     msg.source = i
-                    msg.talker_type = model_im.CHAT_TYPE_GROUP if cv_id.__contains__(':') else model_im.CHAT_TYPE_FRIEND
                     #TODO add other message decryptor.... and parse etc.
                     tp = GetInt64(reader, 4)
                     try:
