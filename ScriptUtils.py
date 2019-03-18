@@ -1398,6 +1398,9 @@ def exc(e=''):
     ''' Exception log output, 开发环境 TraceLevel 为 Error, 生产环境 TraceLevel 为 Debug
 
      example:
+        clr.AddReference('ScriptUtils')
+        from ScriptUtils import exc 
+        
         try:
             ...
         except:
@@ -1416,7 +1419,7 @@ def exc(e=''):
 def tp(*e):
     ''' Highlight log output in vs, 不会 catch error, 相当于封装了一下 print()
 
-        开发环境打印日志 TraceLevel 为 Warning, 生产环境不输出
+        开发环境打印日志 TraceLevel 为 Warning, 生产环境不打印
 
         example:
             try:
