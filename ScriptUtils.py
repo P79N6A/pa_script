@@ -43,6 +43,9 @@ import model_im
 import model_nd
 import model_eb
 
+# 是否为开发调试环境
+DEBUG = False
+
 
 ################################################################################################################
 ##                                   __author__ = "chenfeiyang"                                               ##
@@ -1388,26 +1391,43 @@ try:
 except:
     CASE_NAME = ''
 
-DEBUG = False
-
 DEBUG_RUN_TIME = False
-
 
 ######### LOG FUNC #########
 def exc(e=''):
-    ''' Exception log output '''
+    ''' Exception log output, 开发环境 TraceLevel 为 Error, 生产环境 TraceLevel 为 Debug
+
+     example:
+        clr.AddReference('ScriptUtils')
+        from ScriptUtils import exc 
+        
+        try:
+            ...
+        except:
+            exc()
+            # 也可以添加自定义信息:
+            exc('xx 解析失败')
+     '''
     try:
-        if DEBUG:
-            py_name = os.path.basename(__file__)
-            msg = 'DEBUG {} New Case:<{}> :'.format(py_name, CASE_NAME)
-            TraceService.Trace(TraceLevel.Warning,
-                               (msg+'{}{}').format(traceback.format_exc(), e))
+        msg = 'DEBUG New Case:<{}>: {} {}'.format(CASE_NAME, e, traceback.format_exc())
+        log_level = TraceLevel.Error if DEBUG else TraceLevel.Debug
+        TraceService.Trace(log_level, msg)
     except:
         pass
 
 
 def tp(*e):
-    ''' Highlight log output in vs '''
+    ''' Highlight log output in vs, 不会 catch error, 相当于封装了一下 print()
+
+        开发环境打印日志 TraceLevel 为 Warning, 生产环境不打印
+
+        example:
+            try:
+                ...
+                tp('xxx', 'ooo')
+            except:
+                tp('xx 解析失败')
+    '''
     if DEBUG:
         TraceService.Trace(TraceLevel.Warning, '{}'.format(e))
     else:
