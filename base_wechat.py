@@ -196,9 +196,8 @@ class Wechat(object):
         try:
             xml = XElement.Parse(xml_str)
         except Exception as e:
-            pass
-            #if model.deleted == 0:
-            #    TraceService.Trace(TraceLevel.Error, "base_wechat.py Error: LINE {}".format(traceback.format_exc()))
+            if model.deleted == 0:
+                TraceService.Trace(TraceLevel.Debug, "base_wechat.py Error: LINE {}".format(traceback.format_exc()))
         if xml is not None:
             latitude = 0
             longitude = 0
@@ -834,10 +833,10 @@ class Wechat(object):
                         self.chatroom_models[user_id] = model
                 except Exception as e:
                     if deleted == 0:
-                        TraceService.Trace(TraceLevel.Error, "base_wechat.py Error: LINE {}".format(traceback.format_exc()))
+                        TraceService.Trace(TraceLevel.Debug, "base_wechat.py Error: LINE {}".format(traceback.format_exc()))
             self.push_models()
         except Exception as e:
-            TraceService.Trace(TraceLevel.Error, "base_wechat.py Error: LINE {}".format(traceback.format_exc()))
+            TraceService.Trace(TraceLevel.Debug, "base_wechat.py Error: LINE {}".format(traceback.format_exc()))
 
         self.push_models()
         db.Close()
@@ -875,10 +874,10 @@ class Wechat(object):
                             owner_model = model
                 except Exception as e:
                     if deleted == 0:
-                        TraceService.Trace(TraceLevel.Error, "base_wechat.py Error: LINE {}".format(traceback.format_exc()))
+                        TraceService.Trace(TraceLevel.Debug, "base_wechat.py Error: LINE {}".format(traceback.format_exc()))
         except Exception as e:
             if deleted == 0:
-                TraceService.Trace(TraceLevel.Error, "base_wechat.py Error: LINE {}".format(traceback.format_exc()))
+                TraceService.Trace(TraceLevel.Debug, "base_wechat.py Error: LINE {}".format(traceback.format_exc()))
         return models, owner_model
 
     def get_chatroom_model(self, chatroom):
@@ -1196,6 +1195,7 @@ class Wechat(object):
                 model.Content.Value.Time = model_wechat.GenerateModel._get_timestamp(favorite_item.timestamp)
                 model.Content.Value.AddressName = favorite_item.location_address
                 model.Content.Value.Coordinate = Base.Coordinate(favorite_item.location_longitude, favorite_item.location_latitude, model_wechat.GenerateModel._convert_location_type(favorite_item.location_type))
+                self.add_model(model.Content)
             elif favorite_item.type == model_wechat.FAV_TYPE_ATTACHMENT:
                 model.Content = Base.Content.AttachmentContent(model)
                 model.Content.Value = Base.Attachment()

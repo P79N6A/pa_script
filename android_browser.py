@@ -14,13 +14,12 @@ del clr
 
 from PA_runtime import *
 import model_browser
-from model_browser import tp, exc, print_run_time, CASE_NAME
-from ScriptUtils import parse_decorator, BaseAndroidParser, base_analyze
+from ScriptUtils import tp, exc, print_run_time, parse_decorator, BaseAndroidParser, base_analyze
 from android_chrome import analyze_oppo_browser_chrome
 import bcp_browser
 
 # app数据库版本
-VERSION_APP_VALUE = 4
+VERSION_APP_VALUE = 5
 
 # 国产安卓手机预装浏览器类型
 NATIVE = bcp_browser.NETWORK_APP_OTHER
@@ -209,7 +208,6 @@ class AndroidBrowserParser(model_browser.BaseBrowserParser, BaseAndroidParser):
         for rec in self._read_table(table_name):
             try:
                 if (self._is_empty(rec, 'url', 'title') or
-                        self._is_duplicate(rec, '_id') or
                         not self._is_url(rec, 'url')):
                     continue
                 browser_record = model_browser.Browserecord()
@@ -519,8 +517,7 @@ class AndroidOldBrowserParser(AndroidBrowserParser):
         return id_url_dict
 
     def parse_formdata(self, table_name, id_url_dict):
-        '''
-            FieldName  SQLType
+        ''' FieldName  SQLType
             _id	        INTEGER    PK
             urlid	    INTEGER
             name	        TEXT
@@ -534,7 +531,6 @@ class AndroidOldBrowserParser(AndroidBrowserParser):
                 _url = id_url_dict.get(rec['urlid'].Value)
                 _name = rec['name'].Value
                 _value = rec['value'].Value
-                # se
                 if 'key' in _name or 'word' in _name:
                     search_history = model_browser.SearchHistory()
                     search_history.name = _value
@@ -544,11 +540,32 @@ class AndroidOldBrowserParser(AndroidBrowserParser):
                     search_history.deleted = 1 if rec.IsDeleted else 0
                     self.csm.db_insert_table_searchhistory(search_history)
                 else:
-                    # TODO formdata
-                    pass
+                    form_data = model_browser.Formdata()
+                    form_data.key = _value
+                    # form_data.value = None
+                    form_data.url = _url
+                    # form_data.last_visited = _url
+                    # form_data.visited_count = _url
+                    form_data.form_type = self._convert_form_data_type(_name)
+                    form_data.source = self.cur_db_source
+                    form_data.deleted = 1 if rec.IsDeleted else 0
+                    self.csm.db_insert_tb_from_mdbmodel(form_data)
             except:
                 exc()
         self.csm.db_commit()
+
+    def _convert_form_data_type(self, _type):
+        try:
+            _type = _type.lower()
+            if 'checkcode' in _type:
+                return model_browser.FROMDATA_TYPE_CHECKCODE
+            elif 'account' in _type:
+                return model_browser.FROMDATA_TYPE_ACCOUNT
+            else:
+                return model_browser.FROMDATA_TYPE_KEYWORD
+        except:
+            exc()
+            return 0
 
     def parse_old_cookie(self, table_name):
         '''

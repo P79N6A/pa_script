@@ -39,7 +39,7 @@ import gc
 # Patterns: '/DB/MM\.sqlite$'
 
 # app数据库版本
-VERSION_APP_VALUE = 3
+VERSION_APP_VALUE = 4
 
 
 def analyze_wechat(root, extract_deleted, extract_source):
@@ -185,6 +185,8 @@ class WeChatParser(Wechat):
             #print('%s apple_wechat() parse begin' % time.asctime(time.localtime(time.time())))
             self.im.db_create(self.cache_db)
 
+            self._generate_user_node_res()
+
             self.user_account = model_wechat.Account()
             self.models = []
 
@@ -280,6 +282,9 @@ class WeChatParser(Wechat):
             except Exception as e:
                 TraceService.Trace(TraceLevel.Error, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
             self.set_progress(99)
+
+            self._clear_user_node_res()
+
             self.im.db_create_index()
             # 数据库填充完毕，请将中间数据库版本和app数据库版本插入数据库，用来检测app是否需要重新解析
             if not canceller.IsCancellationRequested:
@@ -432,7 +437,7 @@ class WeChatParser(Wechat):
                     deleted = 0 if rec.Deleted == DeletedState.Intact else 1
                     self._parse_user_contact_db_with_value(deleted, node.AbsolutePath, username, contact_type, certification_flag, contact_remark, contact_head_image, contact_chatroom, contact_profile)
                 except Exception as e:
-                    TraceService.Trace(TraceLevel.Error, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
+                    TraceService.Trace(TraceLevel.Debug, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
             self.im.db_commit()
             self.push_models()
 
@@ -454,12 +459,10 @@ class WeChatParser(Wechat):
         head = None
         if self.private_user_node is not None:
             user_hash = self._md5(username)
-            head_node = self.private_user_node.GetByPath('HeadImg/0/{}/{}.pic_hd'.format(user_hash[:2], user_hash[2:]))
-            head_thum_node = self.private_user_node.GetByPath('HeadImg/0/{}/{}.pic_compressed'.format(user_hash[:2], user_hash[2:]))
-            if head_node is not None:
-                head = head_node.AbsolutePath
-            elif head_thum_node is not None:
-                head = head_thum_node.AbsolutePath
+            
+            head = self._get_path_from_private_user_node_res('HeadImg/0/{}/{}.pic_hd'.format(user_hash[:2], user_hash[2:]))
+            if head is None:
+                head = self._get_path_from_private_user_node_res('HeadImg/0/{}/{}.pic_compressed'.format(user_hash[:2], user_hash[2:]))
         if head is None and contact_head_image is not None:
             head, head_hd = self._process_parse_contact_head(contact_head_image)
             if head_hd and len(head_hd) > 0:
@@ -490,7 +493,7 @@ class WeChatParser(Wechat):
                     cm.sp_id = chatroom.sp_id
                     cm.insert_db(self.im)
                 except Exception as e:
-                    TraceService.Trace(TraceLevel.Error, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
+                    TraceService.Trace(TraceLevel.Debug, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
 
             if len(members) > 0:
                 chatroom.owner_id = members[0].get('username')
@@ -624,7 +627,7 @@ class WeChatParser(Wechat):
                     deleted = 0 if rec.Deleted == DeletedState.Intact else 1
                     self._parse_user_mm_db_with_value(deleted, node.AbsolutePath, username, msg, msg_type, msg_local_id, is_sender, timestamp, user_hash, user_unknown)
                 except Exception as e:
-                    TraceService.Trace(TraceLevel.Error, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
+                    TraceService.Trace(TraceLevel.Debug, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
             self.im.db_commit()
             self.push_models()
             self.set_progress(progress_start+1 + i * 100 / len(db.Tables) * (progress_end - progress_start+1) / 100)
@@ -647,7 +650,7 @@ class WeChatParser(Wechat):
                         deleted = 0 if rec.Deleted == DeletedState.Intact else 1
                         self._parse_user_hello_db_with_value(deleted, node.AbsolutePath, msg, is_sender, timestamp)
                     except Exception as e:
-                        TraceService.Trace(TraceLevel.Error, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
+                        TraceService.Trace(TraceLevel.Debug, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
                 self.im.db_commit()
                 self.push_models()
         return True
@@ -665,17 +668,17 @@ class WeChatParser(Wechat):
         if user_unknown:
             message.talker_type = model_wechat.CHAT_TYPE_NONE
             message.sender_id = self.user_account.account_id if is_sender else username
-            revoke_content = self._process_parse_group_message(msg, msg_type, msg_local_id, is_sender, self.user_node, user_hash, message)
+            revoke_content = self._process_parse_group_message(msg, msg_type, msg_local_id, is_sender, user_hash, message)
         elif username.endswith("@chatroom"):
             message.talker_type = model_wechat.CHAT_TYPE_GROUP
-            self._process_parse_group_message(msg, msg_type, msg_local_id, is_sender, self.user_node, user_hash, message)
+            self._process_parse_group_message(msg, msg_type, msg_local_id, is_sender, user_hash, message)
         else:
             message.talker_type = model_wechat.CHAT_TYPE_FRIEND
             message.sender_id = self.user_account.account_id if is_sender else username
             if username == 'newsapp':
                 message.content = self._process_parse_message_tencent_news(msg, message)
             else:
-                revoke_content = self._process_parse_friend_message(msg, msg_type, msg_local_id, self.user_node, user_hash, message)
+                revoke_content = self._process_parse_friend_message(msg, msg_type, msg_local_id, user_hash, message)
 
         message.insert_db(self.im)
         model, tl_model = self.get_message_model(message)
@@ -725,8 +728,8 @@ class WeChatParser(Wechat):
         try:
             xml = XElement.Parse(xml_str)
         except Exception as e:
-            if deleted != 0:
-                TraceService.Trace(TraceLevel.Error, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
+            if deleted == 0:
+                TraceService.Trace(TraceLevel.Debug, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
         if xml is not None:
             if xml.Attribute('content'):
                 content = xml.Attribute('content').Value
@@ -795,7 +798,7 @@ class WeChatParser(Wechat):
                     deleted = 0 if rec.Deleted == DeletedState.Intact else 1
                     self._parse_user_wc_db_with_value(deleted, node.AbsolutePath, username, buffer)
                 except Exception as e:
-                    TraceService.Trace(TraceLevel.Error, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
+                    TraceService.Trace(TraceLevel.Debug, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
         self.im.db_commit()
         self.push_models()
         return True
@@ -874,7 +877,7 @@ class WeChatParser(Wechat):
                             pass
                         feed.like_count += 1
                     except Exception as e:
-                        TraceService.Trace(TraceLevel.Error, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
+                        TraceService.Trace(TraceLevel.Debug, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
             if feed.like_count == 0:
                 feed.like_id = 0
 
@@ -897,7 +900,7 @@ class WeChatParser(Wechat):
                                 pass
                             feed.comment_count += 1
                     except Exception as e:
-                        TraceService.Trace(TraceLevel.Error, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
+                        TraceService.Trace(TraceLevel.Debug, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
             if feed.comment_count == 0:
                 feed.comment_id = 0
 
@@ -940,7 +943,7 @@ class WeChatParser(Wechat):
                     deleted = 0 if rec.Deleted == DeletedState.Intact else 1
                     self._parse_user_fav_db_with_value(deleted, node.AbsolutePath, fav_type, timestamp, from_user, xml)
                 except Exception as e:
-                    TraceService.Trace(TraceLevel.Error, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
+                    TraceService.Trace(TraceLevel.Debug, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
             self.im.db_commit()
             self.push_models()
         return True
@@ -968,7 +971,7 @@ class WeChatParser(Wechat):
             xml = XElement.Parse(xml_str)
         except Exception as e:
             if model.deleted == 0:
-                TraceService.Trace(TraceLevel.Error, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
+                TraceService.Trace(TraceLevel.Debug, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
         if xml is not None and xml.Name.LocalName == 'favitem':
             try:
                 fav_type = int(xml.Attribute('type').Value) if xml.Attribute('type') else 0
@@ -1200,11 +1203,7 @@ class WeChatParser(Wechat):
         return True
 
     def _parse_user_fav_path(self, filename, ext):
-        node = self.private_user_node.GetByPath('Favorites/Data/{}/{}/{}.{}'.format(filename[:2], filename[-2:], filename, ext))
-        if node is not None:
-            return node.AbsolutePath
-        else:
-            return None
+        return self._get_path_from_private_user_node_res('Favorites/Data/{}/{}/{}.{}'.format(filename[:2], filename[-2:], filename, ext))
 
     def _parse_user_search(self, node):
         if node is None:
@@ -1268,7 +1267,7 @@ class WeChatParser(Wechat):
                         if deleted == 0 or id not in username_ids:
                             username_ids[id] = username
                 except Exception as e:
-                    TraceService.Trace(TraceLevel.Error, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
+                    TraceService.Trace(TraceLevel.Debug, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
 
         tables = [t for t in db.Tables if t.startswith('fts_message_table_') and t.endswith('_content')]
         for table in tables:
@@ -1299,7 +1298,7 @@ class WeChatParser(Wechat):
                     #deleted = 0 if rec.Deleted == DeletedState.Intact else 1
                     self._parse_user_fts_db_with_value(1, node.AbsolutePath, username, content)
                 except Exception as e:
-                    TraceService.Trace(TraceLevel.Error, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
+                    TraceService.Trace(TraceLevel.Debug, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
             self.im.db_commit()
             self.push_models()
         return True
@@ -1432,7 +1431,7 @@ class WeChatParser(Wechat):
                 ms = Enumerable.ToList[XElement](XPathExtensions.XPathSelectElements(xml,"Member[@UserName]"))
             except Exception as e:
                 if deleted == 0:
-                    TraceService.Trace(TraceLevel.Error, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
+                    TraceService.Trace(TraceLevel.Debug, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
             for m in ms:
                 if canceller.IsCancellationRequested:
                     break
@@ -1446,46 +1445,41 @@ class WeChatParser(Wechat):
                     members.append({'username': username, 'display_name': display_name})
         return members, max_count
 
-    def _process_parse_friend_message(self, msg, msg_type, msg_local_id, user_node, friend_hash, model):
+    def _process_parse_friend_message(self, msg, msg_type, msg_local_id, friend_hash, model):
         content = msg
         img_path = None
         img_thum_path = None
         revoke_content = None
 
+        seps = [':\n', '*#*\n']
+        for sep in seps:
+            index = msg.find(sep)
+            if index != -1:
+                content = msg[index+len(sep):]
+                break
+
         if msg_type == MSG_TYPE_TEXT:
             pass
         elif msg_type == MSG_TYPE_IMAGE:
             content = '[图片]'
-            node = user_node.GetByPath('/Img/{0}/{1}.pic_hd'.format(friend_hash, msg_local_id))
-            if node is not None:
-                img_path = node.AbsolutePath
-            else:
-                node = user_node.GetByPath('/Img/{0}/{1}.pic'.format(friend_hash, msg_local_id))
-                if node is not None:
-                    img_path = node.AbsolutePath
-
-            node = user_node.GetByPath('/Img/{0}/{1}.pic_thum'.format(friend_hash, msg_local_id))
-            if node is not None:
-                img_thum_path = node.AbsolutePath
+            img_path = self._get_path_from_user_node_res('Img/{0}/{1}.pic_hd'.format(friend_hash, msg_local_id))
+            if img_path is None:
+                img_path = self._get_path_from_user_node_res('Img/{0}/{1}.pic'.format(friend_hash, msg_local_id))
+            
+            img_thum_path = self._get_path_from_user_node_res('Img/{0}/{1}.pic_thum'.format(friend_hash, msg_local_id))
         elif msg_type == MSG_TYPE_VOICE:
             content = '[语音]'
-            node = user_node.GetByPath('/Audio/{0}/{1}.aud'.format(friend_hash, msg_local_id))
-            if node is not None:
-                img_path = node.AbsolutePath
+            img_path = self._get_path_from_user_node_res('Audio/{0}/{1}.aud'.format(friend_hash, msg_local_id))
         elif msg_type in [MSG_TYPE_VIDEO, MSG_TYPE_VIDEO_2]:
             content = '[视频]'
-            node = user_node.GetByPath('/Video/{0}/{1}.mp4'.format(friend_hash, msg_local_id))
-            if node is not None:
-                img_path = node.AbsolutePath
-            node = user_node.GetByPath('/Video/{0}/{1}.video_thum'.format(friend_hash, msg_local_id))
-            if node is not None:
-                img_thum_path = node.AbsolutePath
+            img_path = self._get_path_from_user_node_res('Video/{0}/{1}.mp4'.format(friend_hash, msg_local_id))
+            img_thum_path = self._get_path_from_user_node_res('Video/{0}/{1}.video_thum'.format(friend_hash, msg_local_id))
         elif msg_type == MSG_TYPE_LOCATION:
             content = self._process_parse_message_location(content, model)
-            img_thum_path = user_node.AbsolutePath + '/Location/{0}/{1}.pic_thum'.format(friend_hash, msg_local_id)
+            img_thum_path = self._get_path_from_user_node_res('Location/{0}/{1}.pic_thum'.format(friend_hash, msg_local_id))
         elif msg_type == MSG_TYPE_EMOJI:
-            content = '[表情]'
             self._process_parse_message_emoji(content, model)
+            content = '[表情]'
         elif msg_type == MSG_TYPE_CONTACT_CARD:
             content = self._process_parse_message_contact_card(content, model)
         elif msg_type == MSG_TYPE_VOIP:
@@ -1506,7 +1500,7 @@ class WeChatParser(Wechat):
         model.media_thum_path = img_thum_path
         return revoke_content
 
-    def _process_parse_group_message(self, msg, msg_type, msg_local_id, is_sender, user_node, group_hash, model):
+    def _process_parse_group_message(self, msg, msg_type, msg_local_id, is_sender, group_hash, model):
         sender_id = self.user_account.account_id
         content = msg
 
@@ -1520,7 +1514,7 @@ class WeChatParser(Wechat):
                     break
 
         model.sender_id = sender_id
-        return self._process_parse_friend_message(content, msg_type, msg_local_id, user_node, group_hash, model)
+        return self._process_parse_friend_message(content, msg_type, msg_local_id, group_hash, model)
 
     def _process_parse_message_emoji(self, xml_str, model):
         model.media_path = None
@@ -1528,20 +1522,17 @@ class WeChatParser(Wechat):
         try:
             xml = XElement.Parse(xml_str)
         except Exception as e:
-            pass
+            if model.deleted == 0:
+                TraceService.Trace(TraceLevel.Debug, "apple_wechat.py Error: LINE {} \nxml: {}".format(traceback.format_exc(), xml_str))
         if xml and xml.Element('emoji'):
             emoji = xml.Element('emoji')
-            
             if emoji.Attribute('fromusername') and model.sender_id in [None, '']:
                 model.sender_id = emoji.Attribute('fromusername').Value
             if emoji.Attribute('md5') and self.private_user_node:
                 hash = emoji.Attribute('md5').Value
-                node = self.private_user_node.GetByPath('emoticonPIC/{}.pic'.format(hash))
-                thum_node = self.private_user_node.GetByPath('emoticonThumb/{}.pic.thumb'.format(hash))
-                if node is not None:
-                    model.media_path = node.AbsolutePath
-                elif thum_node is not None:
-                    model.media_path = thum_node.AbsolutePath
+                model.media_path = self._get_path_from_private_user_node_res('emoticonPIC/{}.pic'.format(hash))
+                if model.media_path is None:
+                    model.media_path = self._get_path_from_private_user_node_res('emoticonThumb/{}.pic'.format(hash))
             if model.media_path is None and emoji.Attribute('cdnurl'):
                  model.media_path = emoji.Attribute('cdnurl').Value
 
@@ -1556,7 +1547,7 @@ class WeChatParser(Wechat):
             xml = XElement.Parse(xml_content)
         except Exception as e:
             if model.deleted == 0:
-                TraceService.Trace(TraceLevel.Error, "apple_wechat.py Error: LINE {} \nxml: {}".format(traceback.format_exc(), xml_str))
+                TraceService.Trace(TraceLevel.Debug, "apple_wechat.py Error: LINE {} \nxml: {}".format(traceback.format_exc(), xml_str))
             model.type = model_wechat.MESSAGE_CONTENT_TYPE_TEXT
             return
 
@@ -1583,9 +1574,7 @@ class WeChatParser(Wechat):
                             ext = appmsg.Element('appattach').Element('fileext').Value
                         if ext == '':
                             ext = 'dat'
-                        attach_node = self.user_node.GetByPath('OpenData/{}/{}.{}'.format(friend_hash, msg_local_id, ext))
-                        if attach_node is not None:
-                            model.media_path = attach_node.AbsolutePath
+                        model.media_path = self._get_path_from_user_node_res('OpenData/{}/{}.{}'.format(friend_hash, msg_local_id, ext))
                     elif msg_type == 9:  # 提醒
                         if appmsg.Element('des'):
                             content = appmsg.Element('des').Value
@@ -1652,12 +1641,9 @@ class WeChatParser(Wechat):
                             appinfo = xml.Element('appinfo')
                             if appinfo and appinfo.Element('appname'):
                                 model.link_from = appinfo.Element('appname').Value
-                            thumb_node = self.user_node.GetByPath('OpenData/{}/{}.pic_thum'.format(friend_hash, msg_local_id))
-                            if thumb_node is not None:
-                                model.link_image = thumb_node.AbsolutePath
-                            elif appmsg.Element('thumburl'):
+                            model.link_image = self._get_path_from_user_node_res('OpenData/{}/{}.pic_thum'.format(friend_hash, msg_local_id))
+                            if model.link_image is None and appmsg.Element('thumburl'):
                                 model.link_image = appmsg.Element('thumburl').Value
-
                 else:
                     pass
             elif xml.Name.LocalName == 'mmreader':
@@ -1684,10 +1670,8 @@ class WeChatParser(Wechat):
                 appinfo = xml.Element('appinfo')
                 if appinfo and appinfo.Element('appname'):
                     model.link_from = appinfo.Element('appname').Value
-                thumb_node = self.user_node.GetByPath('OpenData/{}/{}.pic_thum'.format(friend_hash, msg_local_id))
-                if thumb_node is not None:
-                    model.link_image = thumb_node.AbsolutePath
-                elif appmsg.Element('thumburl'):
+                model.link_image = self._get_path_from_user_node_res('OpenData/{}/{}.pic_thum'.format(friend_hash, msg_local_id))
+                if model.link_image is None and appmsg.Element('thumburl'):
                     model.link_image = appmsg.Element('thumburl').Value
             else:
                 pass
@@ -1798,7 +1782,7 @@ class WeChatParser(Wechat):
                     deleted = 0 if rec.Deleted == DeletedState.Intact else 1
                     self._parse_user_story_db_with_value(deleted, node.AbsolutePath, username, tid, media_item, comment_list, local_info, timestamp)
                 except Exception as e:
-                    TraceService.Trace(TraceLevel.Error, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
+                    TraceService.Trace(TraceLevel.Debug, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
             self.im.db_commit()
             self.push_models()
         return True
@@ -1857,7 +1841,7 @@ class WeChatParser(Wechat):
                     deleted = 0 if rec.Deleted == DeletedState.Intact else 1
                     self._parse_user_app_db_with_value(deleted, node.AbsolutePath, username, head, contact_pack)
                 except Exception as e:
-                    TraceService.Trace(TraceLevel.Error, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
+                    TraceService.Trace(TraceLevel.Debug, "apple_wechat.py Error: LINE {}".format(traceback.format_exc()))
             self.im.db_commit()
             self.push_models()
         return True
@@ -1894,3 +1878,45 @@ class WeChatParser(Wechat):
         except Exception as e:
             pass
         return nickname
+
+    def _generate_user_node_res(self):
+        self.user_node_res = set()
+        self.user_node_absolute_path = None
+        if self.user_node is not None:
+            self.user_node_absolute_path = self.user_node.AbsolutePath
+            conditions = ['Img/.+/.+\.pic_hd$', 'Img/.+/.+\.pic$', 'Img/.+/.+\.pic_thumb$', 
+                          'Audio/.+/.+\.aud$', 'Video/.+/.+\.mp4', 'Video/.+/.+\.video_thum', 
+                          'Location/.+/.+\.pic_thumb$', 'OpenData/.+/.+\..+$']
+            idx = len(self.user_node_absolute_path) + 1
+            for c in conditions:
+                rs = self.user_node.Search(c)
+                for r in rs:
+                    self.user_node_res.add(r.AbsolutePath[idx:])
+
+        self.private_user_node_res = set()
+        self.private_user_node_absolute_path = None
+        if self.private_user_node is not None:
+            self.private_user_node_absolute_path = self.private_user_node.AbsolutePath
+            conditions = ['Favorites/Data/.+/.+/.+\..+$', 'emoticonPIC/.+\.pic$', 'emoticonThumb/.+\.pic$', 
+                          'HeadImg/0/.+/.+\.pic_hd$', 'HeadImg/0/.+/.+\.pic_compressed']
+            idx = len(self.private_user_node.AbsolutePath) + 1
+            for c in conditions:
+                rs = self.private_user_node.Search(c)
+                for r in rs:
+                    self.private_user_node_res.add(r.AbsolutePath[idx:])
+
+    def _clear_user_node_res(self):
+        self.user_node_res.clear()
+        self.private_user_node_res.clear()
+
+    def _get_path_from_user_node_res(self, path):
+        if path in self.user_node_res:
+            return self.user_node_absolute_path + '/' + path
+        else:
+            return None
+
+    def _get_path_from_private_user_node_res(self, path):
+        if path in self.private_user_node_res:
+            return self.private_user_node_absolute_path + '/' + path
+        else:
+            return None

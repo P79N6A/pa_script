@@ -2,26 +2,57 @@
 
 from PA_runtime import *
 import clr
+
 clr.AddReference('System.Data.SQLite')
 try:
     clr.AddReference('ScriptUtils')
+    clr.AddReference('ResourcesExp')
 except:
     pass
 del clr
 
-import json
-import hashlib
 import datetime
-import System
+import sqlite3
 import System.Data.SQLite as SQLite
 from PA.InfraLib.Utils import ConvertHelper
-import sqlite3
-from ScriptUtils import CASE_NAME, exc, tp, print_run_time, BaseParser
 
-VERSION_KEY_DB  = 'db'
+import PA.InfraLib.ModelsV2.Base.BrowserFormData as BrowserFormData
+from PA.InfraLib.ModelsV2.CommonEnum import FormType
+
+from ScriptUtils import exc, tp, BaseParser, MiddleDBModel, Fields, BaseDBModel
+
+
+
+FROMDATA_TYPE_KEYWORD = 0
+FROMDATA_TYPE_ACCOUNT = 1
+FROMDATA_TYPE_CHECKCODE = 2
+
+FROMDATA_TYPE = {
+    0:  FormType.Account,
+    1:  FormType.CheckCode,
+    2:  FormType.Keyword,
+}
+
+VERSION_KEY_DB = 'db'
 VERSION_VALUE_DB = 6
 
 VERSION_KEY_APP = 'app'
+
+
+class Formdata(MiddleDBModel):
+    __table__ = 'form_data'
+
+    url = Fields.CharField()
+    key = Fields.CharField()
+    value = Fields.CharField()
+    form_type = Fields.IntegerField()
+    last_visited = Fields.CharField()
+    visited_count = Fields.IntegerField()
+    source = Fields.CharField()
+    deleted = Fields.IntegerField()
+    
+    def get_values(self, attr_keys):
+        return super(Formdata, self).get_values(attr_keys)
 
 
 SQL_CREATE_TABLE_BOOKMARK = '''
@@ -196,84 +227,36 @@ SQL_CREATE_TABLE_VERSION = '''
         key TEXT primary key,
         version INT)'''
 
+
 SQL_INSERT_TABLE_VERSION = '''
     insert into version(key, version) values(?, ?)'''
 
 
-class MB(object):
+class MB(BaseDBModel):
     def __init__(self):
-        self.db = None
-        self.db_cmd = None
-        self.db_trans = None
-
-    def db_create(self,db_path):
-        if os.path.exists(db_path):
-            try:
-                os.remove(db_path)
-            except Exception as e:
-                print('model_browser db_create() remove %s error: %s' % (db_path, e))
-                
-        self.db = SQLite.SQLiteConnection('Data Source = {}'.format(db_path))
-        self.db.Open()
-        self.db_cmd = SQLite.SQLiteCommand(self.db)
-        self.db_trans = self.db.BeginTransaction()
-
-        self.db_create_table()
-        self.db_commit()
-
-    def db_commit(self):
-        if self.db_trans is not None:
-            self.db_trans.Commit()
-        self.db_trans = self.db.BeginTransaction()
-
-    def db_close(self):
-        self.db_trans = None
-        if self.db_cmd is not None:
-            self.db_cmd.Dispose()
-            self.db_cmd = None
-        if self.db is not None:
-            self.db.Close()
-            self.db = None
-
-    def db_remove(self, db_path):
-        try:
-            os.remove(db_path)
-        except Exception as e:
-            print('model_browser db_create() remove %s error: %s' % (db_path, e))
+        super(MB, self).__init__()
+        self.VERSION_VALUE_DB = VERSION_VALUE_DB
+        self.create_sql_list.extend([
+            Formdata,
+            SQL_CREATE_TABLE_BOOKMARK,
+            SQL_CREATE_TABLE_SAVEPAGE,
+            SQL_CREATE_TABLE_SEARCHHISTORY,
+            SQL_CREATE_TABLE_DOWNLOADFILES,
+            SQL_CREATE_TABLE_BROWSERECORDS,
+            SQL_CREATE_TABLE_ACCOUNTS,
+            SQL_CREATE_TABLE_FILEINFO,
+            SQL_CREATE_TABLE_COOKIES,
+        ])
 
     def db_create_table(self):
-        if self.db_cmd is not None:
-            self.db_cmd.CommandText = SQL_CREATE_TABLE_ACCOUNTS
-            self.db_cmd.ExecuteNonQuery()
-            self.db_cmd.CommandText = SQL_CREATE_TABLE_BOOKMARK
-            self.db_cmd.ExecuteNonQuery()
-            self.db_cmd.CommandText = SQL_CREATE_TABLE_BROWSERECORDS
-            self.db_cmd.ExecuteNonQuery()
-            self.db_cmd.CommandText = SQL_CREATE_TABLE_DOWNLOADFILES
-            self.db_cmd.ExecuteNonQuery()
-            self.db_cmd.CommandText = SQL_CREATE_TABLE_FILEINFO
-            self.db_cmd.ExecuteNonQuery()
-            self.db_cmd.CommandText = SQL_CREATE_TABLE_SAVEPAGE
-            self.db_cmd.ExecuteNonQuery()
-            self.db_cmd.CommandText = SQL_CREATE_TABLE_SEARCHHISTORY
-            self.db_cmd.ExecuteNonQuery()
-            self.db_cmd.CommandText = SQL_CREATE_TABLE_PLUGIN
-            self.db_cmd.ExecuteNonQuery()
-            self.db_cmd.CommandText = SQL_CREATE_TABLE_COOKIES
-            self.db_cmd.ExecuteNonQuery()
-            self.db_cmd.CommandText = SQL_CREATE_TABLE_VERSION
-            self.db_cmd.ExecuteNonQuery()
+        super(MB, self).db_create_table()
 
-    def db_insert_table(self, sql, values):
-        if self.db_cmd is not None:
-            self.db_cmd.CommandText = sql
-            self.db_cmd.Parameters.Clear()
-            for value in values:
-                param = self.db_cmd.CreateParameter()
-                param.Value = value
-                self.db_cmd.Parameters.Add(param)
-            self.db_cmd.ExecuteNonQuery()
-
+    def db_create_tb_from_mdbmodel(self, data_model):
+        super(MB, self).db_create_tb_from_mdbmodel(data_model)
+        
+    def db_insert_tb_from_mdbmodel(self, data_model):
+        super(MB, self).db_insert_tb_from_mdbmodel(data_model)
+            
     def db_insert_table_accounts(self, Account):
         self.db_insert_table(SQL_INSERT_TABLE_ACCOUNTS, Account.get_values())
 
@@ -351,7 +334,7 @@ class Column(object):
             self.__dict__[name] = None
         else:
             if isinstance(value, str):
-                value = re.compile('[\\x00-\\x08\\x0b-\\x0c\\x0e-\\x1f]').sub(' ', value)                 
+                value = re.compile('[\\x00-\\x08\\x0b-\\x0c\\x0e-\\x1f]').sub(' ', value)
             self.__dict__[name] = value
 
     def get_values(self):
@@ -361,8 +344,8 @@ class Column(object):
 class Account(Column):
     def __init__(self):
         super(Account, self).__init__()
-        self.id = None         # INTEGER PRIMARY KEY AUTOINCREMENT
-        self.name = None       # TEXT
+        self.id = None  # INTEGER PRIMARY KEY AUTOINCREMENT
+        self.name = None  # TEXT
         self.logindate = None  # INTEGER
 
     def get_values(self):
@@ -380,7 +363,8 @@ class Bookmark(Column):
         self.is_synced = False  # 是否为同步的书签
 
     def get_values(self):
-        return (self.id, self.time, self.title, self.url, self.owneruser, self.is_synced) + super(Bookmark, self).get_values()
+        return (self.id, self.time, self.title, self.url, self.owneruser, self.is_synced) + super(Bookmark,
+                                                                                                  self).get_values()
 
 
 class Browserecord(Column):
@@ -394,7 +378,8 @@ class Browserecord(Column):
         self.visit_count = 1
 
     def get_values(self):
-        return (self.id, self.name, self.url, self.datetime, self.owneruser, self.visit_count) + super(Browserecord, self).get_values()
+        return (self.id, self.name, self.url, self.datetime, self.owneruser, self.visit_count) + super(Browserecord,
+                                                                                                       self).get_values()
 
 
 class DownloadFile(Column):
@@ -411,8 +396,8 @@ class DownloadFile(Column):
         self.owneruser = 'default_user'
 
     def get_values(self):
-        return (self.id, self.url, self.filename, self.filefolderpath, self.totalsize, self.createdate, 
-            self.donedate, self.costtime, self.owneruser) + super(DownloadFile, self).get_values()
+        return (self.id, self.url, self.filename, self.filefolderpath, self.totalsize, self.createdate,
+                self.donedate, self.costtime, self.owneruser) + super(DownloadFile, self).get_values()
 
 
 class FileInfo(Column):
@@ -427,8 +412,8 @@ class FileInfo(Column):
         self.owneruser = 'default_user'
 
     def get_values(self):
-        return (self.id, self.filepath, self.filename, self.size, self.modified, 
-            self.title, self.owneruser) + super(FileInfo, self).get_values()
+        return (self.id, self.filepath, self.filename, self.size, self.modified,
+                self.title, self.owneruser) + super(FileInfo, self).get_values()
 
 
 class SavePage(Column):
@@ -445,7 +430,7 @@ class SavePage(Column):
 
     def get_values(self):
         return (self.id, self.time, self.title, self.url, self.filename, self.filesize,
-            self.savepath, self.owneruser) + super(SavePage, self).get_values()
+                self.savepath, self.owneruser) + super(SavePage, self).get_values()
 
 
 class SearchHistory(Column):
@@ -475,8 +460,8 @@ class Plugin(Column):
         self.deletedate = None
 
     def get_values(self):
-        return (self.id, self.title, self.url, self.packagename, self.packagesize, self.isinstall, self.installdate, 
-            self.isdelete, self.deletedate) + super(Plugin, self).get_values()
+        return (self.id, self.title, self.url, self.packagename, self.packagesize, self.isinstall, self.installdate,
+                self.isdelete, self.deletedate) + super(Plugin, self).get_values()
 
 
 class Cookie(Column):
@@ -494,7 +479,7 @@ class Cookie(Column):
 
     def get_values(self):
         return (self.id, self.host_key, self.name, self.value, self.createdate, self.expiredate, self.lastaccessdate,
-            self.hasexipred, self.owneruser) + super(Cookie, self).get_values()
+                self.hasexipred, self.owneruser) + super(Cookie, self).get_values()
 
 
 class Generate(object):
@@ -520,6 +505,7 @@ class Generate(object):
         models.extend(self._get_savepage_models())
         models.extend(self._get_search_history_models())
         models.extend(self._get_cookies_models())
+        models.extend(self._get_formdata_models())
         # models.extend(self._get_fileinfo_models())
         # models.extend(self._get_plugin_models())
         self.db_cmd.Dispose()
@@ -532,7 +518,7 @@ class Generate(object):
         try:
             self.db_cmd.CommandText = sql
             row = self.db_cmd.ExecuteReader()
-            while(row.Read()):
+            while (row.Read()):
                 canceller.ThrowIfCancellationRequested()
                 user = Generic.User()
                 if not IsDBNull(row[0]):
@@ -547,8 +533,8 @@ class Generate(object):
                     user.Deleted = self._convert_deleted_status(row[4])
                 model.append(user)
             row.Close()
-        except Exception as e:
-            print(e)
+        except:
+            exc()
         return model
 
     def _get_bookmark_models(self):
@@ -567,8 +553,8 @@ class Generate(object):
         sql = '''select distinct * from bookmark'''
         try:
             self.db_cmd.CommandText = sql
-            row = self.db_cmd.ExecuteReader()             
-            while(row.Read()):
+            row = self.db_cmd.ExecuteReader()
+            while (row.Read()):
                 canceller.ThrowIfCancellationRequested()
                 bookmark = Generic.WebBookmark()
                 if not IsDBNull(row[1]):
@@ -585,8 +571,8 @@ class Generate(object):
                     bookmark.Deleted = self._convert_deleted_status(row[7])
                 model.append(bookmark)
             row.Close()
-        except Exception as e:
-            print(e)
+        except:
+            exc()
         return model
 
     def _get_browse_record_models(self):
@@ -606,8 +592,8 @@ class Generate(object):
         '''
         try:
             self.db_cmd.CommandText = sql
-            row = self.db_cmd.ExecuteReader()             
-            while(row.Read()):
+            row = self.db_cmd.ExecuteReader()
+            while (row.Read()):
                 canceller.ThrowIfCancellationRequested()
                 visited = Generic.VisitedPage()
                 if not IsDBNull(row[1]):
@@ -624,8 +610,8 @@ class Generate(object):
                     visited.Deleted = self._convert_deleted_status(row[7])
                 model.append(visited)
             row.Close()
-        except Exception as e:
-            print(e)
+        except:
+            exc()
         return model
 
     def _get_downloadfile_models(self):
@@ -647,8 +633,8 @@ class Generate(object):
         '''
         try:
             self.db_cmd.CommandText = sql
-            row = self.db_cmd.ExecuteReader()             
-            while(row.Read()):
+            row = self.db_cmd.ExecuteReader()
+            while (row.Read()):
                 canceller.ThrowIfCancellationRequested()
                 download = Generic.Attachment()
                 if not IsDBNull(row[3]) and row[3]:
@@ -656,7 +642,7 @@ class Generate(object):
                 elif not IsDBNull(row[1]) and row[1]:
                     download.Uri.Value = self._get_uri(row[1])
                 if not IsDBNull(row[2]):
-                    download.Filename.Value = row[2]  
+                    download.Filename.Value = row[2]
                 if not IsDBNull(row[4]):
                     download.Size.Value = row[4]
 
@@ -671,8 +657,8 @@ class Generate(object):
                     download.Deleted = self._convert_deleted_status(row[10])
                 model.append(download)
             row.Close()
-        except Exception as e:
-            print(e)
+        except:
+            exc()
         return model
 
     def _get_fileinfo_models(self):
@@ -680,8 +666,8 @@ class Generate(object):
         sql = '''select distinct * from file_info'''
         try:
             self.db_cmd.CommandText = sql
-            row = self.db_cmd.ExecuteReader()             
-            while(row.Read()):
+            row = self.db_cmd.ExecuteReader()
+            while (row.Read()):
                 canceller.ThrowIfCancellationRequested()
                 browseload = Generic.Attachment()
                 if not IsDBNull(row[1]):
@@ -698,8 +684,8 @@ class Generate(object):
                     browseload.Deleted = self._convert_deleted_status(row[7])
                 model.append(browseload)
             row.Close()
-        except Exception as e:
-            print(e)
+        except:
+            exc()
         return model
 
     def _get_savepage_models(self):
@@ -708,7 +694,7 @@ class Generate(object):
         return model
 
     def _get_search_history_models(self):
-        
+
         model = []
         sql = '''select distinct * from search_history'''
         '''
@@ -723,8 +709,8 @@ class Generate(object):
         '''
         try:
             self.db_cmd.CommandText = sql
-            row = self.db_cmd.ExecuteReader()             
-            while(row.Read()):
+            row = self.db_cmd.ExecuteReader()
+            while (row.Read()):
                 canceller.ThrowIfCancellationRequested()
                 search = SearchedItem()
                 if not IsDBNull(row[1]):
@@ -740,8 +726,8 @@ class Generate(object):
                 model.append(search)
             row.Close()
 
-        except Exception as e:
-            print(e)
+        except:
+            exc()
         return model
 
     def _get_plugin_models(self):
@@ -769,8 +755,8 @@ class Generate(object):
         '''
         try:
             self.db_cmd.CommandText = sql
-            row = self.db_cmd.ExecuteReader()             
-            while(row.Read()):
+            row = self.db_cmd.ExecuteReader()
+            while (row.Read()):
                 canceller.ThrowIfCancellationRequested()
                 cookie = Generic.Cookie()
                 if not IsDBNull(row[1]):
@@ -791,8 +777,57 @@ class Generate(object):
                     cookie.Deleted = self._convert_deleted_status(row[10])
                 model.append(cookie)
             row.Close()
-        except Exception as e:
-            print(e)
+        except:
+            exc()
+        return model
+
+    def _get_formdata_models(self):
+        model = []
+        sql = '''select 
+                    url,
+                    key,
+                    value,
+                    form_type,
+                    last_visited, 
+                    visited_count,
+                    source,
+                    deleted                   
+                from form_data '''
+        '''
+        0    url,
+        1    key,
+        2    value,
+        3    form_type,
+        4    last_visited, 
+        5    visited_count,
+        6    source,
+        7    deleted
+        '''
+        try:
+            self.db_cmd.CommandText = sql
+            row = self.db_cmd.ExecuteReader()
+            while (row.Read()):
+                form_data = BrowserFormData()
+                if not IsDBNull(row[0]):
+                    form_data.Url = row[0]
+                if not IsDBNull(row[1]):
+                    form_data.Key = row[1]
+                if not IsDBNull(row[2]):
+                    form_data.Value = row[2]
+                if not IsDBNull(row[3]) and row[3] in FROMDATA_TYPE:
+                    form_data.Type = FROMDATA_TYPE.get(row[3])
+                if not IsDBNull(row[4]) and row[4] not in [None, '']:
+                    form_data.LastVisted = self._convert_webkit_timestamp(row[5])
+                if not IsDBNull(row[5]):
+                    form_data.VistedCount = row[5]
+                if not IsDBNull(row[6]):
+                    form_data.SourceFile = str(row[6])
+                if not IsDBNull(row[7]):
+                    form_data.Deleted = self._convert_deleted_status(row[7])
+                model.append(form_data)
+            row.Close()
+        except:
+            exc()
         return model
 
     @staticmethod
@@ -825,7 +860,7 @@ class Generate(object):
             ts = TimeStamp.FromUnixTime(int(timestamp), False)
             if not ts.IsValidForSmartphone():
                 ts = TimeStamp.FromUnixTime(0, False)
-            return ts            
+            return ts
         except:
             return None
 
@@ -836,11 +871,9 @@ class Generate(object):
             pass
 
 
-##################################################################################
-##                              Base Browser Parser                             ##
-##################################################################################
-
-
+#
+# model_browser.convert_2_SearchedItem
+#
 def convert_2_SearchedItem(_VisitedPage):
     ''' 有些搜索记录没有存储, 需要将浏览记录转化为搜索记录(SearchedItem), "网页搜索_"为神马搜索
     
@@ -860,14 +893,14 @@ def convert_2_SearchedItem(_VisitedPage):
                 search = SearchedItem()
                 if _VisitedPage.Url.Value:
                     search.SearchResults.Add(_VisitedPage.Url.Value)
-                search.Value.Value      = keyword
-                search.TimeStamp.Value  = _VisitedPage.LastVisited.Value
+                search.Value.Value = keyword
+                search.TimeStamp.Value = _VisitedPage.LastVisited.Value
                 search.SourceFile.Value = _VisitedPage.Source.Value
-                search.Deleted          = _VisitedPage.Deleted
+                search.Deleted = _VisitedPage.Deleted
                 return search
     except:
         exc()
-        return 
+        return
 
 
 class BaseBrowserParser(BaseParser):
@@ -879,12 +912,12 @@ class BaseBrowserParser(BaseParser):
             _convert_nodepath
     '''
     def __init__(self, node, db_name=''):
-        super(BaseBrowserParser, self).__init__(node, 'Browser'+db_name)
+        super(BaseBrowserParser, self).__init__(node, 'Browser' + db_name)
         self.csm = MB()
         self.Generate = Generate
         self.VERSION_KEY_DB = VERSION_KEY_DB
         self.VERSION_VALUE_DB = VERSION_VALUE_DB
-        self.VERSION_KEY_APP = VERSION_KEY_APP        
+        self.VERSION_KEY_APP = VERSION_KEY_APP
 
     def parse_main(self):
         pass
@@ -919,20 +952,20 @@ class BaseBrowserParser(BaseParser):
             for rec in self._read_table(table_name):
                 try:
                     if (self._is_empty(rec, 'creation_utc') or
-                        self._is_duplicate(rec, 'creation_utc')):
+                            self._is_duplicate(rec, 'creation_utc')):
                         continue
                     cookie = Cookie()
-                    cookie.id             = rec['creation_utc'].Value
-                    cookie.host_key       = rec['host_key'].Value
-                    cookie.name           = rec['name'].Value
-                    cookie.value          = rec['value'].Value
-                    cookie.createdate     = rec['creation_utc'].Value
-                    cookie.expiredate     = rec['expires_utc'].Value
+                    cookie.id = rec['creation_utc'].Value
+                    cookie.host_key = rec['host_key'].Value
+                    cookie.name = rec['name'].Value
+                    cookie.value = rec['value'].Value
+                    cookie.createdate = rec['creation_utc'].Value
+                    cookie.expiredate = rec['expires_utc'].Value
                     cookie.lastaccessdate = rec['last_access_utc'].Value
-                    cookie.hasexipred     = rec['has_expires'].Value
+                    cookie.hasexipred = rec['has_expires'].Value
                     # cookie.owneruser      = self.cur_account_name
-                    cookie.source         = self.cur_db_source
-                    cookie.deleted        = 1 if rec.IsDeleted else 0
+                    cookie.source = self.cur_db_source
+                    cookie.deleted = 1 if rec.IsDeleted else 0
                     self.csm.db_insert_table_cookies(cookie)
                 except:
                     exc()
@@ -951,10 +984,9 @@ class BaseBrowserParser(BaseParser):
             ts(int): 13 digits, 28800 == 8 hour, assume webkit_timestamp is UTC-8
         '''
         try:
-            epoch_start = datetime.datetime(1601,1,1)
+            epoch_start = datetime.datetime(1601, 1, 1)
             delta = datetime.timedelta(microseconds=int(webkit_timestamp))
             ts = time.mktime((epoch_start + delta).timetuple())
             return int(ts)
         except:
-            return None            
-
+            return None

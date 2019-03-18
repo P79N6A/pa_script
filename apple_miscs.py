@@ -232,7 +232,7 @@ def analyze_permissions(node, extract_deleted, extract_source):
 def analyze_tethering(node, extract_deleted, extract_source):
     pr = ParserResults()
     if node is not None and node.ModifyTime:
-        pr.DeviceInfoFields.Add(MetaDataField('LastActivationTime', str(node.ModifyTime),None,'Tethering'))
+        pr.DeviceInfoFields.Add(MetaDataField('TetheringLastActivationTime', str(node.ModifyTime),None,'Tethering'))
     pr.Build('个人热点')
     return pr
 

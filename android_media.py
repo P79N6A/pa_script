@@ -82,6 +82,7 @@ class MediaParse(object):
                 if self.db is None:
                     return 
                 ts = SQLiteParser.TableSignature('files')
+                ts.Add("_id", SQLiteParser.Signatures.SignatureFactory.GetFieldSignature(SQLiteParser.FieldType.Int, SQLiteParser.FieldConstraints.NotNull))
                 for rec in self.db.ReadTableRecords(ts, self.extractDeleted, True):
                     media = Media()
                     canceller.ThrowIfCancellationRequested()
@@ -142,6 +143,7 @@ class MediaParse(object):
                 if self.db is None:
                     return 
                 ts = SQLiteParser.TableSignature('thumbnails')
+                ts.Add("_id", SQLiteParser.Signatures.SignatureFactory.GetFieldSignature(SQLiteParser.FieldType.Int, SQLiteParser.FieldConstraints.NotNull))
                 for rec in self.db.ReadTableRecords(ts, self.extractDeleted, True):
                     thumbnails = Thumbnails()
                     canceller.ThrowIfCancellationRequested()
@@ -271,7 +273,8 @@ class MediaParse(object):
     def get_exif_data(self, fname):
         '''获取图片metadata'''
         ret = {}
-        try:
+        return ret
+        """ try:
             img = Image.open(fname)
             if hasattr(img, '_getexif'):
                 exifinfo = img._getexif()
@@ -281,7 +284,7 @@ class MediaParse(object):
                         ret[decoded] = value
                 return ret
         except:
-            return {}
+            return {} """
 
     def assignment(self, media):
         '''给media详细信息赋值'''

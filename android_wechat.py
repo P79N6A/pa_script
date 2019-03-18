@@ -207,11 +207,15 @@ class WeChatParser(Wechat):
             prog = progress['APP', build]
             prog.Start()
             self.ar = AppResources(build, DescripCategories.Wechat)
+            self.ar.set_unique_id(build)
             self.ar.set_thum_config("jpg", "Video")
             self.ar.set_thum_config("thumb", "Video")
             self.ar.set_thum_config("cover", "Video")
             self.ar.set_thum_config("extern", "Video")
             self.ar.set_thum_config("pic", "Video")
+            self.ar.set_thum_config("nomedia", "Video")
+            self.ar.set_thum_config('nomedia', "audio")
+            self.ar.set_thum_config('nomedia', "image")
 
             nodes = self.node_dict.get(build, [])
             for node in nodes:

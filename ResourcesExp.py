@@ -211,19 +211,24 @@ class AppResources(object):
     def _get_exif_data(self, path):
         '''获取图片metadata'''
         ret = {}
-        try:
-            # 把path从相对路径变成绝对路径
-            _tmp = os.path.join(ds.FileSystem.MountPoint, path)
-            img = Image.open(_tmp)
-            if hasattr(img, '_getexif'):
-                exifinfo = img._getexif()
-                if exifinfo != None:
-                    for tag, value in exifinfo.items():
-                        decoded = TAGS.get(tag, tag)
-                        ret[decoded] = value
-                return ret
-        except:
-            return {}
+        return
+        # try:
+        #     # 把path从相对路径变成绝对路径
+        #     _tmp = os.path.join(ds.FileSystem.MountPoint, path)
+        #     # 判断是否是jpeg文件
+        #     if os.path.splitext(_tmp)[1] != ".jpeg":
+        #         if not self._is_jpeg_file(_tmp):
+        #             return
+        #     img = Image.open(_tmp)
+        #     if hasattr(img, '_getexif'):
+        #         exifinfo = img._getexif()
+        #         if exifinfo is not None:
+        #             for tag, value in exifinfo.items():
+        #                 decoded = TAGS.get(tag, tag)
+        #                 ret[decoded] = value
+        #         return ret
+        # except:
+        #     return {}
 
     def assign_value_to_model(self, image, path):
         """[get pics exif infomation]
@@ -238,13 +243,13 @@ class AppResources(object):
         try:
             ret = self._get_exif_data(path)
             if not ret:
-                return
+                return image
             abs_path = os.path.join(ds.FileSystem.MountPoint, path)
             image.FileName = os.path.basename(abs_path)
             image.Size = os.path.getsize(abs_path)
             image.Path = path
             addTime = os.path.getctime(abs_path)
-            image.FileSuffix = 'jpg'
+            image.FileSuffix = 'jpeg'
             image.MimeType = 'image'
             image.AddTime = self._get_timestamp(addTime)
             location = Location(image)
@@ -519,6 +524,15 @@ class AppResources(object):
                 self._push_models(cache_model, False)  # 不需要存到数据库,直接push
                 cache_model = []
         self._push_models(cache_model, False)
+
+    def _is_jpeg_file(path):
+        with open(path, "r") as f:
+            data = f.read(11)
+            if data[:4] != b'\xff\xd8\xff\xe0': 
+                return False
+            if data[6:] != b'JFIF\0': 
+                return False
+            return True
 
     @staticmethod
     def _get_deleted_status(v):
