@@ -613,6 +613,8 @@ class WeChatParser(Wechat):
             user_hash = table[5:]
             ts = SQLiteParser.TableSignature(table)
             SQLiteParser.Tools.AddSignatureToTable(ts, "Message", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
+            SQLiteParser.Tools.AddSignatureToTable(ts, "Type", SQLiteParser.FieldType.Int)
+            SQLiteParser.Tools.AddSignatureToTable(ts, "CreateTime", SQLiteParser.FieldType.Int, SQLiteParser.FieldConstraints.NotNull)
             for rec in db.ReadTableRecords(ts, self.extract_deleted, False, ''):
                 if canceller.IsCancellationRequested:
                     break
@@ -926,6 +928,8 @@ class WeChatParser(Wechat):
         if 'FavoritesItemTable' in db.Tables:
             ts = SQLiteParser.TableSignature('FavoritesItemTable')
             SQLiteParser.Tools.AddSignatureToTable(ts, "Xml", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
+            SQLiteParser.Tools.AddSignatureToTable(ts, "Time", SQLiteParser.FieldType.Int, SQLiteParser.FieldConstraints.NotNull)
+            SQLiteParser.Tools.AddSignatureToTable(ts, "SourceType", SQLiteParser.FieldType.Int, SQLiteParser.FieldConstraints.NotNull)
             for rec in db.ReadTableRecords(ts, self.extract_deleted, False, ''):
                 if canceller.IsCancellationRequested:
                     break
@@ -1274,8 +1278,6 @@ class WeChatParser(Wechat):
             if canceller.IsCancellationRequested:
                 break
             ts = SQLiteParser.TableSignature(table)
-            SQLiteParser.Tools.AddSignatureToTable(ts, "c0usernameid", SQLiteParser.FieldType.Int, SQLiteParser.FieldConstraints.NotNull)
-            SQLiteParser.Tools.AddSignatureToTable(ts, "c3Message", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
             for rec in db.ReadTableRecords(ts, False, False, ''):
                 if canceller.IsCancellationRequested:
                     break
@@ -1764,6 +1766,11 @@ class WeChatParser(Wechat):
 
         if 'WCStoryTable' in db.Tables:
             ts = SQLiteParser.TableSignature('WCStoryTable')
+            SQLiteParser.Tools.AddSignatureToTable(ts, "username", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
+            SQLiteParser.Tools.AddSignatureToTable(ts, "tid", SQLiteParser.FieldType.Text, SQLiteParser.FieldConstraints.NotNull)
+            SQLiteParser.Tools.AddSignatureToTable(ts, "mediaItem", SQLiteParser.FieldType.Blob)
+            SQLiteParser.Tools.AddSignatureToTable(ts, "commentList", SQLiteParser.FieldType.Blob)
+            SQLiteParser.Tools.AddSignatureToTable(ts, "createtime", SQLiteParser.FieldType.Int, SQLiteParser.FieldConstraints.NotNull)
             for rec in db.ReadTableRecords(ts, self.extract_deleted, False, ''):
                 if canceller.IsCancellationRequested:
                     break
