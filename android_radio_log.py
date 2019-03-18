@@ -19,6 +19,8 @@ from PA.InfraLib.Extensions import PlistHelper
 import requests
 import json
 import re
+import datetime
+import time
 
 import bcp_connectdevice
 import hashlib
@@ -59,12 +61,12 @@ CI = 5
 # }
 
 PATTERN_RULES = {
-    ".*CellIdentity.*mMcc=(.*) .*mMnc=(.*) .*mLac=(.*) .*mCid=(.*) .*mArfcn.*": [MCC, MNC, LAC, CI],
-    ".*CellIdentity.*mMcc=(.*) .*mMnc=(.*) .*mLac=(.*) .*mCid=(.*) .*mPsc.*": [MCC, MNC, LAC, CI],
-    ".*CellIdentity.*mMcc=(.*) mMnc=(.*) mCi=(.*) mPci.*mTac=(.*) mEarfcn.*CellIdentityLte.*": [MCC, MNC, CI, TAC],
-    ".*CellIdentity.*mCi=(.*?) mPci=.*mTac=(.*?) mEarfcn.*mMcc=(.*?) mMnc=(.*?) mAlphaLong.*CellIdentityLte.*CellIdentityLte.*": [CI, TAC, MCC, MNC],
-    ".*cellIdentity.*{.mcc = (.*), .mnc = (.*), .ci = (.*), .pci = 0, .tac = (.*), .earfcn.*": [MCC, MNC, CI, TAC],
-    ".*cellIdentity.*{.mcc = (.*), .mnc = (.*), .ci = (.*), .pci.*tac = (.*), .earfcn.*": [MCC, MNC, CI, TAC]
+    "(.*) D/RILJ.*CellIdentity.*mMcc=(.*) .*mMnc=(.*) .*mLac=(.*) .*mCid=(.*) .*mArfcn.*": [MCC, MNC, LAC, CI],
+    "(.*) D/RILJ.*CellIdentity.*mMcc=(.*) .*mMnc=(.*) .*mLac=(.*) .*mCid=(.*) .*mPsc.*": [MCC, MNC, LAC, CI],
+    "(.*) D/RILJ.*CellIdentity.*mMcc=(.*) mMnc=(.*) mCi=(.*) mPci.*mTac=(.*) mEarfcn.*CellIdentityLte.*": [MCC, MNC, CI, TAC],
+    "(.*) D/RILJ.*CellIdentity.*mCi=(.*?) mPci=.*mTac=(.*?) mEarfcn.*mMcc=(.*?) mMnc=(.*?) mAlphaLong.*CellIdentityLte.*CellIdentityLte.*": [CI, TAC, MCC, MNC],
+    "(.*) D/RILJ.*cellIdentity.*{.mcc = (.*), .mnc = (.*), .ci = (.*), .pci = 0, .tac = (.*), .earfcn.*": [MCC, MNC, CI, TAC],
+    "(.*) D/RILJ.*cellIdentity.*{.mcc = (.*), .mnc = (.*), .ci = (.*), .pci.*tac = (.*), .earfcn.*": [MCC, MNC, CI, TAC]
 }
 
 class Radio(object):
@@ -150,7 +152,7 @@ class Radio(object):
 
     def parse_android_radio(self, radio_log, pattern, rules):
         if radio_log is None:
-            returntac
+            return
         models = []
         log_list = radio_log.split("\n")
         pattern = re.compile(pattern)
@@ -158,10 +160,13 @@ class Radio(object):
             if (line.find("RIL_REQUEST_GET_CELL_INFO_LIST") != -1 or line.find("DATA_REGISTRATION_STATE") != -1 or line.find("VOICE_REGISTRATION_STATE") != -1) and line.find("error") == -1 and len(line) > 153:
                 results = re.match(pattern, line)
                 if results:
-                    if len(results.groups()[0]) != 0 and len(results.groups()[1]) != 0 and len(results.groups()[2]) != 0 and len(results.groups()[3]) != 0:
+                    if len(results.groups()[1]) != 0 and len(results.groups()[2]) != 0 and len(results.groups()[3]) != 0 and len(results.groups()[4]) != 0:
                         try:
-                            if int(results.groups()[1]) in [0, 1, 2, 3, 5, 6, 7, 9, 11, 20]:
-                                a, b, c, d = results.groups()
+                            if int(results.groups()[2]) in [0, 1, 2, 3, 5, 6, 7, 9, 11, 20]:
+                                f_time, a, b, c, d = results.groups()
+                                unix_time = None
+                                if f_time:
+                                    unix_time = self.format_time(f_time)
                                 cell_tower = [None,None,None,None]
                                 for i in rules:
                                     if i == 1:
@@ -175,6 +180,8 @@ class Radio(object):
                                     elif i == 5:
                                         cell_tower[3] = d
                                 celltower = CellTower()
+                                if unix_time:
+                                    celltower.TimeStamp.Value = TimeStamp.FromUnixTime(unix_time)
                                 celltower.MNC.Value = cell_tower[0]
                                 celltower.MCC.Value = cell_tower[1]
                                 celltower.LAC.Value = cell_tower[2]
@@ -431,6 +438,16 @@ class Radio(object):
             return float(longitude),float(latitude)
         except Exception as e:
             return None, None
+
+    def format_time(self, v):
+        try:
+            year = str(datetime.date.today())[:4]
+            full_time = year + "-" + v
+            _format = "%Y-%m-%d %H:%M:%S.%f"
+            unix_time = time.strptime(full_time, _format)
+            return time.mktime(unix_time)
+        except:
+            return
 
 
 def analyze_radio(node, extract_Deleted, extract_Source):
