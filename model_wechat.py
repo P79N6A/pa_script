@@ -1313,10 +1313,10 @@ class GenerateModel(object):
                         self.add_model(friend)
                 except Exception as e:
                     if deleted == 0:
-                        TraceService.Trace(TraceLevel.Error, "model_wechat.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
+                        TraceService.Trace(TraceLevel.Debug, "model_wechat.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
             self.push_models()
         except Exception as e:
-            TraceService.Trace(TraceLevel.Error, "model_wechat.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
+            TraceService.Trace(TraceLevel.Debug, "model_wechat.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
 
     def _get_login_device_models(self):
         if canceller.IsCancellationRequested:
@@ -1354,10 +1354,10 @@ class GenerateModel(object):
                     self.add_model(model)
                 except Exception as e:
                     if deleted == 0:
-                        TraceService.Trace(TraceLevel.Error, "model_wechat.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
+                        TraceService.Trace(TraceLevel.Debug, "model_wechat.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
             self.push_models()
         except Exception as e:
-            TraceService.Trace(TraceLevel.Error, "model_wechat.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
+            TraceService.Trace(TraceLevel.Debug, "model_wechat.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
 
     def _get_bank_card_models(self):
         if canceller.IsCancellationRequested:
@@ -1395,10 +1395,10 @@ class GenerateModel(object):
                     self.add_model(model)
                 except Exception as e:
                     if deleted == 0:
-                        TraceService.Trace(TraceLevel.Error, "model_wechat.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
+                        TraceService.Trace(TraceLevel.Debug, "model_wechat.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
             self.push_models()
         except Exception as e:
-            TraceService.Trace(TraceLevel.Error, "model_wechat.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
+            TraceService.Trace(TraceLevel.Debug, "model_wechat.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
 
     def _get_friend_models(self):
         if canceller.IsCancellationRequested:
@@ -1454,10 +1454,10 @@ class GenerateModel(object):
                         self.friend_models[self._get_user_key(account_id, user_id)] = model
                 except Exception as e:
                     if deleted == 0:
-                        TraceService.Trace(TraceLevel.Error, "model_wechat.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
+                        TraceService.Trace(TraceLevel.Debug, "model_wechat.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
             self.push_models()
         except Exception as e:
-            TraceService.Trace(TraceLevel.Error, "model_wechat.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
+            TraceService.Trace(TraceLevel.Debug, "model_wechat.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
 
     def _get_group_models(self):
         if canceller.IsCancellationRequested:
@@ -1512,10 +1512,10 @@ class GenerateModel(object):
                         self.chatroom_models[self._get_user_key(account_id, user_id)] = model
                 except Exception as e:
                     if deleted == 0:
-                        TraceService.Trace(TraceLevel.Error, "model_wechat.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
+                        TraceService.Trace(TraceLevel.Debug, "model_wechat.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
             self.push_models()
         except Exception as e:
-            TraceService.Trace(TraceLevel.Error, "model_wechat.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
+            TraceService.Trace(TraceLevel.Debug, "model_wechat.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
 
     def _get_message_models(self, progress_start, progress_end):
         if canceller.IsCancellationRequested:
@@ -1708,9 +1708,9 @@ class GenerateModel(object):
                         self.add_model(model)
                     except Exception as e:
                         if deleted == 0:
-                            TraceService.Trace(TraceLevel.Error, "model_wechat.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
+                            TraceService.Trace(TraceLevel.Debug, "model_wechat.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
             except Exception as e:
-                TraceService.Trace(TraceLevel.Error, "model_wechat.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
+                TraceService.Trace(TraceLevel.Debug, "model_wechat.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
             self.set_progress(progress_start + i * 100 / len(tables) * (progress_end - progress_start) / 100)
         self.push_models()
 
@@ -1749,10 +1749,10 @@ class GenerateModel(object):
                             owner_model = model
                 except Exception as e:
                     if deleted == 0:
-                        TraceService.Trace(TraceLevel.Error, "model_wechat.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
+                        TraceService.Trace(TraceLevel.Debug, "model_wechat.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
         except Exception as e:
             if deleted == 0:
-                TraceService.Trace(TraceLevel.Error, "model_wechat.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
+                TraceService.Trace(TraceLevel.Debug, "model_wechat.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
         return models, owner_model
 
     def _get_feed_models(self):
@@ -1856,10 +1856,10 @@ class GenerateModel(object):
                     self.add_model(model)
                 except Exception as e:
                     if deleted == 0:
-                        TraceService.Trace(TraceLevel.Error, "model_wechat.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
+                        TraceService.Trace(TraceLevel.Debug, "model_wechat.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
             self.push_models()
         except Exception as e:
-            TraceService.Trace(TraceLevel.Error, "model_wechat.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
+            TraceService.Trace(TraceLevel.Debug, "model_wechat.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
 
     def _get_search_models(self):
         if canceller.IsCancellationRequested:
@@ -1894,10 +1894,10 @@ class GenerateModel(object):
                     self.add_model(model)
                 except Exception as e:
                     if deleted == 0:
-                        TraceService.Trace(TraceLevel.Error, "model_wechat.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
+                        TraceService.Trace(TraceLevel.Debug, "model_wechat.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
             self.push_models()
         except Exception as e:
-            TraceService.Trace(TraceLevel.Error, "model_wechat.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
+            TraceService.Trace(TraceLevel.Debug, "model_wechat.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
 
     def _get_favorite_models(self):
         if canceller.IsCancellationRequested:
@@ -1937,10 +1937,10 @@ class GenerateModel(object):
                     self.add_model(model)
                 except Exception as e:
                     if deleted == 0:
-                        TraceService.Trace(TraceLevel.Error, "model_wechat.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
+                        TraceService.Trace(TraceLevel.Debug, "model_wechat.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
             self.push_models()
         except Exception as e:
-            TraceService.Trace(TraceLevel.Error, "model_wechat.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
+            TraceService.Trace(TraceLevel.Debug, "model_wechat.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
 
     def _get_favorite_item_models(self, account_id, favorite_id, favorite_deleted):
         if canceller.IsCancellationRequested:
@@ -2020,7 +2020,6 @@ class GenerateModel(object):
                         model.Content.Value.Time = self._get_timestamp(timestamp)
                         model.Content.Value.AddressName = location_address
                         model.Content.Value.Coordinate = Base.Coordinate(location_longitude, location_latitude, self._convert_location_type(location_type))
-                        #self.add_model(model.Content.Value)
                         self.add_model(model.Content)
                     elif fav_type == FAV_TYPE_ATTACHMENT:
                         model.Content = Base.Content.AttachmentContent(model)
@@ -2033,10 +2032,10 @@ class GenerateModel(object):
                     models.append(model)
                 except Exception as e:
                     if deleted == 0:
-                        TraceService.Trace(TraceLevel.Error, "model_wechat.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
+                        TraceService.Trace(TraceLevel.Debug, "model_wechat.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
         except Exception as e:
             if favorite_deleted == 0:
-                TraceService.Trace(TraceLevel.Error, "model_wechat.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
+                TraceService.Trace(TraceLevel.Debug, "model_wechat.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
         return models
 
     def _get_contact_label_models(self):
@@ -2088,10 +2087,10 @@ class GenerateModel(object):
                     
                 except Exception as e:
                     if deleted == 0:
-                        TraceService.Trace(TraceLevel.Error, "model_wechat.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
+                        TraceService.Trace(TraceLevel.Debug, "model_wechat.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
             self.push_models()
         except Exception as e:
-            TraceService.Trace(TraceLevel.Error, "model_wechat.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
+            TraceService.Trace(TraceLevel.Debug, "model_wechat.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
 
     def _get_emergency_contact_models(self):
         pass
@@ -2157,10 +2156,10 @@ class GenerateModel(object):
                     models.append(model)
                 except Exception as e:
                     if deleted == 0:
-                        TraceService.Trace(TraceLevel.Error, "model_wechat.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
+                        TraceService.Trace(TraceLevel.Debug, "model_wechat.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
         except Exception as e:
             if feed_deleted == 0:
-                TraceService.Trace(TraceLevel.Error, "model_wechat.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
+                TraceService.Trace(TraceLevel.Debug, "model_wechat.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
         return models
 
     def _get_feed_comments(self, feed_model, comment_id, feed_deleted):
@@ -2197,10 +2196,10 @@ class GenerateModel(object):
                     models.append(model)
                 except Exception as e:
                     if deleted == 0:
-                        TraceService.Trace(TraceLevel.Error, "model_wechat.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
+                        TraceService.Trace(TraceLevel.Debug, "model_wechat.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
         except Exception as e:
             if feed_deleted == 0:
-                TraceService.Trace(TraceLevel.Error, "model_wechat.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
+                TraceService.Trace(TraceLevel.Debug, "model_wechat.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
         return models
 
     def _get_story_models(self):
@@ -2266,10 +2265,10 @@ class GenerateModel(object):
                     self.add_model(model)
                 except Exception as e:
                     if deleted == 0:
-                        TraceService.Trace(TraceLevel.Error, "model_wechat.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
+                        TraceService.Trace(TraceLevel.Debug, "model_wechat.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
             self.push_models()
         except Exception as e:
-            TraceService.Trace(TraceLevel.Error, "model_wechat.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
+            TraceService.Trace(TraceLevel.Debug, "model_wechat.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
 
     def _get_story_comment_models(self, story_model, story_id, story_deleted):
         if canceller.IsCancellationRequested:
@@ -2305,10 +2304,10 @@ class GenerateModel(object):
                     models.append(model)
                 except Exception as e:
                     if deleted == 0:
-                        TraceService.Trace(TraceLevel.Error, "model_wechat.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
+                        TraceService.Trace(TraceLevel.Debug, "model_wechat.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
         except Exception as e:
             if story_deleted == 0:
-                TraceService.Trace(TraceLevel.Error, "model_wechat.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
+                TraceService.Trace(TraceLevel.Debug, "model_wechat.py Error: db:{} LINE {}".format(self.cache_db, traceback.format_exc()))
         return models
 
     @staticmethod
