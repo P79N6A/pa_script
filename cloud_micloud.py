@@ -196,7 +196,7 @@ class YunkanMiCloudParser(object):
                     m.url = pic.AbsolutePath
                     m.id = g.get('id', None)
                     m.title = g.get('title', None)
-                    m.type = g.get('mimeType', None)
+                    m.type = 'image'
                     m.modify_date = TimeHelper.convert_timestamp(g.get('dateModified', None))
                     m.add_date = TimeHelper.str_to_ts(g.get('exifinfo', {}).get('dateTime', None),
                                                       _format="%Y-%m-%d %H:%M:%S")
@@ -217,7 +217,7 @@ class YunkanMiCloudParser(object):
                 m.source = f.AbsolutePath
                 m.url = f.AbsolutePath
                 m.id = m.title = file_name
-                m.type = file_name.split(".")[-1]
+                m.type = 'video'
                 m.size = os.path.getsize(f.PathWithMountPoint)
                 self.mm.db_insert_table_media(m)
             except Exception as e:
@@ -238,7 +238,7 @@ class YunkanMiCloudParser(object):
             for n in data.get('entries', []):
                 try:
                     note = model_notes.Notes()
-                    note.content = n.get('snippet', None)
+                    note.html_content = n.get('snippet', None)
                     note.deleted = is_deleted
                     note.source = f.AbsolutePath
                     note.fold_id = n.get('folderId', None)
@@ -290,59 +290,70 @@ class YunkanMiCloudParser(object):
         self.sms.db_close()
 
     def generate_models(self):
+
         pr1 = ParserResults()
         prog1 = progress.GetBackgroundProgress("云勘小米备份-联系人", DescripCategories.Contacts)
         prog1.Start()
-        self.parse_contact(filename)
-        contact_models = model_contact.Generate(self.cache_db + '.cm').get_models()
-        pr1.Models.AddRange(contact_models)
-        pr1.Categories = DescripCategories.Contacts
-        pr1.Build('云勘小米备份')
-        ds.Add(pr1)
+        try:
+            models = model_contact.Generate(self.cache_db + '.cm').get_models()
+            pr1.Models.AddRange(models)
+            pr1.Categories = DescripCategories.Contacts
+            pr1.Build('云勘小米备份')
+            ds.Add(pr1)
+        except Exception as e:
+            print(e)
         prog1.Finish(True)
 
         pr2 = ParserResults()
         prog2 = progress.GetBackgroundProgress("云勘小米备份-多媒体", DescripCategories.Photos)
         prog2.Start()
-        self.parse_note(filename)
-        note_models = model_media.Generate(self.cache_db + '.mm', model_media.COORDINATE_TYPE_GOOGLE).get_models()
-        pr2.Models.AddRange(note_models)
-        pr2.Categories = DescripCategories.Photos
-        pr2.Build('云勘小米备份')
-        ds.Add(pr2)
+        try:
+            models = model_media.Generate(self.cache_db + '.mm', model_media.COORDINATE_TYPE_GOOGLE).get_models()
+            pr2.Models.AddRange(models)
+            pr2.Categories = DescripCategories.Photos
+            pr2.Build('云勘小米备份')
+            ds.Add(pr2)
+        except Exception as e:
+            print(e)
         prog2.Finish(True)
 
         pr3 = ParserResults()
         prog3 = progress.GetBackgroundProgress("云勘小米备份-短信", DescripCategories.Messages)
         prog3.Start()
-        self.parse_note(filename)
-        note_models = model_sms.GenerateSMSModel(self.cache_db + '.sms').get_models()
-        pr3.Models.AddRange(note_models)
-        pr3.Categories = DescripCategories.Messages
-        pr3.Build('云勘小米备份')
-        ds.Add(pr3)
+        try:
+            models = model_sms.GenerateSMSModel(self.cache_db + '.sms').get_models()
+            pr3.Models.AddRange(models)
+            pr3.Categories = DescripCategories.Messages
+            pr3.Build('云勘小米备份')
+            ds.Add(pr3)
+        except Exception as e:
+            print(e)
         prog3.Finish(True)
 
         pr4 = ParserResults()
         prog4 = progress.GetBackgroundProgress("云勘小米备份-通话记录", DescripCategories.Calls)
         prog4.Start()
-        self.parse_note(filename)
-        note_models = model_callrecord.Generate(self.cache_db + '.crm').get_models()
-        pr4.Models.AddRange(note_models)
-        pr4.Categories = DescripCategories.Calls
-        pr4.Build('云勘小米备份')
-        ds.Add(pr4)
+        try:
+            models = model_callrecord.Generate(self.cache_db + '.crm').get_models()
+            pr4.Models.AddRange(models)
+            pr4.Categories = DescripCategories.Calls
+            pr4.Build('云勘小米备份')
+            ds.Add(pr4)
+        except:
+            pass
         prog4.Finish(True)
 
         pr5 = ParserResults()
         prog5 = progress.GetBackgroundProgress("云勘小米备份-备忘录", DescripCategories.Notes)
         prog5.Start()
-        self.parse_note(filename)
-        note_models = model_notes.Generate(self.cache_db + '.nm').get_models()
-        pr5.Models.AddRange(note_models)
-        pr5.Categories = DescripCategories.Notes
-        pr5.Build('云勘小米备份')
-        ds.Add(pr5)
+        try:
+            models = model_notes.Generate(self.cache_db + '.nm').get_models()
+            pr5.Models.AddRange(models)
+            pr5.Categories = DescripCategories.Notes
+            pr5.Build('云勘小米备份')
+            ds.Add(pr5)
+        except:
+            pass
         prog5.Finish(True)
 
     def _main(self):

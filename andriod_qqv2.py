@@ -386,15 +386,16 @@ class Andriod_QQParser(object):
                         time = time[:len(time) -3]
                         self.accinfo[acc_id].append(time)      
             for acc in self.accinfo:
+                
+                ac = Account()
+                ac.ServiceType = self.sourceApp
+                ac.account_id = acc
+                ac.source = nickfile.AbsolutePath
                 try:
-                    ac = Account()
-                    ac.ServiceType = self.sourceApp
-                    ac.account_id = acc
-                    ac.source = nickfile.AbsolutePath
-                    ac.nickname = self.accinfo[acc][1]                    
-                    self.accounts.append(ac)
+                    ac.nickname = self.accinfo[acc][1]                                        
                 except Exception as e:
-                    pass
+                    ac.nickname = acc
+                self.accounts.append(ac)
         except Exception as e:
             pass
         return

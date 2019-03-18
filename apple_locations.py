@@ -2097,7 +2097,6 @@ def _get_cdma_cell_location(node, extract_deleted, cd):
             longitude = _get_table_record_value(record, "Longitude")
             latitude = _get_table_record_value(record, "Latitude")
             timestamp = _get_table_record_value(record, "Timestamp")
-
             if mcc:
                 cell.MCC.Value = str(mcc)
             if sid:
@@ -2277,7 +2276,7 @@ def analyze_apple_cell_location(node, extract_deleted, extract_source):
     if results:
         pr.Models.AddRange(results)
         pr.Build("苹果基站")
-    close_cache(cd)
+    close_cache(cd, db_path)
     return pr
 
 def create_cache():
@@ -2306,14 +2305,14 @@ def insert_cache(cd, mcc, mnc, lac, ci, latitude, longitude, sid, nid, bsid, sti
     base.START_TIME = stime
     cd.db_insert_table_basestation_information(base)
 
-def close_cache(cd):
+def close_cache(cd, db_path):
     '''关闭数据库,导出bcp'''
     try:
         cd.db_commit()
         cd.db_close()
         #bcp entry
         temp_dir = ds.OpenCachePath('tmp')
-        PA_runtime.save_cache_path(bcp_connectdevice.BASESTATION_INFORMATION, self.db_path, temp_dir)
+        PA_runtime.save_cache_path(bcp_connectdevice.BASESTATION_INFORMATION, db_path, temp_dir)
     except:
         pass
 
