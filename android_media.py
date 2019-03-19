@@ -83,7 +83,8 @@ class MediaParse(object):
                     return 
                 ts = SQLiteParser.TableSignature('files')
                 ts.Add("_id", SQLiteParser.Signatures.SignatureFactory.GetFieldSignature(SQLiteParser.FieldType.Int, SQLiteParser.FieldConstraints.NotNull))
-                for rec in self.db.ReadTableRecords(ts, self.extractDeleted, True):
+                ts.Add("_data", SQLiteParser.Signatures.SignatureFactory.GetFieldSignature(SQLiteParser.FieldType.Text,SQLiteParser.FieldConstraints.NotNull));
+                for rec in self.db.ReadTableRecords(ts, self.extractDeleted, False):
                     media = Media()
                     canceller.ThrowIfCancellationRequested()
                     media.id = self._db_record_get_int_value(rec, '_id')
@@ -144,7 +145,9 @@ class MediaParse(object):
                     return 
                 ts = SQLiteParser.TableSignature('thumbnails')
                 ts.Add("_id", SQLiteParser.Signatures.SignatureFactory.GetFieldSignature(SQLiteParser.FieldType.Int, SQLiteParser.FieldConstraints.NotNull))
-                for rec in self.db.ReadTableRecords(ts, self.extractDeleted, True):
+                ts.Add("_data", SQLiteParser.Signatures.SignatureFactory.GetFieldSignature(SQLiteParser.FieldType.Text,SQLiteParser.FieldConstraints.NotNull));
+                ts.Add("image_id", SQLiteParser.Signatures.SignatureFactory.GetFieldSignature(SQLiteParser.FieldType.Int));
+                for rec in self.db.ReadTableRecords(ts, self.extractDeleted, False):
                     thumbnails = Thumbnails()
                     canceller.ThrowIfCancellationRequested()
                     id = self._db_record_get_int_value(rec, '_id')
