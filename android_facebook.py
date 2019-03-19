@@ -400,14 +400,14 @@ class Facebook(object):
                 if "sender" in rec and (not rec["sender"].IsDBNull):
                     send_info = rec["sender"].Value
                     if send_info:
-                        send_dict = json.loads(send_dict)
+                        send_dict = json.loads(send_info)
                         if "name" in send_dict:
                             message.sender_name = send_dict.get("name")
                         if "user_key" in send_dict:
                             message.sender_id = send_dict.get("user_key")
                             if message.sender_id == self.account_id:
                                 message.is_sender = 1
-                if "text" in rec and (not recp["Text"].IsDBNull):
+                if "text" in rec and (not rec["text"].IsDBNull):
                     message.content = rec["text"].Value
                     message.type = 1
                 if "timestamp_sent_ms" in rec and (not rec["timestamp_sent_ms"].IsDBNull):
