@@ -238,10 +238,10 @@ class Generate(object):
             while(sr.Read()):
                 if sr[0] == 0:
                     continue
-                #if sr[2] not in self.id:
-                #    self.id.append(sr[2])
-                #else:
-                #    continue
+                if sr[2] not in self.id:
+                    self.id.append(sr[2])
+                else:
+                    continue
                 c = Call()
                 if not IsDBNull(sr[10]):
                     c.CountryCode = sr[10]
