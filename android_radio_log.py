@@ -128,7 +128,7 @@ class Radio(object):
         self.db_path = cachepath + '\\' + md5_db.hexdigest().upper() + '.db'
         self.cd.db_create(self.db_path)
 
-    def insert_cache(self, mcc, mnc, lac, ci, latitude, longitude):
+    def insert_cache(self, mcc, mnc, lac, ci, latitude, longitude, timestamp):
         '''插入数据'''
         base = bcp_connectdevice.BasestationInfo()
         base.MCC = mcc
@@ -137,6 +137,7 @@ class Radio(object):
         base.CellID = ci
         base.LATITUDE = latitude
         base.LONGITUDE = longitude
+        base.START_TIME = timestamp
         self.cd.db_insert_table_basestation_information(base)
 
     def close_cache(self):
@@ -167,7 +168,7 @@ class Radio(object):
                                 unix_time = None
                                 if f_time:
                                     unix_time = self.format_time(f_time)
-                                cell_tower = [None,None,None,None]
+                                cell_tower = [None, None, None, None]
                                 for i in rules:
                                     if i == 1:
                                         cell_tower[0] = a
@@ -195,7 +196,7 @@ class Radio(object):
                                     coord.Latitude.Value = latitude
                                     loc.Position.Value = coord
                                     models.append(loc)
-                                self.insert_cache(cell_tower[0], cell_tower[1], cell_tower[2], cell_tower[3], latitude, longitude)
+                                self.insert_cache(cell_tower[0], cell_tower[1], cell_tower[2], cell_tower[3], latitude, longitude, unix_time)
                         except Exception as e: 
                             print(e)
         return models
