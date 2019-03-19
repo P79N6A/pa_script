@@ -13,16 +13,12 @@ except:
 del clr
 
 import sqlite3
-import shutil
-import hashlib
-import random
-import json
 
 import System.Data.SQLite as SQLite
 import PA.InfraLib.ModelsV2.CommonEnum.SMSStatus as SMSStatus
 import PA.InfraLib.ModelsV2.Base.Content.TextContent as TextContent
 import PA.InfraLib.ModelsV2.Base.Contact as Contact
-from ScriptUtils import CASE_NAME, exc, tp, BaseParser, DEBUG
+from ScriptUtils import exc
 
 
 MSG_TYPE_ALL    = 0
@@ -549,8 +545,9 @@ class GenerateMMSModel(GenerateSMSModel):
             row = self.cursor.fetchone()
             while row is not None:
                 attachment = ModelsV2.Base.Attachment()
-                if row[1] is not None:
-                    mms_id = row[1]
+                if not row[1]:
+                    continue
+                mms_id = row[1]
                 # if row[2] is not None:
                 #     sim_id = row[2]
                 if row[3] is not None:
@@ -560,7 +557,7 @@ class GenerateMMSModel(GenerateSMSModel):
                 # if row[6] is not None:
                 #     attachment.Charset = row[6]
                 # if row[7] is not None:
-                #     attachment.ContentType = row[7]
+                #     attachment.MimeType = row[7]
                 if mms_parts_dict.has_key(mms_id):
                     mms_parts_dict[mms_id].append(attachment)
                 else:

@@ -208,6 +208,7 @@ class AndroidBrowserParser(model_browser.BaseBrowserParser, BaseAndroidParser):
         for rec in self._read_table(table_name):
             try:
                 if (self._is_empty(rec, 'url', 'title') or
+                        self._is_duplicate(rec, '_id') or
                         not self._is_url(rec, 'url')):
                     continue
                 browser_record = model_browser.Browserecord()

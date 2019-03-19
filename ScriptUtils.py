@@ -1043,32 +1043,41 @@ class ParserBase(object):
 
 
 class BaseField(object):
-    def __init__(self, column_name='', null=True):
+    def __init__(self, column_name='', null=True, **kwargs):
         self.name = column_name
+        self.default_value = kwargs['default']
         self.constraint = FieldConstraints.NotNull if null is True else FieldConstraints.None
 
 
 class CharField(BaseField):
-    def __init__(self, column_name='', null=True):
-        super(CharField, self).__init__(column_name, null)
+    def __init__(self, column_name='', null=True, **kwargs):
+        if 'default' not in kwargs:
+            kwargs['default'] = ''
+        super(CharField, self).__init__(column_name, null, **kwargs)
         self.type = FieldType.Text
 
 
 class IntegerField(BaseField):
-    def __init__(self, column_name='', null=True):
-        super(IntegerField, self).__init__(column_name, null)
+    def __init__(self, column_name='', null=True, **kwargs):
+        if 'default' not in kwargs:
+            kwargs['default'] = 0
+        super(IntegerField, self).__init__(column_name, null, **kwargs)
         self.type = FieldType.Int
 
 
 class FloatField(BaseField):
-    def __init__(self, column_name='', null=True):
-        super(FloatField, self).__init__(column_name, null)
+    def __init__(self, column_name='', null=True, **kwargs):
+        if 'default' not in kwargs:
+            kwargs['default'] = 0
+        super(FloatField, self).__init__(column_name, null, **kwargs)
         self.type = FieldType.Float
 
 
 class BlobField(BaseField):
-    def __init__(self, column_name='', null=True):
-        super(BlobField, self).__init__(column_name, null)
+    def __init__(self, column_name='', null=True, **kwargs):
+        if 'default' not in kwargs:
+            kwargs['default'] = ''
+        super(BlobField, self).__init__(column_name, null, **kwargs)
         self.type = FieldType.Blob
 
 
@@ -1696,6 +1705,8 @@ class BaseParser(object):
         '''
         try:
             for i in args:
+                if not rec.ContainsKey(i):
+                    continue
                 value = rec[i].Value
                 if IsDBNull(value) or value in ('', ' ', None, [], {}):
                     return True
@@ -1737,8 +1748,11 @@ class BaseParser(object):
 
         for i in args:
             try:
-                match_url = re.match(URL_PATTERN, rec[i].Value)
-                match_ip = re.match(IP_PATTERN, rec[i].Value)
+                _value = rec[i].Value
+                if IsDBNull(_value):
+                    return False
+                match_url = re.match(URL_PATTERN, _value)
+                match_ip = re.match(IP_PATTERN, _value)
                 if not match_url and not match_ip:
                     return False
             except:
@@ -1957,6 +1971,7 @@ class MiddleDBModelMeta(type):
         ])
         return instance
 
+
 class MiddleDBModel(object):
     '''用于中间数据库 Model'''
     __metaclass__ = MiddleDBModelMeta
@@ -1969,12 +1984,12 @@ class MiddleDBModel(object):
         for attr, value in self.__attr_map__.items():
             setattr(self, attr, None)
 
-    def get_values(self, attr_keys):
-        res = [getattr(self, key) for key in attr_keys]
+    def get_values(self):
+        res = [getattr(self, key) for key in self.__attr_map__.keys()]
         return res
 
 
-class VersionDB(MiddleDBModel):
+class DBVersion(MiddleDBModel):
     __table__ = 'version'
 
     key = Fields.CharField(column_name='key')
@@ -2007,17 +2022,51 @@ class SQLCompiler(object):
     @staticmethod
     def insert_sql_from_model(data_model):
         sql_pattern = '''
-            INSERT INTO {table_name} ({fields}) values({question_mark})
+            INSERT INTO {table_name} ({fields}) VALUES({question_mark})
         '''
-        field_names = []
-        attr_keys = []
-        for attr, field in data_model.__attr_map__.items():
-            attr_keys.append(attr)
-            field_names.append(attr)
+        field_names = data_model.__attr_map__.keys()
         insert_sql = sql_pattern.format(table_name=data_model.__table__,
                                         fields=', '.join(field_names),
                                         question_mark=', '.join(['?' for _ in range(len(field_names))]))
-        return attr_keys, insert_sql
+        return insert_sql
+
+    @staticmethod
+    def select_sql_from_model(data_model):
+        sql_pattern = '''
+            SELECT {fields} FROM {table_name}
+        '''
+        field_names = data_model.__attr_map__.keys()
+        select_sql = sql_pattern.format(table_name=data_model.__table__,
+                                        fields=', '.join(field_names))
+        return select_sql
+
+
+class SQLiteReaderHelper(object):
+    def __init__(self, reader, data_model):
+        self.reader = reader
+        self.data_model = data_model
+
+    def Read(self):
+        return self.reader.Read()
+
+    def __getitem__(self, key):
+        '''
+
+        Args:
+            key(str):
+
+        Returns:
+
+        '''
+        field = self.data_model.__attr_map__.get(key)
+        try:
+            index = self.data_model.__attr_map__.keys().index(key)
+            value = self.reader[index]
+            if IsDBNull(value) or not value:
+                return field.default_value
+            return value
+        except:
+            exc()
 
 
 class BaseDBModel(object):
@@ -2045,6 +2094,11 @@ class BaseDBModel(object):
         self.db_create_table()
         self.db_commit()
 
+    def db_connect(self, db_path):
+        self.db = SQLiteConnection('Data Source = {}'.format(db_path))
+        self.db.Open()
+        self.db_cmd = SQLiteCommand(self.db)
+
     def db_commit(self):
         if self.db_trans is not None:
             self.db_trans.Commit()
@@ -2069,8 +2123,26 @@ class BaseDBModel(object):
         self.db_cmd.CommandText = create_sql
         self.db_cmd.ExecuteNonQuery()
 
+    def db_select_reader_from_sql(self, sql):
+        self.db_cmd.CommandText = sql
+        reader = self.db_cmd.ExecuteReader()
+        return reader
+
+    def db_select_reader_from_mdbmodel(self, data_model):
+        '''
+        Args:
+            data_model
+
+        Returns:
+            SQLiteReaderHelper
+        '''
+        _sql = SQLCompiler.select_sql_from_model(data_model)
+        self.db_cmd.CommandText = _sql
+        reader = self.db_cmd.ExecuteReader()
+        return SQLiteReaderHelper(reader, data_model)
+
     def db_create_table(self):
-        self.db_create_tb_from_mdbmodel(VersionDB)
+        self.db_create_tb_from_mdbmodel(DBVersion)
         if self.db_cmd is not None:
             for create_sql in self.create_sql_list:
                 self.db_cmd.CommandText = ''
@@ -2087,8 +2159,8 @@ class BaseDBModel(object):
     def db_insert_tb_from_mdbmodel(self, data_model):
         if not isinstance(data_model, MiddleDBModel):
             return
-        attr_keys, _sql = SQLCompiler.insert_sql_from_model(data_model)
-        values = data_model.get_values(attr_keys)
+        _sql = SQLCompiler.insert_sql_from_model(data_model)
+        values = data_model.get_values()
         self.db_insert_table(_sql, values)
 
     def db_insert_table(self, sql, values):
@@ -2143,6 +2215,18 @@ class BaseDBModel(object):
         return not (db_version_check and app_version_check)
 
 
+class CSModelSetHelper(object):
+    def __init__(self, csm):
+        self.csm = csm
+
+    def __set__(self, instance, value):
+        if value:
+            pass
+
+    def __setattr__(self, key, value):
+        pass
+
+
 class BaseColumn(object):
     def __init__(self):
         self.source = ''
@@ -2158,3 +2242,5 @@ class BaseColumn(object):
 
     def get_values(self):
         return (self.source, self.deleted, self.repeated)
+
+

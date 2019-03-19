@@ -35,6 +35,7 @@ PDUHEADERS_CC   = 130
 PDUHEADERS_FROM = 137
 PDUHEADERS_TO   = 151
 
+VS_FLAG = False
 
 @parse_decorator
 def analyze_sms(node, extract_deleted, extract_source):
@@ -47,7 +48,6 @@ def analyze_sms(node, extract_deleted, extract_source):
         (r'(?i)/sms/sms\.db$', AndroidSMSParserFsLogic),
         (r'(?i)/sms\.vmsg$', VMSGParser),                   # AutoBackup OPPO MEIZU
         (r'(?i)/sms\.db$', AutoBackupHuaweiSMSParser),      # AutoBackup HuaWei
-        
     ])
     res = []
     hit_nodes = []
@@ -89,6 +89,7 @@ def analyze_sms(node, extract_deleted, extract_source):
 def analyze_mms(node, extract_deleted, extract_source):
     MMS_PATTERNS = OrderedDict([
         (r'(?i)com.android.providers.telephony/databases/mmssms\.db$', AndroidMMSParser),
+        (r'(?i)/com.android.mms/databases/mmssms\.db$', AndroidMMSParser),
         (r'(?i)/sms.db', AndroidMMSParser,),  # AutoBackup HuaWei
     ])
     res = []
@@ -261,8 +262,9 @@ class AndroidSMSParser(BaseAndroidParser):
             pk_name = 'group_id'
         for rec in self._read_table(table_name):
             try:
-                if (self._is_empty(rec, 'type', 'body') or
-                        self._include_garbled_str(rec['body'].Value)):
+                if (self._is_empty(rec, 'type', 'body')
+                        or self._is_duplicate(rec, pk_name)
+                        or self._include_garbled_str(rec['body'].Value)):
                     continue
                 if (rec['address'].Value and
                         not self._is_num(rec['address'].Value)):
@@ -320,6 +322,12 @@ class AndroidSMSParser(BaseAndroidParser):
         except:
             return False
 
+    def _is_duplicate(self, rec=None, pk_name='', pk_value=None):
+        if VS_FLAG:
+            return False
+        return super(AndroidSMSParser, self)._is_duplicate(rec, pk_name, pk_value)
+
+
 
 class AndroidMMSParser(AndroidSMSParser):
     def __init__(self, node, db_name):
@@ -328,18 +336,19 @@ class AndroidMMSParser(AndroidSMSParser):
         self.Generate = model_sms.GenerateMMSModel
 
     def parse_main(self):
-        if self.root.AbsolutePath.endswith('com.android.providers.telephony/databases'):
+        if ('com.android.providers.telephony' in self.root.AbsolutePath
+                or 'com.android.mms' in self.root.AbsolutePath):
             if self._read_db('mmssms.db'):
                 addr_dict = self.preparse_addr('addr')
-                self.parse_part('part')
-                self.parse_mms('pdu', addr_dict)
+                mms_mid_text_dict = self.parse_part('part')
+                self.parse_mms('pdu', addr_dict, mms_mid_text_dict)
 
         elif (not self.root.AbsolutePath.endswith('sms/sms.db')
               and self.root.AbsolutePath.endswith('/sms.db')):
             if self._read_db(node=self.root):
                 addr_dict = self.preparse_addr('addr_tb')
-                self.parse_part('part_tb')
-                self.parse_mms('pdu_tb', addr_dict)
+                mms_mid_text_dict = self.parse_part('part_tb')
+                self.parse_mms('pdu_tb', addr_dict, mms_mid_text_dict)
 
     def preparse_addr(self, table_name):
         ''' addr
@@ -394,26 +403,34 @@ class AndroidMMSParser(AndroidSMSParser):
             _data	        TEXT    
             text	        TEXT        # 如果是彩信始末，为彩信的SMIL内容；如果是文本附件，为附件内容；如果是视频、音频附件，此参数为空
         '''
+        mms_mid_text_dict = {}
         for rec in self._read_table(table_name):
             try:
-                if ((rec.ContainsKey('_id') and self._is_duplicate(rec, '_id')) or
-                        self._is_empty(rec, '_data')):
+                if (rec.ContainsKey('_id') and self._is_duplicate(rec, '_id')
+                        or self._is_empty(rec, 'ct')):
                     continue
                 part = model_sms.MMSPart()
                 if rec.ContainsKey('_id'):
                     part._id = rec['_id'].Value 
-                part.mms_id          = rec['mid'].Value
+                part.mms_id = rec['mid'].Value
                 # part.sim_id
-                part.part_filename   = rec['name'].Value
+                part.part_filename = rec['cl'].Value if rec.ContainsKey('cl') else rec['name'].Value
                 part.part_local_path = self._convert_nodepath(rec['_data'].Value)
-                part.part_text       = rec['text'].Value
+                # part.part_text = 
                 # part.part_charset
-                # part.part_contenttype 
+                if '/' in rec['ct'].Value:
+                    part.part_contenttype = rec['ct'].Value.split('/')[0]
+
+                if rec['text'].Value and part.part_contenttype == 'text':
+                    mms_mid_text_dict[part.mms_id] = rec['text'].Value
                 self.csm.db_insert_table_mms_part(part)
             except:
                 exc()
+        self.csm.db_commit()
+        return mms_mid_text_dict
 
-    def parse_mms(self, table_name, addr_dict):
+
+    def parse_mms(self, table_name, addr_dict, mms_mid_text_dict):
         """ pdu - 彩信
 
             FieldName	SQLType	
@@ -471,7 +488,7 @@ class AndroidMMSParser(AndroidSMSParser):
                 mms.recv_phonenumber   = addr_dict.get(mms._id, {}).get('to_address')
                 mms.subject            = self._decode_mms_subject(rec['sub'].Value)
                 mms.read_status        = rec['read'].Value
-                # mms.body               = rec['body'].Value
+                mms.body               = mms_mid_text_dict.get(mms._id)
                 mms.delivered_date     = rec['date'].Value
                 mms.send_time          = rec['date_sent'].Value if 'date_sent' in rec.Keys else mms.delivered_date
                 mms.type               = rec['msg_box'].Value        # MSG_TYPE
@@ -481,6 +498,7 @@ class AndroidMMSParser(AndroidSMSParser):
                 self.csm.db_insert_table_mms(mms)
             except:
                 exc()
+        self.csm.db_commit()
 
     def _convert_nodepath(self, raw_path):
         '''
@@ -508,7 +526,6 @@ class AndroidMMSParser(AndroidSMSParser):
                 nodes = list(fs.Search(raw_path))
                 if nodes and nodes[0].Type == NodeType.File:
                     return nodes[0].AbsolutePath
-
             return raw_path
         except:
             exc()
@@ -517,7 +534,6 @@ class AndroidMMSParser(AndroidSMSParser):
     def _decode_mms_subject(_rec_value):
         ''' handle mms subject garbled '''
         try:
-            tp(_rec_value)
             if IsDBNull(_rec_value):
                 return
             _list = list(bytearray(_rec_value, 'utf8', 'ignore'))
@@ -568,7 +584,8 @@ class AndroidSMSParserFsLogic(AndroidSMSParser):
                 sms = model_sms.SMS()
                 try:
                     sms.sms_id = rec['phoneNumber'].Value + rec['time'].Value
-                    if self._include_garbled_str(rec['body'].Value):
+                    if (self._is_duplicate(pk_value=sms.sms_id)
+                            or self._include_garbled_str(rec['body'].Value)):
                         continue
                 except:
                     exc()
@@ -731,8 +748,9 @@ class AndroidIcingParser(AndroidSMSParser):
         for rec in self._read_table(table_name):
             try:
                 pk_name = '_id'
-                if (self._is_empty(rec, 'type', 'body') or
-                        self._include_garbled_str(rec['body'].Value)):
+                if (self._is_empty(rec, 'type', 'body')
+                        or self._is_duplicate(rec, pk_name)
+                        or self._include_garbled_str(rec['body'].Value)):
                     continue
 
                 if rec['msg_type'].Value == 'sms':
@@ -885,6 +903,7 @@ class OldSamsungSMSMMSParser(AndroidSMSParser):
             try:
                 pk_name = '_id'
                 if (self._is_empty(rec, 'number', 'date')
+                        or self._is_duplicate(rec, pk_name)
                         or self._include_garbled_str(rec['m_content'].Value)):
                     continue
 
