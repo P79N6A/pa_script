@@ -146,10 +146,10 @@ class WeChatParser(Wechat):
                 self.parse_user_node(node, build)
                 gc.collect()
 
-            try:
-                self.ar.parse()
-            except Exception as e:
-                pass
+            #try:
+            #    self.ar.parse()
+            #except Exception as e:
+            #    pass
             
             self.ar = None
             prog.Finish(True)
