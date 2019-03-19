@@ -101,17 +101,22 @@ class AppLists(object):
                     NEED_RUN = True
                     app_info = model_applists.Info()
                     dicts = defaultdict(list)
-                    name = package.Attribute("name").Value
-                    code_path = package.Attribute("codePath").Value
-                    install_time = self._format_time(package.Attribute("it").Value)
-                    update_time = self._format_time(package.Attribute("ut").Value)
+                    install_time = update_time = None
+                    name = package.Attribute("name").Value if package.Attribute("name") else ""
+                    code_path = package.Attribute("codePath").Value if package.Attribute("codePath") else ""
+                    if package.Attribute("it"):
+                        install_time = self._format_time(package.Attribute("it").Value)
+                    if package.Attribute("ut"):
+                        update_time = self._format_time(package.Attribute("ut").Value)
                     if name in self.binds_set:
                         continue
                     app_info.name = name
                     app_info.bind_id = name
                     app_info.installedPath = code_path
-                    app_info.purchaseDate = install_time
-                    app_info.deletedDate = update_time
+                    if install_time:
+                        app_info.purchaseDate = install_time
+                    if update_time:
+                        app_info.deletedDate = update_time
 
                     path = os.path.join(ds.FileSystem.MountPoint, code_path)
                     if os.path.isdir(path):
@@ -138,12 +143,13 @@ class AppLists(object):
                             self.apps_db.db_insert_table_applists(app_info)
                         continue
                     perm_list = perm.Elements("item")
-                    for item in perm_list:
-                        name = item.Attribute("name").Value
-                        granted = item.Attribute("granted").Value
-                        if granted and name and granted == "true":
-                            dicts["permission"].append(name)
-                    app_info.permission = pickle.dumps(dicts["permission"])
+                    if perm_list:
+                        for item in perm_list:
+                            name = item.Attribute("name").Value if item.Attribute("name") else ""
+                            granted = item.Attribute("granted").Value if item.Attribute("granted") else ""
+                            if granted and name and granted == "true":
+                                dicts["permission"].append(name)
+                        app_info.permission = pickle.dumps(dicts["permission"])
                     if app_info.bind_id:
                         self.apps_db.db_insert_table_applists(app_info)
         return icon_list
