@@ -130,7 +130,7 @@ def checkhit(root):
             if len(list(node)) > 1 : 
                 i = 1
                 for d in node:                                                             
-                    data = [hitdict[re][0] +  "-分身版本-" + str(i), hitdict[re][1]]
+                    data = [hitdict[re][0] +  "_" + str(i), hitdict[re][1]]
                     i = i+ 1
                     nodes.append((d,data))                    
             else:

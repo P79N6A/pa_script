@@ -90,6 +90,8 @@ hitdict =  {'(?i)Library/Preferences/com.tencent.mqq.plist$':['QQ',ParserResults
             '(?i)Library/Preferences/com.tencent.mQQi.plist$':['mQQi',ParserResults()],
             '(?i)Library/Preferences/com.tencent.tim.plist$':['QQ TIM',ParserResults()],
             }
+progress_is_start = False
+lock = threading.Lock()
 def checkhit(root):
     nodes = []
     global hitdict
@@ -99,7 +101,7 @@ def checkhit(root):
             if len(node) > 1 : 
                 i = 1
                 for d in node:                                                             
-                    data = [hitdict[re][0] +  "-分身版本-" + str(i), hitdict[re][1]]
+                    data = [hitdict[re][0] +  "_" + str(i), hitdict[re][1]]
                     i = i+ 1
                     nodes.append((d,data))                    
             else:
@@ -116,6 +118,7 @@ def startthread(root,extdata,extract_deleted,extract_source):
         pass
     
 def analyze_qq(root, extract_deleted, extract_source):
+    global progress_is_start
     pr = ParserResults()
     try:             
         nodes = checkhit(root)
@@ -135,7 +138,19 @@ def analyze_qq(root, extract_deleted, extract_source):
             pr.Add(node[1][1])        
     except:
         pass
+    if progress_is_start == True:
+        progress.Finish(True)
     return pr
+def progress_start():
+    global lock,progress_is_start
+    try:    
+        if lock.acquire():
+            if progress_is_start == False:
+                progress_is_start = True
+                progress.Start()
+        lock.release()
+    except:
+        lock.release()
 class QQParser(object):
     def __init__(self, app_root_dir,sourceApp, extract_deleted, extract_source):
         self.root = app_root_dir.Parent.Parent.Parent
@@ -181,7 +196,7 @@ class QQParser(object):
         except:
             pass
         if len(self.accounts) != 0:
-            progress.Start()
+            progress_start()
         else:
             progress.Skip()
             return   
