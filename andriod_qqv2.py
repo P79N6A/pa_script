@@ -117,13 +117,17 @@ hitdict =  { '(?i)com.tencent.mobileqq/.*databases$':['QQ','mobileqq'],
             '(?i)com.tencent.tim/.*databases$':['QQ TIM','tim'],
             '(?i)com.tencent.minihd.qq/.*databases$':['平板QQ','minihd']
             }    
+
+progress_is_start = False
+lock = threading.Lock()
+
 def checkhit(root):
     nodes = []
     global hitdict
     for re in hitdict.keys():                 
         node = root.FileSystem.Search(re)
         if(len(list(node)) != 0):
-            if len(node) > 1 : 
+            if len(list(node)) > 1 : 
                 i = 1
                 for d in node:                                                             
                     data = [hitdict[re][0] +  "-分身版本-" + str(i), hitdict[re][1]]
@@ -143,6 +147,7 @@ def startthread(root,extdata,extract_deleted,extract_source):
         pass
     
 def analyze_andriod_qq(root, extract_deleted, extract_source):
+    global progress_is_start
     pr = ParserResults()
     try:             
         nodes = checkhit(root)
@@ -162,7 +167,18 @@ def analyze_andriod_qq(root, extract_deleted, extract_source):
             pr.Add(node[1][1])        
     except:
         pass
+    if progress_is_start == True:
+        progress.Finish(True)
     return pr
+
+def progress_start():
+    global lock,progress_is_start
+    if lock.acquire():
+        if progress_is_start == False:
+            progress_is_start = True
+            progress.Start()
+    lock.release()
+
 class Andriod_QQParser(object):
     def __init__(self, app_root_dir, sourceApp,resFloder,extract_deleted, extract_source):
         self.root = app_root_dir.Parent
@@ -212,7 +228,7 @@ class Andriod_QQParser(object):
         except:
             pass
         if(len(self.accounts) != 0):                    
-            progress.Start()
+            progress_start()
         else:
             progress.Skip()            
             return
