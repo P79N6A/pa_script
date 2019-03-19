@@ -25,7 +25,7 @@ def analyze_multi_user(node, extract_deleted, extract_source):
         return
     results = []
     for unode in cnode:
-        if unode.Type == NodeType.File:
+        if unode.Type == NodeType.File and unode.Name.endswith("xml"):
             data = parse_xml(unode)
             if data:
                 results.append(data)
