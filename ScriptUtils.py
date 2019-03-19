@@ -1706,6 +1706,7 @@ class BaseParser(object):
         try:
             for i in args:
                 if not rec.ContainsKey(i):
+                    tp('key word {}'.format(i) + ' not in rec')
                     continue
                 value = rec[i].Value
                 if IsDBNull(value) or value in ('', ' ', None, [], {}):
@@ -1714,8 +1715,7 @@ class BaseParser(object):
                     return True
             return False
         except:
-            exc()
-            tp(*args)
+            tp(''.join(args))
             return True
 
     def _is_contains(self, rec, *keys):
