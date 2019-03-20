@@ -2215,17 +2215,17 @@ class BaseDBModel(object):
         return not (db_version_check and app_version_check)
 
 
-class CSModelSetHelper(object):
+class CSModelSetter(object):
     def __init__(self, csm):
-        self.csm = csm
-
-    def __set__(self, instance, value):
-        if value:
-            pass
+        super(CSModelSetter, self).__setattr__('csm', csm)
 
     def __setattr__(self, key, value):
-        pass
+        if IsDBNull(value) or not value:
+            return
+        setattr(self.csm, key, value)
 
+    def get_csm(self):
+        return self.csm
 
 class BaseColumn(object):
     def __init__(self):

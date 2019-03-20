@@ -541,7 +541,7 @@ class AndroidOldBrowserParser(AndroidBrowserParser):
                     search_history.deleted = 1 if rec.IsDeleted else 0
                     self.csm.db_insert_table_searchhistory(search_history)
                 else:
-                    form_data = model_browser.Formdata()
+                    form_data = model_browser.DBFormdata()
                     form_data.key = _value
                     # form_data.value = None
                     form_data.url = _url

@@ -19,7 +19,7 @@ from PA.InfraLib.Utils import ConvertHelper
 import PA.InfraLib.ModelsV2.Base.BrowserFormData as BrowserFormData
 from PA.InfraLib.ModelsV2.CommonEnum import FormType
 
-from ScriptUtils import exc, tp, BaseParser, MiddleDBModel, Fields, BaseDBModel
+from ScriptUtils import exc, tp, BaseParser, MiddleDBModel, Fields, BaseDBModel, CSModelSetter
 
 
 
@@ -39,7 +39,7 @@ VERSION_VALUE_DB = 6
 VERSION_KEY_APP = 'app'
 
 
-class Formdata(MiddleDBModel):
+class DBFormdata(MiddleDBModel):
     __table__ = 'form_data'
 
     url = Fields.CharField()
@@ -49,10 +49,10 @@ class Formdata(MiddleDBModel):
     last_visited = Fields.CharField()
     visited_count = Fields.IntegerField()
     source = Fields.CharField()
-    deleted = Fields.IntegerField()
+    deleted = Fields.IntegerField(default=0)
     
-    def get_values(self, attr_keys):
-        return super(Formdata, self).get_values(attr_keys)
+    def get_values(self):
+        return super(DBFormdata, self).get_values()
 
 
 SQL_CREATE_TABLE_BOOKMARK = '''
@@ -237,7 +237,7 @@ class MB(BaseDBModel):
         super(MB, self).__init__()
         self.VERSION_VALUE_DB = VERSION_VALUE_DB
         self.create_sql_list.extend([
-            Formdata,
+            DBFormdata,
             SQL_CREATE_TABLE_BOOKMARK,
             SQL_CREATE_TABLE_SAVEPAGE,
             SQL_CREATE_TABLE_SEARCHHISTORY,
@@ -485,7 +485,7 @@ class Cookie(Column):
 class Generate(object):
 
     def __init__(self, db_cache):
-        self.db_cache = db_cache
+        self.cache_db = db_cache
         self.db = None
         self.owneruser = 'default_user'
 
@@ -494,9 +494,8 @@ class Generate(object):
 
     def get_models(self):
         models = []
-        self.db = SQLite.SQLiteConnection('Data Source = {};ReadOnly=True'.format(self.db_cache))
-        self.db.Open()
-        self.db_cmd = SQLite.SQLiteCommand(self.db)
+        self.db_model = MB()
+        self.db_model.db_connect(self.cache_db)
 
         models.extend(self._get_account_models())
         models.extend(self._get_bookmark_models())
@@ -508,16 +507,14 @@ class Generate(object):
         models.extend(self._get_formdata_models())
         # models.extend(self._get_fileinfo_models())
         # models.extend(self._get_plugin_models())
-        self.db_cmd.Dispose()
-        self.db.Close()
+        self.db_model.db_close()
         return models
 
     def _get_account_models(self):
         model = []
         sql = '''select distinct * from account group by name'''
         try:
-            self.db_cmd.CommandText = sql
-            row = self.db_cmd.ExecuteReader()
+            row = self.db_model.db_select_reader_from_sql(sql)
             while (row.Read()):
                 canceller.ThrowIfCancellationRequested()
                 user = Generic.User()
@@ -552,8 +549,7 @@ class Generate(object):
         model = []
         sql = '''select distinct * from bookmark'''
         try:
-            self.db_cmd.CommandText = sql
-            row = self.db_cmd.ExecuteReader()
+            row = self.db_model.db_select_reader_from_sql(sql)
             while (row.Read()):
                 canceller.ThrowIfCancellationRequested()
                 bookmark = Generic.WebBookmark()
@@ -591,8 +587,7 @@ class Generate(object):
         8    repeated INTEGER
         '''
         try:
-            self.db_cmd.CommandText = sql
-            row = self.db_cmd.ExecuteReader()
+            row = self.db_model.db_select_reader_from_sql(sql)
             while (row.Read()):
                 canceller.ThrowIfCancellationRequested()
                 visited = Generic.VisitedPage()
@@ -632,8 +627,7 @@ class Generate(object):
         11  repeated INTEGER
         '''
         try:
-            self.db_cmd.CommandText = sql
-            row = self.db_cmd.ExecuteReader()
+            row = self.db_model.db_select_reader_from_sql(sql)
             while (row.Read()):
                 canceller.ThrowIfCancellationRequested()
                 download = Generic.Attachment()
@@ -665,8 +659,7 @@ class Generate(object):
         model = []
         sql = '''select distinct * from file_info'''
         try:
-            self.db_cmd.CommandText = sql
-            row = self.db_cmd.ExecuteReader()
+            row = self.db_model.db_select_reader_from_sql(sql)
             while (row.Read()):
                 canceller.ThrowIfCancellationRequested()
                 browseload = Generic.Attachment()
@@ -708,8 +701,7 @@ class Generate(object):
         7    repeated INTEGER
         '''
         try:
-            self.db_cmd.CommandText = sql
-            row = self.db_cmd.ExecuteReader()
+            row = self.db_model.db_select_reader_from_sql(sql)
             while (row.Read()):
                 canceller.ThrowIfCancellationRequested()
                 search = SearchedItem()
@@ -754,8 +746,7 @@ class Generate(object):
             11    repeated INTEGER
         '''
         try:
-            self.db_cmd.CommandText = sql
-            row = self.db_cmd.ExecuteReader()
+            row = self.db_model.db_select_reader_from_sql(sql)
             while (row.Read()):
                 canceller.ThrowIfCancellationRequested()
                 cookie = Generic.Cookie()
@@ -783,16 +774,6 @@ class Generate(object):
 
     def _get_formdata_models(self):
         model = []
-        sql = '''select 
-                    url,
-                    key,
-                    value,
-                    form_type,
-                    last_visited, 
-                    visited_count,
-                    source,
-                    deleted                   
-                from form_data '''
         '''
         0    url,
         1    key,
@@ -804,28 +785,19 @@ class Generate(object):
         7    deleted
         '''
         try:
-            self.db_cmd.CommandText = sql
-            row = self.db_cmd.ExecuteReader()
-            while (row.Read()):
-                form_data = BrowserFormData()
-                if not IsDBNull(row[0]):
-                    form_data.Url = row[0]
-                if not IsDBNull(row[1]):
-                    form_data.Key = row[1]
-                if not IsDBNull(row[2]):
-                    form_data.Value = row[2]
-                if not IsDBNull(row[3]) and row[3] in FROMDATA_TYPE:
-                    form_data.Type = FROMDATA_TYPE.get(row[3])
-                if not IsDBNull(row[4]) and row[4] not in [None, '']:
-                    form_data.LastVisted = self._convert_webkit_timestamp(row[5])
-                if not IsDBNull(row[5]):
-                    form_data.VistedCount = row[5]
-                if not IsDBNull(row[6]):
-                    form_data.SourceFile = str(row[6])
-                if not IsDBNull(row[7]):
-                    form_data.Deleted = self._convert_deleted_status(row[7])
-                model.append(form_data)
-            row.Close()
+            r = self.db_model.db_select_reader_from_mdbmodel(DBFormdata)
+            while r.Read():
+                form_data = CSModelSetter(BrowserFormData())
+                form_data.Deleted = self._convert_deleted_status(r['deleted'])
+                form_data.Type = FROMDATA_TYPE.get(r['form_type'])
+                form_data.Url = r['url']
+                form_data.Key = r['key']
+                form_data.Value = r['value']
+                form_data.Type = FROMDATA_TYPE.get(r['form_type'])
+                # form_data.LastVisted = self._get_timestamp(r['last_visited']# TODO 没有测试数据, 17 or 13 =
+                form_data.VistedCount = r['visited_count']
+                form_data.SourceFile = r['source']
+                model.append(form_data.get_csm())
         except:
             exc()
         return model
